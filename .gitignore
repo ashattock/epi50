@@ -3,6 +3,7 @@
 core*
 *.nfs*
 *.rds
+config/
 cache/
-input/
-output/
+input*/
+output*/
