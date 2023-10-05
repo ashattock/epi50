@@ -1,0 +1,489 @@
+---
+title: "IA2030 vaccine impact results"
+author: "Austin Carter"
+date: "3/11/2021"
+output: html_document
+---
+
+```{r, setup, include = FALSE}
+
+# Set default options for each code chunk
+#
+# NOTE: See str(knitr::opts_chunk$get()) for options
+knitr::opts_chunk$set(echo    = FALSE, 
+                      results = 'asis', 
+                      fig.width  = o$save_width, 
+                      fig.height = o$save_height)  
+
+# Load packages
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(forcats)
+
+```
+
+```{r, load}
+
+# Load results: main results
+dt1 = try_load(o$pth$results, "detailed_results") %>%
+  arrange(disease) %>%
+  mutate(disease = fct_inorder(disease))
+
+# Load results: main results by economy group
+dt2 = try_load(o$pth$results, "detailed_results_economy") %>%
+  arrange(disease) %>%
+  mutate(disease = fct_inorder(disease), 
+         economy = factor(economy, levels = c("Low economy", 
+                                                        "Lower middle economy", 
+                                                        "Upper middle economy", 
+                                                        "High economy")))
+
+# Load results: uncertainity draws
+dt3 = try_load(o$pth$results, "reference_results") %>%
+  arrange(disease) %>%
+  mutate(disease = fct_inorder(disease))
+
+# Number of diseases, regions
+n_disease  = length(levels(dt1$disease))
+n_region   = length(unique(dt1$region))
+n_economy  = length(levels(dt2$economy))
+
+# Generate colour palettes (see auxiliary.R)
+pals = list(
+  disease = colour_scheme(o$palette_disease, n = n_disease), 
+  region  = colour_scheme(o$palette_region,  n = n_region), 
+  economy = colour_scheme(o$palette_economy, n = n_economy), 
+  gavi    = colour_scheme(o$palette_gavi,    n = 2))  # GAVI eligible: yes or no
+
+# Shorthand labels
+# lab = list(
+#   m = "(in millions)", 
+#   k = "(in thousands)")
+
+```
+
+## Global annual total with baseline
+```{r, global_annual}
+
+# Table of global annual totals
+dt1[, baseline := total - incremental]
+global_baseline <- sum(dt1[year == o$future_years[1]]$baseline)
+global_annual <- rbind(
+  data.table(year = "2019 (baseline)", `Total deaths averted` = global_baseline),
+  dt1[, .(`Total deaths averted` = sum(total)), by = year]
+)
+setnames(global_annual, "year", "Year")
+
+# Save and print table
+write.csv(global_annual, paste0(o$pth$results, "global_annual.csv"), row.names = F)
+kable(global_annual)
+
+```
+
+## By disease global
+```{r, global_by_disease}
+
+# NOTE: Figure 2 of paper
+
+# Plot by vaccine
+disease_year_dt <- dt1[, .(deaths_averted = sum(total, na.rm = T)), by = .(disease, year)]
+g <- ggplot(disease_year_dt[year %in% o$analysis_years]) + 
+  aes(x = year, y = deaths_averted / 1e6, fill = disease) +
+  geom_bar(position = "stack", stat = "identity")
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "disease", 
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "global_by_disease")
+print(g)
+
+disease_year_dt[, deaths_averted := round(deaths_averted / 1e3)]
+cast_dt <- dcast(disease_year_dt, disease ~ year, value.var = "deaths_averted")
+
+# Save and print table
+write.csv(cast_dt, paste0(o$pth$results, "disease_year.csv"), row.names = F)
+kable(cast_dt)
+
+```
+
+## By disease for each region
+```{r, region_by_disease}
+
+# NOTE: Figure 4 of paper
+
+# Format datatable for plotting
+region_d_dt <- dt1[, .(deaths_averted = sum(total)), by = .(region, year, disease)]
+full_dt <- data.table(expand.grid(
+  region = unique(region_d_dt$region),
+  year = unique(region_d_dt$year),
+  disease = unique(region_d_dt$disease)
+))
+region_d_dt <- merge(region_d_dt, full_dt, all.y = T)
+region_d_dt[is.na(deaths_averted), deaths_averted := 0]
+
+# Plot by region
+g <- ggplot(region_d_dt[year %in% o$future_years]) + 
+  aes(x = year, y = deaths_averted / 1e6 , fill = disease) +
+  geom_bar(position = "stack", stat = "identity") +
+  facet_wrap(~region)
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "disease", 
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "region_by_disease")
+print(g)
+
+```
+
+## Total by year by region
+```{r, total_by_region}
+
+# Plot all diseases by year and by region
+region_y_dt <- dt1[, .(deaths_averted = sum(total)), by = .(region, year)]
+g <- ggplot(region_y_dt[year %in% o$future_years]) + 
+  aes(x = year, y = deaths_averted / 1e6 , fill = region) +
+  geom_bar(position = "stack", stat = "identity")
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "region", 
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "total_by_region")
+print(g)
+
+```
+
+## By disease mean annual total deaths averted with min and max annual
+```{r, mean_range_disease}
+
+ann_d_dt <- dt1[, .(total = sum(total)), by = .(year, disease)]
+d_summ <- ann_d_dt[, .(mean = mean(total), min = min(total), max = max(total)), by = disease]
+ann_dt <- dt1[, .(total = sum(total)), by = year]
+t_summ <- ann_dt[, .(mean = mean(total), min = min(total), max = max(total))]
+t_summ[, disease := "Total"]
+d <- rbind(d_summ, t_summ)
+
+
+g <- ggplot(d_summ) + 
+  aes(x = disease, y = mean / 1e3) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = min / 1e3, ymax = max / 1e3), width = 0.2)
+
+# Prettify plot
+g %<>% ggpretty(
+  x_lab = "Disease", 
+  y_lab = "Annual total deaths averted \n (in thousands)", 
+  x_rotate = TRUE)
+
+# Save and print figure
+fig_save(g, "mean_range_disease")
+print(g)
+
+# Print table
+kable(d)
+
+```
+
+# Incremental
+
+## Global annual incremental
+```{r, increment_global_annual}
+
+increment_global_annual <- dt1[, .(`Incremental deaths averted` = sum(incremental)), by = year]
+setnames(increment_global_annual, "year", "Year")
+
+# Print table
+kable(increment_global_annual)
+
+```
+
+## By disease global incremental
+```{r, increment_global_by_disease}
+
+disease_year_dt <- dt1[, .(deaths_averted = sum(incremental, na.rm = T)), by = .(disease, year)] 
+
+cast_dt <- dcast(disease_year_dt, disease ~ year, value.var = "deaths_averted")
+
+g <- ggplot(disease_year_dt[year %in% o$analysis_years]) + 
+  aes(x = year, y = deaths_averted / 1e6, fill = disease) +
+  geom_bar(position = "stack", stat = "identity")
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "disease", 
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions by YoV)")
+
+# Save and print figure
+fig_save(g, "increment_global_by_disease")
+print(g)
+
+# Print table
+kable(cast_dt)
+
+```
+
+## Incremental by disease for each region
+```{r, increment_region_by_disease}
+
+region_d_dt <- dt1[, .(deaths_averted = sum(incremental)), by = .(region, year, disease)]
+full_dt <- data.table(expand.grid(
+  region = unique(region_d_dt$region),
+  year = unique(region_d_dt$year),
+  disease = unique(region_d_dt$disease)
+))
+region_d_dt <- merge(region_d_dt, full_dt, all.y = T)
+region_d_dt[is.na(deaths_averted), deaths_averted := 0]
+
+g <- ggplot(region_d_dt[year %in% o$future_years]) + 
+  aes(x = year, y = deaths_averted / 1e6 , fill = disease) +
+  geom_bar(position = "stack", stat = "identity") +
+  facet_wrap(~region)
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "disease",
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "increment_region_by_disease")
+print(g)
+
+```
+
+## Incremental by year by region
+```{r, increment_by_region}
+
+region_y_dt <- dt1[, .(deaths_averted = sum(incremental)), by = .(region, year)]
+
+g <- ggplot(region_y_dt[year %in% o$future_years]) + 
+  aes(x = year, y = deaths_averted / 1e6 , fill = region) +
+  geom_area(color = "white", alpha = 0.8)
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "region", 
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "increment_by_region")
+print(g)
+
+```
+
+## By disease mean annual incremental deaths averted with min and max annual
+```{r, increment_mean_range_disease}
+
+ann_d_dt <- dt1[, .(incremental = sum(incremental)), by = .(year, disease)]
+d_summ <- ann_d_dt[, .(mean = mean(incremental), 
+                       min  = min(incremental), 
+                       max  = max(incremental)), 
+                   by = disease]
+ann_dt <- dt1[, .(incremental = sum(incremental)), by = year]
+t_summ <- ann_dt[, .(mean = mean(incremental), min = min(incremental), max = max(incremental))]
+t_summ[, disease := "Total"]
+d <- rbind(d_summ, t_summ)
+
+g <- ggplot(d_summ) + 
+  aes(x = disease, y = mean / 1e3) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = min / 1e3, ymax = max / 1e3), width = 0.2)
+
+# Prettify plot
+g %<>% ggpretty(
+  x_lab = "Disease", 
+  y_lab = "Annual incremental deaths averted (in thousands)", 
+  x_rotate = TRUE)
+
+# Save and print figure
+fig_save(g, "increment_mean_range_disease")
+print(g)
+
+# Print table
+kable(d)
+
+```
+
+# Economy grouping
+
+## Total by disease for each economy group
+```{r, economy_by_disease}
+
+# NOTE: Figure 3 of paper
+
+economy_d_dt <- dt2[, .(deaths_averted = sum(total)), by = .(economy, year, disease)]
+full_dt <- data.table(expand.grid(
+  economy = unique(economy_d_dt$economy),
+  year = unique(economy_d_dt$year),
+  disease = unique(economy_d_dt$disease)
+))
+economy_d_dt <- merge(economy_d_dt, full_dt, all.y = T)
+economy_d_dt[is.na(deaths_averted), deaths_averted := 0]
+
+g <- ggplot(economy_d_dt[year %in% o$future_years]) + 
+  aes(x = year, y = deaths_averted / 1e6 , fill = disease) +
+  geom_bar(position = "stack", stat = "identity") +
+  facet_wrap(~economy)
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "disease", 
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "economy_by_disease")
+print(g)
+
+```
+
+## Total by year by economy
+```{r, total_by_economy}
+
+economy_y_dt <- dt2[, .(deaths_averted = sum(total)), by = .(economy, year)]
+
+cast_dt <- dcast(economy_y_dt[year %in% o$future_years], economy ~ year)
+
+g <- ggplot(economy_y_dt[year %in% o$future_years]) + 
+  aes(x = year, y = deaths_averted / 1e6 , fill = economy) +
+  geom_bar(position = "stack", stat = "identity")
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "economy", 
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "total_by_economy")
+print(g)
+
+# Save and print table
+write.csv(cast_dt, paste0(o$pth$results, "total_by_economy_table.csv"), row.names = F)
+kable(cast_dt)
+
+```
+
+## Incremental by disease for each economy group
+```{r, economy_by_disease_increment}
+
+economy_d_dt <- dt2[, .(deaths_averted = sum(incremental)), by = .(economy, year, disease)]
+full_dt <- data.table(expand.grid(
+  economy = unique(economy_d_dt$economy),
+  year = unique(economy_d_dt$year),
+  disease = unique(economy_d_dt$disease)
+))
+economy_d_dt <- merge(economy_d_dt, full_dt, all.y = T)
+economy_d_dt[is.na(deaths_averted), deaths_averted := 0]
+
+g <- ggplot(economy_d_dt[year %in% o$future_years]) + 
+  aes(x = year, y = deaths_averted / 1e6 , fill = disease) +
+  geom_bar(position = "stack", stat = "identity")
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "disease", 
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "economy_by_disease_increment")
+print(g)
+
+```
+
+## Incremental by year by economy
+```{r, increment_by_economy}
+
+economy_y_dt <- dt2[, .(deaths_averted = sum(incremental)), by = .(economy, year)]
+
+g <- ggplot(economy_y_dt[year %in% o$future_years]) + 
+  aes(x = year, y = deaths_averted / 1e6 , fill = economy) +
+  geom_area(color = "white", alpha = 0.8)
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "economy", 
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "increment_by_economy")
+print(g)
+
+```
+
+## Gavi and non-Gavi
+```{r, total_by_gavi}
+
+gavi_dt <- dt3[year %in% o$future_years, .(deaths_averted = sum(deaths_averted)), by = .(gavi73, year)]
+gavi_dt[, loc_group:= ifelse(gavi73, "Gavi", "Not Gavi")]
+
+## By vaccine
+g <- ggplot(gavi_dt) + 
+  aes(x = year, y = deaths_averted / 1e6, fill = loc_group) +
+  geom_bar(position = "stack", stat = "identity")
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "gavi", 
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "total_by_gavi")
+print(g)
+
+```
+
+```{r, gavi_by_disease}
+
+# NOTE: Figure 5 of paper
+
+gavi_d_dt <- dt3[year %in% o$future_years, .(deaths_averted = sum(deaths_averted)), by = .(gavi73, disease, year)]
+gavi_d_dt[, loc_group:= ifelse(gavi73, "Gavi", "Not Gavi")]
+
+g <- ggplot(gavi_d_dt[year %in% o$future_years]) + 
+  aes(x = year, y = deaths_averted / 1e6 , fill = disease) +
+  geom_bar(position = "stack", stat = "identity") + 
+  facet_wrap(~loc_group)
+
+# Prettify plot
+g %<>% ggpretty(
+  cols  = pals, 
+  fill  = "disease",
+  x_lab = "Year", 
+  y_lab = "Deaths averted (in millions)")
+
+# Save and print figure
+fig_save(g, "gavi_by_disease")
+print(g)
+
+```
+
