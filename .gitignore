@@ -1,0 +1,8 @@
+.Rproj.user
+.Rhistory
+core*
+*.nfs*
+*.rds
+cache/
+input/
+output/
