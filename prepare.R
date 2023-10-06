@@ -168,22 +168,119 @@ prepare_gbd_covariates = function() {
   
   # Prep GBD 2019 SDI for use as a covariate
   
-  browser()
-  fread(paste0(o$pth$input, "gbd19_sdi.csv"), header = TRUE) %>%
-    mutate(n = 1 : n()) %>%
-    filter(n != 105) %>%
-    select(-n) %>%
-    rename(gbd_alt_name = Location) %>%
-    inner_join(y  = load_table("country")[, .(country, gbd_alt_name)], 
-               by = "gbd_alt_name") %>%
-    select(country, all_of(as.character(1990 : 2019))) %>%
-    arrange(country) %>%
-    saveRDS("gbd19_sdi.rds")
+  # fread(paste0(o$pth$input, "gbd19_sdi.csv"), header = TRUE) %>%
+  #   mutate(n = 1 : n()) %>%
+  #   mutate(Location = ifelse(n == 654, "Côte d'Ivoire", Location), 
+  #          Location = ifelse(n == 664, "São Tomé and PrÍncipe", Location)) %>%
+  #   filter(n != 105) %>%
+  #   select(-n) %>%
+  #   rename(gbd_alt_name = Location) %>%
+  #   inner_join(y  = load_table("country")[, .(country, gbd_alt_name)],
+  #              by = "gbd_alt_name") %>%
+  #   select(country, all_of(as.character(1990 : 2019))) %>%
+  #   pivot_longer(cols = -country,
+  #                names_to = "year",
+  #                values_to = "sdi") %>%
+  #   mutate(year = as.integer(year)) %>%
+  #   arrange(country, year) %>%
+  #   as.data.table() %>%
+  #   saveRDS("input/gbd19_sdi.rds")
   
-  # ## Location mapping
-  # setnames(melt_dt, "Location", "gbd_alt_name")
-  # gbd_sdi <- merge(country_table, melt_dt, all.x = T, by = "gbd_alt_name")
+  # Prep GBD 2019 HAQI for use as a covariate
   
+  # fread(paste0(o$pth$input, "gbd19_haqi.csv")) %>%
+  #   mutate(n = 1 : n()) %>%
+  #   filter(!n %in% (8641 : 8680)) %>%
+  #   select(-n) %>%
+  #   rename(country_name = location_name) %>%
+  #   inner_join(y  = load_table("country")[, .(country, country_name)],
+  #              by = "country_name") %>%
+  #   select(country, year = year_id, haqi = val) %>%
+  #   mutate(haqi = haqi / 100) %>%
+  #   arrange(country, year) %>%
+  #   saveRDS("input/gbd19_haqi.rds")
+  
+  
+  # NOTE: We're missing SDI for two countries: 
+  gbd_sdi  = readRDS(paste0(o$pth$input, "gbd19_sdi.rds"))
+  gbd_haqi = readRDS(paste0(o$pth$input, "gbd19_haqi.rds"))
+
+  gbd_covariates = 
+    # full_join(x  = gbd_sdi, 
+    inner_join(x  = gbd_sdi, 
+               y  = gbd_haqi, 
+               by = c("country", "year")) %>%
+    arrange(country, year)
+  
+  
+  
+  
+  forecast_gbd_cov <- function(gbd_covariates) {
+    
+    years_back = 5
+    
+    browser()
+    
+    fcast_list <- list()
+    max_year <- max(gbd_covariates$year)
+    
+    par(mfrow = c(2, 1)) # Plot related
+    
+    for (cov in c("haqi", "sdi")) {
+      
+      browser()
+      
+      gbd_mat <- gbd_covariates %>%
+        select(country, year, all_of(cov)) %>%
+        pivot_wider(names_from  = year, 
+                    values_from =  all_of(cov)) %>%
+        select(-country) %>%
+        as.matrix()
+      
+      start_vec = 1 - gbd_mat[, dim(gbd_mat)[2] - years_back]
+      end_vec   = 1 - gbd_mat[, dim(gbd_mat)[2]]
+      
+      t_mat <- matrix(data = 1 : (2100 - max_year), 
+                      ncol = (2100 - max_year),
+                      nrow = length(end_vec), 
+                      byrow = TRUE)
+      
+      aroc <- log(end_vec / start_vec) / years_back
+      
+      pred_mat <- 1 - end_vec * exp(aroc * t_mat)
+      colnames(pred_mat) <- (max_year + 1):2100
+      
+      if (max(pred_mat) >= 1)
+        warning("Forecast greater than or equal to 1: consider forecasting in logit space")
+      
+      out_mat <- cbind(gbd_mat, pred_mat)
+      
+      plot_dt = as.data.table(out_mat)
+      
+      
+      matplot(1990:2100, t(out_mat), type = "l", ylim = c(0, 1),
+              xlab = "Year", ylab = cov)
+      abline(h = 1, col = "red")
+      abline(v = (max_year + 0.5), col = "black")
+      
+      
+      melt_dt <- melt(
+        data.table(country = cast_dt$country, out_mat),
+        id.var = "country",
+        variable.name = "year",
+        value.name = cov
+      )
+      melt_dt[, year := as.integer(as.character(year))]
+      fcast_list[[cov]] <- melt_dt
+    }
+    out_dt <- merge(fcast_list[[1]], fcast_list[[2]])
+
+    return(out_dt)
+  }
+  
+  
+  
+  gbd_covariates2 = forecast_gbd_cov(gbd_covariates)
   
   browser()
 }
