@@ -16,6 +16,8 @@ explore_dalys = function() {
   # TEMP: Recode GBD disease names to old format until it's changed everywhere
   temp_dict = c(Dip = "D", Tet = "T", Per = "P", TB = "TB")
   
+  browser() # loc_table is now country_table
+  
   # We'll calculate DALYs for all viable countries
   countries = loc_table$location_iso3
   
@@ -359,6 +361,8 @@ get_cov = function(d_info, countries, years) {
   
   # TODO: I guess we should be using total_coverage here
   
+  browser() # v_at_table is now v_a_table
+  
   # Vaccine coverage
   cov_dt = coverage %>%
     left_join(y  = v_at_table,
@@ -414,6 +418,8 @@ get_deaths = function(d_info, countries, years) {
   use_method = "2"  # OPTIONS: "1" or "2"
   
   # ---- Real life 'vaccine' scenario ----
+  
+  browser() # loc_table is now country_table
   
   # Deaths estimated by Global Burden of Disease study
   deaths_observed = gbd_strata_deaths %>%
@@ -539,6 +545,8 @@ get_temporal_fvps_age = function(d_info, countries, years) {
   # mutate(fvps = ifelse(s1 == 0, s2 + s3, s1)) %>%
   # select(country, v_at_id, year, age, fvps) %>%
   
+  browser() # v_at_table is now v_a_table
+  
   # Load and format FVPs over time
   fvps_dt = coverage %>%
     # Apply decent D-V-A names...
@@ -596,10 +604,12 @@ full_factorial = function(countries, years) {
 load_results_2019 = function(d_info, countries) {
   
   # Load impact factors from 2019 analysis
-  results_2021 = readRDS(file.path(o$pth$main, "impact_factors_2019.rds"))
+  results_2021 = readRDS(file.path(o$pth$code, "impact_factors_2019.rds"))
   
   # TEMP: Recode GBD disease names to old format until it's changed everywhere
   temp_dict = c("D" = "Dip", "T" = "Tet", "P" = "Per", "TB" = "TB")
+  
+  browser() # loc_table is now country_table
   
   # Multiply impact factors by number of FVPs 
   results_dt = results_2021 %>%

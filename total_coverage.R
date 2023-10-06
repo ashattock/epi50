@@ -14,6 +14,8 @@ total_coverage2 <- function(coverage) {
   
   # TODO: Apply with dtplyr to achieve full effect...
   
+  browser() # v_at_table is now v_a_table
+  
   # Coverage data of all activities for this vaccine
   all_data = coverage %>%
     left_join(v_at_table, by = "v_at_id") %>%
@@ -114,6 +116,9 @@ calc_total_cov2 <- function(dt) {
 # v1 function
 # ---------------------------------------------------------
 total_coverage <- function(coverage) {
+  
+  browser() # v_at_table is now v_a_table
+  
   cov_dt <- merge(coverage, v_at_table)
   total_coverage <- rbindlist(lapply(unique(cov_dt$vaccine), function(v) {
     v_dt <- cov_dt[vaccine == v]

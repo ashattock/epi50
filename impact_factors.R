@@ -74,6 +74,8 @@ calc_impact_factors <- function(dt) {
   total_averted <- rbind(routine_averted, campaign_averted)
   total_averted <- merge(total_averted, d_v_at_table, by = "d_v_at_id")
   
+  browser() # v_at_table is now v_a_table
+  
   # Totals FVPs
   total_fvps <- coverage[year %in% 2000:2030, .(total_fvps = sum(fvps,  na.rm = T)),
                          by = .(country, v_at_id)]
@@ -85,6 +87,8 @@ calc_impact_factors <- function(dt) {
     by = c("vaccine", "activity_type", "country"),
     all.x = T
   )
+  
+  browser() # v_at_table is now v_a_table
   
   # Collapse Rubella to combined
   rub_dt <- total_dt[vaccine == "Rubella", .(total_fvps = sum(total_fvps, na.rm = T), total_averted = sum(total_averted, na.rm = T)), by = .(vaccine, country, disease)]
@@ -134,6 +138,8 @@ calc_scenario_impact <- function(scenario_dt, impact_dt) {
   
   message(" - Calculating scenario impact")
 
+  browser() # v_at_table is now v_a_table
+  
   # Calculate deaths averted 
   scenario_impact = scenario_dt %>%
     filter(fvps > 0) %>%

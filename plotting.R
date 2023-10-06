@@ -250,6 +250,8 @@ plot_gbd_uncertainty_dist = function(fig_name) {
   
   # ---- Load and format plot datatables ----
   
+  browser() # gbd_efficacy is now efficacy
+  
   # Load actual vaccine efficacy for GBD diseases and collapse disease-vaccine
   efficacy_dt = gbd_efficacy %>%
     left_join(y  = disease_table, 
@@ -359,6 +361,8 @@ plot_gbd_uncertainty_fit = function(fig_name) {
   
   # Initate list of grids
   grid_list = list()
+  
+  browser() # gbd_efficacy is now efficacy
   
   # Loop through diseases
   for (i in 1 : nrow(gbd_efficacy)) {

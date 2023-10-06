@@ -7,6 +7,8 @@ compare_nonlinear = function() {
   # Load stuff up front
   load_tables("wpp_input", "coverage")
   
+  browser() # loc_table is now country_table
+  
   # We'll calculate DALYs for all viable countries
   countries = loc_table$location_iso3
   
@@ -51,11 +53,13 @@ compare_nonlinear = function() {
   
   # NOTE: Here we are using impact factors as per Austin's first iteration
   
-  results_2021 = readRDS(file.path(o$pth$main, "impact_factors_2019.rds"))
+  results_2021 = readRDS(file.path(o$pth$code, "impact_factors_2019.rds"))
   # results_2021 = try_load(o$pth$impact_factors, "impact_dt")
   
   # TEMP: Recode GBD disease names to old format until it's changed everywhere
   temp_dict = c("D" = "Dip", "T" = "Tet", "P" = "Per", "TB" = "TB")
+  
+  browser() # loc_table is now country_table
   
   # Load impact factors calculated in step 2
   m1_dt = results_2021 %>%
@@ -267,6 +271,8 @@ compare_nonlinear = function() {
 # Load coverage data and extract FVPs over time
 # ---------------------------------------------------------
 get_temporal_fvps = function() {
+  
+  browser() # v_at_table is now v_a_table
   
   # Load and format FVPs over time
   fvps_dt = coverage %>%

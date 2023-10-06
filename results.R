@@ -91,6 +91,9 @@ run_results = function() {
     country_table[, .(country, country_name)],
     by = "country"
   )
+  
+  browser() # v_at_table is now v_a_table
+  
   scen_dt <- merge(scen_dt, v_at_table, by = "v_at_id")
   write.csv(scen_dt, "outputs/ia2030_cov_trajectories.csv", row.names = F)
   

@@ -4,8 +4,12 @@
 # ---------------------------------------------------------
 explore_nonlinear = function() {
   
+  browser() # Use: load_table("vimc_impact")
+  
   # Load stuff up front
   load_tables("wpp_input", "vimc_impact", "vimc_yov_impact")
+  
+  browser() # loc_table is now country_table
   
   # We'll calculate DALYs for all viable countries
   countries = loc_table$location_iso3
@@ -84,6 +88,8 @@ explore_nonlinear = function() {
   #   filter(n > 1) %>%
   #   select(-n) %>%
   #   as.data.table()
+  
+  browser() # Use: load_table("vimc_impact")
   
   # Wrangle VIMC impact estimates
   impact_dt = vimc_impact %>%

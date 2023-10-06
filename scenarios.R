@@ -14,7 +14,7 @@ gen_ia2030_goals <- function(linear = T, no_covid_effect = 2022, intro_year = 20
   load_tables("coverage")
   cov_dt <- coverage[year == 2019]
   
-  browser()
+  browser() # v_at_table is now v_a_table
   
   # Iterate through each vaccine (except HPV which is special)
   vaccs <- setdiff(unique(v_at_table[activity_type == "routine"]$v_at_id), 2)
@@ -45,6 +45,9 @@ gen_ia2030_goals <- function(linear = T, no_covid_effect = 2022, intro_year = 20
     if (intro_range) {
       # Range of intro years split up by quintile of coverage goal
       zero_locs <- v_dt[zero_idx]$country
+      
+      browser() # ia2030_dtp_goal now part of country_table, but needs year = 2030 to be appended
+      
       # 2030 coverage targets for DTP vaccine...
       ordered_locs <- ia2030_dtp_goal[country %in% zero_locs][rev(order(value))]$country
       split_locs <- split(ordered_locs, floor(5 * seq.int(0, length(ordered_locs) - 1) / length(ordered_locs)))
@@ -52,6 +55,8 @@ gen_ia2030_goals <- function(linear = T, no_covid_effect = 2022, intro_year = 20
     } else {
       zero_n <- 2030 - temp_intro_year + 1
     }
+    
+    browser() # ia2030_dtp_goal now part of country_table, but needs year = 2030 to be appended
     
     setnames(v_dt, "coverage", "current")
     roc_dt <- merge(
@@ -205,6 +210,9 @@ get_mx_scen <- function(is, y0, y1, scen, mx, nx) {
 # xxxxxxxxxx
 # ---------------------------------------------------------
 get_vimc_deaths_change <- function(is, y0, y1, default_coverage, scen_coverage, mx) {
+  
+  browser() # Use: load_table("vimc_impact")
+  
   vimc_deaths_change <- vimc_impact %>%
     filter(country_name == is & year %in% y0:y1) %>%
     left_join(default_coverage, by = c("year", "vaccine_id")) %>%
@@ -217,7 +225,9 @@ get_vimc_deaths_change <- function(is, y0, y1, default_coverage, scen_coverage, 
     spread(year, deaths_change) %>%
     select(-c(age)) %>%
     as.matrix()
-  # Fill in older age groups TODO: fix this on vimc_impact side
+  
+  # Fill in older age groups
+  # TODO: fix this on vimc_impact side
   vimc_deaths_change <- rbind(
     vimc_deaths_change,
     matrix(
