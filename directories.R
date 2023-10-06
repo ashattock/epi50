@@ -15,55 +15,51 @@
 # ---------------------------------------------------------
 set_dirs = function(o) {
   
-  # Initiate file path lists
-  pth = out = list()
-  
-  # We've already moved to main directory
-  pth$main = getwd()
-  
-  # Path to cluster log files and data cache
-  out$code  = file.path(pth$main, "R")
-  out$cache = file.path(pth$main, "cache")
-  
-  # Path for temporary files (needed for uploading to database)
-  out$temp = getwd() # file.path(pth$main, "temp")
+  # Initiate list with reference to main code directory
+  #
+  # NOTE: We should already be in this code directory
+  pth = list(code = getwd())
   
   # ---- Input and configuration files ----
   
   # Parent path of all input files
-  pth$config = file.path(pth$main, "config")
+  pth$input  = file.path(pth$code, "input")
+  pth$config = file.path(pth$code, "config")
+  
+  # Path to cached data tables
+  pth$cache  = file.path(pth$code, "cache")
+  # pth$tables = file.path(pth$code, "tables")
   
   # Paths to specific configuration files
-  pth$credentials = file.path(pth$config, "gcs_credentials.json")
-  pth$parameters  = file.path(pth$config, "parameters.json")
+  # pth$parameters  = file.path(pth$config, "parameters.json")
   
   # ---- Output directories ----
   
   # Parent path of all output files
-  pth_output = file.path(pth$main, "output")
+  pth_output = file.path(pth$code, "output")
   
   # Path to test run files
-  out$testing = file.path(pth_output, "0_testing")
+  pth$testing = file.path(pth_output, "0_testing")
   
   # Path to relative risk and impact factor files
-  out$relative_risk  = file.path(pth_output, "1_relative_risk",  o$analysis_name)
-  out$impact_factors = file.path(pth_output, "2_impact_factors", o$analysis_name)
+  pth$relative_risk  = file.path(pth_output, "1_relative_risk",  o$analysis_name)
+  pth$impact_factors = file.path(pth_output, "2_impact_factors", o$analysis_name)
   
   # Path to relative risk and impact factor files
-  out$uncertainty = file.path(pth_output, "3_uncertainty", o$analysis_name)
+  pth$uncertainty = file.path(pth_output, "3_uncertainty", o$analysis_name)
   
   # Path to figures and other output resusts
-  out$results     = file.path(pth_output, "4_results", o$analysis_name)
-  out$figures     = file.path(pth_output, "5_figures", o$analysis_name)
-  out$diagnostics = file.path(out$figures, "diagnostics")
+  pth$results     = file.path(pth_output, "4_results", o$analysis_name)
+  pth$figures     = file.path(pth_output, "5_figures", o$analysis_name)
+  pth$diagnostics = file.path(pth$figures, "diagnostics")
   
   # ---- Create directory structure ----
   
   # Make all output directories
-  make_out_dirs(out)
+  make_out_dirs(pth)
   
   # Append paths to o list
-  o = append_dirs(o, pth, out)
+  o = append_dirs(o, pth)
   
   return(o)
 }
@@ -71,14 +67,14 @@ set_dirs = function(o) {
 # ---------------------------------------------------------
 # Make all output directories if they do not already exist
 # ---------------------------------------------------------
-make_out_dirs = function(out) {
+make_out_dirs = function(pth) {
   
   # Extract all path names in list
-  pth_names = names(out)
+  pth_names = names(pth)
   
   # Loop through these path names
   for (pth_name in pth_names) {
-    this_pth = out[[pth_name]]
+    this_pth = pth[[pth_name]]
     
     # If it does not already exist, create it
     if (!dir.exists(this_pth) & !grepl("\\*", this_pth))
@@ -89,26 +85,26 @@ make_out_dirs = function(out) {
 # ---------------------------------------------------------
 # Concatenate separators and append directories to o list
 # ---------------------------------------------------------
-append_dirs = function(o, pth, out) {
+append_dirs = function(o, pth) {
   
   # Extract all path names in list
-  pth_names = names(out)
+  pth_names = names(pth)
   
   # Loop through these path names
   for (pth_name in pth_names) {
-    this_pth = out[[pth_name]]
+    this_pth = pth[[pth_name]]
     
     # We use * to denote a partial path
     if (grepl("\\*", this_pth)) {
-      out[[pth_name]] = substr(this_pth, 1, nchar(this_pth) - 1)
+      pth[[pth_name]] = substr(this_pth, 1, nchar(this_pth) - 1)
       
     } else {  # Otherwise add a file separator to end of output paths
-      out[[pth_name]] = paste0(this_pth, .Platform$file.sep)
+      pth[[pth_name]] = paste0(this_pth, .Platform$file.sep)
     }
   }
   
-  # Concatenate lists
-  o$pth = c(pth, out)
+  # Append to o list
+  o$pth = pth
   
   return(o)
 }

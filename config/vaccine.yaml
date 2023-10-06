@@ -1,0 +1,36 @@
+---
+
+# Creates datatable: vaccine_table
+table:
+- vaccine: BCG
+  vaccine_name: Bacille Calmette-Guerin
+- vaccine: DTP3
+  vaccine_name: Diphtheria-tetanus-pertussis (third-dose)
+- vaccine: HepB
+  vaccine_name: Hepatitis B
+- vaccine: HepB_BD
+  vaccine_name: Hepatitis B (birth-dose)
+- vaccine: Hib3
+  vaccine_name: Haemophilus influenzae type b (third-dose)
+- vaccine: HPV
+  vaccine_name: Human papillomavirus
+- vaccine: JE
+  vaccine_name: Japanese encephalitis
+- vaccine: MCV1
+  vaccine_name: Measles-containing-vaccine (first-dose)
+- vaccine: MCV2
+  vaccine_name: Measles-containing-vaccine (second-dose)
+- vaccine: Measles
+  vaccine_name: Measles
+- vaccine: MenA
+  vaccine_name: Meningitis A
+- vaccine: PCV3
+  vaccine_name: Pneumococcal (third-dose)
+- vaccine: RCV2
+  vaccine_name: Rubella-containing-vaccine (second-dose)
+- vaccine: Rota
+  vaccine_name: Rotavirus
+- vaccine: Rubella
+  vaccine_name: Rubella
+- vaccine: YF
+  vaccine_name: Yellow Fever

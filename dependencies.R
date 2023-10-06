@@ -58,6 +58,7 @@ packages = c("tidyverse",      # Includes ggplot2, dplyr, tidyr (www.tidyverse.o
              "broom",          # Geo-spatial support functions
              "Hmisc",          # Geo-spatial support functions
              "countrycode",    # Convert country ISO <-> names
+             "yaml",           # Data loading functionality
              "xlsx",           # Data loading functionality (or use readxl?)
              "mclm",           # Data loading functionality
              "lubridate",      # Data formatting functionality
