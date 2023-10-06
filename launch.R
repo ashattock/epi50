@@ -26,7 +26,7 @@ o = set_options(do_step = 0)
 # explore_dalys()
 # explore_nonlinear()
 
-# Step 0) Prepare input
+# Step 0) Prepare input (only needs to be done once)
 run_prepare()  # See prepare.R
 
 # Step 1) Calculate and impute relative risk

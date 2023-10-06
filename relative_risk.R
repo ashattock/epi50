@@ -28,6 +28,7 @@ run_relative_risk <- function(source = c("vimc", "gbd"), activity = "routine") {
   message("* Calculating relative risk")
   
   browser() # Use: load_table("vimc_impact")
+  browser() # Use: load_table("gbd_estimates") instead of gbd_strata_deaths
   
   # Load all tables up front (see db_utils.R)
   load_tables("coverage", "all_deaths", "vimc_impact", "gbd_strata_deaths", "wpp_input")
@@ -202,16 +203,14 @@ prep_rr <- function(strata, params) {
   # For GBD diseases
   if (strata$source == "gbd") {
     
-    browser() # loc_table is now country_table
+    browser() # Use: load_table("gbd_estimates") instead of gbd_strata_deaths
     
     # For GBD diseases, start with deaths attributable to each disease
     dt = gbd_strata_deaths %>%
-      filter(d_v_at_id == strata$d_v_at_id) %>%  # Only this strata
-      left_join(y  = loc_table[, .(location_id, country = location_iso3)],
-                by = "location_id") %>%
-      select(country, d_v_at_id, year, age, sex_id, value) %>%
+      filter(d_v_a_id == strata$d_v_a_id) %>%  # Only this strata
+      select(country, d_v_a_id, year, sex, age, strata_deaths) %>%
       # Deaths observed for this disease...
-      rename(strata_deaths = value) %>%
+      # rename(strata_deaths = value) %>%
       mutate(strata_deaths_averted = NA)  # Placeholder: to be calculated
     
     # Observed deaths (genders seperate)
@@ -468,8 +467,10 @@ merge_rr_covariates <- function(dt) {
   mx_dt <- wpp_input[, .(mx = mean(mx)), by = .(country, year, age)]
   dt <- merge(dt, mx_dt, by = c("country", "age", "year"), all.x = T)
   
+  browser()
+  
   # Add GBD covariates (SDI and HAQi)
-  dt <- merge(dt, gbd_cov, by = c("country", "year"), all.x = T)
+  dt <- merge(dt, gbd_covariates, by = c("country", "year"), all.x = T)
   
   return(dt)
 }

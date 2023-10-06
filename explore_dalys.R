@@ -4,6 +4,8 @@
 # ---------------------------------------------------------
 explore_dalys = function() {
   
+  browser() # Use: load_table("gbd_estimates") instead of gbd_strata_deaths
+  
   # Load stuff up front
   load_tables("gbd_strata_deaths", "coverage", "wpp_input") 
   
@@ -423,9 +425,7 @@ get_deaths = function(d_info, countries, years) {
   
   # Deaths estimated by Global Burden of Disease study
   deaths_observed = gbd_strata_deaths %>%
-    # Append country 'names'...
-    left_join(y  = loc_table[, .(location_id, country = location_iso3)],
-              by = "location_id") %>%
+    # TODO: Join with d_v_a_table
     # Reduce down to what we're interested in...
     filter(country %in% countries, 
            disease == d_info$disease,
