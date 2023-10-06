@@ -162,7 +162,7 @@ set_options = function(do_step = NA, quiet = FALSE) {
   # ---- Prepare output ----
   
   # Append helpful properties
-  o = append_shortcuts(o)
+  # o = append_shortcuts(o)
   
   # Display analysis details
   if (!quiet) message(" - Analysis name: ", o$analysis_name)
