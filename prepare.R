@@ -7,14 +7,14 @@ run_prepare = function() {
   # Convert config yaml files to datatables 
   prepare_config_tables()
   
-  # Streamline VIMC impact estimates for quick loading
-  prepare_vimc_impact()
-  
-  # TODO: Is this needed? Can we just use WUENIC coverage instead?
-  prepare_hpv_target()
-  
-  # Prepare GBD estimates of deaths for non-VIMC pathogens
-  prepare_gbd_estimates()
+  # # Streamline VIMC impact estimates for quick loading
+  # prepare_vimc_impact()
+  # 
+  # # TODO: Is this needed? Can we just use WUENIC coverage instead?
+  # prepare_hpv_target()
+  # 
+  # # Prepare GBD estimates of deaths for non-VIMC pathogens
+  # prepare_gbd_estimates()
   
   # 
   prepare_gbd_covariates()
@@ -168,10 +168,22 @@ prepare_gbd_covariates = function() {
   
   # Prep GBD 2019 SDI for use as a covariate
   
-  ## Read data
-  dt <- fread(
-    system.file("extdata", "gbd19_sdi.csv", package = "vieIA2030"),
-    header = T)
+  browser()
+  fread(paste0(o$pth$input, "gbd19_sdi.csv"), header = TRUE) %>%
+    mutate(n = 1 : n()) %>%
+    filter(n != 105) %>%
+    select(-n) %>%
+    rename(gbd_alt_name = Location) %>%
+    inner_join(y  = load_table("country")[, .(country, gbd_alt_name)], 
+               by = "gbd_alt_name") %>%
+    select(country, all_of(as.character(1990 : 2019))) %>%
+    arrange(country) %>%
+    saveRDS("gbd19_sdi.rds")
+  
+  # ## Location mapping
+  # setnames(melt_dt, "Location", "gbd_alt_name")
+  # gbd_sdi <- merge(country_table, melt_dt, all.x = T, by = "gbd_alt_name")
+  
   
   browser()
 }
