@@ -17,7 +17,7 @@
 # Parent function to impute relative risk for all disease-vaccine combinations
 # Called by: launch.R, main.R (and other launch-style scripts)
 # ---------------------------------------------------------
-run_relative_risk <- function(source = c("vimc", "gbd"), activity = "routine") {
+run_relative_risk = function(source = c("vimc", "gbd"), activity = "routine") {
   
   # Options for source: "vimc", "gbd", or any combination of
   # Options for activity: "routine", "campaign", "combined" or any combination of

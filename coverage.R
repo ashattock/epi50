@@ -11,7 +11,7 @@
 prepare_coverage = function() {
   
   # TODO: Incorporate SIA data
-  # prepare_sia()
+  # prepare_sia()  # See sia.R
   
   message(" - Coverage data")
   

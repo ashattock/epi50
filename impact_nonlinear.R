@@ -1,3 +1,10 @@
+###########################################################
+# IMPACT NON-LINEAR
+#
+# An alternative to impact factor for representing impact as
+# a function of vaccine coverage.
+#
+###########################################################
 
 # ---------------------------------------------------------
 # Parent function for calculating non-linear impact

@@ -3,7 +3,8 @@
 #
 # Main launch function for WHO EPI50 analysis.
 #
-# Project lead: A.J.Shattock
+# Author: A.J.Shattock
+# Contact: shattocka@who.int / andrewjames.shattock@unibas.ch
 ###########################################################
 
 # Set working directory to sourced file
