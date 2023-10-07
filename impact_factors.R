@@ -108,9 +108,9 @@ calc_impact_factors <- function(dt) {
 # ---------------------------------------------------------
 rake_impact <- function(impact_factors) {
   
-  load_tables("vimc_yov_impact")
+  load_tables("vimc_yov_impact") # Now just vimc_yov
   
-  # browser()
+  browser() vimc_yov_impact
   
   yov_dt <- unique(vimc_yov_impact[, .(country, vaccine, activity_type, deaths_averted_rate)])
   

@@ -14,7 +14,7 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = NA)
+o = set_options(do_step = 0)
 
 # Other possible pre-steps: 
 #  - Generate database

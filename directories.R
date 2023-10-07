@@ -23,7 +23,7 @@ set_dirs = function(o) {
   # ---- Input and configuration files ----
   
   # Parent path of all input files
-  pth$input  = file.path(pth$code, "input")
+  pth$input  = file.path(pth$code, "data") # "input"
   pth$config = file.path(pth$code, "config")
   
   # Path to cached data tables

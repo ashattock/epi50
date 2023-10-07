@@ -11,13 +11,13 @@ run_prepare = function() {
   prepare_config_tables()
   
   # # Streamline VIMC impact estimates for quick loading
-  # prepare_vimc_impact()
-  # 
-  # # TODO: Is this needed? Can we just use WUENIC coverage instead?
-  # prepare_hpv_target()
-  # 
-  # # Prepare GBD estimates of deaths for non-VIMC pathogens
-  # prepare_gbd_estimates()
+  prepare_vimc_impact()
+
+  # TODO: Is this needed? Can we just use WUENIC coverage instead?
+  prepare_hpv_target()
+
+  # Prepare GBD estimates of deaths for non-VIMC pathogens
+  prepare_gbd_estimates()
   
   # 
   prepare_gbd_covariates()
@@ -91,6 +91,25 @@ prepare_vimc_impact = function() {
     select(country, d_v_a_id, year, age, deaths_averted) %>%
     arrange(d_v_a_id, country, age, year) %>%
     save_table("vimc_impact")
+  
+  # Prepare VIMC year-of-vaccination results - take the mean across models
+  readRDS(paste0(o$pth$input, "vimc_yov.rds")) %>%
+    left_join(y  = load_table("d_v_a"), 
+              by = c("disease", "vaccine", "activity")) %>%
+    select(country, d_v_a_id, model, year, deaths_averted, deaths_averted_rate) %>%
+    group_by(country, d_v_a_id, year) %>%
+    summarise(deaths_averted      = mean(deaths_averted,      na.rm = TRUE),
+              deaths_averted_rate = mean(deaths_averted_rate, na.rm = TRUE)) %>%
+    ungroup() %>%
+    filter(!is.na(deaths_averted_rate)) %>%
+    arrange(d_v_a_id, country, year) %>%
+    as.data.table() %>%
+    save_table("vimc_yov")
+  
+  # Simply store VIMC in it's current form
+  readRDS(paste0(o$pth$input, "vimc_uncertainty.rds")) %>%
+    # select() %>%
+    save_table("vimc_uncertainty")
 }
 
 # ---------------------------------------------------------
@@ -291,7 +310,7 @@ prepare_gbd_covariates = function() {
 # ---------------------------------------------------------
 create_yaml = function(name, id, type = "rds") {
   
-  read_file = paste0("input/", name, "_table.", type)
+  read_file = paste0("input/", name, "_table.", type) # Or data/
   yaml_file = paste0("config/", name, ".yaml")
   
   if (type == "csv") load_fn = "fread"
