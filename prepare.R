@@ -205,84 +205,83 @@ prepare_gbd_covariates = function() {
   gbd_sdi  = readRDS(paste0(o$pth$input, "gbd19_sdi.rds"))
   gbd_haqi = readRDS(paste0(o$pth$input, "gbd19_haqi.rds"))
 
+  # Join metrics into single datatable
   gbd_covariates = 
-    # full_join(x  = gbd_sdi, 
     inner_join(x  = gbd_sdi, 
                y  = gbd_haqi, 
                by = c("country", "year")) %>%
     arrange(country, year)
   
+  # Save in cache
+  # save_table(gbd_covariates, "gbd_covariates")
   
+  # ---- Forecast out to 2100 ----
   
+  # TODO: Is this necessary for EPI50?? - probably not!
   
   forecast_gbd_cov <- function(gbd_covariates) {
     
     years_back = 5
     
-    browser()
+    max_year = max(gbd_covariates$year)
     
-    fcast_list <- list()
-    max_year <- max(gbd_covariates$year)
+    covariates = setdiff(names(gbd_covariates), qc(country, year))
     
-    par(mfrow = c(2, 1)) # Plot related
+    fcast_list = list()
     
-    for (cov in c("haqi", "sdi")) {
+    for (covariate in covariates) {
       
-      browser()
-      
-      gbd_mat <- gbd_covariates %>%
-        select(country, year, all_of(cov)) %>%
+      gbd_mat = gbd_covariates %>%
+        select(country, year, all_of(covariate)) %>%
         pivot_wider(names_from  = year, 
-                    values_from =  all_of(cov)) %>%
+                    values_from =  all_of(covariate)) %>%
         select(-country) %>%
         as.matrix()
       
       start_vec = 1 - gbd_mat[, dim(gbd_mat)[2] - years_back]
       end_vec   = 1 - gbd_mat[, dim(gbd_mat)[2]]
       
-      t_mat <- matrix(data = 1 : (2100 - max_year), 
+      t_mat = matrix(data = 1 : (2100 - max_year), 
                       ncol = (2100 - max_year),
                       nrow = length(end_vec), 
                       byrow = TRUE)
       
-      aroc <- log(end_vec / start_vec) / years_back
+      aroc = log(end_vec / start_vec) / years_back
       
-      pred_mat <- 1 - end_vec * exp(aroc * t_mat)
-      colnames(pred_mat) <- (max_year + 1):2100
+      pred_mat = 1 - end_vec * exp(aroc * t_mat)
+      colnames(pred_mat) = (max_year + 1):2100
       
       if (max(pred_mat) >= 1)
         warning("Forecast greater than or equal to 1: consider forecasting in logit space")
       
-      out_mat <- cbind(gbd_mat, pred_mat)
+      out_dt = cbind(gbd_mat, pred_mat) %>%
+        as.data.table() %>%
+        mutate(country = unique(gbd_covariates$country)) %>%
+        pivot_longer(cols = -country, 
+                     names_to = "year") %>%
+        mutate(metric = !!covariate, 
+               year = as.integer(year)) %>%
+        as.data.table()
       
-      plot_dt = as.data.table(out_mat)
-      
-      
-      matplot(1990:2100, t(out_mat), type = "l", ylim = c(0, 1),
-              xlab = "Year", ylab = cov)
-      abline(h = 1, col = "red")
-      abline(v = (max_year + 0.5), col = "black")
-      
-      
-      melt_dt <- melt(
-        data.table(country = cast_dt$country, out_mat),
-        id.var = "country",
-        variable.name = "year",
-        value.name = cov
-      )
-      melt_dt[, year := as.integer(as.character(year))]
-      fcast_list[[cov]] <- melt_dt
-    }
-    out_dt <- merge(fcast_list[[1]], fcast_list[[2]])
+      g = ggplot(out_dt) +
+        aes(x = year, y = value, colour = country) +
+        geom_line(show.legend = FALSE) +
+        geom_vline(xintercept = max_year)
 
-    return(out_dt)
+      fcast_list[[covariate]] <- out_dt
+    }
+    
+    fcast_dt = rbindlist(fcast_list) %>%
+      pivot_wider(names_from = metric) %>%
+      as.data.table()
+
+    return(fcast_dt)
   }
   
+  gbd_covariates_fcast = forecast_gbd_cov(gbd_covariates)
   
-  
-  gbd_covariates2 = forecast_gbd_cov(gbd_covariates)
-  
-  browser()
+  # Save in cache
+  save_table(gbd_covariates_fcast, "gbd_covariates")
 }
 
 # ---------------------------------------------------------
