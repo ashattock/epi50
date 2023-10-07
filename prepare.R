@@ -19,17 +19,17 @@ run_prepare = function() {
   
   # create_yaml(table_name, group_by, type = "rds")
   
-  # Convert config yaml files to datatables
-  prepare_config_tables()
-
-  # # Streamline VIMC impact estimates for quick loading
-  prepare_vimc_impact()
-
-  # Prepare GBD estimates of deaths for non-VIMC pathogens
-  prepare_gbd_estimates()
-
-  # Prepare GBD covariates for extrapolating to non-VIMC countries
-  prepare_gbd_covariates()
+  # # Convert config yaml files to datatables
+  # prepare_config_tables()
+  # 
+  # # # Streamline VIMC impact estimates for quick loading
+  # prepare_vimc_impact()
+  # 
+  # # Prepare GBD estimates of deaths for non-VIMC pathogens
+  # prepare_gbd_estimates()
+  # 
+  # # Prepare GBD covariates for extrapolating to non-VIMC countries
+  # prepare_gbd_covariates()
   
   # Prepare demography-related estimates from WPP
   prepare_demography()  # See demography.R
@@ -283,16 +283,6 @@ prepare_gbd_covariates = function() {
   
   # Save in cache
   save_table(gbd_covariates_fcast, "gbd_covariates")
-}
-
-# ---------------------------------------------------------
-# Prepare demography-related estimates from WPP
-# ---------------------------------------------------------
-prepare_demography = function() {
-  
-  
-  
-  browser() 
 }
 
 # ---------------------------------------------------------
