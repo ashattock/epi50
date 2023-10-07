@@ -64,16 +64,10 @@ packages = c("tidyverse",      # Includes ggplot2, dplyr, tidyr (www.tidyverse.o
              "pals",           # Colour palettes
              "colorspace")     # Colour palettes
 
-# Other packages that are likely needed...
+# Other packages that may be needed...
 # DBI
 # DT
-# RSQLite
 # rnaturalearthdata
-# bigrquery
-# dbplyr
-# knitr
-# rmarkdown
-# testthat
 
 # ---- Install and/or load R packages with pacman ----
 

@@ -1,5 +1,21 @@
 
 # ---------------------------------------------------------
+# Parent function for calculating DALYs
+# ---------------------------------------------------------
+run_dalys = function() {
+  
+  # Only continue if specified by do_step
+  if (!is.element(3, o$do_step)) return()
+  
+  warning("DALY calculation under development... skipping this step")
+  
+  return()
+  
+  # Explore DALYs
+  explore_dalys()
+}
+
+# ---------------------------------------------------------
 # Calculate DALYs averted for GBD diseases
 # ---------------------------------------------------------
 explore_dalys = function() {

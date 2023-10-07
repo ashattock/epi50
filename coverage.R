@@ -10,7 +10,12 @@
 # ---------------------------------------------------------
 prepare_coverage = function() {
   
+  # TODO: Incorporate SIA data
+  # prepare_sia()
+  
   message(" - Coverage data")
+  
+  stop("Under development...")
   
   # Load VIMC coverage data
   vimc_dt = coverage_vimc()

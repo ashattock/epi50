@@ -1,6 +1,22 @@
 
 # ---------------------------------------------------------
-# Parent function for exploring potential for non-linear impact factors
+# Parent function for calculating non-linear impact
+# ---------------------------------------------------------
+run_impact_nonlinear = function() {
+  
+  # Only continue if specified by do_step
+  if (!is.element(2, o$do_step)) return()
+  
+  stop("Non-linear functionality needs to be refactored")
+  
+  return()
+  
+  # Explore non-linear impact
+  explore_nonlinear()
+}
+
+# ---------------------------------------------------------
+# Parent function for exploring potential for non-linear impact
 # ---------------------------------------------------------
 explore_nonlinear = function() {
   

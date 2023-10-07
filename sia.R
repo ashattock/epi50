@@ -14,7 +14,7 @@
 # ---------------------------------------------------------
 # Explore and prepare SIA data
 # ---------------------------------------------------------
-prep_sia = function() {
+prepare_sia = function() {
   
   # ---- User options ----
   
