@@ -7,7 +7,7 @@ explore_dalys = function() {
   browser() # Use: table("gbd_estimates") instead of gbd_strata_deaths
   
   # Load stuff up front
-  load_tables("gbd_strata_deaths", "coverage", "wpp_input") 
+  load_tables("gbd_strata_deaths", "coverage") 
   
   # Years to calculate DALYs for
   years = 2000 : 2019
@@ -329,6 +329,9 @@ get_dict = function(d_info) {
 # Population by country and year
 # ---------------------------------------------------------
 get_pop = function(countries, years) {
+  
+  # Load WPP data
+  wpp_input = table("wpp_input")
   
   # Population under 5
   prop_u5_dt = wpp_input %>%

@@ -219,7 +219,7 @@ calc_total_cov <- function(dt) {
 cov2fvp = function(coverage_dt) {
   
   # Load demographic data
-  load_tables("wpp_input")
+  wpp_input = table("wpp_input")
   
   # Total number of people per country (both sexes combined)
   #

@@ -16,8 +16,8 @@ run_results = function() {
   
   message("* Producing results")
   
-  # Load tables up front (see db_utils.R)
-  load_tables("wpp_input")
+  # Load tables up front
+  wpp_input = table("wpp_input")
   
   # Load impact factors calculated in step 2
   # impact_dt       = try_load(o$pth$impact_factors, "impact_dt")

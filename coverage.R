@@ -12,9 +12,6 @@ prepare_coverage = function() {
   
   message(" - Coverage data")
   
-  # Load population data - used to convert coverage to FVPs
-  load_tables("wpp_input")
-  
   # Load VIMC coverage data
   vimc_dt = coverage_vimc()
   
@@ -32,7 +29,7 @@ prepare_coverage = function() {
   browser() # v_at_table is now v_a_table
   
   # Combine sources
-  coverage = wpp_input %>%
+  coverage = table("wpp_input") %>%
     # Calculate FVPs for non-VIMC diseases...
     group_by(country, year, age) %>%
     summarise(cohort_size = sum(nx)) %>%

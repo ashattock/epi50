@@ -10,45 +10,37 @@
 # ---------------------------------------------------------
 prepare_demography = function() {
   
-  message(" - Demoraphy data")
+  message(" - Demography data")
   
-  # ---- Load population from WPP ----
+  # TEMP: Simply load table from IA2030 database
+  readRDS("temp/wpp_input.rds")$db_dt %>%
+    mutate(sex = c("m", "f", "b")[sex_id]) %>%
+    select(country, year, sex, age, nx, mx, fx, mig) %>%
+    save_table("wpp_input")
   
-  # Load historical and projected pop sizes for both genders
-  pm1 = get_wpp_pop("male",   "past")
-  pm2 = get_wpp_pop("male",   "future")
-  pf1 = get_wpp_pop("female", "past")
-  pf2 = get_wpp_pop("female", "future")
+  # TEMP: Simply load table from IA2030 database
+  readRDS("temp/all_deaths.rds")$db_dt %>%
+    mutate(sex = c("m", "f", "b")[sex_id]) %>%
+    select(country, year, sex, age, deaths) %>%
+    save_table("all_deaths")
   
-  browser()
+  return()
   
-  # Concatenate into single datatable
-  wpp_in = rbind(pm1, pm2, pf1, pf2) # %>% 
-  # left_join(y  = country_table[, .(country, wpp_country_code)], 
-  #           by = "wpp_country_code")
   
-  browser()
   
-  # ---- Append mx ----
+  
+  
+  # Load historical and projected pop sizes from WPP for both genders
+  wpp_dt = load_wpp_data()
   
   # Append mx - what is mx??
-  wppmx <- get_mx()
-  wpp_in %<>% 
-    left_join(y  = wppmx,
-              by = c("wpp_country_code", "sex_id", "year", "age")) %>%
-    mutate(dx  = mx * nx, 
-           age = ifelse(age > 95, 95, age)) %>%  # Set upper age bound
-    group_by(wpp_country_code, country, sex_id, year, age, ) %>%
-    summarise(nx = sum(nx, na.rm = T), 
-              dx = sum(dx, na.rm = T)) %>%
-    ungroup() %>%
-    mutate(mx = ifelse(nx == 0, 0, dx / nx))
+  wpp_dt = append_mx(wpp_dt)
   
   # ---- Append fx ----
   
   # Append fx - what is fx??
   wppfx <- get_fx()
-  wpp_in %<>%
+  wpp_dt %<>%
     left_join(y  = wppfx,
               by = c("wpp_country_code", "sex_id", "year", "age")) %>%
     mutate(fx = ifelse(is.na(fx), 0, fx)) %>%
@@ -59,13 +51,13 @@ prepare_demography = function() {
   # ---- Append migration details ----
   
   # loop through pulling migration
-  isc <- sort(unique(wpp_in$country))
+  isc <- sort(unique(wpp_dt$country))
   isn <- length(isc)
   wpp_in_list <- list(isn)
   
   for (c in 1:isn) {
     is <- isc[c]
-    wpp_ina <- wpp_in  %>%
+    wpp_ina <- wpp_dt  %>%
       filter(country == is) %>%
       arrange(sex_id, age, year)
     fx <- wpp_ina %>%
@@ -113,6 +105,8 @@ prepare_demography = function() {
   
   # ---- Prepare outputs ----
   
+  browser()
+  
   # Bind into single datatable
   wpp_input = rbindlist(wpp_in_list) %>%
     mutate(across(.cols = c(age, year, nx), 
@@ -128,117 +122,66 @@ prepare_demography = function() {
     select(country, year, age, sex_id, deaths) %>%
     arrange(country, year, age, sex_id)
   
-  # Upload both objects to database
-  upload_object(wpp_input,  "wpp_input")
-  upload_object(all_deaths, "all_deaths")
+  browser()
+  
+  # Save objects as tables in cache
+  save_table(wpp_input,  "wpp_input")
+  save_table(all_deaths, "all_deaths")
 }
 
 # ---------------------------------------------------------
 # Load population data from large WPP data files
 # ---------------------------------------------------------
-get_wpp_pop = function(sex, time_frame) {
+load_wpp_data = function() {
   
-  # # Details for selecting historical data
-  # if (time_frame == "past") {
-  #   sheet_name = "ESTIMATES"
-  #   cell_range = "A17:DE18122"
-  #   
-  #   # Years to select from
-  #   year_from  = 1950
-  #   year_until = 2020  # This is the latest year in the ESTIMATES sheet
-  # }
-  # 
-  # # Details for selecting future data
-  # if (time_frame == "future") {
-  #   sheet_name = "MEDIUM VARIANT"
-  #   cell_range = "A17:DE20672"
-  #   
-  #   # Years to select from
-  #   year_from  = 2020  # This is the earliest year in the MEDIUM VARIANT sheet
-  #   year_until = 2097
-  # }
-  # 
-  # browser()
-  # 
-  # # Construct path to specific input file
-  # xls_file = paste0(o$pth$input, "wpp19_", sex, ".xlsx")
+  message("  > Load WWP data")
   
-  csv_file = paste0(o$pth$input, "wpp19_", sex, "_", time_frame, ".csv")
+  # Initiate list to store results
+  wpp_list = list()
   
-  # browser() # Append country table and filter
+  # Iterate through sex and timeframe
+  for (time in c("past", "future")) {
+    for (sex in c("male", "female")) {
+      
+      # Path to streamlined WPP pop estimates - by sex and time frame
+      wpp_file = paste0(o$pth$input, "wpp19_", sex, "_", time, ".csv")
+      
+      # Load data and melt to tidy format
+      wpp_list[[paste1(time, sex)]] = fread(wpp_file) %>%
+        pivot_longer(cols     = -c(country, year),
+                     names_to = "age") %>%
+        mutate(age = as.integer(age),
+               sex = substr(sex, 1, 1), 
+               nx  = value * 1000) %>%
+        select(country, year, sex, age, nx) %>%
+        arrange(country, year, age) %>%
+        as.data.table()
+    }
+  }
   
-  # Load data and melt to tidy format
-  # pop_dt = readxl::read_excel(path  = xls_file, 
-  #                             sheet = sheet_name, 
-  #                             range = cell_range) %>%
-  # pop_dt = 
-    fread(csv_file) %>%
-    select(wpp_country_code = "Country code", 
-           year = "Reference date (as of 1 July)",
-           all_of(as.character(0 : 100))) %>%
-    mutate(across(.cols = all_of(as.character(0 : 100)), 
-                  .fns  = function(x) str_remove(as.character(x), " "))) %>%
-    inner_join(y  = table("country")[, .(country, wpp_country_code)], 
-               by = "wpp_country_code") %>%
-    select(country, year, all_of(as.character(0 : 100))) %>%
-    write_delim(csv_file, delim = ",")
-    
-    # pivot_longer(cols     = -c(wpp_country_code, year), 
-    #              names_to = "age") %>%
-    # filter(year >= year_from, 
-    #        year <  year_until) %>%
-  #   mutate(age = as.numeric(age), 
-  #          sex_id = which(c("male", "female") == sex)) %>%
-  #   group_by(wpp_country_code, year, sex_id, age) %>%
-  #   summarise(nx = sum(value * 1000)) %>%
-  #   ungroup() %>%
-  #   setDT()
-  # 
-  # return(pop_dt)
+  # Squash into single datatable
+  wpp_dt = rbindlist(wpp_list)
+  
+  return(wpp_dt)
 }
 
 # ---------------------------------------------------------
 # xxxxxxx
 # ---------------------------------------------------------
-split_rate = function(mx) {
-  pop <- log(mx)
-  pop[pop < -13] <- -13
-  pop[pop > -0.0001] <- -0.0001
-  m1 <- predict(
-    pspline::smooth.Pspline(
-      c(0, 2, seq(7, 97, 5), 100),
-      pop[1:22],
-      spar = 0.1
-    ),
-    0:100
-  )
-  m2 <- predict(
-    pspline::smooth.Pspline(
-      c(0, 2, seq(7, 97, 5), 100),
-      pop[23:44], spar = 0.1
-    ),
-    0:100
-  )
-  pop2 <- c(m1, m2)
-  pop2[pop2 > -0.0001] <- -0.0001
-  exp(pop2)
-}
-
-# ---------------------------------------------------------
-# xxxxxxx
-# ---------------------------------------------------------
-get_mx = function() {
+append_mx = function(wpp_dt) {
+  
+  message("  > Append mx")
   
   data(mxF, package = "wpp2019")
   data(mxM, package = "wpp2019")
-
+  
   mx_f <- mxF %>%
     gather(year, mx, -country_code, -name, -age) %>%
     mutate(year = as.numeric(substr(year, 1, 4)) + 2.5) %>%
     filter(year > 1977) %>%
     spread(year, mx) %>%
     select(-name) %>%
-    mutate(sex_id = 2)
+    mutate(sex = "f")
   
   mx_m <- mxM %>%
     distinct() %>%
@@ -247,7 +190,7 @@ get_mx = function() {
     filter(year > 1977) %>%
     spread(year, mx) %>%
     select(-name) %>%
-    mutate(sex_id = 1)
+    mutate(sex = "m")
   
   wppmx42   <- rbind(mx_f, mx_m)
   
@@ -277,7 +220,9 @@ get_mx = function() {
   }
   
   wppmx42 <- wppmx42 %>%
-    select(country_code, sex_id, age, paste0(1980:2096))
+    select(country_code, sex, age, paste0(1980:2096))
+  
+  browser()
   
   wppmx_list = list()
   
@@ -285,8 +230,8 @@ get_mx = function() {
     
     dpred <- wppmx42 %>%
       filter(country_code == code) %>%
-      arrange(sex_id, age) %>%
-      select(-country_code, -sex_id, -age) %>%
+      arrange(sex, age) %>%
+      select(-country_code, -sex, -age) %>%
       as.matrix()
     
     dpred[is.nan(dpred) | is.na(dpred)] <- 0.5
@@ -305,8 +250,21 @@ get_mx = function() {
   
   wppmx = rbindlist(wppmx_list) %>% 
     rename(wpp_country_code = country_code)
-
-  return(wppmx)
+  
+  browser()
+  
+  wpp_dt %<>% 
+    left_join(y  = wppmx,
+              by = c("wpp_country_code", "sex_id", "year", "age")) %>%
+    mutate(dx  = mx * nx, 
+           age = ifelse(age > 95, 95, age)) %>%  # Set upper age bound
+    group_by(wpp_country_code, country, sex_id, year, age, ) %>%
+    summarise(nx = sum(nx, na.rm = T), 
+              dx = sum(dx, na.rm = T)) %>%
+    ungroup() %>%
+    mutate(mx = ifelse(nx == 0, 0, dx / nx))
+  
+  return(wpp_dt)
 }
 
 # ---------------------------------------------------------
@@ -315,7 +273,7 @@ get_mx = function() {
 get_fx = function() {
   data("tfr", package = "wpp2019")
   data("tfrprojMed", package = "wpp2019")
-
+  
   tfra <- tfr %>%
     select(-c(last.observed)) %>%
     tidyr::gather(year, tfr, -country_code, -name) %>%
@@ -358,9 +316,9 @@ get_fx = function() {
     select(country_code, paste0(1980:2096)) %>%
     tidyr::gather(year, tfr, -country_code) %>%
     mutate(year = as.numeric(year))
-
+  
   data("percentASFR", package = "wpp2019")
-
+  
   agef <- tibble(
     agec = paste0(seq(15, 45, 5), "-", seq(15, 45, 5) + 4),
     age = seq(15, 45, 5)
@@ -375,9 +333,9 @@ get_fx = function() {
     left_join(agef, by = "agec") %>%
     select(-c(name, agec)) %>%
     arrange(country_code, age)
-
+  
   age_asfr <- tibble(agen = rep(seq(15, 45, 5), each = 5), age = 15:49)
-
+  
   for (j in seq(1977.5, 2092.5, 5)) {
     for (i in (j + 0.5):(j + 4.5)) {
       k <- j + 5
@@ -425,7 +383,7 @@ get_fx = function() {
            sex_id, age, year, fx) %>%
     arrange(wpp_country_code, age) %>%
     setDT()
-
+  
   return(wppfx)
 }
 
@@ -437,7 +395,7 @@ get_mig = function(is, nx, sx, fx, z) {
   nxm <- nx[(z + 1):(2 * z), ]
   sxf <- sx[1:z, ]
   sxm <- sx[(z + 1):(2 * z), ]
-
+  
   n <- ncol(nx) - 1
   migm <- migf <- array(dim = c(z, n))
   srb <- 1.05
@@ -449,17 +407,17 @@ get_mig = function(is, nx, sx, fx, z) {
     migf[z, i] <- migf[z - 1, i]
     fxbf <- (
       (1 + srb) ^ (-1) *
-      (fx[10:54, i] + fx[11:55, i] * sxf[11:55, i]) *
-      0.5
+        (fx[10:54, i] + fx[11:55, i] * sxf[11:55, i]) *
+        0.5
     )
     bxfs <- sum(
       fxbf *
-      nxf[10:54, i] *
-      (1 + .5 * migf[10:54, i])
+        nxf[10:54, i] *
+        (1 + .5 * migf[10:54, i])
     )
     migf[1, i] <- 2 * (nxf[1, i + 1] / bxfs - sxf[1, i]) / (1 + sxf[1, i])
   }
-
+  
   # Males
   for (i in 1:n) {
     num <- 2 * (nxm[2:(z - 1), i + 1] - nxm[1:(z - 2), i] * sxm[1:(z - 2), i])
@@ -468,19 +426,46 @@ get_mig = function(is, nx, sx, fx, z) {
     migm[z, i] <- migm[z - 1, i]
     fxbm <- (
       srb * (1 + srb) ^ (-1) *
-      (fx[10:54, i] + fx[11:55, i] * sxf[11:55, i]) *
-      0.5
+        (fx[10:54, i] + fx[11:55, i] * sxf[11:55, i]) *
+        0.5
     )
     bxms <- sum(
       fxbm *
-      nxf[10:54, i] *
-      (1 + .5 * migf[10:54, i])
+        nxf[10:54, i] *
+        (1 + .5 * migf[10:54, i])
     )
     migm[1, i] <- 2 * (nxm[1, i + 1] / bxms - sxm[1, i]) / (1 + sxm[1, i])
   }
-
+  
   mig <- rbind(migf, migm)
-
+  
   return(mig)
+}
+
+# ---------------------------------------------------------
+# xxxxxxx
+# ---------------------------------------------------------
+split_rate = function(mx) {
+  pop <- log(mx)
+  pop[pop < -13] <- -13
+  pop[pop > -0.0001] <- -0.0001
+  m1 <- predict(
+    pspline::smooth.Pspline(
+      c(0, 2, seq(7, 97, 5), 100),
+      pop[1:22],
+      spar = 0.1
+    ),
+    0:100
+  )
+  m2 <- predict(
+    pspline::smooth.Pspline(
+      c(0, 2, seq(7, 97, 5), 100),
+      pop[23:44], spar = 0.1
+    ),
+    0:100
+  )
+  pop2 <- c(m1, m2)
+  pop2[pop2 > -0.0001] <- -0.0001
+  exp(pop2)
 }
 

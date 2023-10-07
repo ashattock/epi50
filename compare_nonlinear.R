@@ -4,9 +4,6 @@
 # ---------------------------------------------------------
 compare_nonlinear = function() {
   
-  # Load stuff up front
-  load_tables("wpp_input", "coverage")
-  
   browser() # loc_table is now country_table
   
   # We'll calculate DALYs for all viable countries
@@ -19,7 +16,7 @@ compare_nonlinear = function() {
   # ---- Load coverage ----
   
   # Load population size of each country over time
-  pop_dt = wpp_input %>%
+  pop_dt = table("wpp_input") %>%
     filter(country %in% countries) %>%
     group_by(country, year) %>%
     summarise(pop = sum(nx)) %>%
@@ -195,7 +192,7 @@ compare_nonlinear = function() {
       area = "Deaths averted",
       bar  = "Cumulative deaths averted")
     
-    # COnstruct y label for this plot
+    # Construct y label for this plot
     y_lab = paste0(lab_dict[type], " (", y0, "-", y1, ")")
     
     # Prettyify axes
@@ -275,7 +272,7 @@ get_temporal_fvps = function() {
   browser() # v_at_table is now v_a_table
   
   # Load and format FVPs over time
-  fvps_dt = coverage %>%
+  fvps_dt = table("coverage") %>%
     # Summarise over age...
     group_by(country, v_at_id, year, sex_id) %>%
     summarise(fvps = sum(fvps)) %>%

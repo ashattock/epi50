@@ -31,7 +31,7 @@ run_relative_risk <- function(source = c("vimc", "gbd"), activity = "routine") {
   browser() # Use: table("gbd_estimates") instead of gbd_strata_deaths
   
   # Load all tables up front (see db_utils.R)
-  load_tables("coverage", "all_deaths", "vimc_impact", "gbd_strata_deaths", "wpp_input")
+  load_tables("coverage", "all_deaths", "vimc_impact", "gbd_strata_deaths")
   
   # Filter out non-routinte activities if desired
   all_strata = d_v_at_table %>%
@@ -464,6 +464,7 @@ merge_rr_covariates <- function(dt) {
     merge(dt, by = c("country", "age", "year"), all.x = T)
   
   # Add mortality
+  wpp_input = table("wpp_input")
   mx_dt <- wpp_input[, .(mx = mean(mx)), by = .(country, year, age)]
   dt <- merge(dt, mx_dt, by = c("country", "age", "year"), all.x = T)
   

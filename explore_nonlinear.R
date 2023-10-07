@@ -7,7 +7,7 @@ explore_nonlinear = function() {
   browser() # Use: table("vimc_impact")
   
   # Load stuff up front
-  load_tables("wpp_input", "vimc_impact", "vimc_yov_impact")
+  load_tables("vimc_impact", "vimc_yov_impact")
   
   browser() # loc_table is now country_table
   
@@ -17,7 +17,7 @@ explore_nonlinear = function() {
   # ---- FVPs and impact (deaths averted) ----
   
   # First load population size of each country over time
-  pop_dt = wpp_input %>%
+  pop_dt = table("wpp_input") %>%
     filter(country %in% countries) %>%
     group_by(country, year) %>%
     summarise(pop = sum(nx)) %>%
