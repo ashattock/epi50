@@ -4,6 +4,9 @@
 # ---------------------------------------------------------
 run_prepare = function() {
   
+  # Only continue if specified by do_step
+  if (!is.element(0, o$do_step)) return()
+  
   # Convert config yaml files to datatables 
   prepare_config_tables()
   
@@ -199,7 +202,6 @@ prepare_gbd_covariates = function() {
   #   mutate(haqi = haqi / 100) %>%
   #   arrange(country, year) %>%
   #   saveRDS("input/gbd19_haqi.rds")
-  
   
   # NOTE: We're missing SDI for two countries: 
   gbd_sdi  = readRDS(paste0(o$pth$input, "gbd19_sdi.rds"))
