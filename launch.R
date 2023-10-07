@@ -3,6 +3,7 @@
 #
 # Main launch function for WHO EPI50 analysis.
 #
+# Project lead: A.J.Shattock
 ###########################################################
 
 # Set working directory to sourced file

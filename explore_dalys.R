@@ -4,7 +4,7 @@
 # ---------------------------------------------------------
 explore_dalys = function() {
   
-  browser() # Use: load_table("gbd_estimates") instead of gbd_strata_deaths
+  browser() # Use: table("gbd_estimates") instead of gbd_strata_deaths
   
   # Load stuff up front
   load_tables("gbd_strata_deaths", "coverage", "wpp_input") 

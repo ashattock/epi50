@@ -27,8 +27,8 @@ run_relative_risk <- function(source = c("vimc", "gbd"), activity = "routine") {
   
   message("* Calculating relative risk")
   
-  browser() # Use: load_table("vimc_impact")
-  browser() # Use: load_table("gbd_estimates") instead of gbd_strata_deaths
+  browser() # Use: table("vimc_impact")
+  browser() # Use: table("gbd_estimates") instead of gbd_strata_deaths
   
   # Load all tables up front (see db_utils.R)
   load_tables("coverage", "all_deaths", "vimc_impact", "gbd_strata_deaths", "wpp_input")
@@ -173,7 +173,7 @@ prep_rr <- function(strata, params) {
   # For VIMC diseases
   if (strata$source == "vimc") {
     
-    browser() # Use: load_table("vimc_impact")
+    browser() # Use: table("vimc_impact")
     
     # For VIMC diseases, we can take deaths averted directly
     dt = vimc_impact %>%
@@ -203,7 +203,7 @@ prep_rr <- function(strata, params) {
   # For GBD diseases
   if (strata$source == "gbd") {
     
-    browser() # Use: load_table("gbd_estimates") instead of gbd_strata_deaths
+    browser() # Use: table("gbd_estimates") instead of gbd_strata_deaths
     
     # For GBD diseases, start with deaths attributable to each disease
     dt = gbd_strata_deaths %>%

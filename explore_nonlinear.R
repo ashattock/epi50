@@ -4,7 +4,7 @@
 # ---------------------------------------------------------
 explore_nonlinear = function() {
   
-  browser() # Use: load_table("vimc_impact")
+  browser() # Use: table("vimc_impact")
   
   # Load stuff up front
   load_tables("wpp_input", "vimc_impact", "vimc_yov_impact")
@@ -89,7 +89,7 @@ explore_nonlinear = function() {
   #   select(-n) %>%
   #   as.data.table()
   
-  browser() # Use: load_table("vimc_impact")
+  browser() # Use: table("vimc_impact")
   
   # Wrangle VIMC impact estimates
   impact_dt = vimc_impact %>%

@@ -211,7 +211,7 @@ get_mx_scen <- function(is, y0, y1, scen, mx, nx) {
 # ---------------------------------------------------------
 get_vimc_deaths_change <- function(is, y0, y1, default_coverage, scen_coverage, mx) {
   
-  browser() # Use: load_table("vimc_impact")
+  browser() # Use: table("vimc_impact")
   
   vimc_deaths_change <- vimc_impact %>%
     filter(country_name == is & year %in% y0:y1) %>%

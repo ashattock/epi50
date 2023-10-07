@@ -38,11 +38,6 @@ scatter_rr <- function(dt, x_var) {
   }
 }
 
-launch_shiny <- function() {
-  load_tables("wpp_input", "obs_wpp")
-  shiny::runApp(system.file("shiny", package = "vieIA2030"))
-}
-
 #' Make a map showing presence or absence of an indicator
 #' 
 #' @param countries A character vector of iso3 codes for countries

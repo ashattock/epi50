@@ -223,22 +223,6 @@ add_lt <- function(projected_pop, is, y0, y1) {
   return(out_df)
 }
 
-# #' @param obs_wpp Observed WPP data
-# NOTE: More function description required for devtools::document()
-add_obs <- function(df, obs_wpp, is, y0, y1) {
-  out_df <- df %>%
-    mutate(group = "CCPM") %>%
-    rbind(
-      obs_wpp %>%
-        filter(country_name == is & year %in% y0:y1) %>%
-        mutate(group = "WPP2019") %>%
-        select(-country),
-      fill = T
-    )
-  
-  return(out_df)
-}
-
 #' Calculate all single-year deaths
 #' @param y0 Start year of projection
 #' @param y1 End year of projection

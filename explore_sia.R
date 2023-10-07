@@ -48,7 +48,7 @@ prep_sia = function() {
   file_fvps = "SIA_doses.csv"
   data_fvps = fread(system.file("sia", file_fvps, package = "vieIA2030"))
   
-  browser() # Use: load_table("vimc_impact")
+  browser() # Use: table("vimc_impact")
   
   # Used for disaggregating VIMC and non-VIMC countries
   load_tables("vimc_impact")
@@ -608,7 +608,7 @@ prep_sia = function() {
   
   # ---- Plot by data source ----
   
-  browser() # Use: load_table("vimc_impact")
+  browser() # Use: table("vimc_impact")
   
   # First determine countries reported by VIMC
   vimc_countries = vimc_impact %>%
