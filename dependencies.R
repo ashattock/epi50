@@ -7,22 +7,22 @@
 
 # ---- R version check ----
 
-# R versions for which this project has been tested and is stable
-stable_versions = "4.3.0"
-
-# R versions for which this project is stable (as a string)
-stable_str = paste(stable_versions, collapse = ", ")
-
-# Get details of R version currently running
-version_info = R.Version()
-
-# Construct version number from list details
-version_num = paste0(version_info$major, ".",  version_info$minor)
-
-# Throw an error if this R version is unsuitable
-if (!version_num %in% stable_versions)
-  stop("This software is stable with R version(s): ", stable_str,
-       " (currently running ", version_num, ")")
+# # R versions for which this project has been tested and is stable
+# stable_versions = "4.3.0"
+# 
+# # R versions for which this project is stable (as a string)
+# stable_str = paste(stable_versions, collapse = ", ")
+# 
+# # Get details of R version currently running
+# version_info = R.Version()
+# 
+# # Construct version number from list details
+# version_num = paste0(version_info$major, ".",  version_info$minor)
+# 
+# # Throw an error if this R version is unsuitable
+# if (!version_num %in% stable_versions)
+#   stop("This software is stable with R version(s): ", stable_str,
+#        " (currently running ", version_num, ")")
 
 # Clear global environment
 rm(list = ls())
@@ -45,27 +45,19 @@ for (file in src_files)
 # Complete list of all R packages required for this project
 packages = c("tidyverse",      # Includes ggplot2, dplyr, tidyr (www.tidyverse.org/packages/)
              "data.table",     # Next generation dataframes
-             "gsubfn",         # Output multiple variables from functions
+             # "gsubfn",         # Output multiple variables from functions
              "magrittr",       # Additional pipe operators, such as %<>%
-             "rlist",          # List-related operation functions
+             # "rlist",          # List-related operation functions
              "wrapr",          # Convenience functions (eg qc)
              "stats",          # Statistical calculations and random number generation
              "stats4",         # MLE algorithm
              "matrixStats",    # Matrix row and column operations
              "tgp",            # Latin hypercube sampler
-             "sp",             # Geo-spatial functionality
-             "malariaAtlas",   # Geo-spatial functionality
-             "broom",          # Geo-spatial support functions
-             "Hmisc",          # Geo-spatial support functions
-             "countrycode",    # Convert country ISO <-> names
              "yaml",           # Data loading functionality
-             "xlsx",           # Data loading functionality (or use readxl?)
-             "mclm",           # Data loading functionality
+             # "xlsx",           # Data loading functionality (or use readxl?)
              "lubridate",      # Data formatting functionality
              "naniar",         # Data formatting functionality
-             "gridExtra",      # Plotting functionality
              "ggpubr",         # Plotting functionality
-             "ggrepel",        # Plotting functionality
              "scales",         # Plotting functionality
              "pals",           # Colour palettes
              "colorspace")     # Colour palettes
