@@ -1,32 +1,44 @@
+###########################################################
+# PREPARE
+#
+# Prepare various data sources for use throughout the analysis.
+# The idea is that this process needs to be done only once, 
+# and that the prepared inputs are streamlined for quick loading.
+#
+###########################################################
 
 # ---------------------------------------------------------
-# xxxxxxxxxxxxxxxxx
+# Parent function for preparing model inputs from various data sources
 # ---------------------------------------------------------
 run_prepare = function() {
   
   # Only continue if specified by do_step
   if (!is.element(0, o$do_step)) return()
   
-  # Convert config yaml files to datatables 
-  prepare_config_tables()
+  message("* Preparing input data")
   
+  # create_yaml(table_name, group_by, type = "rds")
+  
+  # Convert config yaml files to datatables
+  prepare_config_tables()
+
   # # Streamline VIMC impact estimates for quick loading
   prepare_vimc_impact()
 
-  # TODO: Is this needed? Can we just use WUENIC coverage instead?
-  prepare_hpv_target()
-
   # Prepare GBD estimates of deaths for non-VIMC pathogens
   prepare_gbd_estimates()
-  
-  # 
+
+  # Prepare GBD covariates for extrapolating to non-VIMC countries
   prepare_gbd_covariates()
   
-  browser()
+  # Prepare demography-related estimates from WPP
+  prepare_demography()  # See demography.R
   
-  # 
-  create_coverage()
+  # Prepare historical vaccine coverage
+  prepare_coverage()  # See coverage.R
   
+  # # TODO: Is this needed? Can we just use WUENIC coverage instead?
+  # prepare_hpv_target()
 }
 
 # ---------------------------------------------------------
@@ -34,7 +46,7 @@ run_prepare = function() {
 # ---------------------------------------------------------
 prepare_config_tables = function() {
   
-  # create_yaml("country", "country", type = "rds")
+  message(" - Config files")
   
   # NOTE: Here we load in yaml files (/config/) and create
   #       rds files (/cache/) for fast loading
@@ -61,7 +73,7 @@ prepare_config_tables = function() {
   # Other config-related tables...
   
   # Disease-vaccine table
-  load_table("d_v_a") %>%
+  table("d_v_a") %>%
     select(disease, vaccine) %>%
     unique() %>%
     mutate(d_v_id = 1 : n(), 
@@ -69,7 +81,7 @@ prepare_config_tables = function() {
     save_table("d_v")
   
   # Vaccine-activity table
-  load_table("d_v_a") %>%
+  table("d_v_a") %>%
     select(vaccine, activity) %>%
     unique() %>%
     mutate(v_a_id = 1 : n(), 
@@ -82,11 +94,13 @@ prepare_config_tables = function() {
 # ---------------------------------------------------------
 prepare_vimc_impact = function() {
   
+  message(" - VIMC estimates")
+  
   # TODO: In raw form, we could instead use vimc_estimates.csv
   
   # Prepare VIMC vaccine impact estimates
   readRDS(paste0(o$pth$input, "vimc_estimates.rds")) %>%
-    left_join(y  = load_table("d_v_a"), 
+    left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
     select(country, d_v_a_id, year, age, deaths_averted) %>%
     arrange(d_v_a_id, country, age, year) %>%
@@ -94,7 +108,7 @@ prepare_vimc_impact = function() {
   
   # Prepare VIMC year-of-vaccination results - take the mean across models
   readRDS(paste0(o$pth$input, "vimc_yov.rds")) %>%
-    left_join(y  = load_table("d_v_a"), 
+    left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
     select(country, d_v_a_id, model, year, deaths_averted, deaths_averted_rate) %>%
     group_by(country, d_v_a_id, year) %>%
@@ -113,47 +127,11 @@ prepare_vimc_impact = function() {
 }
 
 # ---------------------------------------------------------
-# xxxxxxxx
-# ---------------------------------------------------------
-prepare_hpv_target = function() {
-  
-  # TODO: De we need these targets for EPI50 - probably not
-  
-  # Prep HPV target coverage for IA2030 coverage scenario
-  fread(paste0(o$pth$input, "hpv_target_coverage.csv")) %>%
-    pivot_longer(cols = -c(country, sex, age, doses), 
-                 names_to = "year") %>%
-    mutate(year = as.integer(year)) %>%
-    replace_na(list(value = 0)) %>%
-    # Keep the max of the one and two does coverage levels...
-    group_by(country, year, sex, age) %>%
-    summarise(value = max(value)) %>%
-    ungroup() %>%
-    # Append country ISO...
-    rename(hpv_name = country) %>%
-    left_join(y  = load_table("country")[, .(country, hpv_name)], 
-              by = c("hpv_name")) %>%
-    select(-hpv_name) %>%
-    # Breakdown aggregate into distinct gender...
-    mutate(sex = tolower(substr(sex, 1, 1))) %>%
-    pivot_wider(names_from = sex) %>%
-    mutate(f = ifelse(is.na(f), b, f), 
-           m = ifelse(is.na(m), b, m)) %>%
-    select(-b) %>%
-    pivot_longer(cols = -c(country, year, age), 
-                 names_to = "sex") %>%
-    filter(!is.na(value)) %>%
-    # Final formatting...
-    select(country, year, age, sex, hpv_target = value) %>%
-    arrange(country, year, age, sex) %>%
-    as.data.table() %>%
-    save_table("hpv_target")
-}
-
-# ---------------------------------------------------------
 # Prepare GBD estimates of deaths for non-VIMC pathogens
 # ---------------------------------------------------------
 prepare_gbd_estimates = function() {
+  
+  message(" - GBD estimates")
   
   # Load GBD estimates of deaths from relevant diseases
   gbd_dt = readRDS(paste0(o$pth$input, "gbd19_estimates.rds"))
@@ -177,16 +155,18 @@ prepare_gbd_estimates = function() {
     filter(!is.na(value)) %>%
     mutate(value := value / n) %>%
     select(-age_bin, n) %>%
-    left_join(y  = load_table("d_v_a"), 
+    left_join(y  = table("d_v_a"), 
               by = "disease") %>%
     select(d_v_a_id, country, year, sex, age, strata_deaths = value) %>%
     save_table("gbd_estimates")
 }
 
 # ---------------------------------------------------------
-# xxxxxxxx
+# Prepare GBD covariates for extrapolating to non-VIMC countries
 # ---------------------------------------------------------
 prepare_gbd_covariates = function() {
+  
+  message(" - GBD covariates")
   
   # Prep GBD 2019 SDI for use as a covariate
   
@@ -197,7 +177,7 @@ prepare_gbd_covariates = function() {
   #   filter(n != 105) %>%
   #   select(-n) %>%
   #   rename(gbd_alt_name = Location) %>%
-  #   inner_join(y  = load_table("country")[, .(country, gbd_alt_name)],
+  #   inner_join(y  = table("country")[, .(country, gbd_alt_name)],
   #              by = "gbd_alt_name") %>%
   #   select(country, all_of(as.character(1990 : 2019))) %>%
   #   pivot_longer(cols = -country,
@@ -215,7 +195,7 @@ prepare_gbd_covariates = function() {
   #   filter(!n %in% (8641 : 8680)) %>%
   #   select(-n) %>%
   #   rename(country_name = location_name) %>%
-  #   inner_join(y  = load_table("country")[, .(country, country_name)],
+  #   inner_join(y  = table("country")[, .(country, country_name)],
   #              by = "country_name") %>%
   #   select(country, year = year_id, haqi = val) %>%
   #   mutate(haqi = haqi / 100) %>%
@@ -306,6 +286,83 @@ prepare_gbd_covariates = function() {
 }
 
 # ---------------------------------------------------------
+# Prepare demography-related estimates from WPP
+# ---------------------------------------------------------
+prepare_demography = function() {
+  
+  
+  
+  browser() 
+}
+
+# ---------------------------------------------------------
+# Extrapolate HPV targets
+# ---------------------------------------------------------
+prepare_hpv_target = function() {
+  
+  message(" - HPV targets")
+  
+  # TODO: De we need these targets for EPI50 - probably not
+  
+  # Prep HPV target coverage for IA2030 coverage scenario
+  fread(paste0(o$pth$input, "hpv_target_coverage.csv")) %>%
+    pivot_longer(cols = -c(country, sex, age, doses), 
+                 names_to = "year") %>%
+    mutate(year = as.integer(year)) %>%
+    replace_na(list(value = 0)) %>%
+    # Keep the max of the one and two does coverage levels...
+    group_by(country, year, sex, age) %>%
+    summarise(value = max(value)) %>%
+    ungroup() %>%
+    # Append country ISO...
+    rename(hpv_name = country) %>%
+    left_join(y  = table("country")[, .(country, hpv_name)], 
+              by = c("hpv_name")) %>%
+    select(-hpv_name) %>%
+    # Breakdown aggregate into distinct gender...
+    mutate(sex = tolower(substr(sex, 1, 1))) %>%
+    pivot_wider(names_from = sex) %>%
+    mutate(f = ifelse(is.na(f), b, f), 
+           m = ifelse(is.na(m), b, m)) %>%
+    select(-b) %>%
+    pivot_longer(cols = -c(country, year, age), 
+                 names_to = "sex") %>%
+    filter(!is.na(value)) %>%
+    # Final formatting...
+    select(country, year, age, sex, hpv_target = value) %>%
+    arrange(country, year, age, sex) %>%
+    as.data.table() %>%
+    save_table("hpv_target")
+}
+
+# ---------------------------------------------------------
+# Save table in cache directory for quick loading
+# ---------------------------------------------------------
+save_table = function(x, table) {
+  
+  # Save table in cache directory
+  saveRDS(x, paste0(o$pth$cache, table, "_table.rds"))
+}
+
+# ---------------------------------------------------------
+# Load and return cached datatable
+# ---------------------------------------------------------
+table = function(table) {
+  
+  # Construct file path
+  file = paste0(o$pth$cache, table, "_table.rds")
+  
+  # Throw an error if this file doesn't exist
+  if (!file.exists(file))
+    stop("Table ", table, " has not been cached - have you run step 0?")
+  
+  # Load rds file
+  y = readRDS(file)
+  
+  return(y)
+}
+
+# ---------------------------------------------------------
 # TEMP: Convert input to yaml format
 # ---------------------------------------------------------
 create_yaml = function(name, id, type = "rds") {
@@ -321,32 +378,5 @@ create_yaml = function(name, id, type = "rds") {
     unname() %>%
     as.yaml() %>%
     write_yaml(yaml_file)
-}
-
-# ---------------------------------------------------------
-# Save table in cache directory for quick loading
-# ---------------------------------------------------------
-save_table = function(x, table) {
-  
-  # Save table in cache directory
-  saveRDS(x, paste0(o$pth$cache, table, "_table.rds"))
-}
-
-# ---------------------------------------------------------
-# Load and return cached datatable
-# ---------------------------------------------------------
-load_table = function(table) {
-  
-  # Construct file path
-  file = paste0(o$pth$cache, table, "_table.rds")
-  
-  # Throw an error if this file doesn't exist
-  if (!file.exists(file))
-    stop("Table ", table, " has not been cached - have you run step 0?")
-  
-  # Load rds file
-  y = readRDS(file)
-  
-  return(y)
 }
 

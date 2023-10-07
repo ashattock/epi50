@@ -8,7 +8,9 @@
 # ---------------------------------------------------------
 # xxxxxxxxx
 # ---------------------------------------------------------
-create_coverage = function() {
+prepare_coverage = function() {
+  
+  message(" - Coverage data")
   
   # Load population data - used to convert coverage to FVPs
   load_tables("wpp_input")
