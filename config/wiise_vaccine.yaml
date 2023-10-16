@@ -14,14 +14,14 @@ table:
   coverage_category: WUENIC
   sex: "b"
   age: "0"
-- wiise_id: HEPB_BD
-  vaccine: HepB_BD
+- wiise_id: HEPB3
+  vaccine: HepB
   activity: routine
   coverage_category: WUENIC
   sex: "b"
   age: "0"
-- wiise_id: HEPB3
-  vaccine: HepB
+- wiise_id: HEPB_BD
+  vaccine: HepB_BD
   activity: routine
   coverage_category: WUENIC
   sex: "b"
@@ -32,12 +32,6 @@ table:
   coverage_category: WUENIC
   sex: "b"
   age: "0"
-- wiise_id: JAPENC
-  vaccine: JE
-  activity: campaign
-  coverage_category: OFFICIAL
-  sex: "b"
-  age: "0:14"
 - wiise_id: MCV1
   vaccine: MCV1
   activity: routine
@@ -50,12 +44,6 @@ table:
   coverage_category: WUENIC
   sex: "b"
   age: "0"
-- wiise_id: MEN_A_CONJ
-  vaccine: MenA
-  activity: campaign
-  coverage_category: OFFICIAL
-  sex: "b"
-  age: "0:29"
 - wiise_id: PCV3
   vaccine: PCV3
   activity: routine

@@ -18,36 +18,24 @@ prepare_coverage = function() {
   # Extract coverage for VIMC pathogens
   vimc_dt = coverage_vimc()
   
-  # Extract coverage for non-VIMC pathogens
-  wiise_dt = coverage_wiise(vimc_dt)
+  # However not every country is covered by VIMC for these pathogens
+  vimc_countries = vimc_dt %>%
+    left_join(y  = table("v_a"), 
+              by = "v_a_id") %>%
+    select(vaccine, country) %>%
+    arrange(vaccine, country) %>%
+    unique() %>%
+    split(.$vaccine) %>%
+    lapply(function(x) x$country)
   
-  browser() # v_at_table is now v_a_table
+  # For everything remaining, extract coverage from WIISE database
+  wiise_dt = coverage_wiise(vimc_countries)
   
   # Combine sources
-  coverage = table("wpp_input") %>%
-    # Total number of people...
-    group_by(country, year, age) %>%
-    summarise(cohort_size = sum(nx)) %>%
-    ungroup() %>%
-    # Calculate FVPs for non-VIMC diseases...
-    inner_join(y  = wiise_dt, 
-               by = c("country", "year", "age")) %>%
-    mutate(fvps = coverage * cohort_size) %>%
-    select(-cohort_size) %>% 
-    # Combine VIMC diseases and format...
-    bind_rows(vimc_dt) %>%
+  rbind(vimc_dt, wiise_dt) %>%
     filter(fvps > 0) %>%  # Remove trivial values
-    left_join(y  = table("v_a"), 
-              by = c("vaccine", "activity")) %>%
-    select(country, v_at_id, year, age, sex_id, fvps, coverage) %>%
-    arrange(country, v_at_id, year, age, sex_id) %>%
-    setDT()
-  
-  # coverage[, age := as.integer(age)]
-  # coverage[, sex_id := as.integer(sex_id)]
-  
-  # Upload table to database
-  upload_object(coverage, "coverage")
+    arrange(country, v_a_id, sex, year, age) %>%
+    save_table("coverage")
 }
 
 # ---------------------------------------------------------
@@ -65,13 +53,13 @@ coverage_vimc = function() {
     summarise(fvps     = sum(fvps_adjusted),
               coverage = fvps / sum(cohort_size)) %>%
     ungroup() %>%
-    arrange(country, disease, vaccine, activity, year, age) %>%
+    mutate(sex = "b") %>%  # As both genders nbow combined
+    # Append v_a ID...
+    left_join(y  = table("v_a"), 
+              by = c("vaccine", "activity")) %>%
+    select(country, v_a_id, sex, year, age, fvps, coverage) %>%
+    arrange(country, v_a_id, year, age) %>%
     as.data.table()
-  
-  browser()
-  
-  left_join(y  = table("v_a"), 
-            by = c("vaccine", "activity")) %>%
   
   return(vimc_dt)
 }
@@ -79,9 +67,11 @@ coverage_vimc = function() {
 # ---------------------------------------------------------
 # Extract coverage from WIISE database
 # ---------------------------------------------------------
-coverage_wiise = function(vimc_dt) {
+coverage_wiise = function(vimc_countries) {
   
   # TODO: Combine genders for HPV ??
+  
+  # ---- Load data ----
   
   temp_file = "temp/wiise_coverage.rds"
   if (file.exists(temp_file)) {
@@ -95,46 +85,68 @@ coverage_wiise = function(vimc_dt) {
     saveRDS(data_dt, temp_file)
   }
   
-  all_countries = table("country")$country
+  # Load WIISE-related vaccine details 
+  wiise_info = table("wiise_vaccine")
   
-  wiise_table = table("wiise")
+  # ---- Extract coverage ----
   
+  # Initiate list to store results
   wiise_list = list()
   
-  for (i in seq_len(nrow(wiise_table))) {
-    j = wiise_table[i, ]
+  # Iterate through WIISE vaccines
+  for (i in seq_len(nrow(wiise_info))) {
+    v = wiise_info[i, ]
     
-    # Some countries may already be covered for this vaccine by VIMC
-    vimc_countries = vimc_dt %>%
-      filter(vaccine == j$vaccine) %>%
-      pull(country) %>%
-      unique()
+    # Countries to consider (ignoring VIMC countries)
+    wiise_countries = setdiff(
+      x = table("country")$country, 
+      y = vimc_countries[[v$vaccine]])
     
     # Filter data by coverage_category type
-    wiise_list[[i]] = data_dt %>%
+    wiise_coverage = data_dt %>%
       setnames(names(.), tolower(names(.))) %>% 
       rename(country  = code, 
              wiise_id = antigen) %>%
       # Select only vaccine and countries of interest...
-      filter(coverage_category == j$coverage_category, 
-             wiise_id %in% j$wiise_id,
-             country  %in% all_countries, 
-             !country %in% vimc_countries) %>%  # Ignoring VIMC countries
-      mutate(vaccine = j$vaccine) %>%
+      filter(coverage_category == v$coverage_category, 
+             wiise_id %in% v$wiise_id,
+             country  %in% wiise_countries) %>%  
       # Format coverage...
       replace_na(list(coverage = 0)) %>%
       mutate(coverage = coverage / 100) %>%
-      # Append additional vaccination details...
-      expand_grid(activity = j$activity, 
-                  sex      = j$sex, 
-                  age      = eval_str(j$age)) %>%
-      select(country, vaccine, activity, 
-             sex, year, age, coverage) %>%
+      select(country, year, coverage) %>%
+      arrange(country, year)
+    
+    # In some cases coverage is repeated for multiple ages
+    wiise_list[[i]] = wiise_info %>% 
+      # Expand for each age considered...
+      slice(i) %>% 
+      expand_grid(expand_age = eval_str(age)) %>%
+      select(vaccine, activity, sex, age = expand_age) %>%
+      # Repeat coverage values for each age...
+      expand_grid(wiise_coverage) %>%
+      # Final formatting...
+      left_join(y  = table("v_a"), 
+                by = c("vaccine", "activity")) %>%
+      select(country, v_a_id, sex, year, age, coverage) %>%
       as.data.table()
   }
   
-  wiise_dt = rbindlist(wiise_list) %>%
-    arrange(country, vaccine, year, age)
+  # ---- Calculate FVPs ----
+  
+  wiise_dt = table("wpp_input") %>%
+    # Total number of people...
+    group_by(country, year, age) %>%
+    summarise(cohort_size = sum(nx)) %>%
+    ungroup() %>%
+    # Calculate number of fully vaccinated people...
+    inner_join(y  = rbindlist(wiise_list), 
+               by = c("country", "year", "age")) %>%
+    mutate(fvps = coverage * cohort_size) %>%
+    # Final formatting...
+    select(country, v_a_id, sex, year, age, fvps, coverage) %>%
+    arrange(country, v_a_id, sex, year, age) %>%
+    as.data.table()
   
   return(wiise_dt)
 }

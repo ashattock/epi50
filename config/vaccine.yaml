@@ -14,16 +14,12 @@ table:
   vaccine_name: Haemophilus influenzae type b (third-dose)
 - vaccine: HPV
   vaccine_name: Human papillomavirus
-- vaccine: JE
-  vaccine_name: Japanese encephalitis
 - vaccine: MCV1
   vaccine_name: Measles-containing-vaccine (first-dose)
 - vaccine: MCV2
   vaccine_name: Measles-containing-vaccine (second-dose)
 - vaccine: Measles
   vaccine_name: Measles
-- vaccine: MenA
-  vaccine_name: Meningitis A
 - vaccine: PCV3
   vaccine_name: Pneumococcal (third-dose)
 - vaccine: RCV2
