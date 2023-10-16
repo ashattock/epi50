@@ -28,10 +28,6 @@ set_dirs = function(o) {
   
   # Path to cached data tables
   pth$cache  = file.path(pth$code, "cache")
-  # pth$tables = file.path(pth$code, "tables")
-  
-  # Paths to specific configuration files
-  # pth$parameters  = file.path(pth$config, "parameters.json")
   
   # ---- Output directories ----
   

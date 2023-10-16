@@ -22,7 +22,7 @@ run_prepare = function() {
   # Convert config yaml files to datatables
   prepare_config_tables()
 
-  # # Streamline VIMC impact estimates for quick loading
+  # Streamline VIMC impact estimates for quick loading
   prepare_vimc_impact()
 
   # Prepare GBD estimates of deaths for non-VIMC pathogens

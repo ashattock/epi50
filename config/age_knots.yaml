@@ -1,0 +1,28 @@
+---
+
+# Creates datatable: age_knots_table
+table:
+- disease: HepB
+  age_knots: "c(2, 5, 10, 25)"
+- disease: Hib
+  age_knots: "c(1, 2, 3)"
+- disease: HPV
+  age_knots: "c(12, 15, 20, 35)"
+- disease: Measles
+  age_knots: "c(2, 5, 10, 25)"
+- disease: PCV
+  age_knots: "c(1, 2, 3)"
+- disease: Rota
+  age_knots: "c(2, 5, 10, 25)"
+- disease: Rubella
+  age_knots: "c(17, 20, 25, 40)"
+- disease: YF
+  age_knots: "c(2, 5, 10, 25)"
+- disease: Dip
+  age_knots: "c(2, 5, 10, 25)"
+- disease: Tet
+  age_knots: "c(2, 5, 10, 25)"
+- disease: Per
+  age_knots: "c(2, 5, 10, 25)"
+- disease: TB
+  age_knots: "c(2, 5, 10, 25)"
