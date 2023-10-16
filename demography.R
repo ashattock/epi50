@@ -17,36 +17,21 @@ prepare_demography = function() {
     mutate(sex = c("m", "f", "b")[sex_id]) %>%
     select(country, year, sex, age, nx, mx, fx, mig) %>%
     save_table("wpp_input")
-  
+
   # TEMP: Simply load table from IA2030 database
   readRDS("temp/all_deaths.rds")$db_dt %>%
     mutate(sex = c("m", "f", "b")[sex_id]) %>%
     select(country, year, sex, age, deaths) %>%
     save_table("all_deaths")
-  
+
   return()
   
-  
-  
-  
-  
   # Load historical and projected pop sizes from WPP for both genders
-  wpp_dt = load_wpp_data()
+  wpp_dt = load_wpp_data() %>%
+    append_mx() %>%  # Append mortality
+    append_fx()      # Append fertility
   
-  # Append mx - what is mx??
-  wpp_dt = append_mx(wpp_dt)
-  
-  # ---- Append fx ----
-  
-  # Append fx - what is fx??
-  wppfx <- get_fx()
-  wpp_dt %<>%
-    left_join(y  = wppfx,
-              by = c("wpp_country_code", "sex_id", "year", "age")) %>%
-    mutate(fx = ifelse(is.na(fx), 0, fx)) %>%
-    select(wpp_country_code, country, sex_id, age, year, nx, mx, fx) %>%
-    filter(!is.na(sex_id) & !is.na(country)) %>%
-    arrange(country, sex_id, age)
+  browser()
   
   # ---- Append migration details ----
   
@@ -166,7 +151,7 @@ load_wpp_data = function() {
 }
 
 # ---------------------------------------------------------
-# xxxxxxx
+# Append mortality rates to population data
 # ---------------------------------------------------------
 append_mx = function(wpp_dt) {
   
@@ -178,7 +163,7 @@ append_mx = function(wpp_dt) {
   mx_f <- mxF %>%
     gather(year, mx, -country_code, -name, -age) %>%
     mutate(year = as.numeric(substr(year, 1, 4)) + 2.5) %>%
-    filter(year > 1977) %>%
+    filter(year > 1970) %>%
     spread(year, mx) %>%
     select(-name) %>%
     mutate(sex = "f")
@@ -187,7 +172,7 @@ append_mx = function(wpp_dt) {
     distinct() %>%
     gather(year, mx, -country_code, -name, -age) %>%
     mutate(year = as.numeric(substr(year, 1, 4)) + 2.5) %>%
-    filter(year > 1977) %>%
+    filter(year > 1970) %>%
     spread(year, mx) %>%
     select(-name) %>%
     mutate(sex = "m")
@@ -253,6 +238,29 @@ append_mx = function(wpp_dt) {
   
   browser()
   
+  # g1 = mx_f %>%
+  #   filter(country_code == 4) %>%
+  #   select(-country_code, -sex) %>%
+  #   pivot_longer(cols = -age, 
+  #                names_to = "year") %>%
+  #   mutate(year = as.numeric(year), 
+  #          age  = as.factor(age)) %>%
+  #   ggplot(aes(x = year, y = value, colour = age)) +
+  #   geom_line()
+  
+  # g2 = wppmx %>%
+  #   filter(wpp_country_code == 4, 
+  #          sex_id == 2) %>%
+  #   select(-wpp_country_code, -sex_id) %>%
+  #   mutate(age  = as.factor(age)) %>%
+  #   ggplot(aes(x = year, y = mx, colour = age)) +
+  #   geom_line()
+  
+  
+  
+  
+  
+  
   wpp_dt %<>% 
     left_join(y  = wppmx,
               by = c("wpp_country_code", "sex_id", "year", "age")) %>%
@@ -268,9 +276,10 @@ append_mx = function(wpp_dt) {
 }
 
 # ---------------------------------------------------------
-# xxxxxxx
+# Append fertility rate
 # ---------------------------------------------------------
-get_fx = function() {
+append_fx = function(wpp_dt) {
+  
   data("tfr", package = "wpp2019")
   data("tfrprojMed", package = "wpp2019")
   
@@ -384,7 +393,20 @@ get_fx = function() {
     arrange(wpp_country_code, age) %>%
     setDT()
   
-  return(wppfx)
+  browser()
+  
+  
+  
+  
+  wpp_dt %<>%
+    left_join(y  = wppfx,
+              by = c("wpp_country_code", "sex_id", "year", "age")) %>%
+    mutate(fx = ifelse(is.na(fx), 0, fx)) %>%
+    select(wpp_country_code, country, sex_id, age, year, nx, mx, fx) %>%
+    filter(!is.na(sex_id) & !is.na(country)) %>%
+    arrange(country, sex_id, age)
+  
+  return(wpp_dt)
 }
 
 # ---------------------------------------------------------

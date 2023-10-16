@@ -444,11 +444,10 @@ merge_rr_covariates <- function(dt) {
   
   # NOTES:
   #  1) WWP stands for 'World Population Prospects'
-  #     - nx := Number of people
-  #     - mx := ??
+  #     - nx := number of people
+  #     - mx := mortality rate
   #     - fx := fertility rate
   #     - mig := migration rate
-  #  a) The mx in the WPP stands for ???
   #  2) Within the GBD (Global Burden of Disease) data
   #  a) HAQi stands for 'Healthcare Access and Quality index'
   #     See: https://www.healthdata.org/research-article/healthcare-access-and-quality-index-based-mortality-causes-amenable-personal-health
