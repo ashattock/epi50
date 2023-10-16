@@ -7,8 +7,7 @@
 ###########################################################
 
 # ---------------------------------------------------------
-#' Calculate total coverage for every vaccine, country, sex
-# Called by: prep_rr()
+# Calculate total coverage for every vaccine, country, sex
 # ---------------------------------------------------------
 total_coverage2 <- function(coverage) {
   

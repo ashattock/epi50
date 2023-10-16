@@ -14,52 +14,91 @@
 #  - averted: predicted deaths averted using stats model (for countries not in VIMC ??)
 
 # ---------------------------------------------------------
-# Parent function to impute relative risk for all disease-vaccine combinations
-# Called by: launch.R, main.R (and other launch-style scripts)
+# Impute relative risk for a each d-v-a (aka strata)
 # ---------------------------------------------------------
-run_relative_risk = function(source = c("vimc", "gbd"), activity = "routine") {
-  
-  # Options for source: "vimc", "kidrisk", "gbd", or any combination of
-  # Options for activity: "routine", "campaign", "combined" or any combination of
+run_relative_risk = function() {
   
   # Only continue if specified by do_step
   if (!is.element(1, o$do_step)) return()
   
   message("* Calculating relative risk")
   
-  # All d-v-a cases to run
-  all_strata = table("d_v_a") %>%
-    # Append source...
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
-    select(-disease_id, -disease_name) %>%
-    # Select what we want to run...
-    filter(source   %in% !!source, 
-           activity %in% !!activity) 
-
+  # Initiate list for relative risk results
+  rr_list = list()
   
+  # All strata to run
+  all_strata = left_join(
+    x = table("d_v_a"), 
+    y = table("disease")[, .(disease, source)], 
+    by = "disease")
   
+  # Repeat this process for each strata
+  for (id in all_strata$d_v_a_id) {
+    
+    # Details of this strata
+    strata = all_strata[d_v_a_id == id, ]
+    
+    # Display progress message to user
+    msg = unlist(strata[, .(disease, vaccine, activity)])
+    message(paste0(" - ", paste(msg, collapse = ", ")))
+    
+    # Prepare for relative risk calculation
+    dt = prep_rr(strata)
+    
+    browser()
+    
+    # Append country-specific covariates (eg social-economic index) from GBD
+    dt = merge_rr_covariates(dt)
+    
+    # Place within above function(s)...
+    
+    # Throw error if no valid relative risk results
+    if (nrow(dt[rr > 0 & rr < 1]) == 0)
+      stop("Error calculating relative risk")
+    
+    # ---- Fit a model to predict relative risk ----
+    
+    # @Austin: Why binomial when predictor is continuous?
+    
+    age_knots = table("age_knots") %>%
+      filter(disease == strata$disease) %>%
+      pull(age_knots) %>%
+      eval_str()
+    
+    # Fit a binomial GLM for relative risk using GBD covariates
+    fit = glm(formula = rr ~ haqi + sdi + year + mx + 
+                splines::bs(age, knots = age_knots),
+              data    = dt[rr > 0 & rr < 1],
+              family  = "binomial")
+    
+    # Predict relative risk
+    dt[, pred := predict(fit, dt)]
+    
+    # Transform these predictions (?? Not sure what's happening here ??)
+    # For floating point precision
+    dt[, pred_rr := ifelse(pred > 0, 1 / (1 + exp(-pred)), exp(pred) / (exp(pred) + 1))]
+    
+    # Remove covariates
+    dt[, c("pred", "haqi", "sdi", "mx") := NULL]
+    dt[, d_v_a_id := strata$d_v_a_id]
+    
+    # browser()  # This function is the inverse of vimc_rr() ??
+    
+    dt[, averted := get_averted_deaths(deaths_obs, coverage, pred_rr)]
+    
+    # Store relative risk in list
+    rr_list[[id]] = dt
+    
+    # ... and also save result to file
+    # save_file(dt, o$pth$relative_risk, paste1("strata", id))
+  }
   
-  # all_strata = all_strata[17, ]
-  
-  
-  
-  # Shorthand for all strata IDs to work with
-  strata_ids = all_strata$d_v_a_id
-  
-  # Calculate and impute relative risk for each strata
-  #
-  # NOTE: Result for each strata saved to file (in o$pth$relative_risk)
-  lapply(strata_ids, function(id)
-    impute_strata_rr(all_strata, id))
+  # ---- Combine all results ----
   
   message(" - Concatenating relative risk results")
   
-  browser()
-  
   # Bind all stratas into single datatable
-  rr_dt = lapply(strata_ids, load_rr) %>%
-    rbindlist(fill = TRUE)
+  rr_dt = rbindlist(rr_list, fill = TRUE)
   
   # Save relative risk calculations and predictions to file
   save_file(rr_dt, o$pth$relative_risk, "relative_risk")
@@ -71,94 +110,16 @@ run_relative_risk = function(source = c("vimc", "gbd"), activity = "routine") {
     
     message(" - Plotting diagnostics")
     
-    # TODO: Where is this used ??
-    # fit_summary <- summarize_fit(rr_dt)  
+    browser()
     
     plot_strata_fit(rr_dt)
   }
 }
 
 # ---------------------------------------------------------
-# Impute relative risk for a given disease-vaccine combination (aka strata)
-# Called by: run_relative_risk()
-# ---------------------------------------------------------
-impute_strata_rr <- function(all_strata, strata_id) {
-  
-  # Details of this strata
-  strata = all_strata[d_v_a_id == strata_id]
-
-  # Display strata details
-  message(" - Strata ID: ", strata_id,       "\n",
-          "  > Disease: ",  strata$disease , "\n",
-          "  > Vaccine: ",  strata$vaccine,  "\n", 
-          "  > Activity: ", strata$activity_type)
-  
-  browser()
-  
-  # Prepare for relative risk calculation
-  dt = prep_rr(strata)
-  
-  # Append country-specific covariates (eg social-economic index) from GBD
-  dt = merge_rr_covariates(dt)
-  
-  # Return trivial datatable if no valid relative risk results
-  if (nrow(dt[rr > 0 & rr < 1]) == 0)
-    return(data.table())
-  
-  # ---- Fit a model to predict relative risk ----
-  
-  # @Austin: Why binomial when predictor is continuous?
-  
-  age_knots = table("age_knots") %>%
-    filter(disease == strata$disease) %>%
-    pull(age_knots) %>%
-    eval_str()
-  
-  # Fit a binomial GLM for relative risk using GBD covariates
-  fit = glm(formula = rr ~ haqi + sdi + year + mx + 
-               splines::bs(age, knots = age_knots),
-             data    = dt[rr > 0 & rr < 1],
-             family  = "binomial")
-  
-  # Predict relative risk
-  dt[, pred := predict(fit, dt)]
-  
-  # Transform these predictions (?? Not sure what's happening here ??)
-  # For floating point precision
-  dt[, pred_rr := ifelse(pred > 0, 1 / (1 + exp(-pred)), exp(pred) / (exp(pred) + 1))]
-  
-  # Remove covariates
-  dt[, c("pred", "haqi", "sdi", "mx") := NULL]
-  dt[, d_v_a_id := strata_id]
-  
-  # browser()  # This function is the inverse of vimc_rr() ??
-  
-  dt[, averted := get_averted_deaths(deaths_obs, coverage, pred_rr)]
-  
-  # Save result to file
-  save_file(dt, o$pth$relative_risk, paste0("relative_risk_id", strata_id))
-}
-
-# ---------------------------------------------------------
 # Prepare relative risk calculation for given strata
-# Called by: impute_strata_rr()
 # ---------------------------------------------------------
-prep_rr <- function(strata) {
-  
-  # ---- Extract strata details ----
-  
-  # Shorthand for strata ID
-  strata_id = strata$d_v_a_id
-  
-  browser() # v_at_table is now v_a_table
-  
-  # Vaccine-actitvity ID
-  #
-  # NOTE: Not necessarily same as d_v_a_id (eg DTP3 single vaccine for multiple diseases)
-  v_at_id = v_at_table %>% 
-    filter(vaccine       == strata$vaccine, 
-           activity_type == strata$activity_type) %>%
-    pull(v_at_id)
+prep_rr = function(strata) {
   
   # ---- Load data ----
   
@@ -218,6 +179,8 @@ prep_rr <- function(strata) {
       rename(deaths_obs = deaths)
   }
   
+  browser()
+  
   # Merge vaccine impact deaths with all cause observed deaths
   dt %<>% 
     inner_join(deaths, by = c("country", "year", "age", "sex_id")) %>% # Or right_join ??
@@ -225,13 +188,21 @@ prep_rr <- function(strata) {
   
   # ---- Total vaccine coverage by cohort ----
   
+  # Vaccine-actitvity ID
+  #
+  # NOTE: Not necessarily same as d_v_a_id (eg DTP3 single vaccine for multiple diseases)
+  v_a_id = v_a_table %>% 
+    filter(vaccine  == strata$vaccine, 
+           activity == strata$activity) %>%
+    pull(v_a_id)
+  
   # @Austin: I think total_coverage() should be handling the different activities. 
-  # Meaning we shouldn't first filter by v_at_id. Thoughts?
+  # Meaning we shouldn't first filter by v_a_id. Thoughts?
   
   # xxxx
   # tot_cov = 
   strata_cov = table("coverage") %>%
-    filter(v_at_id == !!v_at_id,  # Coverage is per vaccine, not per strata
+    filter(v_a_id == !!v_a_id,  # Coverage is per vaccine, not per strata
            year %in% o$analysis_years)
   
   # Total coverage: version 1
@@ -321,9 +292,8 @@ prep_rr <- function(strata) {
 
 # ---------------------------------------------------------
 # Calculate relative risk for VIMC disease
-# Called by: prep_rr()
 # ---------------------------------------------------------
-vimc_rr <- function(dt) {
+vimc_rr = function(dt) {
   
   # Relative risk tends to 1 as coverage tends to 1, could be negative
   #
@@ -347,9 +317,8 @@ vimc_rr <- function(dt) {
 
 # ---------------------------------------------------------
 # Calculate relative risk for GBD disease
-# Called by: prep_rr()
 # ---------------------------------------------------------
-gbd_rr <- function(dt, strata) {
+gbd_rr = function(dt, strata) {
   
   # Relative risk tends to 1 as coverage tends to 1, could be negative
   #
@@ -389,9 +358,8 @@ gbd_rr <- function(dt, strata) {
 
 # ---------------------------------------------------------
 # Perform sanity checks on relative risk calculations
-# Called by: prep_rr()
 # ---------------------------------------------------------
-check_rr <- function(dt) {
+check_rr = function(dt) {
   
   # Look for missing coverage where deaths averted are non-zero
   if (nrow(dt[coverage == 0 & strata_deaths_averted > 0]) > 0) {
@@ -419,24 +387,9 @@ check_rr <- function(dt) {
 }
 
 # ---------------------------------------------------------
-# Function for loading relative risk of a strata
-# Called by: impute_all_rr()
-# ---------------------------------------------------------
-load_rr = function(id) {
-  
-  # Attempt to load relative risk result for this strata
-  strata_rr = try_load(pth  = o$pth$relative_risk, 
-                       file = paste0("relative_risk_id", id), 
-                       throw_error = FALSE)  # Set to FALSE to throw only a warning
-  
-  return(strata_rr)
-}
-
-# ---------------------------------------------------------
 # Append country-specific covariates (eg social-economic index) from GBD
-# Called by: impute_strata_rr()
 # ---------------------------------------------------------
-merge_rr_covariates <- function(dt) {
+merge_rr_covariates = function(dt) {
   
   # NOTES:
   #  1) WWP stands for 'World Population Prospects'
@@ -473,9 +426,8 @@ merge_rr_covariates <- function(dt) {
 
 # ---------------------------------------------------------
 # Extract averted deaths from relative risk equation
-# Called by: impute_strata_rr()
 # ---------------------------------------------------------
-get_averted_deaths <- function(deaths_obs, coverage, rr) {
+get_averted_deaths = function(deaths_obs, coverage, rr) {
   
   # rr = (o - (a * (1 - c) / c)) / (o + a)
   #
