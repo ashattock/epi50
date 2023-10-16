@@ -133,7 +133,7 @@ prepare_gbd_estimates = function() {
   
   message(" - GBD estimates")
   
-  # Load GBD estimates of deaths from relevant diseases
+  # Load GBD estimates of deaths for relevant diseases
   gbd_dt = readRDS(paste0(o$pth$input, "gbd19_estimates.rds"))
   
   # Construct age datatable to expand age bins to single years
@@ -152,12 +152,13 @@ prepare_gbd_estimates = function() {
     full_join(age_dt, by = "age_bin", 
               relationship = "many-to-many") %>%
     arrange(country, disease, year, sex, age) %>%
-    filter(!is.na(value)) %>%
     mutate(value := value / n) %>%
-    select(-age_bin, n) %>%
     left_join(y  = table("d_v_a"), 
               by = "disease") %>%
-    select(d_v_a_id, country, year, sex, age, strata_deaths = value) %>%
+    group_by(country, d_v_a_id, year, age) %>%
+    summarise(strata_deaths = sum(value)) %>%
+    ungroup() %>%
+    as.data.table() %>%
     save_table("gbd_estimates")
 }
 

@@ -34,7 +34,7 @@ prepare_coverage = function() {
   # Combine sources
   rbind(vimc_dt, wiise_dt) %>%
     filter(fvps > 0) %>%  # Remove trivial values
-    arrange(country, v_a_id, sex, year, age) %>%
+    arrange(country, v_a_id, year, age) %>%
     save_table("coverage")
 }
 
@@ -68,8 +68,6 @@ coverage_vimc = function() {
 # Extract coverage from WIISE database
 # ---------------------------------------------------------
 coverage_wiise = function(vimc_countries) {
-  
-  # TODO: Combine genders for HPV ??
   
   # ---- Load data ----
   
@@ -125,7 +123,7 @@ coverage_wiise = function(vimc_countries) {
       select(vaccine, activity, sex, age = expand_age) %>%
       # Repeat coverage values for each age...
       expand_grid(wiise_coverage) %>%
-      # Final formatting...
+      # Apply v_a ID...
       left_join(y  = table("v_a"), 
                 by = c("vaccine", "activity")) %>%
       select(country, v_a_id, sex, year, age, coverage) %>%
@@ -134,13 +132,24 @@ coverage_wiise = function(vimc_countries) {
   
   # ---- Calculate FVPs ----
   
-  wiise_dt = table("wpp_input") %>%
-    # Total number of people...
+  # TODO: Check whether HPV coverage is actually modelled this way...
+  
+  # Total population by country, year, and age
+  pop_dt = table("wpp_input") %>%
     group_by(country, year, age) %>%
     summarise(cohort_size = sum(nx)) %>%
     ungroup() %>%
+    as.data.table()
+  
+  # Calculate FVPs from coverage 
+  wiise_dt = rbindlist(wiise_list) %>%
+    # Combine sex where necessary...
+    group_by(country, v_a_id, year, age) %>%
+    summarise(coverage = mean(coverage)) %>%
+    ungroup() %>%
+    mutate(sex = "b") %>%  # As both genders now combined
     # Calculate number of fully vaccinated people...
-    inner_join(y  = rbindlist(wiise_list), 
+    inner_join(y  = pop_dt, 
                by = c("country", "year", "age")) %>%
     mutate(fvps = coverage * cohort_size) %>%
     # Final formatting...

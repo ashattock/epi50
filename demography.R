@@ -12,6 +12,8 @@ prepare_demography = function() {
   
   message(" - Demography data")
   
+  browser() # TODO: Summarise all_deaths by gender
+  
   # TEMP: Simply load table from IA2030 database
   readRDS("temp/wpp_input.rds")$db_dt %>%
     mutate(sex = c("m", "f", "b")[sex_id]) %>%

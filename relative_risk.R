@@ -39,7 +39,7 @@ run_relative_risk = function() {
     strata = all_strata[d_v_a_id == id, ]
     
     # Display progress message to user
-    msg = unlist(strata[, .(disease, vaccine, activity)])
+    msg = unlist(strata[, !"d_v_a_id"])
     message(paste0(" - ", paste(msg, collapse = ", ")))
     
     # Prepare for relative risk calculation
@@ -121,11 +121,9 @@ run_relative_risk = function() {
 # ---------------------------------------------------------
 prep_rr = function(strata) {
   
+  # TODO: all_deaths can be summarised by sex up front
+  
   # ---- Load data ----
-  
-  # TODO: Consistent order of columns and sorting (country, year, age, sex_id, ...)?
-  
-  message("  > Impact source: ", toupper(strata$source))
   
   # For VIMC diseases
   if (strata$source == "vimc") {
@@ -133,17 +131,18 @@ prep_rr = function(strata) {
     browser() # Use: table("vimc_impact")
     
     # For VIMC diseases, we can take deaths averted directly
-    dt = table("vimc_impact") %>%
+    strata_dt = table("vimc_impact") %>%
       filter(d_v_a_id == strata$d_v_a_id) %>%  # Only this strata
-      # Append variable...
-      mutate(sex_id        = 3,  # ID of both genders combined
-             strata_deaths = NA, # Placeholder: to be calculated
-             .before       = deaths_averted) %>%  
       # Deaths averted is what has been calculated already...
-      rename(strata_deaths_averted = deaths_averted)
-    
+      rename(strata_deaths_averted = deaths_averted) %>%
+      # Append variable...
+      mutate(strata_deaths = NA,  # Placeholder: to be calculated
+             sex = "b") %>%       # ID of both genders combined
+      select(country, d_v_a_id, sex, year, age, 
+             strata_deaths_averted, strata_deaths)
+ 
     # Observed deaths (sum over gender)
-    deaths = table("all_deaths") %>%
+    deaths_dt = table("all_deaths") %>%
       # Deal with 'NA' deaths being stored as character...
       mutate(deaths = ifelse(deaths == "NA", 0, deaths), 
              deaths = as.numeric(deaths)) %>%
@@ -163,15 +162,14 @@ prep_rr = function(strata) {
     browser() # Use: table("gbd_estimates") instead of gbd_strata_deaths
     
     # For GBD diseases, start with deaths attributable to each disease
-    dt = table("gbd_estimates") %>%
+    strata_dt = table("gbd_estimates") %>%
       filter(d_v_a_id == strata$d_v_a_id) %>%  # Only this strata
       select(country, d_v_a_id, year, sex, age, strata_deaths) %>%
       # Deaths observed for this disease...
-      # rename(strata_deaths = value) %>%
       mutate(strata_deaths_averted = NA)  # Placeholder: to be calculated
     
     # Observed deaths (genders seperate)
-    deaths = table("all_deaths") %>%
+    deaths_dt = table("all_deaths") %>%
       # Deal with 'NA' deaths being stored as character...
       mutate(deaths = ifelse(deaths == "NA", 0, deaths), 
              deaths = as.numeric(deaths)) %>%
@@ -183,7 +181,7 @@ prep_rr = function(strata) {
   
   # Merge vaccine impact deaths with all cause observed deaths
   dt %<>% 
-    inner_join(deaths, by = c("country", "year", "age", "sex_id")) %>% # Or right_join ??
+    inner_join(deaths_dt, by = c("country", "year", "age", "sex_id")) %>% # Or right_join ??
     arrange(country, year, age)
   
   # ---- Total vaccine coverage by cohort ----
