@@ -50,40 +50,11 @@ set_options = function(do_step = NA, quiet = FALSE) {
   # ---- Time settings ----
   
   # Years to analyse
-  o$analysis_years = 2000 : 2030  # Vaccine deployed across these dates
-  o$future_years   = 2021 : 2030  # Cohort years
+  o$analysis_years = 1974 : 2020 # 2024  # Vaccine deployed across these dates
   
   # Year and age ranges stored in coverage database
-  o$data_years = 2000 : 2039  # Vaccine effect calculated across these dates
+  o$data_years = 1980 : 2019  # Vaccine effect calculated across these dates
   o$data_ages  = 0 : 95
-  
-  # ---- Database settings ----
-  
-  # Version number of google database
-  o$db_version = "v2"
-  
-  # Force a fresh database pull even if cache loading available
-  o$force_db_pull = FALSE
-  
-  # Only load from cache if pulled within the last n hours
-  o$cache_hour_limit = 168 * 52  # 168 hours = 1 week
-  
-  # # ECDC data links
-  # o$ecdc_api = 
-  #   list(cases = "https://opendata.ecdc.europa.eu/covid19/nationalcasedeath_eueea_daily_ei/csv", 
-  #        hosp  = "https://opendata.ecdc.europa.eu/covid19/hospitalicuadmissionrates/csv")
-  # 
-  # # ETH effective reproduction number estimates
-  # o$eth_api = "https://raw.githubusercontent.com/covid-19-Re/dailyRe-Data/master/<country>-estimates.csv"
-  # 
-  # # API endpoint for national-level Oxford Stringency Index data
-  # o$osi_api = "https://covidtrackerapi.bsg.ox.ac.uk/api/v2/stringency/date-range/"
-  # 
-  # # Data dictionary: ECDC hospital & ICU indicators
-  # o$data_dict$ecdc = c(hospital_beds = "Daily hospital occupancy", 
-  #                      icu_beds      = "Daily ICU occupancy",
-  #                      hospital_admissions = "Weekly new hospital admissions per 100k", 
-  #                      icu_admissions      = "Weekly new ICU admissions per 100k")
   
   # ---- Uncertainty settings ----
   
@@ -159,26 +130,8 @@ set_options = function(do_step = NA, quiet = FALSE) {
   # NOTE: Use a character vector to save with multiple formats at once
   o$figure_format = "png" # Classic options: "png", "pdf", or "svg"
   
-  # ---- Prepare output ----
-  
-  # Append helpful properties
-  # o = append_shortcuts(o)
-  
   # Display analysis details
   if (!quiet) message(" - Analysis name: ", o$analysis_name)
-  
-  return(o)
-}
-
-# ---------------------------------------------------------
-# Override options set in my_options file
-# Called by: set_options()
-# ---------------------------------------------------------
-append_shortcuts = function(o) {
-  
-  # Disease source (VIMC or GBD)
-  for (i in unique(disease_table$source))
-    o$disease[[i]] = disease_table[source == i, disease]
   
   return(o)
 }
