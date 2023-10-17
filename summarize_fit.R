@@ -11,9 +11,9 @@
 # ---------------------------------------------------------
 summarize_fit <- function(pred_all) {
   
-  summary <- pred_all[strata_deaths_averted > 0,
+  summary <- pred_all[deaths_averted > 0,
                       .(
-                        mse = mean((averted - strata_deaths_averted)**2) / mean(strata_deaths_averted**2),
+                        mse = mean((averted - deaths_averted)**2) / mean(deaths_averted**2),
                         min_rr = min(pred_rr)
                       ),
                       by = .(d_v_at_id)]

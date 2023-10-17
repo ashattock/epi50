@@ -25,11 +25,11 @@ prepare_demography = function() {
            deaths = as.numeric(deaths)) %>%
     # Summarise over gender...
     group_by(country, year, age) %>%
-    summarise(deaths = sum(deaths)) %>%
+    summarise(deaths_allcause = sum(deaths)) %>%
     ungroup() %>%
     arrange(country, year, age) %>%
     as.data.table() %>%
-    save_table("all_deaths")
+    save_table("deaths_allcause")
 
   return()
   
@@ -118,7 +118,7 @@ prepare_demography = function() {
   
   # Save objects as tables in cache
   save_table(wpp_input,  "wpp_input")
-  save_table(all_deaths, "all_deaths")
+  save_table(all_deaths, "deaths_allcause")
 }
 
 # ---------------------------------------------------------

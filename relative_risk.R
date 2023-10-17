@@ -8,10 +8,10 @@
 ###########################################################
 
 # Variables:
-#  - deaths_obs: all cause number of deaths observed in real life
-#  - strata_deaths: number of deaths attributable to a disease (used for GBD predictions)
-#  - strata_deaths_averted: model estimated deaths averted
-#  - averted: predicted deaths averted using stats model (for countries not in VIMC ??)
+#  - deaths_obs: GBD-estimated all cause number of deaths
+#  - deaths_disease: GBD-estimated deaths attributable to a disease
+#  - deaths_averted: model-estimated deaths averted
+#  - predict_averted: predicted deaths averted using stats model (for countries not in VIMC ??)
 
 # ---------------------------------------------------------
 # Impute relative risk for a each d-v-a (aka strata)
@@ -27,10 +27,10 @@ run_relative_risk = function() {
   rr_list = list()
   
   # All strata to run
-  all_strata = left_join(
-    x = table("d_v_a"), 
-    y = table("disease")[, .(disease, source)], 
-    by = "disease")
+  all_strata = table("d_v_a") %>%
+    left_join(y = table("disease"), 
+              by = "disease") %>%
+    select(d_v_a_id, disease, vaccine, activity, source)
   
   # Repeat this process for each strata
   for (id in all_strata$d_v_a_id) {
@@ -82,9 +82,12 @@ run_relative_risk = function() {
     dt[, c("pred", "haqi", "sdi", "mx") := NULL]
     dt[, d_v_a_id := strata$d_v_a_id]
     
-    # browser()  # This function is the inverse of vimc_rr() ??
+    browser()  
     
-    dt[, averted := get_averted_deaths(deaths_obs, coverage, pred_rr)]
+    # This function is the inverse of vimc_rr() ??
+    # Is this only for non-VIMC countries?
+    
+    dt[, predict_averted := get_averted_deaths(deaths_obs, coverage, pred_rr)]
     
     # Store relative risk in list
     rr_list[[id]] = dt
@@ -121,86 +124,28 @@ run_relative_risk = function() {
 # ---------------------------------------------------------
 prep_rr = function(strata) {
   
-  # TODO: all_deaths can be summarised by gender up front
+  if (strata$source == "vimc") use_table = "vimc_impact"
+  if (strata$source == "gbd")  use_table = "gbd_estimates"
   
-  # ---- Load data ----
-  
-  # For VIMC diseases
-  if (strata$source == "vimc") {
-    
-    browser() # Use: table("vimc_impact")
-    
-    # For VIMC diseases, we can take deaths averted directly
-    strata_dt = table("vimc_impact") %>%
-      filter(d_v_a_id == strata$d_v_a_id) %>%  # Only this strata
-      # Deaths averted is what has been calculated already...
-      rename(strata_deaths_averted = deaths_averted) %>%
-      # Append variable...
-      mutate(strata_deaths = NA,  # Placeholder: to be calculated
-             gender = "b") %>%       # ID of both genders combined
-      select(country, d_v_a_id, gender, year, age, 
-             strata_deaths_averted, strata_deaths)
- 
-    # Observed deaths (sum over gender)
-    deaths_dt = table("all_deaths") %>%
-      # Deal with 'NA' deaths being stored as character...
-      mutate(deaths = ifelse(deaths == "NA", 0, deaths), 
-             deaths = as.numeric(deaths)) %>%
-      # Sum over gender...
-      group_by(country, year, age) %>%
-      summarise(deaths = sum(deaths)) %>%
-      ungroup() %>%
-      mutate(gender = 3, .before = deaths) %>%  # ID of both genders combined
-      # These are our 'observed' deaths...
-      rename(deaths_obs = deaths) %>%
-      as.data.table()
-  }
-  
-  # For GBD diseases
-  if (strata$source == "gbd") {
-    
-    browser() # Use: table("gbd_estimates") instead of gbd_strata_deaths
-    
-    # For GBD diseases, start with deaths attributable to each disease
-    strata_dt = table("gbd_estimates") %>%
-      filter(d_v_a_id == strata$d_v_a_id) %>%  # Only this strata
-      select(country, d_v_a_id, year, gender, age, strata_deaths) %>%
-      # Deaths observed for this disease...
-      mutate(strata_deaths_averted = NA)  # Placeholder: to be calculated
-    
-    # Observed deaths (genders seperate)
-    deaths_dt = table("all_deaths") %>%
-      # Deal with 'NA' deaths being stored as character...
-      mutate(deaths = ifelse(deaths == "NA", 0, deaths), 
-             deaths = as.numeric(deaths)) %>%
-      # These are our 'observed' deaths...
-      rename(deaths_obs = deaths)
-  }
-  
-  browser()
-  
-  # Merge vaccine impact deaths with all cause observed deaths
-  dt %<>% 
-    inner_join(deaths_dt, by = c("country", "year", "age", "gender")) %>% # Or right_join ??
+  # Load either deaths_averted or deaths_disease for this strata
+  strata_dt = table(use_table) %>%
+    filter(d_v_a_id == strata$d_v_a_id) %>%
+    # Append all-cause deaths...
+    inner_join(y  = table("deaths_allcause"), 
+               by = c("country", "year", "age")) %>%  # Or right_join ??
     arrange(country, year, age)
   
   # ---- Total vaccine coverage by cohort ----
   
-  # Vaccine-actitvity ID
-  #
-  # NOTE: Not necessarily same as d_v_a_id (eg DTP3 single vaccine for multiple diseases)
-  v_a_id = v_a_table %>% 
-    filter(vaccine  == strata$vaccine, 
-           activity == strata$activity) %>%
-    pull(v_a_id)
-  
-  # @Austin: I think total_coverage() should be handling the different activities. 
-  # Meaning we shouldn't first filter by v_a_id. Thoughts?
-  
-  # xxxx
+  browser()
+
   # tot_cov = 
   strata_cov = table("coverage") %>%
-    filter(v_a_id == !!v_a_id,  # Coverage is per vaccine, not per strata
+    left_join(y  = table("v_a"), 
+              by = "v_a_id") %>%
+    # Coverage is per vaccine, not per strata...
+    filter(vaccine  == strata$vaccine, 
+           activity == strata$activity, 
            year %in% o$analysis_years)
   
   # Total coverage: version 1
@@ -271,8 +216,8 @@ prep_rr = function(strata) {
   # dt[, efficacy := merge(strata, efficacy)$mean]
   
   # Calcualte relative risk: for VIMC and non-VIMC diseases
-  if (strata$source == "vimc") dt %<>% vimc_rr()
-  if (strata$source == "gbd")  dt %<>% gbd_rr(strata)
+  if (strata$source == "vimc") strata_dt %<>% vimc_rr()
+  if (strata$source == "gbd")  strata_dt %<>% gbd_rr(strata)
   
   browser()
   
@@ -280,7 +225,7 @@ prep_rr = function(strata) {
   #
   # TODO: This shouldn't be necessary
   out_dt <- dt[, .(country, age, year, d_v_a_id, deaths_obs,
-                   strata_deaths_averted, strata_deaths, coverage, rr)]
+                   deaths_averted, deaths_disease, coverage, rr)]
   
   # Perform sanity checks on relative risk calculations
   check_rr(out_dt)
@@ -306,9 +251,9 @@ vimc_rr = function(dt) {
   
   # Calculate relative risk
   out_dt <- copy(dt)
-  out_dt[coverage > 0, rr := (deaths_obs - (strata_deaths_averted *
+  out_dt[coverage > 0, rr := (deaths_obs - (deaths_averted *
                                               (1 - coverage) / coverage)) /
-           (deaths_obs + strata_deaths_averted)]
+           (deaths_obs + deaths_averted)]
   
   return(out_dt[])
 }
@@ -340,13 +285,13 @@ gbd_rr = function(dt, strata) {
   
   # Number of deaths expected without vaccination ??
   out_dt <- copy(dt)
-  out_dt[coverage > 0, deaths_no := strata_deaths /
+  out_dt[coverage > 0, deaths_no := deaths_disease /
            (1 - strata_efficacy * coverage)]
   
   # Calculate relative risk
   out_dt[coverage > 0, rr :=
-           (deaths_obs - strata_deaths + (1 - strata_efficacy) * deaths_no) /
-           (deaths_obs - strata_deaths + deaths_no)]
+           (deaths_obs - deaths_disease + (1 - strata_efficacy) * deaths_no) /
+           (deaths_obs - deaths_disease + deaths_no)]
   
   # Remove now-redundant parameter
   out_dt[, deaths_no := NULL]
@@ -360,11 +305,11 @@ gbd_rr = function(dt, strata) {
 check_rr = function(dt) {
   
   # Look for missing coverage where deaths averted are non-zero
-  if (nrow(dt[coverage == 0 & strata_deaths_averted > 0]) > 0) {
+  if (nrow(dt[coverage == 0 & deaths_averted > 0]) > 0) {
     
     # Proportion of cases
-    prop <- round(nrow(dt[coverage == 0 & strata_deaths_averted > 0]) /
-                    nrow(dt[strata_deaths_averted > 0]) * 100, 2)
+    prop <- round(nrow(dt[coverage == 0 & deaths_averted > 0]) /
+                    nrow(dt[deaths_averted > 0]) * 100, 2)
     
     # Throw warning
     warning("Missing coverage in ", prop,

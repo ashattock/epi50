@@ -92,7 +92,7 @@ plot_strata_fit <- function(rr_dt) {
   
   # Prepare datatable for plotting
   plot_dt = rr_dt %>%
-    rename(truth   = strata_deaths_averted, 
+    rename(truth   = deaths_averted, 
            predict = averted) %>%
     filter(truth   > 0, 
            predict > 0) %>%

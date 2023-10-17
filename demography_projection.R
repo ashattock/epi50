@@ -228,6 +228,8 @@ add_lt <- function(projected_pop, is, y0, y1) {
 # ---------------------------------------------------------
 get_all_deaths = function(y0, y1, wpp_input) {
   
+  browser() # This likely isn't needed for EPI50
+  
   # INPUTS:
   #  y0 := Start year of projection
   #  y1 := End year of projection
