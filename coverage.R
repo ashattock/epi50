@@ -53,11 +53,10 @@ coverage_vimc = function() {
     summarise(fvps     = sum(fvps_adjusted),
               coverage = fvps / sum(cohort_size)) %>%
     ungroup() %>%
-    mutate(gender = "b") %>%  # As both genders nbow combined
     # Append v_a ID...
     left_join(y  = table("v_a"), 
               by = c("vaccine", "activity")) %>%
-    select(country, v_a_id, gender, year, age, fvps, coverage) %>%
+    select(country, v_a_id, year, age, fvps, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
     as.data.table()
   
@@ -147,14 +146,13 @@ coverage_wiise = function(vimc_countries) {
     group_by(country, v_a_id, year, age) %>%
     summarise(coverage = mean(coverage)) %>%
     ungroup() %>%
-    mutate(gender = "b") %>%  # As both genders now combined
     # Calculate number of fully vaccinated people...
     inner_join(y  = pop_dt, 
                by = c("country", "year", "age")) %>%
     mutate(fvps = coverage * cohort_size) %>%
     # Final formatting...
-    select(country, v_a_id, gender, year, age, fvps, coverage) %>%
-    arrange(country, v_a_id, gender, year, age) %>%
+    select(country, v_a_id, year, age, fvps, coverage) %>%
+    arrange(country, v_a_id, year, age) %>%
     as.data.table()
   
   return(wiise_dt)

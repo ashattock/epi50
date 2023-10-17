@@ -6,77 +6,77 @@ table:
   vaccine: BCG
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"
 - wiise_id: DTPCV3
   vaccine: DTP3
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"
 - wiise_id: HEPB3
   vaccine: HepB
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"
 - wiise_id: HEPB_BD
   vaccine: HepB_BD
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"
 - wiise_id: HIB3
   vaccine: Hib3
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"
 - wiise_id: MCV1
   vaccine: MCV1
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"
 - wiise_id: MCV2
   vaccine: MCV2
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"
 - wiise_id: PCV3
   vaccine: PCV3
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"
 - wiise_id: PRHPVC_F
   vaccine: HPV
   activity: campaign
   coverage_category: HPV
-  sex: "m"
+  gender: "f"
   age: "8:13"
 - wiise_id: PRHPVC_M
   vaccine: HPV
   activity: campaign
   coverage_category: HPV
-  sex: "f"
+  gender: "m"
   age: "8:13"
 - wiise_id: RCV1
   vaccine: Rubella
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"
 - wiise_id: ROTAC
   vaccine: Rota
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"
 - wiise_id: YFV
   vaccine: YF
   activity: routine
   coverage_category: WUENIC
-  sex: "b"
+  gender: "b"
   age: "0"

@@ -151,14 +151,11 @@ prepare_gbd_estimates = function() {
     rename(age_bin = age) %>%
     full_join(age_dt, by = "age_bin", 
               relationship = "many-to-many") %>%
-    arrange(country, disease, year, gender, age) %>%
-    mutate(value := value / n) %>%
+    arrange(country, disease, year, age) %>%
+    mutate(strata_deaths = value / n) %>%
     left_join(y  = table("d_v_a"), 
               by = "disease") %>%
-    group_by(country, d_v_a_id, year, age) %>%
-    summarise(strata_deaths = sum(value)) %>%
-    ungroup() %>%
-    as.data.table() %>%
+    select(country, d_v_a_id, year, age, strata_deaths) %>%
     save_table("gbd_estimates")
 }
 

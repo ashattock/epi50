@@ -12,18 +12,23 @@ prepare_demography = function() {
   
   message(" - Demography data")
   
-  browser() # TODO: Summarise all_deaths by gender
-  
-  # TEMP: Simply load table from IA2030 database
+  # TEMP: Load table from IA2030 database
   readRDS("temp/wpp_input.rds")$db_dt %>%
-    mutate(gender = c("m", "f", "b")[gender]) %>%
+    mutate(gender = c("m", "f", "b")[sex_id]) %>%
     select(country, year, gender, age, nx, mx, fx, mig) %>%
     save_table("wpp_input")
 
-  # TEMP: Simply load table from IA2030 database
+  # TEMP: Load table from IA2030 database
   readRDS("temp/all_deaths.rds")$db_dt %>%
-    mutate(gender = c("m", "f", "b")[gender]) %>%
-    select(country, year, gender, age, deaths) %>%
+    # Deal with 'NA' deaths being stored as character...
+    mutate(deaths = ifelse(deaths == "NA", 0, deaths), 
+           deaths = as.numeric(deaths)) %>%
+    # Summarise over gender...
+    group_by(country, year, age) %>%
+    summarise(deaths = sum(deaths)) %>%
+    ungroup() %>%
+    arrange(country, year, age) %>%
+    as.data.table() %>%
     save_table("all_deaths")
 
   return()
