@@ -152,10 +152,11 @@ prepare_gbd_estimates = function() {
     full_join(age_dt, by = "age_bin", 
               relationship = "many-to-many") %>%
     arrange(country, disease, year, age) %>%
-    mutate(strata_deaths = value / n) %>%
+    mutate(deaths_disease = value / n) %>%
+    # NOTE: OK to join only on disease as d_v_a is unique for GBD pathogens...
     left_join(y  = table("d_v_a"), 
               by = "disease") %>%
-    select(country, d_v_a_id, year, age, strata_deaths) %>%
+    select(country, d_v_a_id, year, age, deaths_disease) %>%
     save_table("gbd_estimates")
 }
 

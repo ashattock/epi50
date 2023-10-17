@@ -9,63 +9,62 @@
 # ---------------------------------------------------------
 # Calculate total coverage for every vaccine, country, gender
 # ---------------------------------------------------------
-total_coverage2 <- function(coverage) {
+total_coverage2 <- function(coverage_dt) {
   
-  # TODO: Apply with dtplyr to achieve full effect...
+  # TODO: Allow each d_v_a to be 'targeted' or 'non-targeted'
   
-  browser() # v_at_table is now v_a_table
-  
-  # Coverage data of all activities for this vaccine
-  all_data = coverage %>%
-    left_join(v_at_table, by = "v_at_id") %>%
-    select(-v_at_id) %>%
-    arrange(country, gender, year, age)
-  
-  # Sanity check that only one vaccine type has been provided
-  if (length(unique(all_data$vaccine)) > 1)
-    stop("This function handles only one vaccine type at a time")
-  
-  # All unique countries and gender combinations for this vaccine
-  unique_data = all_data %>%
-    select(country, gender, vaccine) %>%
-    unique()
-  
-  # Initiate list of total coverage results
-  cov_list = list()
-  
-  # Loop through unique country-gender combinations
-  for (i in seq_len(nrow(unique_data))) {
-    
-    # Shorthand for this activity
-    this_data = unique_data[i, ]
-    
-    # Determine effective vaccine coverage for each cohort per year
-    #
-    # NOTE: Vaccine has already been filtered by parent function
-    cov_list[[i]] = all_data %>%
-      filter(country %in% this_data$country, 
-             gender  %in% this_data$gender) %>%  # Data for this country and gender
-      group_by(year, age, activity_type) %>%
-      summarise(coverage = max(coverage)) %>%  # Max of any duplicate campaigns
-      ungroup() %>%
-      as.data.table() %>%
-      calc_total_cov2() %>%  # Determines only non-trivial values in year x age matrix
-      cbind(this_data)
-  }
-  
-  # All possible combinations including year and age
+  # Create full combination table
   #
-  # NOTE: Sparse result, so most of these age-year pairs will have zero value
-  full_dt = unique_data %>%
-    expand_grid(year = o$data_years, 
-                age  = o$data_ages)
+  # NOTE: Final result is sparse => most age-year values will be zero
+  full_dt = expand_grid(
+    country = unique(coverage_dt$country),
+    year    = o$data_years, 
+    age     = o$data_ages) %>%
+    as.data.table()
   
-  # Join total coverage results to full combination table
-  total_dt = rbindlist(cov_list) %>%
+  # Function to extract total coverage for each data point
+  total_coverage_fn = function(i) {
+    
+    # Data relating to this row of coverage_dt
+    data = coverage_dt[i, ]
+    
+    # Indicies for years and ages
+    year_idx = match(data$year, o$data_years) : length(o$data_years)
+    age_idx  = match(data$age,  o$data_ages)  : length(o$data_ages)
+    
+    # Index upto only the smallest of these two vectors
+    vec_idx = 1 : min(length(year_idx), length(age_idx))
+    
+    # These form the only non-trivial entries
+    total_dt = data.table(
+      country = data$country, 
+      year    = o$data_years[year_idx[vec_idx]],
+      age     = o$data_ages[age_idx[vec_idx]], 
+      value   = data$coverage)
+    
+    return(total_dt)
+  }
+
+  # Coverage data values to work through  
+  total_idx = seq_len(nrow(coverage_dt))
+  
+  # Apply total coverage function to each row
+  total_dt = lapply(total_idx, total_coverage_fn) %>%
+    rbindlist() %>%
+    # First summarise for cumulative total coverage...
+    group_by(country, year, age) %>%
+    # summarise(value = 1 - prod(1 - value)) %>%  # Assumes non-targeted vaccination
+    summarise(value = min(sum(value), 1)) %>%   # Assumes targeted vaccination
+    ungroup() %>%
+    # Then join with full grid...
     full_join(y  = full_dt, 
               by = names(full_dt)) %>%
-    mutate(value = ifelse(is.na(value), 0, value)) %>%
-    arrange(country, gender, year, age)
+    replace_na(list(value = 0)) %>%
+    arrange(country, year, age) %>%
+    # Append d_v_a info...
+    mutate(d_v_a_id = unique(coverage_dt$v_a_id), 
+           .after = 1) %>%
+    as.data.table()
   
   # TODO: Set a cap on BCG effect at age 15
   
@@ -74,39 +73,10 @@ total_coverage2 <- function(coverage) {
 
 # ---------------------------------------------------------
 # Determine non-trivial year-age vaccine effects by cohort
-# Called by: total_coverage()
 # ---------------------------------------------------------
 calc_total_cov2 <- function(dt) {
   
-  # Initiate list
-  cov_list = list()
-  
-  # Loop through the different activities
-  for (i in seq_len(nrow(dt))) {
-    
-    # Indicies for years and ages
-    year_idx = (1 + match(dt[i, year], o$data_years)) : length(o$data_years)
-    age_idx  = (1 + match(dt[i, age],  o$data_ages))  : length(o$data_ages)
-    
-    # Index upto only the smallest of these two vectors
-    vec_idx = 1 : min(length(year_idx), length(age_idx))
-    
-    # These form the only non-trivial entries
-    cov_list[[i]] = 
-      data.table(year = o$data_years[year_idx[vec_idx]],
-                 age  = o$data_ages[age_idx[vec_idx]], 
-                 value   = dt[i, coverage], 
-                 actvity = dt[i, activity_type])
-  }
-  
-  # Calculate coverage for any identicial year and age activities from different activities
-  #
-  # NOTE: Assuming independence of 'routine' and 'campaign' hence the 1 - prod(1 - value)
-  cov_dt = rbindlist(cov_list) %>%
-    group_by(year, age) %>%
-    summarise(value = 1 - prod(1 - value)) %>%
-    ungroup() %>%
-    as.data.table()
+
   
   return(cov_dt)
 }

@@ -132,56 +132,30 @@ prep_rr = function(strata) {
     filter(d_v_a_id == strata$d_v_a_id) %>%
     # Append all-cause deaths...
     inner_join(y  = table("deaths_allcause"), 
-               by = c("country", "year", "age")) %>%  # Or right_join ??
+               by = c("country", "year", "age")) %>%
     arrange(country, year, age)
   
-  # ---- Total vaccine coverage by cohort ----
-  
-  browser()
-
-  # tot_cov = 
-  strata_cov = table("coverage") %>%
+  # Total vaccine coverage by cohort
+  total_coverage = table("coverage") %>%
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
     # Coverage is per vaccine, not per strata...
     filter(vaccine  == strata$vaccine, 
            activity == strata$activity, 
-           year %in% o$analysis_years)
+           year %in% o$analysis_years) %>%  # TODO: Move this 'year' filter to prepare.R
+    # Calculate coverage by cohort...
+    total_coverage2() # Or use total_coverage2() # See coverage.R
   
-  # Total coverage: version 1
-  # tictoc::tic("v1")
-  tot_cov = strata_cov %>% total_coverage()  # See total_coverage.R
-  # time_clock1 = tictoc::toc()
+  browser()
   
-  # An attempt to make this calculation cleaner and faster...
   
-  # # Total coverage: version 2
-  # tictoc::tic("v2")
-  # tot_cov2 = strata_cov %>% total_coverage2()  # See total_coverage.R
-  # time_clock2 = tictoc::toc()
-  # 
-  # # Check these are identical...
-  # check_dt = tot_cov2 %>%
-  #   mutate(activity_type = strata$activity_type) %>%
-  #   rename(value2 = value) %>%
-  #   left_join(y  = tot_cov, 
-  #             by = c("year", "age", "country", "gender", "vaccine", "activity_type")) %>%
-  #   mutate(diff_value = abs(value - value2)) %>%
-  #   filter(diff_value > 1e-8)
-  # 
-  # # Throw an error if any differences
-  # if (nrow(check_dt) > 0)
-  #   stop("Discrepancy between v1 and v2 functions")
   
-  # Gender-related coverage issues...
   
-  # @Austin: This feels like a big assumption, especially for vaccines like HPV, could we get
-  # gender-specific outcomes from VIMC? Perhaps this is what you meant by your TODO comment?
   
   # Mean coverage across both age groups
   #
   # TODO: This collapsing of gender should go away (AC)
-  cov_dt <- tot_cov[, .(coverage = mean(value)), by = .(country, year, age)]
+  cov_dt <- total_coverage[, .(coverage = mean(value)), by = .(country, year, age)]
   cov_dt[, gender := 3]
   
   # cov_dt2 = copy(cov_dt)
@@ -201,7 +175,7 @@ prep_rr = function(strata) {
   #     ylim(c(0, 1))
   # }
   # 
-  # g0 = plot_fn(tot_cov %>% rename(coverage = value))
+  # g0 = plot_fn(total_coverage %>% rename(coverage = value))
   # g1 = plot_fn(cov_dt)
   # g2 = plot_fn(cov_dt2)
   
