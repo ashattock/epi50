@@ -37,8 +37,8 @@ get_ccpm <- function(nx, sx, fx, mig, n) {
 update_pop <- function(p_in, sx, fx, mig, z, srb) {
   p_out <- vector()
   bx_out <- 0
-  for (sex in c("female", "male")) {
-    if (sex == "male") {
+  for (gender in c("female", "male")) {
+    if (gender == "male") {
       first_idx <- 1
       mid_idx <- 2:(z - 1)
       final_idx <- z
@@ -65,7 +65,7 @@ update_pop <- function(p_in, sx, fx, mig, z, srb) {
       )
     
     # First age group
-    bx <- calc_births(srb, fx, sx, p_in, mig, z, sex)
+    bx <- calc_births(srb, fx, sx, p_in, mig, z, gender)
     bx_out <- bx_out + bx
     p_out[first_idx] <- bx * (sx[first_idx] * (1 + .5 * mig[first_idx]) +
                                 .5 * mig[first_idx])
@@ -79,14 +79,14 @@ update_pop <- function(p_in, sx, fx, mig, z, srb) {
 # xxx
 # Called by: xxx
 # ---------------------------------------------------------
-calc_births <- function(srb, fx, sx, p_in, mig, z, sex = "female") {
+calc_births <- function(srb, fx, sx, p_in, mig, z, gender = "female") {
   # Calculate births
   fxb <- ((1 + srb) ^ (-1) * (
     fx[z + 10:54] +
       fx[z + 11:55] * sx[z + 11:55]
   ) * 0.5)
   
-  if (sex == "male") {
+  if (gender == "male") {
     fxb <- fxb * srb
   }
   
@@ -130,35 +130,35 @@ project_pop <- function(iso, y0, y1, wpp_input, scen = "Default") {
   wpp_ina <- wpp_input  %>%
     filter(country == iso, 
            year %in% (y0 - 1) : y1) %>%
-    arrange(sex_id, age, year)
+    arrange(gender, age, year)
   
   nx <- wpp_ina %>%
-    select(sex_id, age, year, nx) %>%
+    select(gender, age, year, nx) %>%
     mutate(nx = ifelse(nx == 0, 1e-09, nx)) %>%
     spread(year, nx) %>%
-    select(-sex_id, -age) %>%
+    select(-gender, -age) %>%
     as.matrix()
   
   wpp_ina <- wpp_ina %>%
     filter(year %in% y0:y1)
   
   fx <- wpp_ina %>%
-    select(sex_id, age, year, fx) %>%
+    select(gender, age, year, fx) %>%
     spread(year, fx) %>%
-    select(-sex_id, -age) %>%
+    select(-gender, -age) %>%
     as.matrix()
   
   mig <- wpp_ina %>%
-    select(sex_id, age, year, mig) %>%
+    select(gender, age, year, mig) %>%
     spread(year, mig) %>%
-    select(-sex_id, -age) %>%
+    select(-gender, -age) %>%
     as.matrix()
   
   mx <- wpp_ina %>%
-    select(sex_id, age, year, mx) %>%
+    select(gender, age, year, mx) %>%
     mutate(mx = ifelse(mx == 0, 1e-09, mx)) %>%
     spread(year, mx) %>%
-    select(-sex_id, -age) %>%
+    select(-gender, -age) %>%
     as.matrix()
   
   n <- y1 - y0 + 1
@@ -251,11 +251,11 @@ get_all_deaths = function(y0, y1, wpp_input) {
     deaths_list[[country]] = ccpm$deaths %>%
       as_named_dt(paste0(y0 : y1)) %>%
       mutate(age    = rep(0 : 95, times = 2), 
-             sex_id = rep(1 : 2,  each  = 96)) %>%
-      gather(year, deaths, -age, -sex_id) %>%
+             gender = rep(1 : 2,  each  = 96)) %>%
+      gather(year, deaths, -age, -gender) %>%
       mutate(year = as.numeric(year),
              country = !!country) %>%
-      arrange(sex_id, age, year) %>%
+      arrange(gender, age, year) %>%
       as.data.table()
   }
   

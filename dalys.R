@@ -417,10 +417,10 @@ get_cov = function(d_info, countries, years) {
     # Calculate 'total' coverage... 
     full_join(y  = total_coverage(.), 
               by = c("country", "vaccine", "activity_type", 
-                     "year", "age", "sex_id")) %>%
+                     "year", "age", "gender")) %>%
     mutate(coverage = pmax(coverage, value, na.rm = TRUE)) %>%
-    select(country, year, age, sex_id, coverage) %>%
-    arrange(country, year, age, sex_id) %>%
+    select(country, year, age, gender, coverage) %>%
+    arrange(country, year, age, gender) %>%
     filter(year %in% years)
   # # Ensure all countires and years considered...
   # full_join(y  = full_factorial(countries, years),
@@ -563,8 +563,8 @@ get_deaths = function(d_info, countries, years) {
 get_temporal_fvps_age = function(d_info, countries, years) {
   
   # # Deal with gender groupings...
-  # mutate(sex_id = paste0("s", sex_id)) %>%
-  # pivot_wider(names_from  = sex_id, 
+  # mutate(gender = paste0("s", gender)) %>%
+  # pivot_wider(names_from  = gender, 
   #             values_from = fvps, 
   #             values_fill = 0) %>%
   # mutate(fvps = ifelse(s1 == 0, s2 + s3, s1)) %>%
@@ -590,11 +590,11 @@ get_temporal_fvps_age = function(d_info, countries, years) {
     # Calculate 'total' coverage... 
     full_join(y  = total_coverage(.), 
               by = c("country", "vaccine", "activity_type", 
-                     "year", "age", "sex_id")) %>%
+                     "year", "age", "gender")) %>%
     mutate(coverage = pmax(coverage, value, na.rm = TRUE)) %>%
     # Reduce down to what we're interested in...
-    select(country, year, age, sex_id, coverage, fvps) %>%
-    arrange(country, year, age, sex_id) %>%
+    select(country, year, age, gender, coverage, fvps) %>%
+    arrange(country, year, age, gender) %>%
     cov2fvp()
   
   return(fvps_dt)

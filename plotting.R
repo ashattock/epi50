@@ -17,7 +17,7 @@ plot.coverage <- function(x, ...) {
       x = year,
       y = value,
       color = vaccine_short,
-      linetype = as.factor(sex_id)
+      linetype = as.factor(gender)
     )
   ) +
     ggplot2::geom_line()

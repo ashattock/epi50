@@ -20,12 +20,12 @@ gen_ia2030_goals <- function(linear = T, no_covid_effect = 2022, intro_year = 20
   vaccs <- setdiff(unique(v_at_table[activity_type == "routine"]$v_at_id), 2)
   dt <- rbindlist(lapply(vaccs, function(v) {
     v_dt <- cov_dt[v_at_id == v][order(country)]
-    if (length(unique(v_dt$sex_id)) > 1) {
-      v_dt <- v_dt[sex_id == 2]
+    if (length(unique(v_dt$gender)) > 1) {
+      v_dt <- v_dt[gender == 2]
     }
     missing_locs <- setdiff(country_table$country, v_dt$country)
     missing_dt <- data.table(country = missing_locs, coverage = 0,
-                             v_at_id = v, year = 2019, age = 0, sex_id = unique(v_dt$sex_id),
+                             v_at_id = v, year = 2019, age = 0, gender = unique(v_dt$gender),
                              fvps = 0)
     v_dt <- rbind(v_dt, missing_dt, use.names = T)
     v_dt <- v_dt[order(country)]
@@ -137,7 +137,7 @@ gen_ia2030_goals <- function(linear = T, no_covid_effect = 2022, intro_year = 20
     # matplot(t(c_mat), type = "l")
     dt <- cbind(v_dt[, -c("year", "current", "fvps"), with = F], c_mat)
     melt_dt <- melt(dt,
-                    id.vars = c("country", "v_at_id", "age", "sex_id"),
+                    id.vars = c("country", "v_at_id", "age", "gender"),
                     variable.name = "year"
     )
     return(melt_dt)
@@ -235,7 +235,7 @@ get_vimc_deaths_change <- function(is, y0, y1, default_coverage, scen_coverage, 
       ncol = dim(mx)[2]
     )
   )
-  # Split evenly across sexes
+  # Split evenly across genders
   vimc_deaths_change <- rbind(
     vimc_deaths_change / 2,
     vimc_deaths_change / 2

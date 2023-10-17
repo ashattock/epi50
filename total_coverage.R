@@ -7,7 +7,7 @@
 ###########################################################
 
 # ---------------------------------------------------------
-# Calculate total coverage for every vaccine, country, sex
+# Calculate total coverage for every vaccine, country, gender
 # ---------------------------------------------------------
 total_coverage2 <- function(coverage) {
   
@@ -19,21 +19,21 @@ total_coverage2 <- function(coverage) {
   all_data = coverage %>%
     left_join(v_at_table, by = "v_at_id") %>%
     select(-v_at_id) %>%
-    arrange(country, sex_id, year, age)
+    arrange(country, gender, year, age)
   
   # Sanity check that only one vaccine type has been provided
   if (length(unique(all_data$vaccine)) > 1)
     stop("This function handles only one vaccine type at a time")
   
-  # All unique countries and sex combinations for this vaccine
+  # All unique countries and gender combinations for this vaccine
   unique_data = all_data %>%
-    select(country, sex_id, vaccine) %>%
+    select(country, gender, vaccine) %>%
     unique()
   
   # Initiate list of total coverage results
   cov_list = list()
   
-  # Loop through unique country-sex combinations
+  # Loop through unique country-gender combinations
   for (i in seq_len(nrow(unique_data))) {
     
     # Shorthand for this activity
@@ -44,7 +44,7 @@ total_coverage2 <- function(coverage) {
     # NOTE: Vaccine has already been filtered by parent function
     cov_list[[i]] = all_data %>%
       filter(country %in% this_data$country, 
-             sex_id  %in% this_data$sex_id) %>%  # Data for this country and sex
+             gender  %in% this_data$gender) %>%  # Data for this country and gender
       group_by(year, age, activity_type) %>%
       summarise(coverage = max(coverage)) %>%  # Max of any duplicate campaigns
       ungroup() %>%
@@ -65,7 +65,7 @@ total_coverage2 <- function(coverage) {
     full_join(y  = full_dt, 
               by = names(full_dt)) %>%
     mutate(value = ifelse(is.na(value), 0, value)) %>%
-    arrange(country, sex_id, year, age)
+    arrange(country, gender, year, age)
   
   # TODO: Set a cap on BCG effect at age 15
   
@@ -125,10 +125,10 @@ total_coverage <- function(coverage) {
       a_dt <- v_dt[activity_type == a]
       act_dt <- rbindlist(lapply(unique(a_dt$country), function(l) {
         l_dt <- v_dt[country == l]
-        loc_dt <- rbindlist(lapply(unique(l_dt$sex_id), function(s) {
-          dt <- l_dt[sex_id == s]
+        loc_dt <- rbindlist(lapply(unique(l_dt$gender), function(s) {
+          dt <- l_dt[gender == s]
           total_dt <- calc_total_cov(dt)
-          total_dt[, sex_id := s]
+          total_dt[, gender := s]
         }))
         loc_dt[, country := l]
         return(loc_dt)
@@ -220,17 +220,17 @@ cov2fvp = function(coverage_dt) {
   # Load demographic data
   wpp_input = table("wpp_input")
   
-  # Total number of people per country (both sexes combined)
+  # Total number of people per country (both genders combined)
   #
   # NOTE: nx := number of people
   both_dt = wpp_input[, .(nx = sum(nx)), .(country, age, year)]
-  both_dt[, sex_id := 3]
+  both_dt[, gender := 3]
   
   # Combine so we have both genders seperate and combined
   pop_dt = rbind(wpp_input, both_dt, fill = T)
   
   # Join with coverage details
-  fvp_dt = merge(coverage_dt, pop_dt[, .(country, age, sex_id, year, nx)])
+  fvp_dt = merge(coverage_dt, pop_dt[, .(country, age, gender, year, nx)])
   
   # Then just a simple calculation for FVPs
   fvp_dt[, fvps := coverage * nx]

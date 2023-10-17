@@ -151,7 +151,7 @@ prepare_gbd_estimates = function() {
     rename(age_bin = age) %>%
     full_join(age_dt, by = "age_bin", 
               relationship = "many-to-many") %>%
-    arrange(country, disease, year, sex, age) %>%
+    arrange(country, disease, year, gender, age) %>%
     mutate(value := value / n) %>%
     left_join(y  = table("d_v_a"), 
               by = "disease") %>%
@@ -297,12 +297,12 @@ prepare_hpv_target = function() {
   
   # Prep HPV target coverage for IA2030 coverage scenario
   fread(paste0(o$pth$input, "hpv_target_coverage.csv")) %>%
-    pivot_longer(cols = -c(country, sex, age, doses), 
+    pivot_longer(cols = -c(country, gender, age, doses), 
                  names_to = "year") %>%
     mutate(year = as.integer(year)) %>%
     replace_na(list(value = 0)) %>%
     # Keep the max of the one and two does coverage levels...
-    group_by(country, year, sex, age) %>%
+    group_by(country, year, gender, age) %>%
     summarise(value = max(value)) %>%
     ungroup() %>%
     # Append country ISO...
@@ -311,17 +311,17 @@ prepare_hpv_target = function() {
               by = c("hpv_name")) %>%
     select(-hpv_name) %>%
     # Breakdown aggregate into distinct gender...
-    mutate(sex = tolower(substr(sex, 1, 1))) %>%
-    pivot_wider(names_from = sex) %>%
+    mutate(gender = tolower(substr(gender, 1, 1))) %>%
+    pivot_wider(names_from = gender) %>%
     mutate(f = ifelse(is.na(f), b, f), 
            m = ifelse(is.na(m), b, m)) %>%
     select(-b) %>%
     pivot_longer(cols = -c(country, year, age), 
-                 names_to = "sex") %>%
+                 names_to = "gender") %>%
     filter(!is.na(value)) %>%
     # Final formatting...
-    select(country, year, age, sex, hpv_target = value) %>%
-    arrange(country, year, age, sex) %>%
+    select(country, year, age, gender, hpv_target = value) %>%
+    arrange(country, year, age, gender) %>%
     as.data.table() %>%
     save_table("hpv_target")
 }

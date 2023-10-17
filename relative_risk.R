@@ -121,7 +121,7 @@ run_relative_risk = function() {
 # ---------------------------------------------------------
 prep_rr = function(strata) {
   
-  # TODO: all_deaths can be summarised by sex up front
+  # TODO: all_deaths can be summarised by gender up front
   
   # ---- Load data ----
   
@@ -137,8 +137,8 @@ prep_rr = function(strata) {
       rename(strata_deaths_averted = deaths_averted) %>%
       # Append variable...
       mutate(strata_deaths = NA,  # Placeholder: to be calculated
-             sex = "b") %>%       # ID of both genders combined
-      select(country, d_v_a_id, sex, year, age, 
+             gender = "b") %>%       # ID of both genders combined
+      select(country, d_v_a_id, gender, year, age, 
              strata_deaths_averted, strata_deaths)
  
     # Observed deaths (sum over gender)
@@ -150,7 +150,7 @@ prep_rr = function(strata) {
       group_by(country, year, age) %>%
       summarise(deaths = sum(deaths)) %>%
       ungroup() %>%
-      mutate(sex_id = 3, .before = deaths) %>%  # ID of both genders combined
+      mutate(gender = 3, .before = deaths) %>%  # ID of both genders combined
       # These are our 'observed' deaths...
       rename(deaths_obs = deaths) %>%
       as.data.table()
@@ -164,7 +164,7 @@ prep_rr = function(strata) {
     # For GBD diseases, start with deaths attributable to each disease
     strata_dt = table("gbd_estimates") %>%
       filter(d_v_a_id == strata$d_v_a_id) %>%  # Only this strata
-      select(country, d_v_a_id, year, sex, age, strata_deaths) %>%
+      select(country, d_v_a_id, year, gender, age, strata_deaths) %>%
       # Deaths observed for this disease...
       mutate(strata_deaths_averted = NA)  # Placeholder: to be calculated
     
@@ -181,7 +181,7 @@ prep_rr = function(strata) {
   
   # Merge vaccine impact deaths with all cause observed deaths
   dt %<>% 
-    inner_join(deaths_dt, by = c("country", "year", "age", "sex_id")) %>% # Or right_join ??
+    inner_join(deaths_dt, by = c("country", "year", "age", "gender")) %>% # Or right_join ??
     arrange(country, year, age)
   
   # ---- Total vaccine coverage by cohort ----
@@ -220,7 +220,7 @@ prep_rr = function(strata) {
   #   mutate(activity_type = strata$activity_type) %>%
   #   rename(value2 = value) %>%
   #   left_join(y  = tot_cov, 
-  #             by = c("year", "age", "country", "sex_id", "vaccine", "activity_type")) %>%
+  #             by = c("year", "age", "country", "gender", "vaccine", "activity_type")) %>%
   #   mutate(diff_value = abs(value - value2)) %>%
   #   filter(diff_value > 1e-8)
   # 
@@ -235,24 +235,24 @@ prep_rr = function(strata) {
   
   # Mean coverage across both age groups
   #
-  # TODO: This collapsing of sex should go away (AC)
+  # TODO: This collapsing of gender should go away (AC)
   cov_dt <- tot_cov[, .(coverage = mean(value)), by = .(country, year, age)]
-  cov_dt[, sex_id := 3]
+  cov_dt[, gender := 3]
   
   # cov_dt2 = copy(cov_dt)
   
   # Reapply coverage for both age groups
   if (strata$source == "gbd")
-    cov_dt <- rbindlist(lapply(1:2, function(s) copy(cov_dt)[, sex_id := s]))
+    cov_dt <- rbindlist(lapply(1:2, function(s) copy(cov_dt)[, gender := s]))
   
   # Join coverage details to effect datatable
-  dt <- merge(dt, cov_dt, by = c("country", "year", "age", "sex_id")) #, all = T) # Should be full join ??
+  dt <- merge(dt, cov_dt, by = c("country", "year", "age", "gender")) #, all = T) # Should be full join ??
   
   # plot_fn = function(dt) {
   #   g = ggplot(dt[coverage > 0 & country == "AFG"]) +
-  #     aes(x = year, y = coverage, colour = age, shape = as.factor(sex_id)) +
+  #     aes(x = year, y = coverage, colour = age, shape = as.factor(gender)) +
   #     geom_point() +
-  #     facet_grid(sex_id~country) +
+  #     facet_grid(gender~country) +
   #     ylim(c(0, 1))
   # }
   # 

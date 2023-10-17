@@ -16,14 +16,14 @@ prepare_demography = function() {
   
   # TEMP: Simply load table from IA2030 database
   readRDS("temp/wpp_input.rds")$db_dt %>%
-    mutate(sex = c("m", "f", "b")[sex_id]) %>%
-    select(country, year, sex, age, nx, mx, fx, mig) %>%
+    mutate(gender = c("m", "f", "b")[gender]) %>%
+    select(country, year, gender, age, nx, mx, fx, mig) %>%
     save_table("wpp_input")
 
   # TEMP: Simply load table from IA2030 database
   readRDS("temp/all_deaths.rds")$db_dt %>%
-    mutate(sex = c("m", "f", "b")[sex_id]) %>%
-    select(country, year, sex, age, deaths) %>%
+    mutate(gender = c("m", "f", "b")[gender]) %>%
+    select(country, year, gender, age, deaths) %>%
     save_table("all_deaths")
 
   return()
@@ -46,22 +46,22 @@ prepare_demography = function() {
     is <- isc[c]
     wpp_ina <- wpp_dt  %>%
       filter(country == is) %>%
-      arrange(sex_id, age, year)
+      arrange(gender, age, year)
     fx <- wpp_ina %>%
-      select(sex_id, age, year, fx) %>%
+      select(gender, age, year, fx) %>%
       tidyr::spread(year, fx) %>%
-      select(-c(sex_id, age)) %>%
+      select(-c(gender, age)) %>%
       as.matrix()
     nx <- wpp_ina %>%
-      select(sex_id, age, year, nx) %>%
+      select(gender, age, year, nx) %>%
       tidyr::spread(year, nx) %>%
-      select(-c(sex_id, age)) %>%
+      select(-c(gender, age)) %>%
       as.matrix()
     nx[nx == 0] <- 1e-09
     mx <- wpp_ina %>%
-      select(sex_id, age, year, mx) %>%
+      select(gender, age, year, mx) %>%
       tidyr::spread(year, mx) %>%
-      select(-c(sex_id, age)) %>%
+      select(-c(gender, age)) %>%
       as.matrix()
     mx[mx == 0] <- 1e-09
     sx <- exp(-mx)
@@ -77,17 +77,17 @@ prepare_demography = function() {
     colnames(migs) <- yrv
     
     migs <- migs %>%
-      mutate(age = agv, sex_id = sxv) %>%
-      tidyr::gather(year, mig, -age, -sex_id) %>%
+      mutate(age = agv, gender = sxv) %>%
+      tidyr::gather(year, mig, -age, -gender) %>%
       mutate(year = as.numeric(year)) %>%
-      arrange(sex_id, age, year)
+      arrange(gender, age, year)
     
     wpp_in_list[[c]] <- right_join(
       wpp_ina,
       migs,
-      by = c("year", "sex_id", "age")
+      by = c("year", "gender", "age")
     ) %>%
-      select(country, sex_id, age, year, nx, mx, fx, mig)
+      select(country, gender, age, year, nx, mx, fx, mig)
   }
   
   # ---- Prepare outputs ----
@@ -98,7 +98,7 @@ prepare_demography = function() {
   wpp_input = rbindlist(wpp_in_list) %>%
     mutate(across(.cols = c(age, year, nx), 
                   .fns  = as.integer)) %>%
-    arrange(country, year, age, sex_id)
+    arrange(country, year, age, gender)
   
   # Through an error if any NA entries for number of people
   if (any(is.na(wpp_input$nx)))
@@ -106,8 +106,8 @@ prepare_demography = function() {
   
   # Project population estimates and predict deaths
   all_deaths = get_all_deaths(2000, 2095, wpp_input) %>%
-    select(country, year, age, sex_id, deaths) %>%
-    arrange(country, year, age, sex_id)
+    select(country, year, age, gender, deaths) %>%
+    arrange(country, year, age, gender)
   
   browser()
   
@@ -126,21 +126,21 @@ load_wpp_data = function() {
   # Initiate list to store results
   wpp_list = list()
   
-  # Iterate through sex and timeframe
+  # Iterate through gender and timeframe
   for (time in c("past", "future")) {
-    for (sex in c("male", "female")) {
+    for (gender in c("male", "female")) {
       
-      # Path to streamlined WPP pop estimates - by sex and time frame
-      wpp_file = paste0(o$pth$input, "wpp19_", sex, "_", time, ".csv")
+      # Path to streamlined WPP pop estimates - by gender and time frame
+      wpp_file = paste0(o$pth$input, "wpp19_", gender, "_", time, ".csv")
       
       # Load data and melt to tidy format
-      wpp_list[[paste1(time, sex)]] = fread(wpp_file) %>%
+      wpp_list[[paste1(time, gender)]] = fread(wpp_file) %>%
         pivot_longer(cols     = -c(country, year),
                      names_to = "age") %>%
-        mutate(age = as.integer(age),
-               sex = substr(sex, 1, 1), 
-               nx  = value * 1000) %>%
-        select(country, year, sex, age, nx) %>%
+        mutate(age    = as.integer(age),
+               gender = substr(gender, 1, 1), 
+               nx     = value * 1000) %>%
+        select(country, year, gender, age, nx) %>%
         arrange(country, year, age) %>%
         as.data.table()
     }
@@ -168,7 +168,7 @@ append_mx = function(wpp_dt) {
     filter(year > 1970) %>%
     spread(year, mx) %>%
     select(-name) %>%
-    mutate(sex = "f")
+    mutate(gender = "f")
   
   mx_m <- mxM %>%
     distinct() %>%
@@ -177,7 +177,7 @@ append_mx = function(wpp_dt) {
     filter(year > 1970) %>%
     spread(year, mx) %>%
     select(-name) %>%
-    mutate(sex = "m")
+    mutate(gender = "m")
   
   wppmx42   <- rbind(mx_f, mx_m)
   
@@ -207,7 +207,7 @@ append_mx = function(wpp_dt) {
   }
   
   wppmx42 <- wppmx42 %>%
-    select(country_code, sex, age, paste0(1980:2096))
+    select(country_code, gender, age, paste0(1980:2096))
   
   browser()
   
@@ -217,8 +217,8 @@ append_mx = function(wpp_dt) {
     
     dpred <- wppmx42 %>%
       filter(country_code == code) %>%
-      arrange(sex, age) %>%
-      select(-country_code, -sex, -age) %>%
+      arrange(gender, age) %>%
+      select(-country_code, -gender, -age) %>%
       as.matrix()
     
     dpred[is.nan(dpred) | is.na(dpred)] <- 0.5
@@ -227,9 +227,9 @@ append_mx = function(wpp_dt) {
     wppmx_list[[code]] = dpred_mat %>%
       as.data.table() %>%
       mutate(country_code = code,
-             sex_id = rep(c(2, 1), each = 101),
+             gender = rep(c(2, 1), each = 101),
              age    = rep(0 : 100, times = 2)) %>%
-      pivot_longer(cols = -c(country_code, sex_id, age), 
+      pivot_longer(cols = -c(country_code, gender, age), 
                    names_to  = "year", 
                    values_to = "mx") %>%
       mutate(year = as.numeric(year))
@@ -242,7 +242,7 @@ append_mx = function(wpp_dt) {
   
   # g1 = mx_f %>%
   #   filter(country_code == 4) %>%
-  #   select(-country_code, -sex) %>%
+  #   select(-country_code, -gender) %>%
   #   pivot_longer(cols = -age, 
   #                names_to = "year") %>%
   #   mutate(year = as.numeric(year), 
@@ -252,8 +252,8 @@ append_mx = function(wpp_dt) {
   
   # g2 = wppmx %>%
   #   filter(wpp_country_code == 4, 
-  #          sex_id == 2) %>%
-  #   select(-wpp_country_code, -sex_id) %>%
+  #          gender == 2) %>%
+  #   select(-wpp_country_code, -gender) %>%
   #   mutate(age  = as.factor(age)) %>%
   #   ggplot(aes(x = year, y = mx, colour = age)) +
   #   geom_line()
@@ -265,10 +265,10 @@ append_mx = function(wpp_dt) {
   
   wpp_dt %<>% 
     left_join(y  = wppmx,
-              by = c("wpp_country_code", "sex_id", "year", "age")) %>%
+              by = c("wpp_country_code", "gender", "year", "age")) %>%
     mutate(dx  = mx * nx, 
            age = ifelse(age > 95, 95, age)) %>%  # Set upper age bound
-    group_by(wpp_country_code, country, sex_id, year, age, ) %>%
+    group_by(wpp_country_code, country, gender, year, age, ) %>%
     summarise(nx = sum(nx, na.rm = T), 
               dx = sum(dx, na.rm = T)) %>%
     ungroup() %>%
@@ -389,9 +389,9 @@ append_fx = function(wpp_dt) {
     left_join(y  = asfrall, 
               by = c("country_code", "year")) %>%
     mutate(fx = asfr * tfr, 
-           sex_id = 2) %>%
+           gender = 2) %>%
     select(wpp_country_code = country_code, 
-           sex_id, age, year, fx) %>%
+           gender, age, year, fx) %>%
     arrange(wpp_country_code, age) %>%
     setDT()
   
@@ -402,11 +402,11 @@ append_fx = function(wpp_dt) {
   
   wpp_dt %<>%
     left_join(y  = wppfx,
-              by = c("wpp_country_code", "sex_id", "year", "age")) %>%
+              by = c("wpp_country_code", "gender", "year", "age")) %>%
     mutate(fx = ifelse(is.na(fx), 0, fx)) %>%
-    select(wpp_country_code, country, sex_id, age, year, nx, mx, fx) %>%
-    filter(!is.na(sex_id) & !is.na(country)) %>%
-    arrange(country, sex_id, age)
+    select(wpp_country_code, country, gender, age, year, nx, mx, fx) %>%
+    filter(!is.na(gender) & !is.na(country)) %>%
+    arrange(country, gender, age)
   
   return(wpp_dt)
 }
