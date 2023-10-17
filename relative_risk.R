@@ -144,7 +144,7 @@ prep_rr = function(strata) {
            activity == strata$activity, 
            year %in% o$analysis_years) %>%  # TODO: Move this 'year' filter to prepare.R
     # Calculate coverage by cohort...
-    total_coverage2() # Or use total_coverage2() # See coverage.R
+    total_coverage()  # See coverage.R
   
   browser()
   

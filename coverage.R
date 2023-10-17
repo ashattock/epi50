@@ -6,7 +6,7 @@
 ###########################################################
 
 # ---------------------------------------------------------
-# xxxxxxxxx
+# Parent function for preparing vaccine coverage data
 # ---------------------------------------------------------
 prepare_coverage = function() {
   
@@ -156,5 +156,99 @@ coverage_wiise = function(vimc_countries) {
     as.data.table()
   
   return(wiise_dt)
+}
+
+# ---------------------------------------------------------
+# Calculate total lifetime coverage for each cohort
+# ---------------------------------------------------------
+total_coverage = function(coverage_dt) {
+  
+  # TODO: Allow each d_v_a to be 'targeted' or 'non-targeted'
+  
+  # Create full combination table
+  #
+  # NOTE: Final result is sparse => most age-year values will be zero
+  full_dt = expand_grid(
+    country = unique(coverage_dt$country),
+    year    = o$data_years, 
+    age     = o$data_ages) %>%
+    as.data.table()
+  
+  # Function to extract total coverage for each data point
+  total_coverage_fn = function(i) {
+    
+    # Data relating to this row of coverage_dt
+    data = coverage_dt[i, ]
+    
+    # Indicies for years and ages
+    year_idx = match(data$year, o$data_years) : length(o$data_years)
+    age_idx  = match(data$age,  o$data_ages)  : length(o$data_ages)
+    
+    # Index upto only the smallest of these two vectors
+    vec_idx = 1 : min(length(year_idx), length(age_idx))
+    
+    # These form the only non-trivial entries
+    total_dt = data.table(
+      country = data$country, 
+      year    = o$data_years[year_idx[vec_idx]],
+      age     = o$data_ages[age_idx[vec_idx]], 
+      value   = data$coverage)
+    
+    return(total_dt)
+  }
+  
+  # Coverage data values to work through  
+  total_idx = seq_len(nrow(coverage_dt))
+  
+  # Apply total coverage function to each row
+  total_dt = lapply(total_idx, total_coverage_fn) %>%
+    rbindlist() %>%
+    # First summarise for cumulative total coverage...
+    group_by(country, year, age) %>%
+    # summarise(value = 1 - prod(1 - value)) %>%  # Assumes non-targeted vaccination
+    summarise(value = min(sum(value), 1)) %>%   # Assumes targeted vaccination
+    ungroup() %>%
+    # Then join with full grid...
+    full_join(y  = full_dt, 
+              by = names(full_dt)) %>%
+    replace_na(list(value = 0)) %>%
+    arrange(country, year, age) %>%
+    # Append d_v_a info...
+    mutate(d_v_a_id = unique(coverage_dt$v_a_id), 
+           .after = 1) %>%
+    as.data.table()
+  
+  # TODO: Set a cap on BCG effect at age 15
+  
+  return(total_dt)
+}
+
+# ---------------------------------------------------------
+# Calculate FVPs using coverage and demographic data
+# ---------------------------------------------------------
+cov2fvp = function(coverage_dt) {
+  
+  browser() # Needs updating...
+  
+  # Load demographic data
+  wpp_input = table("wpp_input")
+  
+  # Total number of people per country (both genders combined)
+  #
+  # NOTE: nx := number of people
+  both_dt = wpp_input[, .(nx = sum(nx)), .(country, age, year)]
+  both_dt[, gender := 3]
+  
+  # Combine so we have both genders seperate and combined
+  pop_dt = rbind(wpp_input, both_dt, fill = T)
+  
+  # Join with coverage details
+  fvp_dt = merge(coverage_dt, pop_dt[, .(country, age, gender, year, nx)])
+  
+  # Then just a simple calculation for FVPs
+  fvp_dt[, fvps := coverage * nx]
+  fvp_dt[, nx := NULL]
+  
+  return(fvp_dt)
 }
 
