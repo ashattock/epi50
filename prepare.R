@@ -19,17 +19,17 @@ run_prepare = function() {
   
   # create_yaml(table_name, group_by, type = "rds")
   
-  # # Convert config yaml files to datatables
-  # prepare_config_tables()
-  # 
-  # # Streamline VIMC impact estimates for quick loading
-  # prepare_vimc_impact()
-  # 
-  # # Prepare GBD estimates of deaths for non-VIMC pathogens
-  # prepare_gbd_estimates()
-  # 
-  # # Prepare GBD covariates for extrapolating to non-VIMC countries
-  # prepare_gbd_covariates()
+  # Convert config yaml files to datatables
+  prepare_config_tables()
+
+  # Streamline VIMC impact estimates for quick loading
+  prepare_vimc_impact()
+
+  # Prepare GBD estimates of deaths for non-VIMC pathogens
+  prepare_gbd_estimates()
+
+  # Prepare GBD covariates for extrapolating to non-VIMC countries
+  prepare_gbd_covariates()
 
   # Prepare demography-related estimates from WPP
   prepare_demography()  # See demography.R
@@ -287,6 +287,49 @@ prepare_gbd_covariates = function() {
   
   # Save in cache
   save_table(gbd_covariates_fcast, "gbd_covariates")
+}
+
+# ---------------------------------------------------------
+# Prepare demography-related estimates from WPP
+# ---------------------------------------------------------
+prepare_demography = function() {
+  
+  message(" - Demography data")
+  
+  # TEMP: Years to extract (will need to project further for YOV results)
+  years = 1974 : 2074
+  
+  # ---- Load historical and projected pop sizes from WPP ----
+  
+  browser()
+  
+  file = paste0(o$pth$input, "wpp_pop_past.csv")
+  fread(file) %>%
+    select(country = ISO3_code,
+           year    = Time,
+           age     = AgeGrp,
+           pop     = PopTotal) %>%
+    filter(country %in% table("country")$country,
+           year    %in% years) %>%
+    mutate(age = ifelse(age == "100+", 100, age),
+           age = as.integer(age)) %>%
+    write_delim(str_replace(file, ".csv", "X.csv"), delim = ",")
+  
+  pop_dt = fread(paste0(o$pth$input, "wpp_pop_pastX.csv")) %>%
+    rbind(fread(paste0(o$pth$input, "wpp_pop_futureX.csv"))) %>%
+    arrange(country, year, age) %>%
+    write_delim(paste0(o$pth$input, "wpp_data.csv"), delim = ",")
+  
+  death_dt = fread(paste0(o$pth$input, "wpp_deaths_pastX.csv")) %>%
+    rbind(fread(paste0(o$pth$input, "wpp_deaths_futureX.csv"))) %>%
+    arrange(country, year, age) %>%
+    write_delim(paste0(o$pth$input, "wpp_data.csv"), delim = ",")
+  
+  browser()
+  
+  # Save as table in cache
+  save_table(pop_dt, "wpp_input")
+  save_table(death_dt, "deaths_allcause")
 }
 
 # ---------------------------------------------------------
