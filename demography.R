@@ -12,6 +12,24 @@ prepare_demography = function() {
   
   message(" - Demography data")
   
+
+  
+  dem0 = readRDS("temp/wpp_input.rds")$db_dt
+  dem1 = load_wpp_data()
+  
+  x = dem0 %>%
+    filter(country == "AFG", 
+             year  =< 2024) %>%
+    mutate(gender = c("m", "f", "b")[sex_id]) %>%
+    select(country, gender, year, age, pop0 = nx) %>%
+    left_join(y  = dem1,
+              by = c("country", "year", "gender", "age")) %>%
+    rename(pop1 = nx) %>%
+    mutate(diff = pop0 - pop1)
+  
+  
+  browser()
+  
   # TEMP: Load table from IA2030 database
   readRDS("temp/wpp_input.rds")$db_dt %>%
     mutate(gender = c("m", "f", "b")[sex_id]) %>%
@@ -21,7 +39,7 @@ prepare_demography = function() {
   # TEMP: Load table from IA2030 database
   readRDS("temp/all_deaths.rds")$db_dt %>%
     # Deal with 'NA' deaths being stored as character...
-    mutate(deaths = ifelse(deaths == "NA", 0, deaths), 
+    mutate(deaths = ifelse(deaths == "NA", 0, deaths),
            deaths = as.numeric(deaths)) %>%
     # Summarise over gender...
     group_by(country, year, age) %>%
@@ -30,15 +48,17 @@ prepare_demography = function() {
     arrange(country, year, age) %>%
     as.data.table() %>%
     save_table("deaths_allcause")
-
-  return()
+  # 
+  # return()
+  
+  browser()
   
   # Load historical and projected pop sizes from WPP for both genders
   wpp_dt = load_wpp_data() %>%
     append_mx() %>%  # Append mortality
     append_fx()      # Append fertility
   
-  browser()
+
   
   # ---- Append migration details ----
   

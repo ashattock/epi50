@@ -205,13 +205,13 @@ total_coverage = function(coverage_dt) {
     rbindlist() %>%
     # First summarise for cumulative total coverage...
     group_by(country, year, age) %>%
-    # summarise(value = 1 - prod(1 - value)) %>%  # Assumes non-targeted vaccination
-    summarise(value = min(sum(value), 1)) %>%   # Assumes targeted vaccination
+    # summarise(total_coverage = 1 - prod(1 - value)) %>%  # Assumes non-targeted vaccination
+    summarise(total_coverage = min(sum(value), 1)) %>%   # Assumes targeted vaccination
     ungroup() %>%
     # Then join with full grid...
     full_join(y  = full_dt, 
               by = names(full_dt)) %>%
-    replace_na(list(value = 0)) %>%
+    replace_na(list(total_coverage = 0)) %>%
     arrange(country, year, age) %>%
     # Append d_v_a info...
     mutate(d_v_a_id = unique(coverage_dt$v_a_id), 

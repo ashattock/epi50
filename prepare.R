@@ -19,17 +19,17 @@ run_prepare = function() {
   
   # create_yaml(table_name, group_by, type = "rds")
   
-  # Convert config yaml files to datatables
-  prepare_config_tables()
-
-  # Streamline VIMC impact estimates for quick loading
-  prepare_vimc_impact()
-
-  # Prepare GBD estimates of deaths for non-VIMC pathogens
-  prepare_gbd_estimates()
-
-  # Prepare GBD covariates for extrapolating to non-VIMC countries
-  prepare_gbd_covariates()
+  # # Convert config yaml files to datatables
+  # prepare_config_tables()
+  # 
+  # # Streamline VIMC impact estimates for quick loading
+  # prepare_vimc_impact()
+  # 
+  # # Prepare GBD estimates of deaths for non-VIMC pathogens
+  # prepare_gbd_estimates()
+  # 
+  # # Prepare GBD covariates for extrapolating to non-VIMC countries
+  # prepare_gbd_covariates()
 
   # Prepare demography-related estimates from WPP
   prepare_demography()  # See demography.R
@@ -98,8 +98,12 @@ prepare_vimc_impact = function() {
   
   # TODO: In raw form, we could instead use vimc_estimates.csv
   
+  # All diseases of interest, not necessarily everything produced by VIMC
+  diseases = table("disease")$disease
+  
   # Prepare VIMC vaccine impact estimates
   readRDS(paste0(o$pth$input, "vimc_estimates.rds")) %>%
+    filter(disease %in% diseases) %>%
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
     select(country, d_v_a_id, year, age, deaths_averted) %>%
@@ -108,6 +112,7 @@ prepare_vimc_impact = function() {
   
   # Prepare VIMC year-of-vaccination results - take the mean across models
   readRDS(paste0(o$pth$input, "vimc_yov.rds")) %>%
+    filter(disease %in% diseases) %>%
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
     select(country, d_v_a_id, model, year, deaths_averted, deaths_averted_rate) %>%

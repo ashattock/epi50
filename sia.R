@@ -19,7 +19,7 @@ prepare_sia = function() {
   # ---- User options ----
   
   # Ignore campaigns starting (or ending??) before this date
-  from_date = "1990-01-01"
+  from_date = "1980-01-01"
   
   # Flag for throwing data warnings
   throw_warnings = FALSE
@@ -33,6 +33,8 @@ prepare_sia = function() {
   na_var = c("unknown", "undefined", "")
   
   # ---- Load stuff ----
+  
+  browser()
   
   # Load raw data
   #
