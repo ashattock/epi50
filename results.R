@@ -16,7 +16,9 @@ run_results = function() {
   message("* Producing results")
   
   # Load tables up front
-  wpp_input = table("wpp_input")
+  wpp_input = table("wpp_pop")
+  
+  browser() # wpp_pop already summarised over gender
   
   # Load impact factors calculated in step 2
   # impact_dt       = try_load(o$pth$impact_factors, "impact_dt")
@@ -34,6 +36,8 @@ run_results = function() {
   country_dt = country_table %>%
     mutate(gavi = gavi73 == 1) %>%
     select(country, country_name, region, economy, gavi)
+  
+  browser() # wpp_pop already summarised over gender
   
   # Number of births per year
   cohort_dt = wpp_input %>%
@@ -61,6 +65,8 @@ run_results = function() {
   out_dt[is.na(deaths_averted), deaths_averted := 0]
   
   out_dt <- merge(out_dt, cohort_dt, by = c("country", "year"))
+  
+  browser() # wpp_pop already summarised over gender
   
   total_dt <- wpp_input[, .(nx = sum(nx)), by = .(country, year)]
   setnames(total_dt, "nx", "total_pop")

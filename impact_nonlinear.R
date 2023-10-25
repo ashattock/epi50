@@ -39,8 +39,13 @@ explore_nonlinear = function() {
   
   # ---- FVPs and impact (deaths averted) ----
   
+  # Load WPP data
+  wpp_pop = table("wpp_input")
+  
+  browser() # wpp_pop already summarised over gender
+  
   # First load population size of each country over time
-  pop_dt = table("wpp_input") %>%
+  pop_dt = wpp_pop %>%
     filter(country %in% countries) %>%
     group_by(country, year) %>%
     summarise(pop = sum(nx)) %>%

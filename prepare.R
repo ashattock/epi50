@@ -296,40 +296,23 @@ prepare_demography = function() {
   
   message(" - Demography data")
   
-  # TEMP: Years to extract (will need to project further for YOV results)
-  years = 1974 : 2074
-  
-  # ---- Load historical and projected pop sizes from WPP ----
-  
-  browser()
-  
-  file = paste0(o$pth$input, "wpp_pop_past.csv")
-  fread(file) %>%
-    select(country = ISO3_code,
-           year    = Time,
-           age     = AgeGrp,
-           pop     = PopTotal) %>%
-    filter(country %in% table("country")$country,
-           year    %in% years) %>%
-    mutate(age = ifelse(age == "100+", 100, age),
-           age = as.integer(age)) %>%
-    write_delim(str_replace(file, ".csv", "X.csv"), delim = ",")
-  
-  pop_dt = fread(paste0(o$pth$input, "wpp_pop_pastX.csv")) %>%
-    rbind(fread(paste0(o$pth$input, "wpp_pop_futureX.csv"))) %>%
-    arrange(country, year, age) %>%
-    write_delim(paste0(o$pth$input, "wpp_data.csv"), delim = ",")
-  
-  death_dt = fread(paste0(o$pth$input, "wpp_deaths_pastX.csv")) %>%
-    rbind(fread(paste0(o$pth$input, "wpp_deaths_futureX.csv"))) %>%
-    arrange(country, year, age) %>%
-    write_delim(paste0(o$pth$input, "wpp_data.csv"), delim = ",")
-  
-  browser()
+  # Load WPP data... this has already been formatted to save memory
+  pop_dt   = fread(paste0(o$pth$input, "wpp_pop_data.csv"))
+  death_dt = fread(paste0(o$pth$input, "wpp_deaths_data.csv")) %>%
+    rename(deaths_allcause = deaths)
   
   # Save as table in cache
-  save_table(pop_dt, "wpp_input")
-  save_table(death_dt, "deaths_allcause")
+  save_table(pop_dt,   "wpp_pop")
+  save_table(death_dt, "wpp_deaths")
+  
+  # Combine with an inner join
+  wpp_dt = pop_dt %>%
+    inner_join(y  = death_dt, 
+               by = c("country", "year", "age"))
+  
+  # Throw error if inconsistent structure
+  if (nrow(wpp_dt) != nrow(pop_dt))
+    stop("Inconsistent country-year-age span for WPP files")
 }
 
 # ---------------------------------------------------------

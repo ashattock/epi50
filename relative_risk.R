@@ -149,11 +149,13 @@ calculate_rr = function(strata) {
   
   relative_risk_fn = get(paste1(strata$source, "rr"))
   
+  browser()
+  
   # Load either deaths_averted or deaths_disease for this strata
   strata_dt = table(use_table) %>%
     filter(d_v_a_id == strata$d_v_a_id) %>%
     # Append all-cause deaths...
-    inner_join(y  = table("deaths_allcause"), 
+    inner_join(y  = table("wpp_deaths"), 
                by = c("country", "year", "age")) %>%
     arrange(country, year, age) %>%
     # Append total coverage...
@@ -294,8 +296,13 @@ merge_rr_covariates = function(dt) {
     as.data.table() %>%
     merge(dt, by = c("country", "age", "year"), all.x = T)
   
+  # Load WPP data
+  wpp_pop = table("wpp_pop")
+  
+  browser() # wpp_pop already summarised over gender
+  
   # Add mortality
-  wpp_input = table("wpp_input")
+  wpp_input = wpp_pop
   mx_dt <- wpp_input[, .(mx = mean(mx)), by = .(country, year, age)]
   dt <- merge(dt, mx_dt, by = c("country", "age", "year"), all.x = T)
   

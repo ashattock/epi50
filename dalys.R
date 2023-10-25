@@ -353,10 +353,12 @@ get_dict = function(d_info) {
 get_pop = function(countries, years) {
   
   # Load WPP data
-  wpp_input = table("wpp_input")
+  wpp_pop = table("wpp_input")
+  
+  browser() # wpp_pop already summarised over gender
   
   # Population under 5
-  prop_u5_dt = wpp_input %>%
+  prop_u5_dt = wpp_pop %>%
     filter(country %in% countries, 
            year    %in% years,
            age <= 5) %>%
@@ -366,7 +368,7 @@ get_pop = function(countries, years) {
     as.data.table()
   
   # Total population and proportion under 5
-  pop_dt = wpp_input %>%
+  pop_dt = wpp_pop %>%
     filter(country %in% countries, 
            year    %in% years) %>%
     group_by(country, year) %>%
