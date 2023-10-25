@@ -32,6 +32,15 @@ run_relative_risk = function() {
               by = "disease") %>%
     select(d_v_a_id, disease, vaccine, activity, source)
   
+  
+  
+  
+  all_strata %<>%
+    filter(disease == "Measles")
+  
+  
+  
+  
   # Repeat this process for each strata
   for (id in all_strata$d_v_a_id) {
     
@@ -43,7 +52,7 @@ run_relative_risk = function() {
     message(paste0(" - ", paste(msg, collapse = ", ")))
     
     # Prepare for relative risk calculation
-    dt = prep_rr(strata)
+    dt = calculate_rr(strata)
     
     browser()
     
@@ -120,23 +129,15 @@ run_relative_risk = function() {
 }
 
 # ---------------------------------------------------------
-# Prepare relative risk calculation for given strata
+# Calculate relative risk for a given strata
 # ---------------------------------------------------------
-prep_rr = function(strata) {
+calculate_rr = function(strata) {
   
-  if (strata$source == "vimc") use_table = "vimc_impact"
+  if (strata$source == "vimc") use_table = "vimc_impact" # "vimc_impact" or "vimc_yov"
   if (strata$source == "gbd")  use_table = "gbd_estimates"
   
-  # Load either deaths_averted or deaths_disease for this strata
-  strata_dt = table(use_table) %>%
-    filter(d_v_a_id == strata$d_v_a_id) %>%
-    # Append all-cause deaths...
-    inner_join(y  = table("deaths_allcause"), 
-               by = c("country", "year", "age")) %>%
-    arrange(country, year, age)
-  
   # Total vaccine coverage by cohort
-  total_coverage = table("coverage") %>%
+  total_coverage_dt = table("coverage") %>%
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
     # Coverage is per vaccine, not per strata...
@@ -146,100 +147,62 @@ prep_rr = function(strata) {
     # Calculate coverage by cohort...
     total_coverage()  # See coverage.R
   
-  browser()
+  relative_risk_fn = get(paste1(strata$source, "rr"))
   
-  
-  
-  
-  
-  # Mean coverage across both age groups
-  #
-  # TODO: This collapsing of gender should go away (AC)
-  cov_dt <- total_coverage[, .(coverage = mean(value)), by = .(country, year, age)]
-  cov_dt[, gender := 3]
-  
-  # cov_dt2 = copy(cov_dt)
-  
-  # Reapply coverage for both age groups
-  if (strata$source == "gbd")
-    cov_dt <- rbindlist(lapply(1:2, function(s) copy(cov_dt)[, gender := s]))
-  
-  # Join coverage details to effect datatable
-  dt <- merge(dt, cov_dt, by = c("country", "year", "age", "gender")) #, all = T) # Should be full join ??
-  
-  # plot_fn = function(dt) {
-  #   g = ggplot(dt[coverage > 0 & country == "AFG"]) +
-  #     aes(x = year, y = coverage, colour = age, shape = as.factor(gender)) +
-  #     geom_point() +
-  #     facet_grid(gender~country) +
-  #     ylim(c(0, 1))
-  # }
-  # 
-  # g0 = plot_fn(total_coverage %>% rename(coverage = value))
-  # g1 = plot_fn(cov_dt)
-  # g2 = plot_fn(cov_dt2)
-  
-  # browser()
-  
-  # ---- Calcualte relative risk ----
-  
-  # Only needed for non-VIMC vaccines... otherwise NA
-  #
-  # NOTE: Is the column really necessary?
-  #       As it's only a single value it can be assigned to a single variable?
-  # dt[, efficacy := merge(strata, efficacy)$mean]
-  
-  # Calcualte relative risk: for VIMC and non-VIMC diseases
-  if (strata$source == "vimc") strata_dt %<>% vimc_rr()
-  if (strata$source == "gbd")  strata_dt %<>% gbd_rr(strata)
-  
-  browser()
-  
-  # Reorder columns of output
-  #
-  # TODO: This shouldn't be necessary
-  out_dt <- dt[, .(country, age, year, d_v_a_id, deaths_obs,
-                   deaths_averted, deaths_disease, coverage, rr)]
+  # Load either deaths_averted or deaths_disease for this strata
+  strata_dt = table(use_table) %>%
+    filter(d_v_a_id == strata$d_v_a_id) %>%
+    # Append all-cause deaths...
+    inner_join(y  = table("deaths_allcause"), 
+               by = c("country", "year", "age")) %>%
+    arrange(country, year, age) %>%
+    # Append total coverage...
+    inner_join(y  = total_coverage_dt, 
+               by = c("country", "d_v_a_id", "year", "age")) %>%
+    arrange(country, year, age) %>%
+    # Calculate relative risk...
+    relative_risk_fn()
   
   # Perform sanity checks on relative risk calculations
-  check_rr(out_dt)
+  # check_rr(strata_dt)
   
-  return(out_dt)
+  return(strata_dt)
 }
 
 # ---------------------------------------------------------
 # Calculate relative risk for VIMC disease
 # ---------------------------------------------------------
-vimc_rr = function(dt) {
+vimc_rr = function(strata_dt) {
   
   # Relative risk tends to 1 as coverage tends to 1, could be negative
   #
-  # rr = (o - (a * (1 - c) / c)) / (o + a)
-  #
-  # where:
-  #   o = deaths observed
-  #   a = deaths averted from vaccine
-  #   c = coverage
-  
-  browser()
+  # Equation: rr = (o - (a * (1 - c) / c)) / (o + a)
+
+  # Shorthand variable for readability
+  o = strata_dt$deaths_allcause  # Deaths [o]bserved
+  a = strata_dt$deaths_averted   # Deaths [a]verted from vaccination
+  c = strata_dt$total_coverage   # Lifetime vaccine [c]overage
   
   # Calculate relative risk
-  out_dt <- copy(dt)
-  out_dt[coverage > 0, rr := (deaths_obs - (deaths_averted *
-                                              (1 - coverage) / coverage)) /
-           (deaths_obs + deaths_averted)]
+  relative_risk_dt = strata_dt %>%
+    mutate(rr = (o - (a * (1 - c) / c)) / (o + a)) %>%
+    # Tidy up trivial values...
+    mutate(rr = ifelse(total_coverage == 0, NA, rr), 
+           rr = ifelse(is.infinite(rr), NA, rr))
+
+  # browser()
   
-  return(out_dt[])
+  return(relative_risk_dt)
 }
 
 # ---------------------------------------------------------
 # Calculate relative risk for GBD disease
 # ---------------------------------------------------------
-gbd_rr = function(dt, strata) {
+gbd_rr = function(x) {
   
   # Relative risk tends to 1 as coverage tends to 1, could be negative
   #
-  # rr = (o - d + w * (1 - e)) / (o - d + w)
+  # Equation: rr = (o - d + w * (1 - e)) / (o - d + w)
   #
   # where:
   #   o = deaths observed
@@ -251,6 +214,9 @@ gbd_rr = function(dt, strata) {
   
   browser()
   
+  strata = table("d_v_a") %>%
+    filter(d_v_a_id == unique(x$d_v_a_id))
+  
   # Vaccine efficacy
   strata_efficacy = efficacy %>%
     filter(disease == strata$disease, 
@@ -258,7 +224,7 @@ gbd_rr = function(dt, strata) {
     pull(mean)
   
   # Number of deaths expected without vaccination ??
-  out_dt <- copy(dt)
+  out_dt <- copy(x)
   out_dt[coverage > 0, deaths_no := deaths_disease /
            (1 - strata_efficacy * coverage)]
   
