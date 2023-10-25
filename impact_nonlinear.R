@@ -12,7 +12,7 @@
 run_impact_nonlinear = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(2, o$do_step)) return()
+  if (!is.element(3, o$do_step)) return()
   
   stop("Non-linear functionality needs to be refactored")
   

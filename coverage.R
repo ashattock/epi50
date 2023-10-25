@@ -133,15 +133,6 @@ coverage_wiise = function(vimc_countries) {
   
   # TODO: Check whether HPV coverage is actually modelled this way...
   
-  browser()
-  
-  # Total population by country, year, and age
-  pop_dt = table("wpp_pop") %>%
-    group_by(country, year, age) %>%
-    summarise(cohort_size = sum(nx)) %>%
-    ungroup() %>%
-    as.data.table()
-  
   # Calculate FVPs from coverage 
   wiise_dt = rbindlist(wiise_list) %>%
     # Combine gender where necessary...
@@ -149,9 +140,9 @@ coverage_wiise = function(vimc_countries) {
     summarise(coverage = mean(coverage)) %>%
     ungroup() %>%
     # Calculate number of fully vaccinated people...
-    inner_join(y  = pop_dt, 
+    inner_join(y  = table("wpp_pop"), 
                by = c("country", "year", "age")) %>%
-    mutate(fvps = coverage * cohort_size) %>%
+    mutate(fvps = coverage * pop) %>%
     # Final formatting...
     select(country, v_a_id, year, age, fvps, coverage) %>%
     arrange(country, v_a_id, year, age) %>%

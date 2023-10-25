@@ -13,7 +13,7 @@
 run_prepare = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(0, o$do_step)) return()
+  if (!is.element(1, o$do_step)) return()
   
   message("* Preparing input data")
   
@@ -32,10 +32,10 @@ run_prepare = function() {
   prepare_gbd_covariates()
 
   # Prepare demography-related estimates from WPP
-  prepare_demography()  # See demography.R
+  prepare_demography()
   
   # Prepare historical vaccine coverage
-  prepare_coverage()  # See coverage.R
+  prepare_coverage()  # See coverage.R for coverage-related functions
   
   # TODO: Is this needed? Can we just use WUENIC coverage instead?
   # prepare_hpv_target()

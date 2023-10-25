@@ -11,7 +11,7 @@
 run_results = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(5, o$do_step)) return()
+  if (!is.element(6, o$do_step)) return()
   
   message("* Producing results")
   
