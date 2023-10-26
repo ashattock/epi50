@@ -353,7 +353,7 @@ get_dict = function(d_info) {
 get_pop = function(countries, years) {
   
   # Load WPP data
-  wpp_pop = table("wpp_input")
+  wpp_pop = table("wpp_pop")
   
   browser() # wpp_pop already summarised over gender
   

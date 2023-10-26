@@ -21,16 +21,16 @@ run_prepare = function() {
   
   # Convert config yaml files to datatables
   prepare_config_tables()
-
+  
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_impact()
-
+  
   # Prepare GBD estimates of deaths for non-VIMC pathogens
   prepare_gbd_estimates()
-
+  
   # Prepare GBD covariates for extrapolating to non-VIMC countries
   prepare_gbd_covariates()
-
+  
   # Prepare demography-related estimates from WPP
   prepare_demography()
   
@@ -209,7 +209,7 @@ prepare_gbd_covariates = function() {
   # NOTE: We're missing SDI for two countries: 
   gbd_sdi  = readRDS(paste0(o$pth$input, "gbd19_sdi.rds"))
   gbd_haqi = readRDS(paste0(o$pth$input, "gbd19_haqi.rds"))
-
+  
   # Join metrics into single datatable
   gbd_covariates = 
     inner_join(x  = gbd_sdi, 
@@ -247,9 +247,9 @@ prepare_gbd_covariates = function() {
       end_vec   = 1 - gbd_mat[, dim(gbd_mat)[2]]
       
       t_mat = matrix(data = 1 : (2100 - max_year), 
-                      ncol = (2100 - max_year),
-                      nrow = length(end_vec), 
-                      byrow = TRUE)
+                     ncol = (2100 - max_year),
+                     nrow = length(end_vec), 
+                     byrow = TRUE)
       
       aroc = log(end_vec / start_vec) / years_back
       
@@ -272,14 +272,14 @@ prepare_gbd_covariates = function() {
         aes(x = year, y = value, colour = country) +
         geom_line(show.legend = FALSE) +
         geom_vline(xintercept = max_year)
-
+      
       fcast_list[[covariate]] <- out_dt
     }
     
     fcast_dt = rbindlist(fcast_list) %>%
       pivot_wider(names_from = metric) %>%
       as.data.table()
-
+    
     return(fcast_dt)
   }
   
@@ -296,63 +296,64 @@ prepare_demography = function() {
   
   message(" - Demography data")
   
-  # Load WPP data... this has already been formatted to save memory
-  pop_dt   = fread(paste0(o$pth$input, "wpp_pop_data.csv"))
-  death_dt = fread(paste0(o$pth$input, "wpp_deaths_data.csv")) %>%
-    rename(deaths_allcause = deaths)
+  # SOURCE: https://population.un.org/wpp/Download/Standard
   
-  # Save as table in cache
-  save_table(pop_dt,   "wpp_pop")
-  save_table(death_dt, "wpp_deaths")
+  # File names parts for WPP data
+  file_names = list(
+    pop   = "Population1January",
+    death = "Deaths")
   
-  # Combine with an inner join
-  wpp_dt = pop_dt %>%
-    inner_join(y  = death_dt, 
-               by = c("country", "year", "age"))
+  # Files name years - past and future
+  file_years = c("1950-2021", "2022-2100")
   
-  # Throw error if inconsistent structure
-  if (nrow(wpp_dt) != nrow(pop_dt))
-    stop("Inconsistent country-year-age span for WPP files")
-}
-
-# ---------------------------------------------------------
-# Extrapolate HPV targets
-# ---------------------------------------------------------
-prepare_hpv_target = function() {
+  # Years to extract (100 years worth)
+  extract_years = 0 : 100 + min(o$analysis_years)
   
-  message(" - HPV targets")
-  
-  # TODO: De we need these targets for EPI50 - probably not
-  
-  # Prep HPV target coverage for IA2030 coverage scenario
-  fread(paste0(o$pth$input, "hpv_target_coverage.csv")) %>%
-    pivot_longer(cols = -c(country, gender, age, doses), 
-                 names_to = "year") %>%
-    mutate(year = as.integer(year)) %>%
-    replace_na(list(value = 0)) %>%
-    # Keep the max of the one and two does coverage levels...
-    group_by(country, year, gender, age) %>%
-    summarise(value = max(value)) %>%
-    ungroup() %>%
-    # Append country ISO...
-    rename(hpv_name = country) %>%
-    left_join(y  = table("country")[, .(country, hpv_name)], 
-              by = c("hpv_name")) %>%
-    select(-hpv_name) %>%
-    # Breakdown aggregate into distinct gender...
-    mutate(gender = tolower(substr(gender, 1, 1))) %>%
-    pivot_wider(names_from = gender) %>%
-    mutate(f = ifelse(is.na(f), b, f), 
-           m = ifelse(is.na(m), b, m)) %>%
-    select(-b) %>%
-    pivot_longer(cols = -c(country, year, age), 
-                 names_to = "gender") %>%
-    filter(!is.na(value)) %>%
-    # Final formatting...
-    select(country, year, age, gender, hpv_target = value) %>%
-    arrange(country, year, age, gender) %>%
-    as.data.table() %>%
-    save_table("hpv_target")
+  # Loop through data types
+  for (type in names(file_names)) {
+    
+    # Filename part of this datataype
+    name = file_names[[type]]
+    
+    # Initiate list to store data
+    data_list = list()
+    
+    # Loop through past and future data
+    for (year in file_years) {
+      
+      # Construct full file name
+      file = paste0("WPP2022_", name, "BySingleAgeSex_Medium_", year, ".csv")
+      
+      # Stop here if file missing - ask user to download raw data
+      if (!file.exists(paste0(o$pth$input, file)))
+        stop("Please first download the file '", file, "' from",
+             " https://population.un.org/wpp/Download/Standard",  
+             " and copy to the /data/ directory")
+      
+      # Construct name of key data column
+      data_name = paste0(first_cap(type), "Total")
+      
+      # Load the file and wrangle what we need
+      data_list[[file]] = fread(paste0(o$pth$input, file)) %>%
+        select(country = ISO3_code,
+               year    = Time,
+               age     = AgeGrp,
+               metric  = !!data_name) %>%
+        # Scale metrics by factor of 1k...
+        mutate(metric = metric * 1e3) %>%
+        rename_with(~type, metric) %>%
+        # Only countries and years of interest...
+        filter(country %in% table("country")$country,
+               year    %in% extract_years) %>%
+        mutate(age = ifelse(age == "100+", 100, age),
+               age = as.integer(age))
+    }
+    
+    # Combine past and future data and save to file
+    rbindlist(data_list) %>%
+      arrange(country, year, age) %>%
+      save_table(paste1("wpp", type))
+  }
 }
 
 # ---------------------------------------------------------

@@ -155,8 +155,9 @@ calculate_rr = function(strata) {
   strata_dt = table(use_table) %>%
     filter(d_v_a_id == strata$d_v_a_id) %>%
     # Append all-cause deaths...
-    inner_join(y  = table("wpp_deaths"), 
+    inner_join(y  = table("wpp_death"), 
                by = c("country", "year", "age")) %>%
+    rename(deaths_allcause = death) %>%
     arrange(country, year, age) %>%
     # Append total coverage...
     inner_join(y  = total_coverage_dt, 
