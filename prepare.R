@@ -19,11 +19,13 @@ run_prepare = function() {
   
   # create_yaml(table_name, group_by, type = "rds")
   
+  # TODO: Filter for years o$analysis_years
+  
   # Convert config yaml files to datatables
   prepare_config_tables()
   
   # Streamline VIMC impact estimates for quick loading
-  prepare_vimc_impact()
+  prepare_vimc_estimates()
   
   # Prepare GBD estimates of deaths for non-VIMC pathogens
   prepare_gbd_estimates()
@@ -48,8 +50,7 @@ prepare_config_tables = function() {
   
   message(" - Config files")
   
-  # NOTE: Here we load in yaml files (/config/) and create
-  #       rds files (/cache/) for fast loading
+  # NOTE: Convert from yaml (/config) to rds (/cache) for fast loading
   
   # List of config yaml files to convert
   config_files = o$pth$config %>%
@@ -92,42 +93,30 @@ prepare_config_tables = function() {
 # ---------------------------------------------------------
 # Streamline VIMC impact estimates for quick loading
 # ---------------------------------------------------------
-prepare_vimc_impact = function() {
+prepare_vimc_estimates = function() {
   
   message(" - VIMC estimates")
   
   # TODO: In raw form, we could instead use vimc_estimates.csv
+  
+  # Dictionary for dealing with gender variables
+  # gender_dict = setNames(1 : 3, c("Male", "Female", "Both"))
   
   # All diseases of interest, not necessarily everything produced by VIMC
   diseases = table("disease")$disease
   
   # Prepare VIMC vaccine impact estimates
   readRDS(paste0(o$pth$input, "vimc_estimates.rds")) %>%
-    filter(disease %in% diseases) %>%
+    filter(disease %in% diseases, 
+           year    %in% o$analysis_years) %>%
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
     select(country, d_v_a_id, year, age, deaths_averted) %>%
     arrange(d_v_a_id, country, age, year) %>%
-    save_table("vimc_impact")
-  
-  # Prepare VIMC year-of-vaccination results - take the mean across models
-  readRDS(paste0(o$pth$input, "vimc_yov.rds")) %>%
-    filter(disease %in% diseases) %>%
-    left_join(y  = table("d_v_a"), 
-              by = c("disease", "vaccine", "activity")) %>%
-    select(country, d_v_a_id, model, year, deaths_averted, deaths_averted_rate) %>%
-    group_by(country, d_v_a_id, year) %>%
-    summarise(deaths_averted      = mean(deaths_averted,      na.rm = TRUE),
-              deaths_averted_rate = mean(deaths_averted_rate, na.rm = TRUE)) %>%
-    ungroup() %>%
-    filter(!is.na(deaths_averted_rate)) %>%
-    arrange(d_v_a_id, country, year) %>%
-    as.data.table() %>%
-    save_table("vimc_yov")
+    save_table("vimc_estimates")
   
   # Simply store VIMC in it's current form
   readRDS(paste0(o$pth$input, "vimc_uncertainty.rds")) %>%
-    # select() %>%
     save_table("vimc_uncertainty")
 }
 
@@ -190,7 +179,7 @@ prepare_gbd_covariates = function() {
   #   mutate(year = as.integer(year)) %>%
   #   arrange(country, year) %>%
   #   as.data.table() %>%
-  #   saveRDS("input/gbd19_sdi.rds")
+  #   save_rds("input", "gbd19_sdi")
   
   # Prep GBD 2019 HAQI for use as a covariate
   
@@ -204,7 +193,7 @@ prepare_gbd_covariates = function() {
   #   select(country, year = year_id, haqi = val) %>%
   #   mutate(haqi = haqi / 100) %>%
   #   arrange(country, year) %>%
-  #   saveRDS("input/gbd19_haqi.rds")
+  #   save_rds("input", "gbd19_haqi")
   
   # NOTE: We're missing SDI for two countries: 
   gbd_sdi  = readRDS(paste0(o$pth$input, "gbd19_sdi.rds"))
@@ -218,81 +207,15 @@ prepare_gbd_covariates = function() {
     arrange(country, year)
   
   # Save in cache
-  # save_table(gbd_covariates, "gbd_covariates")
-  
-  # ---- Forecast out to 2100 ----
-  
-  # TODO: Is this necessary for EPI50?? - probably not!
-  
-  forecast_gbd_cov <- function(gbd_covariates) {
-    
-    years_back = 5
-    
-    max_year = max(gbd_covariates$year)
-    
-    covariates = setdiff(names(gbd_covariates), qc(country, year))
-    
-    fcast_list = list()
-    
-    for (covariate in covariates) {
-      
-      gbd_mat = gbd_covariates %>%
-        select(country, year, all_of(covariate)) %>%
-        pivot_wider(names_from  = year, 
-                    values_from =  all_of(covariate)) %>%
-        select(-country) %>%
-        as.matrix()
-      
-      start_vec = 1 - gbd_mat[, dim(gbd_mat)[2] - years_back]
-      end_vec   = 1 - gbd_mat[, dim(gbd_mat)[2]]
-      
-      t_mat = matrix(data = 1 : (2100 - max_year), 
-                     ncol = (2100 - max_year),
-                     nrow = length(end_vec), 
-                     byrow = TRUE)
-      
-      aroc = log(end_vec / start_vec) / years_back
-      
-      pred_mat = 1 - end_vec * exp(aroc * t_mat)
-      colnames(pred_mat) = (max_year + 1):2100
-      
-      if (max(pred_mat) >= 1)
-        warning("Forecast greater than or equal to 1: consider forecasting in logit space")
-      
-      out_dt = cbind(gbd_mat, pred_mat) %>%
-        as.data.table() %>%
-        mutate(country = unique(gbd_covariates$country)) %>%
-        pivot_longer(cols = -country, 
-                     names_to = "year") %>%
-        mutate(metric = !!covariate, 
-               year = as.integer(year)) %>%
-        as.data.table()
-      
-      g = ggplot(out_dt) +
-        aes(x = year, y = value, colour = country) +
-        geom_line(show.legend = FALSE) +
-        geom_vline(xintercept = max_year)
-      
-      fcast_list[[covariate]] <- out_dt
-    }
-    
-    fcast_dt = rbindlist(fcast_list) %>%
-      pivot_wider(names_from = metric) %>%
-      as.data.table()
-    
-    return(fcast_dt)
-  }
-  
-  gbd_covariates_fcast = forecast_gbd_cov(gbd_covariates)
-  
-  # Save in cache
-  save_table(gbd_covariates_fcast, "gbd_covariates")
+  save_table(gbd_covariates, "gbd_covariates")
 }
 
 # ---------------------------------------------------------
 # Prepare demography-related estimates from WPP
 # ---------------------------------------------------------
 prepare_demography = function() {
+  
+  # TODO: Could we instead use the 'wpp2022' package?
   
   message(" - Demography data")
   
@@ -305,9 +228,6 @@ prepare_demography = function() {
   
   # Files name years - past and future
   file_years = c("1950-2021", "2022-2100")
-  
-  # Years to extract (100 years worth)
-  extract_years = 0 : 100 + min(o$analysis_years)
   
   # Loop through data types
   for (type in names(file_names)) {
@@ -344,7 +264,7 @@ prepare_demography = function() {
         rename_with(~type, metric) %>%
         # Only countries and years of interest...
         filter(country %in% table("country")$country,
-               year    %in% extract_years) %>%
+               year    %in% o$analysis_years) %>%
         mutate(age = ifelse(age == "100+", 100, age),
                age = as.integer(age))
     }
@@ -362,7 +282,7 @@ prepare_demography = function() {
 save_table = function(x, table) {
   
   # Save table in cache directory
-  saveRDS(x, paste0(o$pth$cache, table, "_table.rds"))
+  save_rds(x, "cache", table, "table")
 }
 
 # ---------------------------------------------------------
