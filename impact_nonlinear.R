@@ -4,21 +4,21 @@
 # An alternative to impact factor for representing impact as
 # a function of vaccine coverage.
 #
+# TODO: Think about age age here... can we justify summarising?
+# I think we can, but d-v-a must consistently have targeted
+# the same age groups over time.
+#
 ###########################################################
 
 # ---------------------------------------------------------
 # Parent function for calculating non-linear impact
 # ---------------------------------------------------------
-run_impact_nonlinear = function() {
+run_impact = function() {
   
   # Only continue if specified by do_step
   if (!is.element(3, o$do_step)) return()
-  
-  # stop("Non-linear functionality needs to be refactored")
-  
-  # TODO: Think about age age here... can we justify summarising?
-  #       I think we can, but d-v-a must consistently have
-  #       targeted the same age groups over time.
+
+  message("* Calculating impact per FVP")
   
   # ---- FVPs and impact (deaths averted) ----
   
@@ -224,15 +224,15 @@ run_impact_nonlinear = function() {
   coef_dt = rbindlist(coef)
   
   # Save to file
-  save_rds(coef_dt, "testing", "coef") 
+  save_rds(coef_dt, "impact", "coef") 
   
   # Collapse suitability metrics into single datatable
   aic_dt = rbindlist(aic, fill = TRUE)
   r2_dt  = rbindlist(r2,  fill = TRUE)
   
   # Save to file
-  save_rds(aic_dt, "testing", "aic")
-  save_rds(r2_dt,  "testing", "r2")
+  save_rds(aic_dt, "impact", "aic")
+  save_rds(r2_dt,  "impact", "r2")
   
   if (o$model_metric == "aicc") {
     
@@ -599,8 +599,8 @@ evaluate_best_model = function(country = NULL, d_v_a_id = NULL, x = NULL) {
   # ---- Load stuff ----
   
   # Load results: best fit functions and associtaed coefficients
-  best_dt = readRDS(paste0(o$pth$impact, "best_model.rds"))
-  coef_dt = readRDS(paste0(o$pth$impact, "coef.rds"))
+  best_dt = read_rds("impact", "best_model")
+  coef_dt = read_rds("impact", "coef")
   
   # ---- Interpret trivial arguments ----
   
@@ -670,7 +670,7 @@ evaluate_best_model = function(country = NULL, d_v_a_id = NULL, x = NULL) {
 plot_model_counts = function(focus = "log3") {
   
   # Load stuff: best fit functions and associtaed coefficients
-  best_dt = readRDS(paste0(o$pth$impact, "best_model.rds"))
+  best_dt = read_rds("impact", "best_model")
   
   # ---- Plot function count ----
   
@@ -752,7 +752,7 @@ plot_model_fits = function(focus, zoom = TRUE) {
   best_fit = evaluate_best_model()
   
   # Also load the data - we'll plot fits against this
-  vimc_dt = readRDS(paste0(o$pth$impact, "vimc_dt.rds"))
+  vimc_dt = read_rds("impact", "vimc_dt")
   
   # ---- Plot fitted FVPs vs impact ----
   

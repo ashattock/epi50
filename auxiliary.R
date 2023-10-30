@@ -355,6 +355,31 @@ quiet = function(x) {
 }
 
 # ---------------------------------------------------------
+# Convenience wrapper for readRDS
+# ---------------------------------------------------------
+read_rds = function(pth, ...) {
+  
+  # Special use case: pth is the full .rds file path
+  if (grepl(".*\\.rds$", pth)) {
+    full_path = pth
+    
+  } else { # Otherwise standard use case
+    
+    # Construct path and file name using inputs
+    file_path = o$pth[[pth]]
+    file_name = paste(unlist(list(...)), collapse = "_")
+    
+    # Concatenate full .rds file path
+    full_path = paste0(file_path, file_name, ".rds")
+  }
+  
+  # Read and return the object
+  x = readRDS(file = full_path)
+  
+  return(x)
+}
+
+# ---------------------------------------------------------
 # Load Excel files from URL
 # ---------------------------------------------------------
 read_url_xls = function(url, sheet = 1) {

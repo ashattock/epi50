@@ -16,7 +16,7 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = 1)
+o = set_options(do_step = 4)
 
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
@@ -24,18 +24,20 @@ run_prepare()  # See prepare.R
 # Step 2) Calculate and impute relative risk
 run_relative_risk()  # See relative_risk.R
 
-# Step 3) Calculate impact factors
-# run_impact_factors()  # See impact_factors.R
-run_impact_nonlinear()  # See impact_nonlinear.R
+# Step 3) Calculate impact per FVP
+run_impact()  # See impact_nonlinear.R
 
-# Step 4) Calculate DALYs
-run_dalys()  # See dalys.R
+# Step 4) Extrapolate impact for missing countries
+run_extrapolate()  # See extrapolation.R
 
-# Step 5) Generate uncertainty draws
-run_uncertainty()  # See uncertainty.R
-
-# Step 6) Produce results
-run_results()  # See results.R
+# # Step 4) Calculate DALYs
+# run_dalys()  # See dalys.R
+# 
+# # Step 5) Generate uncertainty draws
+# run_uncertainty()  # See uncertainty.R
+# 
+# # Step 6) Produce results
+# run_results()  # See results.R
 
 # Finish up
 message("* Finished!")

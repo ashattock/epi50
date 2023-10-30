@@ -99,7 +99,7 @@ prepare_vimc_estimates = function() {
   diseases = table("disease")$disease
   
   # Prepare VIMC vaccine impact estimates
-  readRDS(paste0(o$pth$input, "vimc_estimates.rds")) %>%
+  read_rds("input", "vimc_estimates") %>%
     filter(disease %in% diseases, 
            year    %in% o$analysis_years) %>%
     left_join(y  = table("d_v_a"), 
@@ -109,7 +109,7 @@ prepare_vimc_estimates = function() {
     save_table("vimc_estimates")
   
   # Simply store VIMC in it's current form
-  readRDS(paste0(o$pth$input, "vimc_uncertainty.rds")) %>%
+  read_rds("input", "vimc_uncertainty") %>%
     save_table("vimc_uncertainty")
 }
 
@@ -121,7 +121,7 @@ prepare_gbd_estimates = function() {
   message(" - GBD estimates")
   
   # Load GBD estimates of deaths for relevant diseases
-  gbd_dt = readRDS(paste0(o$pth$input, "gbd19_estimates.rds"))
+  gbd_dt = read_rds("input", "gbd19_estimates")
   
   # Construct age datatable to expand age bins to single years
   age_bins = sort(unique(gbd_dt$age))
@@ -189,8 +189,8 @@ prepare_gbd_covariates = function() {
   #   save_rds("input", "gbd19_haqi")
   
   # NOTE: We're missing SDI for two countries: 
-  gbd_sdi  = readRDS(paste0(o$pth$input, "gbd19_sdi.rds"))
-  gbd_haqi = readRDS(paste0(o$pth$input, "gbd19_haqi.rds"))
+  gbd_sdi  = read_rds("input", "gbd19_sdi")
+  gbd_haqi = read_rds("input", "gbd19_haqi")
   
   # Join metrics into single datatable
   gbd_covariates = 
@@ -291,7 +291,7 @@ table = function(table) {
     stop("Table ", table, " has not been cached - have you run step 0?")
   
   # Load rds file
-  y = readRDS(file)
+  y = read_rds(file)
   
   return(y)
 }
