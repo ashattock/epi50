@@ -5,4 +5,5 @@ core*
 cache/
 input*/
 output*/
+data/wiise*
 data/WPP*
