@@ -389,10 +389,27 @@ sample_vec = function(x, ...)
   x[sample.int(length(x), ...)]
 
 # ---------------------------------------------------------
-# Simple wrapper for saveRDS
+# Convenience wrapper for saveRDS
 # ---------------------------------------------------------
-save_file = function(x, pth, file)
-  saveRDS(x, file = paste0(pth, file, ".rds"))
+save_rds = function(x, pth, ...) {
+  
+  # Special use case: pth is the full .rds file path
+  if (grepl(".*\\.rds$", pth)) {
+    full_path = pth
+    
+  } else { # Otherwise standard use case
+    
+    # Construct path and file name using inputs
+    file_path = o$pth[[pth]]
+    file_name = paste(unlist(list(...)), collapse = "_")
+    
+    # Concatenate full .rds file path
+    full_path = paste0(file_path, file_name, ".rds")
+  }
+  
+  # Save as an RDS
+  saveRDS(x, file = full_path)
+}
 
 # ---------------------------------------------------------
 # Allow scale_fill_fermenter to accept custom palettes
