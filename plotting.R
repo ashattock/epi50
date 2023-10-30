@@ -128,7 +128,7 @@ plot_strata_fit <- function(rr_dt) {
     ylab("Predicted")
   
   # Save figure to file
-  fig_save(g, "Strata fit", dir = "diagnostics")
+  save_fig(g, "Strata fit", dir = "diagnostics")
 }
 
 # ---------------------------------------------------------
@@ -186,7 +186,7 @@ plot_draws = function(fig_name) {
                         expand = expansion(mult = c(0, 0.05)))
   
   # Save figure to file
-  fig_save(g, fig_name, dir = "diagnostics")
+  save_fig(g, fig_name, dir = "diagnostics")
 }
 
 # ---------------------------------------------------------
@@ -232,7 +232,7 @@ plot_annual_total = function(fig_name) {
     y_lab = "Deaths averted")
   
   # Save figure to file
-  fig_save(g, fig_name, dir = "diagnostics")
+  save_fig(g, fig_name, dir = "diagnostics")
 }
 
 # ---------------------------------------------------------
@@ -322,7 +322,7 @@ plot_gbd_uncertainty_dist = function(fig_name) {
   g = g + theme(axis.text.y = element_blank())
   
   # Save figure to file
-  fig_save(g, fig_name, dir = "diagnostics")
+  save_fig(g, fig_name, dir = "diagnostics")
 }
 
 # ---------------------------------------------------------
@@ -422,7 +422,7 @@ plot_gbd_uncertainty_fit = function(fig_name) {
           axis.ticks   = element_blank())
   
   # Save figure to file
-  fig_save(g, fig_name, dir = "diagnostics")
+  save_fig(g, fig_name, dir = "diagnostics")
 }
 
 # ---------------------------------------------------------
@@ -476,7 +476,7 @@ ggpretty = function(g, cols = NULL, colour = NULL, fill = NULL, title = NULL, x_
 # ---------------------------------------------------------
 # Save a ggplot figure to file with default settings
 # ---------------------------------------------------------
-fig_save = function(g, ..., dir = "figures") {
+save_fig = function(g, ..., dir = "figures") {
   
   # Collapse inputs into vector of strings
   fig_name_parts = unlist(list(...))

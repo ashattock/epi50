@@ -81,7 +81,7 @@ run_results = function() {
   )
   
   # Save results to file
-  save_file(out_dt, o$pth$results, "reference_results")
+  save_rds(out_dt, "results", "reference_results")
   
   # Upload results if desired
   if (o$results_upload)
@@ -122,7 +122,7 @@ run_results = function() {
   
   # NOTE: Used to produce markdown document
   # write.csv(table_totals, "outputs/detailed_results.csv", row.names = F)
-  save_file(table_totals, o$pth$results, "detailed_results")
+  save_rds(table_totals, "results", "detailed_results")
   
   # ---- xxxxxx ----
   
@@ -163,7 +163,7 @@ run_results = function() {
   
   # NOTE: Used to produce markdown document
   # write.csv(table_totals, "outputs/detailed_results_income.csv", row.names = F)
-  save_file(table_totals, o$pth$results, "detailed_results_income")
+  save_rds(table_totals, "results", "detailed_results_income")
   
   # ---- Produce markdown results document ----
   

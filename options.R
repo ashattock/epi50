@@ -50,10 +50,10 @@ set_options = function(do_step = NA, quiet = FALSE) {
   # ---- Time settings ----
   
   # Years to analyse
-  o$analysis_years = 1974 : 2020 # 2024  # Vaccine deployed across these dates
+  o$analysis_years = 1974 : 2024  # Vaccine deployed across these dates
   
   # Year and age ranges stored in coverage database
-  o$data_years = 1980 : 2020  # Vaccine effect calculated across these dates
+  o$data_years = 1980 : 2024  # Vaccine effect calculated across these dates
   o$data_ages  = 0 : 95
   
   # ---- Uncertainty settings ----

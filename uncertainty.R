@@ -77,7 +77,7 @@ run_uncertainty = function() {
   # TODO: Throw error if any NAs or <= 0 ??
   
   # Save datatable to file
-  save_file(draws_dt, o$pth$uncertainty, "draws")
+  save_rds(draws_dt, "uncertainty", "draws")
   
   # ---- Diagnostic figures ----
   
@@ -162,7 +162,7 @@ generate_gbd_uncertainty = function(gbd_dt, scenario_impact) {
            .before = 1)
   
   # Save file - primarily for diagnostic figures
-  save_file(beta_pars, o$pth$uncertainty, "gbd_beta_pars")
+  save_rds(beta_pars, "uncertainty", "gbd_beta_pars")
   
   # ---- Draw samples from optimal beta distribution ----
   

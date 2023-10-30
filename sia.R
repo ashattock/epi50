@@ -50,10 +50,10 @@ prepare_sia = function() {
   file_fvps = "SIA_doses.csv"
   data_fvps = fread(system.file("sia", file_fvps, package = "vieIA2030"))
   
-  browser() # Use: table("vimc_impact")
+  browser() # Use: table("vimc_estimates")
   
   # Used for disaggregating VIMC and non-VIMC countries
-  load_tables("vimc_impact")
+  load_tables("vimc_estimates")
   
   # ---- Format dates ----
   
@@ -265,8 +265,8 @@ prepare_sia = function() {
   gy = prettify_fn(gy)
   
   # Save figures to file
-  fig_save(gx, dir = "diagnostics", "SIA activity by disease")
-  fig_save(gy, dir = "diagnostics", "SIA activity by disease - no Polio")
+  save_fig(gx, dir = "diagnostics", "SIA activity by disease")
+  save_fig(gy, dir = "diagnostics", "SIA activity by disease - no Polio")
   
   # Plot activity by disease
   # g1 = ggplot(freq_dt1) + 
@@ -321,9 +321,9 @@ prepare_sia = function() {
   g3 = prettify_fn(g3, "economy")
   
   # Save figures to file
-  # fig_save(g1, dir = "diagnostics", "SIA activity by disease")
-  fig_save(g2, dir = "diagnostics", "SIA activity by region")
-  fig_save(g3, dir = "diagnostics", "SIA activity by economy")
+  # save_fig(g1, dir = "diagnostics", "SIA activity by disease")
+  save_fig(g2, dir = "diagnostics", "SIA activity by region")
+  save_fig(g3, dir = "diagnostics", "SIA activity by economy")
   
   # ---- Doses per month ----
   
@@ -450,8 +450,8 @@ prepare_sia = function() {
   g2 = prettify_fn(g2)
   
   # Save figures to file
-  fig_save(g1, dir = "diagnostics", "SIA FVPs")
-  fig_save(g2, dir = "diagnostics", "SIA FVPs", "excluding Polio")
+  save_fig(g1, dir = "diagnostics", "SIA FVPs")
+  save_fig(g2, dir = "diagnostics", "SIA FVPs", "excluding Polio")
   
   # ---- Plot by country ----
   
@@ -522,8 +522,8 @@ prepare_sia = function() {
   g2 = prettify_fn(g2)
   
   # Save figures to file
-  fig_save(g1, dir = "diagnostics", "SIA doses by country", "area")
-  fig_save(g2, dir = "diagnostics", "SIA doses by country", "line")
+  save_fig(g1, dir = "diagnostics", "SIA doses by country", "area")
+  save_fig(g2, dir = "diagnostics", "SIA doses by country", "line")
   
   # ---- Plot by disease ----
   
@@ -604,16 +604,16 @@ prepare_sia = function() {
   g3 = prettify_fn(g3)
   
   # Save figures to file
-  fig_save(g1, dir = "diagnostics", "SIA doses by disease", "area")
-  fig_save(g2, dir = "diagnostics", "SIA FVPs by disease",  "area")
-  fig_save(g3, dir = "diagnostics", "SIA doses by disease", "line")
+  save_fig(g1, dir = "diagnostics", "SIA doses by disease", "area")
+  save_fig(g2, dir = "diagnostics", "SIA FVPs by disease",  "area")
+  save_fig(g3, dir = "diagnostics", "SIA doses by disease", "line")
   
   # ---- Plot by data source ----
   
-  browser() # Use: table("vimc_impact")
+  browser() # Use: table("vimc_estimates")
   
   # First determine countries reported by VIMC
-  vimc_countries = vimc_impact %>%
+  vimc_countries = vimc_estimates %>%
     select(country, d_v_at_id) %>%
     unique() %>%
     left_join(d_v_at_table, 
@@ -696,8 +696,8 @@ prepare_sia = function() {
   g2 = prettify_fn(g2)
   
   # Save figures to file
-  fig_save(g1, dir = "diagnostics", "SIA doses by source")
-  fig_save(g2, dir = "diagnostics", "SIA doses by source", "exluding Polio")
+  save_fig(g1, dir = "diagnostics", "SIA doses by source")
+  save_fig(g2, dir = "diagnostics", "SIA doses by source", "exluding Polio")
 }
 
 # ---------------------------------------------------------
@@ -786,6 +786,6 @@ plot_durations = function(dt, by = NULL, zoom = TRUE) {
   }
   
   # Save figure to file
-  fig_save(g, dir = "diagnostics", "SIA durations", by)
+  save_fig(g, dir = "diagnostics", "SIA durations", by)
 }
 

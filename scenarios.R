@@ -211,9 +211,9 @@ get_mx_scen <- function(is, y0, y1, scen, mx, nx) {
 # ---------------------------------------------------------
 get_vimc_deaths_change <- function(is, y0, y1, default_coverage, scen_coverage, mx) {
   
-  browser() # Use: table("vimc_impact")
+  browser() # Use: table("vimc_estimates")
   
-  vimc_deaths_change <- vimc_impact %>%
+  vimc_deaths_change <- vimc_estimates %>%
     filter(country_name == is & year %in% y0:y1) %>%
     left_join(default_coverage, by = c("year", "vaccine_id")) %>%
     left_join(scen_coverage, by = c("year", "vaccine_id")) %>%
@@ -227,7 +227,7 @@ get_vimc_deaths_change <- function(is, y0, y1, default_coverage, scen_coverage, 
     as.matrix()
   
   # Fill in older age groups
-  # TODO: fix this on vimc_impact side
+  # TODO: fix this on vimc_estimates side
   vimc_deaths_change <- rbind(
     vimc_deaths_change,
     matrix(

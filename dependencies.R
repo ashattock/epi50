@@ -53,8 +53,9 @@ packages = c("tidyverse",      # Includes ggplot2, dplyr, tidyr (www.tidyverse.o
              "stats4",         # MLE algorithm
              "matrixStats",    # Matrix row and column operations
              "tgp",            # Latin hypercube sampler
+             "splines",        # Spline fitting functions
              # "pspline",        # Spline fitting functions
-             "wpp2019",        # Demogrphic data
+             # "wpp2022",        # Demographic data
              "yaml",           # Data loading functionality
              # "xlsx",           # Data loading functionality (or use readxl?)
              "lubridate",      # Data formatting functionality

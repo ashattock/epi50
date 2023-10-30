@@ -16,7 +16,7 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = 2)
+o = set_options(do_step = 1)
 
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
@@ -25,8 +25,8 @@ run_prepare()  # See prepare.R
 run_relative_risk()  # See relative_risk.R
 
 # Step 3) Calculate impact factors
-run_impact_factors()  # See impact_factors.R
-# run_impact_nonlinear()  # See impact_nonlinear.R
+# run_impact_factors()  # See impact_factors.R
+run_impact_nonlinear()  # See impact_nonlinear.R
 
 # Step 4) Calculate DALYs
 run_dalys()  # See dalys.R

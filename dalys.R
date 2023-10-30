@@ -733,7 +733,7 @@ prep_results = function(x, d_info, countries, years) {
   
   # Save results to file
   save_name = paste0("dalys_", tolower(d_info$disease), ".rds")
-  saveRDS(results, file = paste0(o$pth$testing, save_name))
+  save_rds(results, "testing", save_name)
 }
 
 # ---------------------------------------------------------
@@ -894,7 +894,7 @@ prettify4 = function(g, cols = NULL, save = NULL) {
   
   # Save plots to file
   if (!is.null(save))
-    fig_save(g, dir = "testing", save)
+    save_fig(g, save)
   
   return(g)
 }
