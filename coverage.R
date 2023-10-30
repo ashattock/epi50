@@ -47,16 +47,18 @@ coverage_vimc = function() {
   vimc_dt = fread(paste0(o$pth$input, "vimc_coverage.csv")) %>%
     select(country, disease, vaccine, activity = activity_type, 
            gender, year, age, fvps_adjusted, cohort_size) %>%
+    filter(year %in% o$analysis_years) %>%
     # Combine gender where necessary...
     mutate(gender = ifelse(gender == "Both", "b", "x")) %>%
     group_by(country, disease, vaccine, activity, gender, year, age) %>%
     summarise(fvps     = sum(fvps_adjusted),
-              coverage = fvps / sum(cohort_size)) %>%
+              cohort   = sum(cohort_size),
+              coverage = fvps / cohort) %>%
     ungroup() %>%
     # Append v_a ID...
     left_join(y  = table("v_a"), 
               by = c("vaccine", "activity")) %>%
-    select(country, v_a_id, year, age, fvps, coverage) %>%
+    select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
     as.data.table()
   
@@ -70,16 +72,21 @@ coverage_wiise = function(vimc_countries) {
   
   # ---- Load data ----
   
-  temp_file = "temp/wiise_coverage.rds"
-  if (file.exists(temp_file)) {
-    data_dt = readRDS(temp_file)
-  } else {
+  # File path for already-downloaded WIISE coverage data
+  coverage_file = paste0(o$pth$input, "wiise_coverage.rds")
+  
+  # If file has already been downloaded, read it now
+  if (file.exists(coverage_file)) {
+    data_dt = readRDS(coverage_file)
+    
+  } else {  # Otherwise we'll need to download
     
     # Non-VIMC coverage taken from WIISE database
     data_url = "https://whowiise.blob.core.windows.net/upload/coverage--2021.xlsx"
     data_dt  = read_url_xls(data_url, sheet = 1) 
     
-    saveRDS(data_dt, temp_file)
+    # Save as an RDS file for easy future loading
+    save_rds(data_dt, coverage_file)
   }
   
   # Load WIISE-related vaccine details 
@@ -107,6 +114,7 @@ coverage_wiise = function(vimc_countries) {
       # Select only vaccine and countries of interest...
       filter(coverage_category == v$coverage_category, 
              wiise_id %in% v$wiise_id,
+             year     %in% o$analysis_years,
              country  %in% wiise_countries) %>%  
       # Format coverage...
       replace_na(list(coverage = 0)) %>%
@@ -142,9 +150,10 @@ coverage_wiise = function(vimc_countries) {
     # Calculate number of fully vaccinated people...
     inner_join(y  = table("wpp_pop"), 
                by = c("country", "year", "age")) %>%
-    mutate(fvps = coverage * pop) %>%
+    rename(cohort = pop) %>%
+    mutate(fvps = coverage * cohort) %>%
     # Final formatting...
-    select(country, v_a_id, year, age, fvps, coverage) %>%
+    select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
     as.data.table()
   
@@ -206,9 +215,6 @@ total_coverage = function(coverage_dt) {
               by = names(full_dt)) %>%
     replace_na(list(total_coverage = 0)) %>%
     arrange(country, year, age) %>%
-    # Append d_v_a info...
-    mutate(d_v_a_id = unique(coverage_dt$v_a_id), 
-           .after = 1) %>%
     as.data.table()
   
   # TODO: Set a cap on BCG effect at age 15
