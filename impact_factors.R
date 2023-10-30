@@ -31,7 +31,7 @@ run_impact_factors = function() {
   impact_dt      = rake_impact(impact_factors)
   
   # Save to file
-  save_file(impact_dt, o$pth$impact_factors, "impact_dt")
+  save_rds(impact_dt, "impact_factors", "impact_dt")
   
   # ---- Use impact factors to determine deaths averted ----
   
@@ -47,8 +47,8 @@ run_impact_factors = function() {
   scenario_total = calc_scenario_total(scenario_impact = scenario_impact) 
   
   # Save both of these outputs to file
-  save_file(scenario_impact, o$pth$impact_factors, "scenario_impact")
-  save_file(scenario_total,  o$pth$impact_factors, "scenario_total")
+  save_rds(scenario_impact, "impact_factors", "scenario_impact")
+  save_rds(scenario_total,  "impact_factors", "scenario_total")
 }
 
 # ---------------------------------------------------------

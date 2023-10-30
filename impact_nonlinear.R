@@ -14,122 +14,26 @@ run_impact_nonlinear = function() {
   # Only continue if specified by do_step
   if (!is.element(3, o$do_step)) return()
   
-  stop("Non-linear functionality needs to be refactored")
+  # stop("Non-linear functionality needs to be refactored")
   
-  return()
-  
-  # Explore non-linear impact
-  explore_nonlinear()
-}
-
-# ---------------------------------------------------------
-# Parent function for exploring potential for non-linear impact
-# ---------------------------------------------------------
-explore_nonlinear = function() {
-  
-  browser() # Use: table("vimc_impact")
-  
-  # Load stuff up front
-  load_tables("vimc_impact", "vimc_yov_impact")
-  
-  browser() # loc_table is now country_table
-  
-  # We'll calculate DALYs for all viable countries
-  countries = loc_table$location_iso3
+  # TODO: Think about age age here... can we justify summarising?
+  #       I think we can, but d-v-a must consistently have
+  #       targeted the same age groups over time.
   
   # ---- FVPs and impact (deaths averted) ----
   
-  # Load WPP data
-  wpp_pop = table("wpp_pop")
-  
-  browser() # wpp_pop already summarised over gender
-  
   # First load population size of each country over time
-  pop_dt = wpp_pop %>%
-    filter(country %in% countries) %>%
+  pop_dt = table("wpp_pop") %>%
     group_by(country, year) %>%
-    summarise(pop = sum(nx)) %>%
+    summarise(pop = sum(pop)) %>%
     ungroup() %>%
     as.data.table()
   
-  # Two attempts at loading YoV results - revisit this this later
-  
-  # # Wrangle VIMC year-of-vaccination impact estimates
-  # file = "~/vieIA2030_v2/supp_data/interim-update-202007wue_summary.rds"
-  # vimc_dt = as.data.table(readRDS(file)) %>%
-  #   filter(touchstone == "201910gavi-202007wue", 
-  #          country %in% countries) %>%
-  #   # Apply decent D-V-A names...
-  #   left_join(y  = d_v_a_name(), 
-  #             by = c("disease", "vaccine", "activity_type")) %>%
-  #   select(country, d_v_a, year, coverage, fvps, deaths_averted, model) %>%
-  #   # Mean over models...
-  #   group_by(country, d_v_a, year, coverage, fvps) %>%
-  #   summarise(impact = mean(deaths_averted)) %>%
-  #   ungroup() %>%
-  #   # Cumulative sum impact...
-  #   arrange(country, d_v_a, year) %>%
-  #   group_by(country, d_v_a) %>%
-  #   mutate(fvps_cum   = cumsum(fvps), 
-  #          impact_cum = cumsum(impact)) %>%
-  #   ungroup() %>%
-  #   # ... relative to 100k people...
-  #   left_join(y  = pop_dt,
-  #             by = c("country", "year")) %>%
-  #   mutate(fvps_rel   = o$per_person * fvps_cum   / pop, 
-  #          impact_rel = o$per_person * impact_cum / pop) %>%
-  #   select(-pop) %>%
-  #   # Ignore negative impact (but keep zero)...
-  #   filter(impact >= 0, fvps > 0) %>%  # Or fvps_cum/rel?
-  #   # Ingore cases with a single data point...
-  #   add_count(country, d_v_a) %>%
-  #   filter(n > 1) %>%
-  #   select(-n) %>%
-  #   as.data.table()
-  
-  # # Wrangle VIMC year-of-vaccination impact estimates
-  # vimc_dt = vimc_yov_impact %>%
-  #   mutate(deaths_averted = pmax(deaths_averted, 0)) %>%
-  #   # Country names...
-  #   rename(country = location_iso3) %>%
-  #   filter(country %in% countries) %>%
-  #   # Apply decent D-V-A names...
-  #   left_join(y  = d_v_a_name(),
-  #             by = c("vaccine", "activity_type")) %>%
-  #   select(country, d_v_a, year, fvps, impact = deaths_averted) %>%
-  #   # Cumulative sum impact...
-  #   arrange(country, d_v_a, year) %>%
-  #   group_by(country, d_v_a) %>%
-  #   mutate(fvps_cum   = cumsum(fvps),
-  #          impact_cum = cumsum(impact)) %>%
-  #   ungroup() %>%
-  #   # ... relative to 100k people...
-  #   left_join(y  = pop_dt,
-  #             by = c("country", "year")) %>%
-  #   mutate(fvps_rel   = o$per_person * fvps_cum   / pop,
-  #          impact_rel = o$per_person * impact_cum / pop) %>%
-  #   select(-pop) %>%
-  #   # Ignore negative impact (but keep zero)...
-  #   filter(impact >= 0, fvps > 0) %>%  # Or fvps_cum/rel?
-  #   # Ingore cases with a single data point...
-  #   add_count(country, d_v_a) %>%
-  #   filter(n > 1) %>%
-  #   select(-n) %>%
-  #   as.data.table()
-  
-  browser() # Use: table("vimc_impact")
-  
   # Wrangle VIMC impact estimates
-  impact_dt = vimc_impact %>%
-    mutate(deaths_averted = pmax(deaths_averted, 0)) %>%
-    filter(country %in% countries) %>%
-    # Apply decent D-V-A names...
-    left_join(y  = d_v_at_table, 
-              by = "d_v_at_id") %>%
-    left_join(y  = d_v_a_name(), 
-              by = c("disease", "vaccine", "activity_type")) %>%
+  impact_dt = table("vimc_estimates") %>%
     # Sum impact over age...
-    group_by(country, d_v_a, year) %>%
+    mutate(deaths_averted = pmax(deaths_averted, 0)) %>%
+    group_by(country, d_v_a_id, year) %>%
     summarise(impact = sum(deaths_averted)) %>%
     ungroup() %>%
     # Impact relative to 100k people...
@@ -137,179 +41,150 @@ explore_nonlinear = function() {
               by = c("country", "year")) %>%
     mutate(impact_100k = 1e5 * impact / pop) %>%
     # Cumulative sum impact...
-    arrange(country, d_v_a, year) %>%
-    group_by(country, d_v_a) %>%
+    arrange(country, d_v_a_id, year) %>%
+    group_by(country, d_v_a_id) %>%
     mutate(impact_cum = cumsum(impact)) %>%
     ungroup() %>%
     # Cumulative relative to 100k people...
     mutate(impact_rel = o$per_person * impact_cum / pop) %>%
     select(-pop) %>%
+    # Append d_v_a details...
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
     as.data.table()
   
-  # Path to VIMC coverage datatable
-  vimc_coverage = system.file("extdata", "vimc_coverage.csv", package = "vieIA2030")
-  
-  # Dictionary for dealing with gender variables
-  gender_dict = setNames(1 : 3, c("Male", "Female", "Both"))
-  
   # Extract coverage
-  coverage_dt = fread(vimc_coverage) %>%
-    filter(country %in% countries) %>%
-    # Apply decent D-V-A names...
-    left_join(y  = d_v_a_name(), 
-              by = c("disease", "vaccine", "activity_type")) %>%
+  coverage_dt = table("coverage") %>%
     # Summarise over age...
-    group_by(country, d_v_a, year, gender) %>%
-    summarise(fvp = sum(fvps_adjusted), 
-              pop = sum(cohort_size)) %>%
+    group_by(country, v_a_id, year) %>%
+    summarise(fvps   = sum(fvps),
+              cohort = sum(cohort)) %>%
     ungroup() %>%
-    # Deal with gender groupings...
-    mutate(gender = recode(gender, !!!gender_dict), 
-           gender = paste0("s", gender)) %>%
-    pivot_wider(names_from  = gender,
-                values_from = c(fvp, pop),
-                values_fill = 0) %>%
-    mutate(fvps   = ifelse(fvp_s1 == 0, fvp_s2 + fvp_s3, fvp_s1), 
-           cohort = ifelse(pop_s1 == 0, pop_s2 + pop_s3, pop_s1)) %>%
     # Coverage over time...
-    mutate(cov = fvps / cohort) %>%
-    select(country, d_v_a, year, cov, fvps) %>%
+    mutate(coverage = fvps / cohort) %>%
+    select(country, v_a_id, year, coverage, fvps) %>%
     # FVPs relative to 100k people...
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
     mutate(fvps_100k = 1e5 * fvps / pop) %>%
     # Cumulative sum FVPs...
-    arrange(country, d_v_a, year) %>%
-    group_by(country, d_v_a) %>%
+    arrange(country, v_a_id, year) %>%
+    group_by(country, v_a_id) %>%
     mutate(fvps_cum = cumsum(fvps)) %>%
     ungroup() %>%
     # Cumulative relative to 100k people...
     mutate(fvps_rel = o$per_person * fvps_cum / pop) %>%
     select(-pop) %>%
+    # Append v_a details...
+    left_join(y  = table("v_a"), 
+              by = "v_a_id") %>%
     as.data.table()
   
   # Combine into single datatable
-  vimc_dt = coverage_dt %>%
-    inner_join(y  = impact_dt, 
-               by = c("country", "d_v_a", "year")) %>%
+  vimc_dt = impact_dt %>%
+    inner_join(y  = coverage_dt, 
+               by = c("country", "vaccine", "activity", "year")) %>%
+    select(-disease, -vaccine, -activity, -v_a_id) %>%
     # Ignore negative impact (but keep zero)...
     filter(impact >= 0, fvps_rel > 0) %>%
     # Impact per FVP...
     mutate(impact_fvp = impact / fvps) %>%
     # Ingore cases with a single data point...
-    add_count(country, d_v_a) %>%
+    add_count(country, d_v_a_id) %>%
     filter(n > 1) %>%
     select(-n)
   
-  # Save to file
-  # saveRDS(vimc_dt, paste0(o$pth$testing, "vimc_dt.rds"))
-  
   # ---- Exploratory plots ----
-  
-  
-  
-  
-  vimc_dt %<>%
-    # filter(d_v_a == "Measles (Measles), campaign")
-    filter(d_v_a %in% c("Measles (MCV1), routine", 
-                        "Measles (MCV2), routine",
-                        "Measles (Measles), campaign"))
-  
-  
-  
   
   # Coverage over time
   g0x = (ggplot(vimc_dt) +
-           aes(x = year, y = cov, colour = country) +
+           aes(x = year, y = coverage, colour = country) +
            geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free_y")) %>%
+           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Year", "coverage"))
   
-  # Deaths averted by d_v_a over time
+  # Deaths averted by d_v_a_id over time
   g0a = (ggplot(vimc_dt) +
            aes(x = year, y = impact, colour = country) +
            geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free_y")) %>%
+           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Year", "impact"))
   
   # Same plot with connecting lines
   g0b = (ggplot(vimc_dt) +
            aes(x = year, y = impact_100k, colour = country) +
            geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free_y")) %>%
+           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Year", "impact", "100k"))
   
   # Impact per FVP over time
   g0c = (ggplot(vimc_dt) +
            aes(x = year, y = impact_fvp, colour = country) +
            geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free_y")) %>%
+           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Year", "impact", "FVP"))
   
-  # Coverage vs deaths averted by d_v_a
+  # Coverage vs deaths averted by d_v_a_id
   g1a = (ggplot(vimc_dt) +
-           aes(x = cov, y = impact, colour = country) +
+           aes(x = coverage, y = impact, colour = country) +
            geom_point(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free_y")) %>%
+           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Coverage", "impact"))
   
   # Same plot with connecting lines
   g1b = (ggplot(vimc_dt) +
-           aes(x = cov, y = impact, colour = country) +
+           aes(x = coverage, y = impact, colour = country) +
            geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free_y")) %>%
+           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Coverage", "impact", "lines"))
   
   # Same plot with connecting lines and per 100k
   g1c = (ggplot(vimc_dt) +
-           aes(x = cov, y = impact_100k, colour = country) +
+           aes(x = coverage, y = impact_100k, colour = country) +
            geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free_y")) %>%
+           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Coverage", "impact", "lines", "100k"))
   
-  # FVPs vs deaths averted by d_v_a
+  # FVPs vs deaths averted by d_v_a_id
   g2a = (ggplot(vimc_dt) + 
            aes(x = fvps, y = impact, colour = country) +
            geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free")) %>%
+           facet_wrap(~d_v_a_id, scales = "free")) %>%
     prettify1(save = c("FVP", "impact"))
   
-  # FVPs vs deaths averted by d_v_a - per 100k people
+  # FVPs vs deaths averted by d_v_a_id - per 100k people
   g2b = (ggplot(vimc_dt) + 
            aes(x = fvps_100k, y = impact_100k, colour = country) +
            geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free")) %>%
+           facet_wrap(~d_v_a_id, scales = "free")) %>%
     prettify1(save = c("FVP", "impact", "100k"))
   
   # Cumulative FVPs vs cumulative deaths averted
   g3 = (ggplot(vimc_dt) + 
           aes(x = fvps_cum, y = impact_cum, colour = country) +
           geom_line(show.legend = FALSE) +
-          facet_wrap(~d_v_a, scales = "free")) %>%
+          facet_wrap(~d_v_a_id, scales = "free")) %>%
     prettify1(save = c("FVP", "impact", "cumulative"))
   
   # Cum FVPs per 100k vs cum impact per 100k
   g4a = (ggplot(vimc_dt[!is.na(fvps_rel), ]) + 
            aes(x = fvps_rel, y = impact_rel, colour = country) +
            geom_point(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free")) %>%
+           facet_wrap(~d_v_a_id, scales = "free")) %>%
     prettify1(save = c("FVP", "impact", "cumulative", "relative"))
   
   # Same plot with connecting lines
   g4b = (ggplot(vimc_dt[!is.na(fvps_rel), ]) + 
            aes(x = fvps_rel, y = impact_rel, colour = country) +
            geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a, scales = "free")) %>%
+           facet_wrap(~d_v_a_id, scales = "free")) %>%
     prettify1(save = c("FVP", "impact", "cumulative", "relative", "lines"))
-  
-  browser()
   
   # ---- Determine best fitting model ----
   
   # Country-disease-vaccine-activity combinations
   c_d_v_a = vimc_dt %>%
-    filter(!is.na(fvps_rel)) %>%
-    select(country, d_v_a) %>%
+    select(country, d_v_a_id) %>%
     unique()
   
   # Number of rows in this table
@@ -328,10 +203,8 @@ explore_nonlinear = function() {
   for (i in seq_len(n_row)) {
     x = c_d_v_a[i, ]
     
-    # message(x$country, ": ", x$d_v_a)
-    
     # Attempt to fit all fns and determine most suitable
-    result = get_best_model(fns, vimc_dt, x$country, x$d_v_a)
+    result = get_best_model(fns, vimc_dt, x$country, x$d_v_a_id)
     
     # Store results
     coef[[i]] = result$coef
@@ -351,15 +224,15 @@ explore_nonlinear = function() {
   coef_dt = rbindlist(coef)
   
   # Save to file
-  saveRDS(coef_dt, paste0(o$pth$testing, "coef.rds")) 
+  save_rds(coef_dt, "testing", "coef") 
   
   # Collapse suitability metrics into single datatable
   aic_dt = rbindlist(aic, fill = TRUE)
   r2_dt  = rbindlist(r2,  fill = TRUE)
   
   # Save to file
-  saveRDS(aic_dt, paste0(o$pth$testing, "aic.rds"))
-  saveRDS(r2_dt,  paste0(o$pth$testing, "r2.rds"))
+  save_rds(aic_dt, "testing", "aic")
+  save_rds(r2_dt,  "testing", "r2")
   
   if (o$model_metric == "aicc") {
     
@@ -373,15 +246,15 @@ explore_nonlinear = function() {
       # If we hit thresholds, trivialise result...
       # mutate(lin0_aicc = ifelse(lin0_r2 > o$r2_threshold0, -Inf, lin0_aicc),
       #        log3_aicc = ifelse(log3_r2 < o$r2_threshold1, Inf, log3_aicc)) %>%
-      select(country, d_v_a, lin0 = lin0_aicc, log3 = log3_aicc) %>%
+      select(country, d_v_a_id, lin0 = lin0_aicc, log3 = log3_aicc) %>%
       # Select function with lowest AICc...
       pivot_longer(cols = names(fns),
                    names_to = "fn") %>%
-      group_by(country, d_v_a) %>%
+      group_by(country, d_v_a_id) %>%
       slice_min(value, n = 1, with_ties = FALSE) %>%
       ungroup() %>%
       # Tidy up...
-      select(country, d_v_a, fn) %>%
+      select(country, d_v_a_id, fn) %>%
       as.data.table()
   }
   
@@ -394,42 +267,20 @@ explore_nonlinear = function() {
             r2_dt  %>% pivot_longer(cols = names(fns))) %>%
       pivot_wider(names_from  = c(name, metric), 
                   values_from = value) %>%
-      select(country, d_v_a, lin0 = lin0_r2, log3 = log3_r2) %>%
+      select(country, d_v_a_id, lin0 = lin0_r2, log3 = log3_r2) %>%
       # Select function with highest R-squared...
       pivot_longer(cols = names(fns), 
                    names_to = "fn") %>%
-      group_by(country, d_v_a) %>%
+      group_by(country, d_v_a_id) %>%
       slice_max(value, n = 1, with_ties = FALSE) %>%
       ungroup() %>%
       # Tidy up...
-      select(country, d_v_a, fn) %>%
+      select(country, d_v_a_id, fn) %>%
       as.data.table()
   }
   
   # Save to file
-  saveRDS(best_dt, paste0(o$pth$testing, "best_model.rds"))
-}
-
-# ---------------------------------------------------------
-# Readable names for D-V-A combination 
-# ---------------------------------------------------------
-d_v_a_name = function() {
-  
-  # Define decent names for D-V-A combinations
-  d_v_a_dt = d_v_at_table %>%
-    select(disease, vaccine) %>%
-    unique() %>%
-    add_count(disease) %>%
-    add_count(vaccine, name = "m") %>%
-    mutate(d_v_name = paste0(disease, " (", vaccine, ")"),
-           d_v = ifelse(n * m == 1, disease, d_v_name)) %>%
-    select(disease, vaccine, d_v) %>%
-    left_join(y  = d_v_at_table, 
-              by = c("disease", "vaccine")) %>%
-    mutate(d_v_a = paste0(d_v, ", ", activity_type)) %>%
-    select(disease, vaccine, activity_type, d_v_a)
-  
-  return(d_v_a_dt)
+  save_rds(best_dt, "impact", "best_model")
 }
 
 # ---------------------------------------------------------
@@ -443,7 +294,6 @@ fn_set = function(dict = FALSE) {
     # lin  = function(x, a, b)    y = a*x + b,
     # quad = function(x, a, b, c) y = a*x^2 + b*x + c,
     log3 = function(x, a, b, c) y = logistic(x, a, b, upper = c))
-  
   
   # Alternative functionality - return dictionary
   if (dict == TRUE)
@@ -459,10 +309,10 @@ fn_set = function(dict = FALSE) {
 # ---------------------------------------------------------
 # Parent function to determine best fitting function
 # ---------------------------------------------------------
-get_best_model = function(fns, vimc_dt, country, d_v_a) {
+get_best_model = function(fns, vimc_dt, country, d_v_a_id) {
   
   # Reduce data down to what we're interested in
-  data_dt = prep_data(vimc_dt, country, d_v_a)
+  data_dt = prep_data(vimc_dt, country, d_v_a_id)
   
   # Do not fit if insufficient data
   if (nrow(data_dt) <= 3)
@@ -479,7 +329,7 @@ get_best_model = function(fns, vimc_dt, country, d_v_a) {
   fit = run_mle(fns, start, x, y)
   
   # Determine AICc value for model suitability
-  result = model_quality(fns, fit, country, d_v_a, x, y)
+  result = model_quality(fns, fit, country, d_v_a_id, x, y)
   
   return(result)
 }
@@ -487,12 +337,12 @@ get_best_model = function(fns, vimc_dt, country, d_v_a) {
 # ---------------------------------------------------------
 # Prepare data for fitting - for this C, D, V, and A
 # ---------------------------------------------------------
-prep_data = function(vimc_dt, country, d_v_a) {
+prep_data = function(vimc_dt, country, d_v_a_id) {
   
   # Reduce to data of interest
   data_dt = vimc_dt %>%
-    filter(country == !!country, 
-           d_v_a   == !!d_v_a) %>%
+    filter(country  == !!country, 
+           d_v_a_id == !!d_v_a_id) %>%
     select(x = fvps_rel,
            y = impact_rel) %>%
     # Multiply impact for more consistent x-y scales...
@@ -651,7 +501,7 @@ run_mle = function(fns, start, x, y) {
 # ---------------------------------------------------------
 # Determine model quality - primarily this is via AICc
 # ---------------------------------------------------------
-model_quality = function(fns, fit, country, d_v_a, x, y) {
+model_quality = function(fns, fit, country, d_v_a_id, x, y) {
   
   # Return out if no fits succesful 
   if (length(fit) == 0)
@@ -665,7 +515,7 @@ model_quality = function(fns, fit, country, d_v_a, x, y) {
                     value = coef) %>%
     separate(var, c("fn", "coef")) %>%
     mutate(country = country, 
-           d_v_a     = d_v_a, 
+           d_v_a_id     = d_v_a_id, 
            .before = 1)
   
   # ---- AICc ----
@@ -675,7 +525,7 @@ model_quality = function(fns, fit, country, d_v_a, x, y) {
     as.list() %>%
     as.data.table() %>%
     mutate(country = country, 
-           d_v_a   = d_v_a, 
+           d_v_a_id   = d_v_a_id, 
            metric  = "aicc", 
            .before = 1)
   
@@ -709,7 +559,7 @@ model_quality = function(fns, fit, country, d_v_a, x, y) {
     setNames(names(fit)) %>%
     as.data.table() %>%
     mutate(country = country, 
-           d_v_a   = d_v_a, 
+           d_v_a_id   = d_v_a_id, 
            metric  = "r2", 
            .before = 1)
   
@@ -744,13 +594,13 @@ AICc = function(x) {
 # ---------------------------------------------------------
 # Evaluate best fit model
 # ---------------------------------------------------------
-evaluate_best_model = function(country = NULL, d_v_a = NULL, x = NULL) {
+evaluate_best_model = function(country = NULL, d_v_a_id = NULL, x = NULL) {
   
   # ---- Load stuff ----
   
   # Load results: best fit functions and associtaed coefficients
-  best_dt = readRDS(paste0(o$pth$testing, "best_model.rds"))
-  coef_dt = readRDS(paste0(o$pth$testing, "coef.rds"))
+  best_dt = readRDS(paste0(o$pth$impact, "best_model.rds"))
+  coef_dt = readRDS(paste0(o$pth$impact, "coef.rds"))
   
   # ---- Interpret trivial arguments ----
   
@@ -759,13 +609,13 @@ evaluate_best_model = function(country = NULL, d_v_a = NULL, x = NULL) {
     country = unique(best_dt$country)
   
   # D-V-A combinations to evaluate
-  if (is.null(d_v_a))
-    d_v_a = unique(best_dt$d_v_a)
+  if (is.null(d_v_a_id))
+    d_v_a_id = unique(best_dt$d_v_a_id)
   
   # Points at which to evaluate
   if (is.null(x)) {
     x_pts = seq(0, o$per_person * o$eval_x_scale, length.out = 101)
-    x = data.table(expand_grid(country, d_v_a, fvps_rel = x_pts))
+    x = data.table(expand_grid(country, d_v_a_id, fvps_rel = x_pts))
   }
   
   # ---- Evaluate best fit model and coefficients ----
@@ -779,7 +629,7 @@ evaluate_best_model = function(country = NULL, d_v_a = NULL, x = NULL) {
     a = best_coef[i, ]
     
     # Extract x from input datatable
-    x = x[country == a$country & d_v_a == a$d_v_a, fvps_rel]
+    x = x[country == a$country & d_v_a_id == a$d_v_a_id, fvps_rel]
     
     # Call function of interest with these coefficients
     y = do.call(fn_set()[[a$fn]], c(list(x = x), a$par[[1]]))
@@ -791,11 +641,11 @@ evaluate_best_model = function(country = NULL, d_v_a = NULL, x = NULL) {
   # Best coefficients
   best_coef = coef_dt %>%
     filter(country %in% !!country, 
-           d_v_a   %in% !!d_v_a) %>%
+           d_v_a_id   %in% !!d_v_a_id) %>%
     inner_join(y  = best_dt, 
-               by = c("country", "d_v_a", "fn")) %>%
+               by = c("country", "d_v_a_id", "fn")) %>%
     mutate(par = as.list(setNames(value, coef))) %>% 
-    group_by(country, d_v_a, fn) %>% 
+    group_by(country, d_v_a_id, fn) %>% 
     summarise(par = list(par)) %>% 
     ungroup() %>% 
     as.data.table()
@@ -807,7 +657,7 @@ evaluate_best_model = function(country = NULL, d_v_a = NULL, x = NULL) {
     rbindlist() %>%
     # Transform impact to real scale...
     mutate(y = y / o$impact_scaler) %>%
-    select(country, d_v_a, fn,
+    select(country, d_v_a_id, fn,
            fvps_rel   = x, 
            impact_rel = y)
   
@@ -820,7 +670,7 @@ evaluate_best_model = function(country = NULL, d_v_a = NULL, x = NULL) {
 plot_model_counts = function(focus = "log3") {
   
   # Load stuff: best fit functions and associtaed coefficients
-  best_dt = readRDS(paste0(o$pth$testing, "best_model.rds"))
+  best_dt = readRDS(paste0(o$pth$impact, "best_model.rds"))
   
   # ---- Plot function count ----
   
@@ -882,15 +732,15 @@ plot_model_counts = function(focus = "log3") {
   # ---- A variety of plots ----
   
   # Plot by disease-vaccine-activity
-  g1 = plot_count("d_v_a", ord = "n")
-  g2 = plot_count("d_v_a", ord = "p")
+  g1 = plot_count("d_v_a_id", ord = "n")
+  g2 = plot_count("d_v_a_id", ord = "p")
   
   # Plot by country
   g3 = plot_count("country", fig = "count")
   g4 = plot_count("country", fig = "density")
   
   # Save the last figure
-  fig_save(g4, dir = "testing", "Density", focus)
+  save_fig(g4, "Density", focus)
 }
 
 # ---------------------------------------------------------
@@ -902,7 +752,7 @@ plot_model_fits = function(focus, zoom = TRUE) {
   best_fit = evaluate_best_model()
   
   # Also load the data - we'll plot fits against this
-  vimc_dt = readRDS(paste0(o$pth$testing, "vimc_dt.rds"))
+  vimc_dt = readRDS(paste0(o$pth$impact, "vimc_dt.rds"))
   
   # ---- Plot fitted FVPs vs impact ----
   
@@ -917,7 +767,7 @@ plot_model_fits = function(focus, zoom = TRUE) {
                     alpha  = 0.2, 
                     show.legend = FALSE) + 
           geom_line(size = 1, show.legend = FALSE) + 
-          facet_wrap(~d_v_a, scales = "free_y")) %>% 
+          facet_wrap(~d_v_a_id, scales = "free_y")) %>% 
     prettify1(save = c("Best model", focus))
   
   # ---- Plot fitted against data ----
@@ -925,21 +775,21 @@ plot_model_fits = function(focus, zoom = TRUE) {
   # ALl combinations of C-D-V-A for this focus
   c_d_v_a = best_fit %>%
     filter(fn == focus) %>%
-    select(country, d_v_a) %>%
+    select(country, d_v_a_id) %>%
     unique()
   
   # Data associated with all focus model fits
   focus_data = vimc_dt %>%
     inner_join(y  = c_d_v_a,
-               by = c("country", "d_v_a")) %>%
-    select(country, d_v_a, fvps_rel, impact_rel)
+               by = c("country", "d_v_a_id")) %>%
+    select(country, d_v_a_id, fvps_rel, impact_rel)
   
   # Determine max data
   max_data = focus_data %>%
-    group_by(d_v_a) %>%
+    group_by(d_v_a_id) %>%
     slice_max(fvps_rel, n = 1, with_ties = FALSE) %>%
     ungroup() %>%
-    select(d_v_a, x_max = fvps_rel) %>%
+    select(d_v_a_id, x_max = fvps_rel) %>%
     mutate(x_max = ceiling(x_max * 10) / 10) %>%
     as.data.table()
   
@@ -952,7 +802,7 @@ plot_model_fits = function(focus, zoom = TRUE) {
     filter(fn == focus) %>%
     select(-fn) %>%
     left_join(y  = max_data,
-              by = "d_v_a") %>%
+              by = "d_v_a_id") %>%
     filter(fvps_rel - 1e-4 <= x_max) %>%
     select(-x_max)
   
@@ -968,7 +818,7 @@ plot_model_fits = function(focus, zoom = TRUE) {
                      alpha = 0.5,
                      show.legend = FALSE) +
           geom_line(show.legend = FALSE) +
-          facet_wrap(~d_v_a, scales = scales)) %>%
+          facet_wrap(~d_v_a_id, scales = scales)) %>%
     prettify1(save = c("Fit data", focus, name))
 }
 
@@ -982,7 +832,7 @@ prettify1 = function(g, save = NULL) {
   
   # Axes label dictionary
   lab_dict = c(
-    cov         = "Coverage of target population",
+    coverage    = "Coverage of target population",
     year        = "Year",
     fvps        = "Fully vaccinated persons (FVPs) in one year",
     fvps_100k   = "Fully vaccinated persons (FVPs) per 100k people",
@@ -998,7 +848,7 @@ prettify1 = function(g, save = NULL) {
   g_info = ggplot_build(g)
   
   # Number of colours to generates - one per country
-  all_country  = country_table$country
+  all_country  = table("country")$country
   plot_country = unique(g_info$plot$data$country)
   
   # Construct colours from map
@@ -1026,13 +876,13 @@ prettify1 = function(g, save = NULL) {
           axis.text     = element_text(size = 12, angle = 30, hjust = 1),
           # axis.text     = element_text(size = 7, angle = 30, hjust = 1),
           axis.line     = element_blank(),
-          panel.border  = element_rect(size = 1, colour = "black", fill = NA),
+          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
           panel.spacing = unit(0.5, "lines"),
           strip.background = element_blank()) 
   
   # Save plots to file
   if (!is.null(save))
-    fig_save(g, dir = "testing", save)
+    save_fig(g, save)
   
   return(g)
 }
@@ -1059,7 +909,7 @@ prettify2 = function(g, save = NULL) {
           axis.title.x  = element_text(size = 18),
           axis.text     = element_text(size = 10),
           axis.line     = element_blank(),
-          panel.border  = element_rect(size = 1, colour = "black", fill = NA),
+          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
           panel.spacing = unit(0.5, "lines"),
           legend.title  = element_text(size = 14),
           legend.text   = element_text(size = 12),
@@ -1069,7 +919,7 @@ prettify2 = function(g, save = NULL) {
   
   # Save plots to file
   if (!is.null(save))
-    fig_save(g, dir = "testing", save)
+    save_fig(g, save)
   
   return(g)
 }
