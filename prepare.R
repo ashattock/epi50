@@ -17,10 +17,6 @@ run_prepare = function() {
   
   message("* Preparing input data")
   
-  # create_yaml(table_name, group_by, type = "rds")
-  
-  # TODO: Filter for years o$analysis_years
-  
   # Convert config yaml files to datatables
   prepare_config_tables()
   
@@ -38,9 +34,6 @@ run_prepare = function() {
   
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R for coverage-related functions
-  
-  # TODO: Is this needed? Can we just use WUENIC coverage instead?
-  # prepare_hpv_target()
 }
 
 # ---------------------------------------------------------
@@ -301,23 +294,5 @@ table = function(table) {
   y = readRDS(file)
   
   return(y)
-}
-
-# ---------------------------------------------------------
-# TEMP: Convert input to yaml format
-# ---------------------------------------------------------
-create_yaml = function(name, id, type = "rds") {
-  
-  read_file = paste0("input/", name, "_table.", type) # Or data/
-  yaml_file = paste0("config/", name, ".yaml")
-  
-  if (type == "csv") load_fn = "fread"
-  if (type == "rds") load_fn = "readRDS"
-  
-  get(load_fn)(read_file) %>%
-    split(.[[id]]) %>%
-    unname() %>%
-    as.yaml() %>%
-    write_yaml(yaml_file)
 }
 
