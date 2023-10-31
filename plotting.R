@@ -38,37 +38,6 @@ scatter_rr <- function(dt, x_var) {
   }
 }
 
-#' Make a map showing presence or absence of an indicator
-#' 
-#' @param countries A character vector of iso3 codes for countries
-#' @param title A string with the title of the plot
-#' @returns A ggplot object with a world map
-#' @examples 
-#' map_countries(country_table$country, "All countries")
-#' @export
-map_locations <- function(countries, title) {
-  ggplot2::theme_set(ggplot2::theme_bw())
-  world <- rnaturalearth::ne_countries(
-    scale = "medium",
-    continent = c(
-      "north america", "africa", "south america",
-      "europe", "asia", "oceania"
-    ),
-    returnclass = "sf"
-  )
-  
-  world$present <- ifelse(world$iso_a3 %in% countries, 1, NA)
-  gg <- ggplot2::ggplot(data = world) +
-    ggplot2::geom_sf(ggplot2::aes(fill = as.factor(present))) +
-    ggplot2::ggtitle(
-      title,
-      subtitle = paste0("(", length(countries), " countries)")
-    ) +
-    ggplot2::theme(legend.position = "none") +
-    ggplot2::scale_fill_discrete(na.value = "gray95")
-  return(gg)
-}
-
 plot_age_year <- function(dt, log_transform = F, value_name = "") {
   dt <- unique(dt[, .(year, age, value)])
   
@@ -88,47 +57,154 @@ plot_age_year <- function(dt, log_transform = F, value_name = "") {
 # ---------------------------------------------------------
 # xxxxxxx
 # ---------------------------------------------------------
-plot_strata_fit <- function(rr_dt) {
+plot_target = function() {
+  
+  type1 = "cum" # OPTIONS: "abs" or "cum"
+  type2 = "cum" # OPTIONS: "abs" or "cum"
+  
+  n_sets = 8
+  
+  set_dt = table("country") %>%
+    select(country) %>%
+    mutate(set = rep(1 : n_sets, nrow(.))[1 : nrow(.)], 
+           set = factor(set, levels = 1 : n_sets))
+  
+  plot_list = read_rds("impute", "target") %>%
+    filter(!is.na(target)) %>%
+    inner_join(y  = set_dt, 
+               by = "country") %>%
+    split(f = .$d_v_a_id)
+  
+  for (d_v_a_id in names(plot_list)) {
+    
+    plot_dt = plot_list %>%
+      pluck(d_v_a_id) %>%
+      select(country, set, year, 
+             fvps   = !!paste1("fvps", type1),
+             impact = !!paste1("impact", type1)) %>%
+      pivot_longer(cols = c(fvps, impact),
+                   names_to = "variable") %>%
+      group_by(country, variable) %>% 
+      mutate(norm = value / max(value)) %>%
+      ungroup() %>%
+      as.data.table()
+    
+    g1 = ggplot(plot_dt) +
+      aes(x = year, y = norm, colour = country) +
+      geom_line(show.legend = FALSE) +
+      facet_grid(variable ~ set, scales = "free_y")
+    
+    plot_dt = plot_list %>%
+      pluck(d_v_a_id) %>%
+      select(country, set, year, 
+             fvps   = !!paste1("fvps", type2),
+             impact = !!paste1("impact", type2)) %>%
+      mutate(impact_fvp = fvps / impact)
+    
+    g2 = ggplot(plot_dt) +
+      aes(x = year, y = impact_fvp, colour = country) +
+      geom_line(show.legend = FALSE) +
+      facet_wrap(~set, scales = "free_y", nrow = 2)
+    
+    # Save figure to file
+    save_fig(g1, "VIMC impact-FVP timing", d_v_a_id, dir = "impute")
+    save_fig(g2, "VIMC impact-FVP ratio",  d_v_a_id, dir = "impute")
+  }
+}
+
+# ---------------------------------------------------------
+# xxxxxxx
+# ---------------------------------------------------------
+plot_covariates = function() {
+  
+  # ---- Load data used for fitting ----
+  
+  load_data_fn = function(id) {
+    data = read_rds("impute", "impute", id) %>%
+      pluck("data") %>%
+      mutate(d_v_a_id = id, .before = 1)
+  }
+  
+  data_dt = table("d_v_a") %>%
+    pluck("d_v_a_id") %>%
+    lapply(load_data_fn) %>%
+    rbindlist()
+  
+  # ---- Construct plot ----
+  
+  plot_dt = data_dt %>%
+    pivot_longer(cols = -c(d_v_a_id, target), 
+                 names_to = "covariate") %>%
+    arrange(d_v_a_id, covariate, target) %>%
+    as.data.table()
+  
+  g = ggplot(plot_dt) +
+    aes(x = target, y = value, colour = covariate) +
+    geom_point(alpha = 0.2, shape = 16, show.legend = FALSE) +
+    facet_grid(d_v_a_id~covariate, scales = "free")
+  
+  # Save figure to file
+  save_fig(g, "Covariate relationships", dir = "impute")
+}
+
+# ---------------------------------------------------------
+# xxxxxxx
+# ---------------------------------------------------------
+plot_impute_fit = function() {
+  
+  # ---- Load results from fitting ----
+  
+  load_results_fn = function(id)
+    result = read_rds("impute", "impute", id)$result
+  
+  results_dt = table("d_v_a") %>%
+    pluck("d_v_a_id") %>%
+    lapply(load_results_fn) %>%
+    rbindlist()
+  
+  # ---- Construct plotting datatables ----
   
   # Prepare datatable for plotting
-  plot_dt = rr_dt %>%
-    rename(truth   = deaths_averted, 
-           predict = averted) %>%
-    filter(truth   > 0, 
-           predict > 0) %>%
-    left_join(d_v_at_table, by = "d_v_at_id") %>%
-    mutate(strata = paste0(vaccine, ": ", activity_type))
+  plot_dt = results_dt %>%
+    filter(!is.na(target)) %>%
+    select(-country) %>%
+    mutate(d_v_a_id = as.factor(d_v_a_id)) %>%
+    # Remove target outliers for better normalisation...
+    group_by(d_v_a_id) %>%
+    mutate(lower = mean(target) - 3 * sd(target), 
+           upper = mean(target) + 3 * sd(target), 
+           outlier = target < lower | target > upper) %>%
+    ungroup() %>%
+    filter(outlier == FALSE) %>%
+    select(-outlier, -lower, -upper) %>%
+    as.data.table()
   
-  # Maximum value in each strata (truth or predict)
+  # Maximum value in each facet (target or predict)
   blank_dt = plot_dt %>%
-    mutate(max_value = ceiling(pmax(truth, predict))) %>%
-    group_by(strata) %>%
+    mutate(max_value = pmax(target, predict)) %>%
+    group_by(d_v_a_id) %>%
     summarise(max_value = max(max_value)) %>%
     ungroup() %>%
-    expand_grid(type = c("truth", "predict")) %>%
+    expand_grid(type = c("target", "predict")) %>%
     pivot_wider(names_from  = type, 
                 values_from = max_value) %>%
     as.data.table()
   
+  # ---- Produce plot ----
+  
   # Single plot with multiple facets
-  #
-  # NOTE: Removed the log10 scaling
-  g = ggplot(plot_dt, aes(x = truth, y = predict)) +
-    geom_point(aes(color = age), size = 0.5, alpha = 0.5) +
-    geom_blank(data = blank_dt) +  # For square axes
-    geom_abline(slope = 1) +  # To see quality of predict = truth
-    facet_wrap(~strata, scales = "free")
+  g = ggplot(plot_dt) +
+    aes(x = target, y = predict, color = d_v_a_id) +
+    geom_point(alpha = 0.5, shape = 16, show.legend = FALSE) +
+    geom_blank(data = blank_dt) +    # For square axes
+    geom_abline(colour = "black") +  # To see quality of predict vs target
+    facet_wrap(~d_v_a_id, scales = "free")
   
   # Use a nice colour scheme
-  g = g + viridis::scale_color_viridis(option = "viridis")
-  
-  # Prettify
-  g = g + theme_bw() +
-    xlab("Truth") + 
-    ylab("Predicted")
+  # g = g + viridis::scale_color_viridis(option = "viridis")
   
   # Save figure to file
-  save_fig(g, "Strata fit", dir = "diagnostics")
+  save_fig(g, "Imputation fit", dir = "impute")
 }
 
 # ---------------------------------------------------------
@@ -476,7 +552,7 @@ ggpretty = function(g, cols = NULL, colour = NULL, fill = NULL, title = NULL, x_
 # ---------------------------------------------------------
 # Save a ggplot figure to file with default settings
 # ---------------------------------------------------------
-save_fig = function(g, ..., dir = "figures") {
+save_fig = function(g, ..., dir = NULL) {
   
   # Collapse inputs into vector of strings
   fig_name_parts = unlist(list(...))
@@ -484,12 +560,21 @@ save_fig = function(g, ..., dir = "figures") {
   # Construct file name to concatenate with file path
   save_name = paste(fig_name_parts, collapse = " - ")
   
+  # Construct path to save file to
+  save_path = o$pth$figures
+  if (!is.null(dir)) 
+    save_path = paste0(save_path, dir, file_sep())
+  
+  # Create directory if it exists
+  if (!dir.exists(save_path))
+    dir.create(save_path)
+  
   # Repeat the saving process for each image format in figure_format
   for (fig_format in o$figure_format) {
-    save_pth  = paste0(o$pth[[dir]], save_name, ".", fig_format)
+    full_path = paste0(save_path, save_name, ".", fig_format)
     
     # Save figure (size specified in options.R)
-    ggsave(save_pth, 
+    ggsave(full_path, 
            plot   = g, 
            device = fig_format, 
            dpi    = o$save_resolution, 

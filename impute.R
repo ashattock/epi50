@@ -23,9 +23,8 @@ run_impute = function() {
   
   message("* Running country imputation")
   
+  # Load target to fit to: impact per FVP
   target_dt = get_target()
-  
-  # plot_target(target_dt)
   
   # Calculate relative-risk for all d-v-a combinations 
   impute_dt = table("d_v_a") %>%
@@ -33,24 +32,23 @@ run_impute = function() {
     lapply(do_impute, target = target_dt) %>%
     rbindlist()
   
-  browser()
-  
   # predict_dt[, predict_averted := calculate_averted_deaths(deaths_obs, coverage, pred_rr)]
   
   # Save relative risk calculations and predictions to file
-  save_rds(impute_dt, "impute", "impute")
-  
-  browser()
+  save_rds(impute_dt, "impute", "impute_result")
   
   # Check flag
   if (o$plot_diagnostics) {
     
     message(" - Plotting diagnostics")
     
-    browser()
+    plot_target()
     
-    # plot_covariates()
+    plot_covariates()
+    
     plot_impute_fit()
+    
+    browser()
     
     # plot_impute_countries()
   }
@@ -111,18 +109,23 @@ do_impute = function(d_v_a_id, target) {
   pred_dt = target_dt %>%
     select(all_of(names(data_dt)))
   
-  plot_dt = data_dt %>%
-    pivot_longer(cols = -target, 
-                 names_to = "covariate") %>%
-    arrange(covariate, target) %>%
-    as.data.table()
+  # ---- Check for trivial case ----
   
-  g1 = ggplot(plot_dt) +
-    aes(x = target, y = value, colour = covariate) +
-    geom_point(alpha = 0.2) +
-    facet_wrap(~covariate, scales = "free_y")
+  # Return out if no data available
+  if (nrow(data_dt) == 0) {
+    
+    message(" !! Insufficient data for imputation !!")
+    
+    # We'll store a blank datatable in this case
+    fit = list(data = data_dt)
+    
+    # Save to file
+    save_rds(fit, "impute", "impute", d_v_a_id)
+    
+    return()
+  }
   
-  # ---- Normalise ----
+  # ---- Normalise predictors and response ----
   
   transform_fn = function(x, a, b)
     y = t((x - a) / (b - a)) %>% as.data.table()
@@ -141,9 +144,6 @@ do_impute = function(d_v_a_id, target) {
   
   # ---- Fit a model to predict impact per FVP ----
   
-  if (d_v_a_id == 4)
-    browser()
-  
   # Fit a binomial GLM for relative risk using all covariates
   fit_model = glm(
     formula = target ~ n_years + coverage + sdi + haqi + imr, 
@@ -154,26 +154,20 @@ do_impute = function(d_v_a_id, target) {
     select(country, d_v_a_id, year) %>%
     # Predict impact per FVP...
     cbind(norm_pred_dt) %>%
-    mutate(predict = predict(fit_model, .)) %>%
+    mutate(predict = predict(fit_model, .), 
+           predict = pmax(predict, 0)) %>%  # Do not predict negative
     # Remove predictors...
     select(country, d_v_a_id, year, target, predict) %>%
     # Back-transform target and prediction...
     mutate(target  = retransform_fn(target,  a, b), 
            predict = retransform_fn(predict, a, b))
-    
-  plot_dt = result_dt %>%
-    filter(!is.na(target))
-  
-  g2 = ggplot(plot_dt, aes(x = target, y = predict)) +
-    geom_point(alpha = 0.5) +
-    geom_abline(colour = "red")
   
   fit = list(
     model  = fit_model, 
-    data   = data_dt, 
+    data   = norm_data_dt, 
     result = result_dt)
   
-  # Save relative risk calculations and predictions to file
+  # Save to file
   save_rds(fit, "impute", "impute", d_v_a_id)
   
   return(result_dt)
@@ -183,13 +177,6 @@ do_impute = function(d_v_a_id, target) {
 # Load/calculate target variable: impact per FVP
 # ---------------------------------------------------------
 get_target = function() {
-  
-  # First load population size of each country over time
-  # pop_dt = table("wpp_pop") %>%
-  #   group_by(country, year) %>%
-  #   summarise(pop = sum(pop)) %>%
-  #   ungroup() %>%
-  #   as.data.table()
   
   # Wrangle VIMC impact estimates
   impact_dt = table("vimc_estimates") %>%
@@ -203,11 +190,6 @@ get_target = function() {
     group_by(country, d_v_a_id) %>%
     mutate(impact_cum = cumsum(impact_abs)) %>%
     ungroup() %>%
-    # Cumulative relative to 100k people...
-    # left_join(y  = pop_dt, 
-    #           by = c("country", "year")) %>%
-    # mutate(impact_rel = o$per_person * impact_cum / pop) %>%
-    # select(country, d_v_a_id, year, impact = impact_rel) %>%
     # Append d_v_a details...
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_id") %>%
@@ -225,11 +207,6 @@ get_target = function() {
     group_by(country, v_a_id) %>%
     mutate(fvps_cum = cumsum(fvps_abs)) %>%
     ungroup() %>%
-    # Cumulative relative to 100k people...
-    # left_join(y  = pop_dt, 
-    #           by = c("country", "year")) %>%
-    # mutate(fvps_rel = o$per_person * fvps_cum / pop) %>%
-    # select(country, v_a_id, year, coverage, fvps = fvps_rel) %>%
     # Append v_a details...
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
@@ -248,6 +225,9 @@ get_target = function() {
     # Impact per FVP...
     mutate(target = impact_cum / fvps_cum) # %>%
     # select(country, d_v_a_id, year, target, coverage)
+  
+  # Save this datatable to file for plotting purposes
+  save_rds(target_dt, "impute", "target")
   
   return(target_dt)
 }
