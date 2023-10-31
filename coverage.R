@@ -56,8 +56,8 @@ coverage_vimc = function() {
               coverage = fvps / cohort) %>%
     ungroup() %>%
     # Append v_a ID...
-    left_join(y  = table("v_a"), 
-              by = c("vaccine", "activity")) %>%
+    inner_join(y  = table("v_a"), 
+               by = c("vaccine", "activity")) %>%
     select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
     as.data.table()

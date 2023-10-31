@@ -95,17 +95,14 @@ prepare_vimc_estimates = function() {
   # Dictionary for dealing with gender variables
   # gender_dict = setNames(1 : 3, c("Male", "Female", "Both"))
   
-  # All diseases of interest, not necessarily everything produced by VIMC
-  diseases = table("disease")$disease
-  
   # Prepare VIMC vaccine impact estimates
   read_rds("input", "vimc_estimates") %>%
-    filter(disease %in% diseases, 
-           year    %in% o$analysis_years) %>%
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
+    filter(!is.na(d_v_a_id), 
+           year %in% o$analysis_years) %>%
     select(country, d_v_a_id, year, age, deaths_averted) %>%
-    arrange(d_v_a_id, country, age, year) %>%
+    arrange(country, d_v_a_id, age, year) %>%
     save_table("vimc_estimates")
   
   # Simply store VIMC in it's current form
@@ -151,6 +148,8 @@ prepare_gbd_estimates = function() {
 # Prepare GBD covariates for extrapolating to non-VIMC countries
 # ---------------------------------------------------------
 prepare_gbd_covariates = function() {
+  
+  # TODO: Covariates stop at 2019... can we get an updated version?
   
   message(" - GBD covariates")
   

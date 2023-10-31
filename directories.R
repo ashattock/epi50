@@ -37,9 +37,9 @@ set_dirs = function(o) {
   # Path to test run files
   pth$testing = file.path(pth_output, "0_testing")
   
-  # Path to relative risk and impact factor files
-  pth$relative_risk = file.path(pth_output, "1_relative_risk",  o$analysis_name)
-  pth$impact        = file.path(pth_output, "2_impact", o$analysis_name)
+  # Path to imputatation and impact calculation files
+  pth$impute = file.path(pth_output, "1_impute", o$analysis_name)
+  pth$impact = file.path(pth_output, "2_impact", o$analysis_name)
   
   # Path to relative risk and impact factor files
   pth$uncertainty = file.path(pth_output, "3_uncertainty", o$analysis_name)
