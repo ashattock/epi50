@@ -21,16 +21,12 @@ set_options = function(do_step = NA, quiet = FALSE) {
   # Initiate options list
   o = list(do_step = do_step)
   
-  # ---- Analysis settings ----
-  
-  # Name of analysis to run
-  o$analysis_name = "v02"
-  
   # Create output directory system
   o = set_dirs(o)  # See directories.R
   
   # ---- Non-linear impact assumptions ----
   
+  # Per capita scaling for impact estimates
   o$per_person = 1
   
   # A very good fit is required to go non-linear
@@ -92,9 +88,6 @@ set_options = function(do_step = NA, quiet = FALSE) {
   o$plot_diagnostics = TRUE  # All diagnostic figures
   
   # ---- Plotting settings ----
-  
-  # # Lower bound of age groups for plotting - bounded above by maximum age
-  # o$plot_ages = c(0, 18, 60)  # Captures 3 age groups as per ECDC request
   
   # Colour palette for SIA data exploration plots
   o$palette_sia = "pals::kovesi.rainbow"

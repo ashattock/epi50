@@ -731,6 +731,8 @@ prep_results = function(x, d_info, countries, years) {
     arrange(scenario, metric, year) %>%
     as.data.table()
   
+  browser() # Save in a more meaningful location...
+  
   # Save results to file
   save_name = paste0("dalys_", tolower(d_info$disease), ".rds")
   save_rds(results, "testing", save_name)
@@ -740,6 +742,8 @@ prep_results = function(x, d_info, countries, years) {
 # Plot DALYs and DALYS averted for a given disease
 # ---------------------------------------------------------
 plot_dalys = function(d_info) {
+  
+  browser() # Will be saved in a more meaningful location...
   
   # Load DALY results for this disease
   results_file = paste0("dalys_", tolower(d_info$disease), ".rds")

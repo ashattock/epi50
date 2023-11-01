@@ -643,7 +643,7 @@ wait_for_jobs = function(o, log_file, n_lines,
       break # Break out of while loop
     }
     
-    # Wait before testing again
+    # Wait before checking again
     Sys.sleep(wait_time)
   }
   

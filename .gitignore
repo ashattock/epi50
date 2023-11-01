@@ -2,8 +2,6 @@
 .Rhistory
 core*
 *.nfs*
-cache/
-input*/
 output*/
-data/wiise*
-data/WPP*
+input/wiise*
+input/WPP*

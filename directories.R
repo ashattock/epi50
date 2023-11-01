@@ -26,27 +26,24 @@ set_dirs = function(o) {
   pth$input  = file.path(pth$code, "input")
   pth$config = file.path(pth$code, "config")
   
-  # Path to cached data tables
-  pth$cache  = file.path(pth$code, "cache")
-  
   # ---- Output directories ----
   
   # Parent path of all output files
   pth_output = file.path(pth$code, "output")
   
-  # Path to test run files
-  pth$testing = file.path(pth_output, "0_testing")
+  # Path to cached data tables
+  pth$cache = file.path(pth_output, "0_cache")
   
   # Path to imputatation and impact calculation files
-  pth$impute = file.path(pth_output, "1_impute", o$analysis_name)
-  pth$impact = file.path(pth_output, "2_impact", o$analysis_name)
+  pth$impute = file.path(pth_output, "1_impute")
+  pth$impact = file.path(pth_output, "2_impact")
   
   # Path to relative risk and impact factor files
-  pth$uncertainty = file.path(pth_output, "3_uncertainty", o$analysis_name)
+  pth$uncertainty = file.path(pth_output, "3_uncertainty")
   
   # Path to figures and other output resusts
-  pth$results = file.path(pth_output, "4_results", o$analysis_name)
-  pth$figures = file.path(pth_output, "5_figures", o$analysis_name)
+  pth$results = file.path(pth_output, "4_results")
+  pth$figures = file.path(pth_output, "5_figures")
   
   # ---- Create directory structure ----
   
