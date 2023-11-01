@@ -6,25 +6,33 @@
 ###########################################################
 
 # ---------------------------------------------------------
-# xxxxxxx
+# Plot age targets as defined by WIISE and VIMC coverage data
 # ---------------------------------------------------------
 plot_coverage = function() {
   
+  message(" - Plotting coverage data density by age")
+  
+  # Construct plotting datatable
   plot_dt = table("coverage") %>%
     mutate(trans_age = pmax(age, 1), .after = age)
   
-  g = ggplot(plot_dt[source == "vimc"]) +
+  # Plot age density of coverage data by source
+  g = ggplot(plot_dt) +
     aes(x = trans_age) +
+    # Coverage from WIISE (in black)...
     geom_density(
-      data = plot_dt[source == "wiise"],
-      aes(y = ..scaled..), 
-      colour = "black", 
-      fill   = "black", 
-      alpha  = 0.2) +
+      data    = plot_dt[source == "wiise"],
+      mapping = aes(y = ..scaled..), 
+      colour  = "black", 
+      fill    = "black", 
+      alpha   = 0.2) +
+    # Coverage from VIMC (in colour)...
     geom_density(
-      aes(y = ..scaled..,
-          colour = as.factor(v_a_id),
-          fill   = as.factor(v_a_id)), 
+      data    = plot_dt[source == "vimc"],
+      mapping = aes(
+        y = ..scaled..,
+        colour = as.factor(v_a_id),
+        fill   = as.factor(v_a_id)), 
       alpha = 0.2) +
     facet_wrap(~v_a_id)
   
@@ -33,26 +41,34 @@ plot_coverage = function() {
     trans  = "log2", 
     limits = c(1, 2^7))
   
+  # Remove unnecessary legend
   g = g + theme(legend.position = "none")
   
+  # Generate pretty colour sheme
   # colours = colour_scheme(
   #   map = "pals::kovesi.rainbow",
   #   n   = n_unique(vimc_dt$v_a_id))
-  # 
+
+  # Apply colour scheme
   # g = g + scale_fill_manual(values = colours) + 
   #   scale_colour_manual(values = colours)
     
-  save_fig(g, "Coverage by age and source", dir = "prepare")
+  # Save to file
+  save_fig(g, "Coverage density by age", dir = "prepare")
 }
 
 # ---------------------------------------------------------
-# xxxxxxx
+# Plot impact-FVP relationships prior to imputation
 # ---------------------------------------------------------
 plot_target = function() {
   
-  type1 = "cum" # OPTIONS: "abs" or "cum"
-  type2 = "cum" # OPTIONS: "abs" or "cum"
+  # Stat to plot for both types of figures
+  #
+  # OPTIONS: "abs" or "cum"
+  stat_1 = "cum"  # Timing figure
+  stat_2 = "cum"  # Ratio figure
   
+  #
   n_sets = 8
   
   set_dt = table("country") %>%
@@ -71,8 +87,8 @@ plot_target = function() {
     plot_dt = plot_list %>%
       pluck(id) %>%
       select(country, set, year, 
-             fvps   = !!paste1("fvps", type1),
-             impact = !!paste1("impact", type1)) %>%
+             fvps   = !!paste1("fvps", stat_1),
+             impact = !!paste1("impact", stat_1)) %>%
       pivot_longer(cols = c(fvps, impact),
                    names_to = "variable") %>%
       group_by(country, variable) %>% 
@@ -88,8 +104,8 @@ plot_target = function() {
     plot_dt = plot_list %>%
       pluck(id) %>%
       select(country, set, year, 
-             fvps   = !!paste1("fvps", type2),
-             impact = !!paste1("impact", type2)) %>%
+             fvps   = !!paste1("fvps", stat_2),
+             impact = !!paste1("impact", stat_2)) %>%
       mutate(impact_fvp = fvps / impact)
     
     g2 = ggplot(plot_dt) +
