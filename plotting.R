@@ -54,7 +54,7 @@ plot_coverage_age_density = function() {
   #   scale_colour_manual(values = colours)
     
   # Save to file
-  save_fig(g, "Coverage density by age", dir = "prepare")
+  save_fig(g, "Coverage density by age", dir = "data")
 }
 
 # ---------------------------------------------------------
@@ -62,7 +62,7 @@ plot_coverage_age_density = function() {
 # ---------------------------------------------------------
 plot_target = function() {
   
-  message(" - xxxx")
+  message(" - Plotting impact-FVP relationships")
   
   # Stat to plot for both types of figures
   #
@@ -125,33 +125,37 @@ plot_target = function() {
 }
 
 # ---------------------------------------------------------
-# xxxxxxx
+# Plot (any) correlation between covariates and imputation target
 # ---------------------------------------------------------
 plot_covariates = function() {
   
-  message(" - xxxx")
+  message(" - Plotting covariate-target relationships")
   
   # ---- Load data used for fitting ----
   
+  # Function to load imputation data
   load_data_fn = function(id) {
     data = read_rds("impute", "impute", id) %>%
       pluck("data") %>%
       mutate(d_v_a_id = id, .before = 1)
   }
   
+  # Load imputation data for all d-v-a
   data_dt = table("d_v_a") %>%
     pluck("d_v_a_id") %>%
     lapply(load_data_fn) %>%
     rbindlist()
   
-  # ---- Construct plot ----
+  # ---- Produce plot ----
   
+  # Construct tidy plotting datatable
   plot_dt = data_dt %>%
     pivot_longer(cols = -c(d_v_a_id, target), 
                  names_to = "covariate") %>%
     arrange(d_v_a_id, covariate, target) %>%
     as.data.table()
   
+  # Plot covariates vs imputation target
   g = ggplot(plot_dt) +
     aes(x = target, y = value, colour = covariate) +
     geom_point(alpha = 0.2, shape = 16, show.legend = FALSE) +
@@ -162,17 +166,19 @@ plot_covariates = function() {
 }
 
 # ---------------------------------------------------------
-# xxxxxxx
+# Plot truth vs predicted for imputation training data
 # ---------------------------------------------------------
 plot_impute_fit = function() {
   
-  message(" - xxxx")
+  message(" - Plotting imputation quality of fit")
   
   # ---- Load results from fitting ----
   
+  # Function to load imputation results
   load_results_fn = function(id)
     result = read_rds("impute", "impute", id)$result
   
+  # Load imputation results for all d-v-a
   results_dt = table("d_v_a") %>%
     pluck("d_v_a_id") %>%
     lapply(load_results_fn) %>%
@@ -216,25 +222,24 @@ plot_impute_fit = function() {
     geom_abline(colour = "black") +  # To see quality of predict vs target
     facet_wrap(~d_v_a_id, scales = "free")
   
-  # Use a nice colour scheme
-  # g = g + viridis::scale_color_viridis(option = "viridis")
-  
   # Save figure to file
   save_fig(g, "Imputation fit", dir = "impute")
 }
 
 # ---------------------------------------------------------
-# xxxxxxx
+# Plot country-aggregated imputation errors
 # ---------------------------------------------------------
 plot_impute_countries = function() {
   
-  message(" - xxxx")
+  message(" - Plotting country-aggregated imputation errors")
   
   # ---- Load results from fitting ----
   
+  # Function to load imputation results
   load_results_fn = function(id)
     result = read_rds("impute", "impute", id)$result
   
+  # Load imputation results for all d-v-a
   results_dt = table("d_v_a") %>%
     pluck("d_v_a_id") %>%
     lapply(load_results_fn) %>%
@@ -242,6 +247,7 @@ plot_impute_countries = function() {
   
   # ---- Plot 1: annual error by country ----
   
+  # Truth vs predicted over time for training data
   annual_dt = results_dt %>%
     select(country, d_v_a_id, year, 
            vimc   = impact_cum, 
@@ -250,6 +256,7 @@ plot_impute_countries = function() {
     mutate(lower = pmin(vimc, impute), 
            upper = pmax(vimc, impute))
   
+  # Plot annual errors by country
   g = ggplot(annual_dt, aes(x = year)) +
     geom_ribbon(aes(ymin = lower, 
                     ymax = upper, 
@@ -262,6 +269,7 @@ plot_impute_countries = function() {
               linetype  = "dashed") +
     facet_wrap(~d_v_a_id, scales = "free_y")
   
+  # Remove legend
   g = g + theme(legend.position = "none")
   
   # Save figure to file
@@ -269,6 +277,7 @@ plot_impute_countries = function() {
   
   # ---- Plot 2: total error by country ----
   
+  # Where imputed countries lie in terms of magnitude
   total_dt = results_dt %>%
     group_by(country, d_v_a_id) %>%
     summarise(truth   = max(impact_cum), 
@@ -291,8 +300,7 @@ plot_impute_countries = function() {
                 values_from = max_value) %>%
     as.data.table()
   
-  # ---- Produce plot ----
-  
+  # Plot truth vs predicted along with imputed countries
   g = ggplot(total_dt, aes(x = truth, y = predict)) +
     geom_abline(colour = "black") +  # To see quality of truth vs predict
     geom_blank(data = blank_dt) +    # For square axes
@@ -308,7 +316,7 @@ plot_impute_countries = function() {
 # ---------------------------------------------------------
 plot_draws = function(fig_name) {
   
-  message(" - xxxx")
+  message(" - Plotting uncertainty draws")
   
   # Flag for transforming y axis to log10 scale
   y_transform = FALSE
