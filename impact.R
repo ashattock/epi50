@@ -85,8 +85,6 @@ run_impact = function() {
     # Attempt to fit all fns and determine most suitable
     result = get_best_model(fns, impact_dt, x$country, x$d_v_a_id)
     
-    browser()
-    
     # Store results
     coef[[i]] = result$coef
     aic[[i]]  = result$aic
@@ -214,8 +212,6 @@ get_best_model = function(fns, impact_dt, country, d_v_a_id) {
   
   # Run MLE from this starting point
   fit = run_mle(fns, start, x, y)
-  
-  browser()
   
   # Determine AICc value for model suitability
   result = model_quality(fns, fit, country, d_v_a_id, x, y)
