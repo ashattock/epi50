@@ -36,9 +36,6 @@ prepare_coverage = function() {
     filter(fvps > 0) %>%  # Remove trivial values
     arrange(country, v_a_id, year, age) %>%
     save_table("coverage")
-  
-  # Quick diagnostic plot of coverage data
-  plot_coverage()
 }
 
 # ---------------------------------------------------------

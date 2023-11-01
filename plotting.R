@@ -8,7 +8,7 @@
 # ---------------------------------------------------------
 # Plot age targets as defined by WIISE and VIMC coverage data
 # ---------------------------------------------------------
-plot_coverage = function() {
+plot_coverage_age_density = function() {
   
   message(" - Plotting coverage data density by age")
   
@@ -61,6 +61,8 @@ plot_coverage = function() {
 # Plot impact-FVP relationships prior to imputation
 # ---------------------------------------------------------
 plot_target = function() {
+  
+  message(" - xxxx")
   
   # Stat to plot for both types of figures
   #
@@ -127,6 +129,8 @@ plot_target = function() {
 # ---------------------------------------------------------
 plot_covariates = function() {
   
+  message(" - xxxx")
+  
   # ---- Load data used for fitting ----
   
   load_data_fn = function(id) {
@@ -161,6 +165,8 @@ plot_covariates = function() {
 # xxxxxxx
 # ---------------------------------------------------------
 plot_impute_fit = function() {
+  
+  message(" - xxxx")
   
   # ---- Load results from fitting ----
   
@@ -221,6 +227,8 @@ plot_impute_fit = function() {
 # xxxxxxx
 # ---------------------------------------------------------
 plot_impute_countries = function() {
+  
+  message(" - xxxx")
   
   # ---- Load results from fitting ----
   
@@ -300,6 +308,8 @@ plot_impute_countries = function() {
 # ---------------------------------------------------------
 plot_draws = function(fig_name) {
   
+  message(" - xxxx")
+  
   # Flag for transforming y axis to log10 scale
   y_transform = FALSE
   
@@ -358,6 +368,10 @@ plot_draws = function(fig_name) {
 # ---------------------------------------------------------
 plot_annual_total = function(fig_name) {
   
+  message(" - Plotting annual totals")
+  
+  browser() # Needs updating for EPI50 pipeline...
+  
   # Load modelled total deaths per year
   scenario_total = try_load(o$pth$impact_factors, "scenario_total")
   
@@ -403,6 +417,8 @@ plot_annual_total = function(fig_name) {
 # Plot parameters of fitted beta distribution to vaccine efficacy
 # ---------------------------------------------------------
 plot_gbd_uncertainty_dist = function(fig_name) {
+  
+  message(" - Plotting GBD uncertainty distribution")
   
   # Points over which to evaluate beta distribution
   eval_pts = seq(0, 1, length.out = 100)
@@ -493,6 +509,8 @@ plot_gbd_uncertainty_dist = function(fig_name) {
 # Plot optimisation perfomance of dist fit to vaccine efficacy
 # ---------------------------------------------------------
 plot_gbd_uncertainty_fit = function(fig_name) {
+  
+  message(" - Plotting GBD uncertainty fit")
   
   # Grid points for diagnostic plot
   n_grid = 100  # n_grid^2 total evaluations per disease

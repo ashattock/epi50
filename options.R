@@ -76,16 +76,12 @@ set_options = function(do_step = NA, quiet = FALSE) {
   # Quantiles for credibility intervals
   # o$quantiles = c(0.025, 0.975)
   
-  # ---- Results flags ----
-  
-  # Turn results generation on or off
-  o$results_markdown = TRUE  # Full markdown results document
-  o$results_upload   = FALSE  # Upload reference results to database
-  
   # ---- Plotting flags ----
   
   # Turn figures on or off
-  o$plot_diagnostics = TRUE  # All diagnostic figures
+  o$plot_inputs      = TRUE
+  o$plot_imputation  = TRUE
+  o$plot_uncertainty = FALSE
   
   # ---- Plotting settings ----
   

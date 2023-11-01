@@ -37,17 +37,13 @@ run_impute = function() {
   # Save relative risk calculations and predictions to file
   save_rds(impute_dt, "impute", "impute_result")
   
-  # Check flag
-  if (o$plot_diagnostics) {
-
-    # Plot predictor and response relationships
-    plot_target()
-    plot_covariates()
-
-    # Plot imputation outcomes
-    plot_impute_fit()
-    plot_impute_countries()
-  }
+  # Plot predictor and response relationships
+  plot_target()
+  plot_covariates()
+  
+  # Plot imputation outcomes
+  plot_impute_fit()
+  plot_impute_countries()
 }
 
 # ---------------------------------------------------------
@@ -110,7 +106,7 @@ do_impute = function(d_v_a_id, target) {
   # Return out if no data available
   if (nrow(data_dt[target > 0]) < 10) {
     
-    message(" !! Insufficient data for imputation !!")
+    message("  !! Insufficient data for imputation !!")
     
     # Store trivial outcomes
     fit = list(data = data_dt, result = NULL)
