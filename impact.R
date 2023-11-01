@@ -36,6 +36,8 @@ run_impact = function() {
     mutate(fvps   = o$per_person * fvps / pop, 
            impact = o$per_person * impact / pop) %>%
     select(-pop) %>%
+    # Impact per FVP...
+    mutate(impact_fvp = impact / fvps) %>%
     # Ingore cases with a single data point...
     add_count(country, d_v_a_id) %>%
     filter(n > 1) %>%
@@ -43,89 +45,21 @@ run_impact = function() {
   
   # ---- Exploratory plots ----
   
-  # Coverage over time
-  g0x = (ggplot(impact_dt) +
-           aes(x = year, y = coverage, colour = country) +
-           geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
-    prettify1(save = c("Year", "coverage"))
-  
-  # Deaths averted by d_v_a_id over time
-  g0a = (ggplot(impact_dt) +
-           aes(x = year, y = impact, colour = country) +
-           geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
-    prettify1(save = c("Year", "impact"))
-  
-  # Same plot with connecting lines
-  g0b = (ggplot(impact_dt) +
-           aes(x = year, y = impact_100k, colour = country) +
-           geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
-    prettify1(save = c("Year", "impact", "100k"))
+  browser()
   
   # Impact per FVP over time
-  g0c = (ggplot(impact_dt) +
-           aes(x = year, y = impact_fvp, colour = country) +
-           geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
+  g1 = (ggplot(impact_dt) +
+          aes(x = year, y = impact_fvp, colour = country) +
+          geom_line(show.legend = FALSE) +
+          facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Year", "impact", "FVP"))
   
-  # Coverage vs deaths averted by d_v_a_id
-  g1a = (ggplot(impact_dt) +
-           aes(x = coverage, y = impact, colour = country) +
-           geom_point(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
-    prettify1(save = c("Coverage", "impact"))
-  
-  # Same plot with connecting lines
-  g1b = (ggplot(impact_dt) +
-           aes(x = coverage, y = impact, colour = country) +
-           geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
-    prettify1(save = c("Coverage", "impact", "lines"))
-  
-  # Same plot with connecting lines and per 100k
-  g1c = (ggplot(impact_dt) +
-           aes(x = coverage, y = impact_100k, colour = country) +
-           geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free_y")) %>%
-    prettify1(save = c("Coverage", "impact", "lines", "100k"))
-  
-  # FVPs vs deaths averted by d_v_a_id
-  g2a = (ggplot(impact_dt) + 
+  # Cumulative FVPs vs cumulative deaths averted
+  g2 = (ggplot(impact_dt) + 
            aes(x = fvps, y = impact, colour = country) +
            geom_line(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free")) %>%
     prettify1(save = c("FVP", "impact"))
-  
-  # FVPs vs deaths averted by d_v_a_id - per 100k people
-  g2b = (ggplot(impact_dt) + 
-           aes(x = fvps_100k, y = impact_100k, colour = country) +
-           geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free")) %>%
-    prettify1(save = c("FVP", "impact", "100k"))
-  
-  # Cumulative FVPs vs cumulative deaths averted
-  g3 = (ggplot(impact_dt) + 
-          aes(x = fvps_cum, y = impact_cum, colour = country) +
-          geom_line(show.legend = FALSE) +
-          facet_wrap(~d_v_a_id, scales = "free")) %>%
-    prettify1(save = c("FVP", "impact", "cumulative"))
-  
-  # Cum FVPs per 100k vs cum impact per 100k
-  g4a = (ggplot(impact_dt[!is.na(fvps_rel), ]) + 
-           aes(x = fvps_rel, y = impact_rel, colour = country) +
-           geom_point(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free")) %>%
-    prettify1(save = c("FVP", "impact", "cumulative", "relative"))
-  
-  # Same plot with connecting lines
-  g4b = (ggplot(impact_dt[!is.na(fvps_rel), ]) + 
-           aes(x = fvps_rel, y = impact_rel, colour = country) +
-           geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free")) %>%
-    prettify1(save = c("FVP", "impact", "cumulative", "relative", "lines"))
   
   # ---- Determine best fitting model ----
   

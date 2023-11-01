@@ -14,6 +14,10 @@ run_uncertainty = function() {
   # Only continue if specified by do_step
   if (!is.element(5, o$do_step)) return()
   
+  warning("Uncertainty calculation still need to be fully integrated... skipping this step")
+  
+  return()
+  
   message("* Generating uncertainty")
   
   # Load impact factors calculated in step 2
