@@ -25,15 +25,17 @@ run_impute = function() {
   
   # Load target to fit to: impact per FVP
   target_dt = get_target()
-  
-  # Calculate relative-risk for all d-v-a combinations 
+
+  # TODO: Impute only missing countries, not missing years
+
+  # Calculate relative-risk for all d-v-a combinations
   impute_dt = table("d_v_a") %>%
     pluck("d_v_a_id") %>%
     lapply(do_impute, target = target_dt) %>%
-    rbindlist()
-  
-  # predict_dt[, predict_averted := calculate_averted_deaths(deaths_obs, coverage, pred_rr)]
-  
+    rbindlist() %>%
+    mutate(impact = ifelse(is.na(target), impact_impute, impact_cum)) %>%
+    select(country, d_v_a_id, year, fvps = fvps_cum, impact)
+
   # Save relative risk calculations and predictions to file
   save_rds(impute_dt, "impute", "impute_result")
   
@@ -43,14 +45,12 @@ run_impute = function() {
     message(" - Plotting diagnostics")
     
     plot_target()
-    
+
     plot_covariates()
-    
+
     plot_impute_fit()
     
-    browser()
-    
-    # plot_impute_countries()
+    plot_impute_countries()
   }
 }
 
@@ -67,7 +67,7 @@ do_impute = function(d_v_a_id, target) {
     select(disease, vaccine, activity, source)
   
   # Display progress message to user
-  message(paste0(" - ", paste(d_v_a, collapse = ", ")))
+  message(paste0("  > ", paste(d_v_a, collapse = ", ")))
   
   # ---- Append covariates ----
   
@@ -112,12 +112,12 @@ do_impute = function(d_v_a_id, target) {
   # ---- Check for trivial case ----
   
   # Return out if no data available
-  if (nrow(data_dt) == 0) {
+  if (nrow(data_dt[target > 0]) < 10) {
     
     message(" !! Insufficient data for imputation !!")
     
-    # We'll store a blank datatable in this case
-    fit = list(data = data_dt)
+    # Store trivial outcomes
+    fit = list(data = data_dt, result = NULL)
     
     # Save to file
     save_rds(fit, "impute", "impute", d_v_a_id)
@@ -151,21 +151,25 @@ do_impute = function(d_v_a_id, target) {
   
   # Use fitted model to predict 
   result_dt = target_dt %>%
-    select(country, d_v_a_id, year) %>%
+    select(country, d_v_a_id, year, fvps_cum, impact_cum) %>%
     # Predict impact per FVP...
     cbind(norm_pred_dt) %>%
     mutate(predict = predict(fit_model, .), 
            predict = pmax(predict, 0)) %>%  # Do not predict negative
     # Remove predictors...
-    select(country, d_v_a_id, year, target, predict) %>%
+    select(country, d_v_a_id, year, fvps_cum, impact_cum, 
+           target, predict) %>%
     # Back-transform target and prediction...
     mutate(target  = retransform_fn(target,  a, b), 
-           predict = retransform_fn(predict, a, b))
+           predict = retransform_fn(predict, a, b)) %>%
+    # ...
+    mutate(impact_impute = fvps_cum * predict, 
+           .after = impact_cum)
   
   fit = list(
-    model  = fit_model, 
-    data   = norm_data_dt, 
-    result = result_dt)
+    model   = fit_model, 
+    data    = norm_data_dt, 
+    result  = result_dt)
   
   # Save to file
   save_rds(fit, "impute", "impute", d_v_a_id)
@@ -184,7 +188,7 @@ get_target = function() {
     group_by(country, d_v_a_id, year) %>%
     summarise(impact_abs = sum(deaths_averted)) %>%
     ungroup() %>%
-    filter(impact_abs > 0) %>%
+    mutate(impact_abs = pmax(impact_abs, 0)) %>%
     # Cumulative sum impact...
     arrange(country, d_v_a_id, year) %>%
     group_by(country, d_v_a_id) %>%
@@ -197,6 +201,7 @@ get_target = function() {
   
   # Extract coverage
   coverage_dt = table("coverage") %>%
+    filter(year %in% o$vimc_years) %>%
     # Summarise over age...
     group_by(country, v_a_id, year) %>%
     summarise(coverage = mean(coverage), 
@@ -229,31 +234,17 @@ get_target = function() {
   # Save this datatable to file for plotting purposes
   save_rds(target_dt, "impute", "target")
   
+  # test_dt = target_dt %>%
+  #   group_by(country, d_v_a_id) %>%
+  #   summarise(test0 = sum(target, na.rm = TRUE),
+  #             test1 = sum(target, na.rm = FALSE)) %>%
+  #   ungroup() %>%
+  #   replace_na(list(test1 = 0)) %>%
+  #   filter(test0 != test1) %>%
+  #   inner_join(y  = target_dt,
+  #              by = c("country", "d_v_a_id")) %>%
+  #   as.data.table()
+  
   return(target_dt)
-}
-
-# ---------------------------------------------------------
-# Extract averted deaths from relative risk equation
-# ---------------------------------------------------------
-calculate_averted_deaths = function(deaths_obs, coverage, rr) {
-  
-  # rr = (o - (a * (1 - c) / c)) / (o + a)
-  #
-  # => a = (o * (1 - rr) * c) / (1 + (rr - 1) * c)
-  #
-  # where:
-  #   o = deaths observed
-  #   a = deaths averted from vaccine
-  #   c = coverage
-  
-  browser() # TODO: Needs to be redone
-  
-  # Estimate deaths averted given relative risk
-  #
-  # NOTE: Equation derived by solving vimc_rr for a
-  averted_deaths <- deaths_obs * (coverage * (1 - rr) / 
-                                    (1 - coverage * (1 - rr)))
-  
-  return(averted_deaths)
 }
 

@@ -208,6 +208,48 @@ plot_impute_fit = function() {
 }
 
 # ---------------------------------------------------------
+# xxxxxxx
+# ---------------------------------------------------------
+plot_impute_countries = function() {
+  
+  # ---- Load results from fitting ----
+  
+  load_results_fn = function(id)
+    result = read_rds("impute", "impute", id)$result
+  
+  results_dt = table("d_v_a") %>%
+    pluck("d_v_a_id") %>%
+    lapply(load_results_fn) %>%
+    rbindlist()
+  
+  # ---- Plot 1: error by country ----
+  
+  plot_dt = results_dt %>%
+    select(country, d_v_a_id, year, 
+           vimc   = impact_cum, 
+           impute = impact_impute) %>%
+    mutate(lower = pmin(vimc, impute), 
+           upper = pmax(vimc, impute))
+  
+  g = ggplot(plot_dt, aes(x = year)) +
+    geom_ribbon(aes(ymin = lower, 
+                    ymax = upper, 
+                    fill = country),
+                alpha = 0.3) +
+    geom_line(aes(y = vimc, colour = country), 
+              linewidth = 0.5) +
+    geom_line(aes(y = impute, colour = country), 
+              linewidth = 0.5, 
+              linetype  = "dashed") +
+    facet_wrap(~d_v_a_id, scales = "free_y")
+  
+  g = g + theme(legend.position = "none")
+  
+  # Save figure to file
+  save_fig(g, "Imputation error", dir = "impute")
+}
+
+# ---------------------------------------------------------
 # Plot uncertainty draws
 # ---------------------------------------------------------
 plot_draws = function(fig_name) {
