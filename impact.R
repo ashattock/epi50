@@ -17,7 +17,7 @@ run_impact = function() {
   
   # Only continue if specified by do_step
   if (!is.element(4, o$do_step)) return()
-
+  
   message("* Calculating impact per FVP")
   
   # ---- FVPs and impact estimates ----
@@ -45,26 +45,24 @@ run_impact = function() {
   
   # ---- Exploratory plots ----
   
-  browser()
-  
   # Impact per FVP over time
-  g1 = (ggplot(impact_dt) +
-          aes(x = year, y = impact_fvp, colour = country) +
-          geom_line(show.legend = FALSE) +
-          facet_wrap(~d_v_a_id, scales = "free_y")) %>%
-    prettify1(save = c("Year", "impact", "FVP"))
+  g1 = ggplot(impact_dt) +
+    aes(x = year, y = impact_fvp, colour = country) +
+    geom_line(show.legend = FALSE) +
+    facet_wrap(~d_v_a_id, scales = "free_y")
+  # prettify1(save = c("Year", "impact", "FVP"))
   
   # Cumulative FVPs vs cumulative deaths averted
-  g2 = (ggplot(impact_dt) + 
-           aes(x = fvps, y = impact, colour = country) +
-           geom_line(show.legend = FALSE) +
-           facet_wrap(~d_v_a_id, scales = "free")) %>%
-    prettify1(save = c("FVP", "impact"))
+  g2 = ggplot(impact_dt) + 
+    aes(x = fvps, y = impact, colour = country) +
+    geom_line(show.legend = FALSE) +
+    facet_wrap(~d_v_a_id, scales = "free")
+  # prettify1(save = c("FVP", "impact"))
   
   # ---- Determine best fitting model ----
   
   # Country-disease-vaccine-activity combinations
-  c_d_v_a = vimc_dt %>%
+  c_d_v_a = impact_dt %>%
     select(country, d_v_a_id) %>%
     unique()
   
@@ -85,7 +83,9 @@ run_impact = function() {
     x = c_d_v_a[i, ]
     
     # Attempt to fit all fns and determine most suitable
-    result = get_best_model(fns, vimc_dt, x$country, x$d_v_a_id)
+    result = get_best_model(fns, impact_dt, x$country, x$d_v_a_id)
+    
+    browser()
     
     # Store results
     coef[[i]] = result$coef
@@ -190,10 +190,16 @@ fn_set = function(dict = FALSE) {
 # ---------------------------------------------------------
 # Parent function to determine best fitting function
 # ---------------------------------------------------------
-get_best_model = function(fns, vimc_dt, country, d_v_a_id) {
+get_best_model = function(fns, impact_dt, country, d_v_a_id) {
   
   # Reduce data down to what we're interested in
-  data_dt = prep_data(vimc_dt, country, d_v_a_id)
+  data_dt = impact_dt %>%
+    filter(country  == !!country, 
+           d_v_a_id == !!d_v_a_id) %>%
+    select(x = fvps,
+           y = impact) %>%
+    # Multiply impact for more consistent x-y scales...
+    mutate(y = y * o$impact_scaler)
   
   # Do not fit if insufficient data
   if (nrow(data_dt) <= 3)
@@ -204,10 +210,12 @@ get_best_model = function(fns, vimc_dt, country, d_v_a_id) {
   y = data_dt$y
   
   # Use optim algorithm to get good starting point for MLE
-  start = prep_start(fns, x, y)
+  start = credible_start(fns, x, y)
   
   # Run MLE from this starting point
   fit = run_mle(fns, start, x, y)
+  
+  browser()
   
   # Determine AICc value for model suitability
   result = model_quality(fns, fit, country, d_v_a_id, x, y)
@@ -216,26 +224,9 @@ get_best_model = function(fns, vimc_dt, country, d_v_a_id) {
 }
 
 # ---------------------------------------------------------
-# Prepare data for fitting - for this C, D, V, and A
-# ---------------------------------------------------------
-prep_data = function(vimc_dt, country, d_v_a_id) {
-  
-  # Reduce to data of interest
-  data_dt = vimc_dt %>%
-    filter(country  == !!country, 
-           d_v_a_id == !!d_v_a_id) %>%
-    select(x = fvps_rel,
-           y = impact_rel) %>%
-    # Multiply impact for more consistent x-y scales...
-    mutate(y = y * o$impact_scaler)
-  
-  return(data_dt)
-}
-
-# ---------------------------------------------------------
 # Determine credible starting points for MLE - it needs it
 # ---------------------------------------------------------
-prep_start = function(fns, x, y) {
+credible_start = function(fns, x, y, plot = FALSE) {
   
   # Initialise starting point for sigma in likelihood function
   s0 = 1  # This is essentially a placeholder until run_mle 
@@ -287,27 +278,33 @@ prep_start = function(fns, x, y) {
       plot_iters = NULL, 
       verbose    = FALSE)
     
-    # Construct plotting datatable for this model
-    plot_args = c(list(x_eval), as.list(optim$x))
-    plot_list[[fn]] = data.table(
-      x = x_eval,
-      y = do.call(fns[[fn]], as.list(plot_args)), 
-      fn = fn)
-    
     # Overwrite starting point with optimal parameters
     start[[fn]] = c(s0, optim$x) %>%
       setNames(names(start[[fn]])) %>%
       as.list()
+    
+    # Store diagnostic plotting data if desired
+    if (plot == TRUE) {
+      
+      # Construct plotting datatable for this model
+      plot_args = c(list(x_eval), as.list(optim$x))
+      plot_list[[fn]] = data.table(
+        x = x_eval,
+        y = do.call(fns[[fn]], as.list(plot_args)), 
+        fn = fn)
+    }
   }
   
-  # Squash all models into one datatable
-  plot_dt = rbindlist(plot_list)
-  
-  # Plot the quality of fit for each model starting point
-  g_asd = ggplot(plot_dt, aes(x = x, y = y)) +
-    geom_line(aes(colour = fn)) + 
-    geom_point(data = data.table(x = x, y = y),
-               colour = "black")
+  # Create diagnostic plot if desired
+  if (plot == TRUE) {
+    
+    # Plot the quality of fit for each model starting point
+    g_asd = ggplot(rbindlist(plot_list)) +
+      aes(x = x, y = y) +
+      geom_line(aes(colour = fn)) + 
+      geom_point(data = data.table(x = x, y = y),
+                 colour = "black")
+  }
   
   return(start)
 }
@@ -315,7 +312,7 @@ prep_start = function(fns, x, y) {
 # ---------------------------------------------------------
 # Fit MLE for each fn using prevriously determined start point
 # ---------------------------------------------------------
-run_mle = function(fns, start, x, y) {
+run_mle = function(fns, start, x, y, plot = FALSE) {
   
   # Log likelihood function to maximise
   likelihood = function(s, y_pred)
@@ -358,23 +355,29 @@ run_mle = function(fns, start, x, y) {
       fit[[fn]] = fit_result
       coef      = fit_result@coef[-1]
       
-      # Construct plotting datatable for this model
-      plot_args = c(list(x_eval), as.list(coef))
-      plot_list[[fn]] = data.table(
-        x = x_eval,
-        y = do.call(fns[[fn]], as.list(plot_args)), 
-        fn = fn)
+      # Store diagnostic plotting data if desired
+      if (plot == TRUE) {
+        
+        # Construct plotting datatable for this model
+        plot_args = c(list(x_eval), as.list(coef))
+        plot_list[[fn]] = data.table(
+          x = x_eval,
+          y = do.call(fns[[fn]], as.list(plot_args)), 
+          fn = fn)
+      }
     }
   }
   
-  # Squash all models into one datatable
-  plot_dt = rbindlist(plot_list)
-  
-  # Plot the quality of fit for each model
-  g_mle = ggplot(plot_dt, aes(x = x, y = y)) +
-    geom_line(aes(colour = fn)) + 
-    geom_point(data = data.table(x = x, y = y),
-               colour = "black")
+  # Create diagnostic plot if desired
+  if (plot == TRUE) {
+    
+    # Plot the quality of fit for each model
+    g_mle = ggplot(rbindlist(plot_list)) +
+      aes(x = x, y = y) +
+      geom_line(aes(colour = fn)) + 
+      geom_point(data = data.table(x = x, y = y),
+                 colour = "black")
+  }
   
   return(fit)
 }
@@ -633,7 +636,7 @@ plot_model_fits = function(focus, zoom = TRUE) {
   best_fit = evaluate_best_model()
   
   # Also load the data - we'll plot fits against this
-  vimc_dt = read_rds("impact", "vimc_dt")
+  impact_dt = read_rds("impact", "impact_dt")
   
   # ---- Plot fitted FVPs vs impact ----
   
@@ -660,7 +663,7 @@ plot_model_fits = function(focus, zoom = TRUE) {
     unique()
   
   # Data associated with all focus model fits
-  focus_data = vimc_dt %>%
+  focus_data = impact_dt %>%
     inner_join(y  = c_d_v_a,
                by = c("country", "d_v_a_id")) %>%
     select(country, d_v_a_id, fvps_rel, impact_rel)
