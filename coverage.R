@@ -77,7 +77,7 @@ coverage_wiise = function(vimc_countries) {
   # ---- Load data ----
   
   # File path for already-downloaded WIISE coverage data
-  coverage_file = paste0(o$pth$input, "wiise_coverage.rds")
+  coverage_file = paste0(o$pth$data, "wiise_coverage.rds")
   
   # If file has already been downloaded, read it now
   if (file.exists(coverage_file)) {

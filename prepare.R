@@ -43,7 +43,7 @@ prepare_config_tables = function() {
   
   message(" - Config files")
   
-  # NOTE: Convert from yaml (/config) to rds (/cache) for fast loading
+  # NOTE: Convert from yaml (/config) to rds (/tables) for fast loading
   
   # List of config yaml files to convert
   config_files = o$pth$config %>%
@@ -60,7 +60,7 @@ prepare_config_tables = function() {
     # Convert to datatable
     dt = rbindlist(lapply(y_data, as.data.table))
     
-    # Save in cache
+    # Save in tables cache
     save_table(dt, file)
   }
   
@@ -198,7 +198,7 @@ prepare_gbd_covariates = function() {
                by = c("country", "year")) %>%
     arrange(country, year)
   
-  # Save in cache
+  # Save in tables cache
   save_table(gbd_covariates, "gbd_covariates")
 }
 
@@ -237,7 +237,7 @@ prepare_demography = function() {
       file = paste0("WPP2022_", name, "BySingleAgeSex_Medium_", year, ".csv")
       
       # Stop here if file missing - ask user to download raw data
-      if (!file.exists(paste0(o$pth$input, file)))
+      if (!file.exists(paste0(o$pth$data, file)))
         stop("Please first download the file '", file, "' from",
              " https://population.un.org/wpp/Download/Standard",  
              " and copy to the /data/ directory")
@@ -246,7 +246,7 @@ prepare_demography = function() {
       data_name = paste0(first_cap(type), "Total")
       
       # Load the file and wrangle what we need
-      data_list[[file]] = fread(paste0(o$pth$input, file)) %>%
+      data_list[[file]] = fread(paste0(o$pth$data, file)) %>%
         select(country = ISO3_code,
                year    = Time,
                age     = AgeGrp,
@@ -273,8 +273,8 @@ prepare_demography = function() {
 # ---------------------------------------------------------
 save_table = function(x, table) {
   
-  # Save table in cache directory
-  save_rds(x, "cache", table, "table")
+  # Save table in tables cache directory
+  save_rds(x, "tables", table, "table")
 }
 
 # ---------------------------------------------------------
@@ -283,7 +283,7 @@ save_table = function(x, table) {
 table = function(table) {
   
   # Construct file path
-  file = paste0(o$pth$cache, table, "_table.rds")
+  file = paste0(o$pth$tables, table, "_table.rds")
   
   # Throw an error if this file doesn't exist
   if (!file.exists(file))

@@ -25,6 +25,7 @@ set_dirs = function(o) {
   # Parent path of all input files
   pth$input  = file.path(pth$code, "input")
   pth$config = file.path(pth$code, "config")
+  pth$data   = file.path(pth$code, "data")
   
   # ---- Output directories ----
   
@@ -32,7 +33,7 @@ set_dirs = function(o) {
   pth_output = file.path(pth$code, "output")
   
   # Path to cached data tables
-  pth$cache = file.path(pth_output, "0_cache")
+  pth$tables = file.path(pth_output, "0_tables")
   
   # Path to imputatation and impact calculation files
   pth$impute = file.path(pth_output, "1_impute")
