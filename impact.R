@@ -20,75 +20,22 @@ run_impact = function() {
 
   message("* Calculating impact per FVP")
   
-  # ---- FVPs and impact (deaths averted) ----
+  # ---- FVPs and impact estimates ----
   
-  # First load population size of each country over time
+  # Population size of each country over time
   pop_dt = table("wpp_pop") %>%
     group_by(country, year) %>%
     summarise(pop = sum(pop)) %>%
     ungroup() %>%
     as.data.table()
   
-  # Wrangle VIMC impact estimates
-  impact_dt = table("vimc_estimates") %>%
-    # Sum impact over age...
-    mutate(deaths_averted = pmax(deaths_averted, 0)) %>%
-    group_by(country, d_v_a_id, year) %>%
-    summarise(impact = sum(deaths_averted)) %>%
-    ungroup() %>%
-    # Impact relative to 100k people...
+  # Impact estimates (VIMC & imputed) per capita
+  impact_dt = read_rds("impute", "impute_result") %>%
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
-    mutate(impact_100k = 1e5 * impact / pop) %>%
-    # Cumulative sum impact...
-    arrange(country, d_v_a_id, year) %>%
-    group_by(country, d_v_a_id) %>%
-    mutate(impact_cum = cumsum(impact)) %>%
-    ungroup() %>%
-    # Cumulative relative to 100k people...
-    mutate(impact_rel = o$per_person * impact_cum / pop) %>%
+    mutate(fvps   = o$per_person * fvps / pop, 
+           impact = o$per_person * impact / pop) %>%
     select(-pop) %>%
-    # Append d_v_a details...
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    as.data.table()
-  
-  # Extract coverage
-  coverage_dt = table("coverage") %>%
-    # Summarise over age...
-    group_by(country, v_a_id, year) %>%
-    summarise(fvps   = sum(fvps),
-              cohort = sum(cohort)) %>%
-    ungroup() %>%
-    # Coverage over time...
-    mutate(coverage = fvps / cohort) %>%
-    select(country, v_a_id, year, coverage, fvps) %>%
-    # FVPs relative to 100k people...
-    left_join(y  = pop_dt, 
-              by = c("country", "year")) %>%
-    mutate(fvps_100k = 1e5 * fvps / pop) %>%
-    # Cumulative sum FVPs...
-    arrange(country, v_a_id, year) %>%
-    group_by(country, v_a_id) %>%
-    mutate(fvps_cum = cumsum(fvps)) %>%
-    ungroup() %>%
-    # Cumulative relative to 100k people...
-    mutate(fvps_rel = o$per_person * fvps_cum / pop) %>%
-    select(-pop) %>%
-    # Append v_a details...
-    left_join(y  = table("v_a"), 
-              by = "v_a_id") %>%
-    as.data.table()
-  
-  # Combine into single datatable
-  vimc_dt = impact_dt %>%
-    inner_join(y  = coverage_dt, 
-               by = c("country", "vaccine", "activity", "year")) %>%
-    select(-disease, -vaccine, -activity, -v_a_id) %>%
-    # Ignore negative impact (but keep zero)...
-    filter(impact >= 0, fvps_rel > 0) %>%
-    # Impact per FVP...
-    mutate(impact_fvp = impact / fvps) %>%
     # Ingore cases with a single data point...
     add_count(country, d_v_a_id) %>%
     filter(n > 1) %>%
@@ -97,84 +44,84 @@ run_impact = function() {
   # ---- Exploratory plots ----
   
   # Coverage over time
-  g0x = (ggplot(vimc_dt) +
+  g0x = (ggplot(impact_dt) +
            aes(x = year, y = coverage, colour = country) +
            geom_line(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Year", "coverage"))
   
   # Deaths averted by d_v_a_id over time
-  g0a = (ggplot(vimc_dt) +
+  g0a = (ggplot(impact_dt) +
            aes(x = year, y = impact, colour = country) +
            geom_line(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Year", "impact"))
   
   # Same plot with connecting lines
-  g0b = (ggplot(vimc_dt) +
+  g0b = (ggplot(impact_dt) +
            aes(x = year, y = impact_100k, colour = country) +
            geom_line(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Year", "impact", "100k"))
   
   # Impact per FVP over time
-  g0c = (ggplot(vimc_dt) +
+  g0c = (ggplot(impact_dt) +
            aes(x = year, y = impact_fvp, colour = country) +
            geom_line(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Year", "impact", "FVP"))
   
   # Coverage vs deaths averted by d_v_a_id
-  g1a = (ggplot(vimc_dt) +
+  g1a = (ggplot(impact_dt) +
            aes(x = coverage, y = impact, colour = country) +
            geom_point(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Coverage", "impact"))
   
   # Same plot with connecting lines
-  g1b = (ggplot(vimc_dt) +
+  g1b = (ggplot(impact_dt) +
            aes(x = coverage, y = impact, colour = country) +
            geom_line(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Coverage", "impact", "lines"))
   
   # Same plot with connecting lines and per 100k
-  g1c = (ggplot(vimc_dt) +
+  g1c = (ggplot(impact_dt) +
            aes(x = coverage, y = impact_100k, colour = country) +
            geom_line(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free_y")) %>%
     prettify1(save = c("Coverage", "impact", "lines", "100k"))
   
   # FVPs vs deaths averted by d_v_a_id
-  g2a = (ggplot(vimc_dt) + 
+  g2a = (ggplot(impact_dt) + 
            aes(x = fvps, y = impact, colour = country) +
            geom_line(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free")) %>%
     prettify1(save = c("FVP", "impact"))
   
   # FVPs vs deaths averted by d_v_a_id - per 100k people
-  g2b = (ggplot(vimc_dt) + 
+  g2b = (ggplot(impact_dt) + 
            aes(x = fvps_100k, y = impact_100k, colour = country) +
            geom_line(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free")) %>%
     prettify1(save = c("FVP", "impact", "100k"))
   
   # Cumulative FVPs vs cumulative deaths averted
-  g3 = (ggplot(vimc_dt) + 
+  g3 = (ggplot(impact_dt) + 
           aes(x = fvps_cum, y = impact_cum, colour = country) +
           geom_line(show.legend = FALSE) +
           facet_wrap(~d_v_a_id, scales = "free")) %>%
     prettify1(save = c("FVP", "impact", "cumulative"))
   
   # Cum FVPs per 100k vs cum impact per 100k
-  g4a = (ggplot(vimc_dt[!is.na(fvps_rel), ]) + 
+  g4a = (ggplot(impact_dt[!is.na(fvps_rel), ]) + 
            aes(x = fvps_rel, y = impact_rel, colour = country) +
            geom_point(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free")) %>%
     prettify1(save = c("FVP", "impact", "cumulative", "relative"))
   
   # Same plot with connecting lines
-  g4b = (ggplot(vimc_dt[!is.na(fvps_rel), ]) + 
+  g4b = (ggplot(impact_dt[!is.na(fvps_rel), ]) + 
            aes(x = fvps_rel, y = impact_rel, colour = country) +
            geom_line(show.legend = FALSE) +
            facet_wrap(~d_v_a_id, scales = "free")) %>%

@@ -30,7 +30,7 @@ run_results = function() {
   if (o$plot_imputation) {
     
     # Plot predictor and response relationships
-    plot_target()
+    # plot_target()
     plot_covariates()
     
     # Plot imputation outcomes

@@ -26,19 +26,20 @@ run_impute = function() {
   # Load target to fit to: impact per FVP
   target_dt = get_target()
 
-  # Calculate relative-risk for all d-v-a combinations
+  # Impute missing countries for all d-v-a combinations
   impute_dt = table("d_v_a") %>%
     pluck("d_v_a_id") %>%
     lapply(do_impute, target = target_dt) %>%
     rbindlist() %>%
+    # Merge VIMC estimates with those just imputed...
     mutate(impact = ifelse(is.na(target), impact_impute, impact_cum)) %>%
     select(country, d_v_a_id, year, fvps = fvps_cum, impact)
 
-  # Save relative risk calculations and predictions to file
+  # Save imputed results to file
   save_rds(impute_dt, "impute", "impute_result")
   
   # Plot predictor and response relationships
-  plot_target()
+  # plot_target()
   plot_covariates()
   
   # Plot imputation outcomes
