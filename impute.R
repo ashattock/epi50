@@ -26,8 +26,6 @@ run_impute = function() {
   # Load target to fit to: impact per FVP
   target_dt = get_target()
 
-  # TODO: Impute only missing countries, not missing years
-
   # Calculate relative-risk for all d-v-a combinations
   impute_dt = table("d_v_a") %>%
     pluck("d_v_a_id") %>%

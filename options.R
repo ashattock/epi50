@@ -24,7 +24,7 @@ set_options = function(do_step = NA, quiet = FALSE) {
   # ---- Analysis settings ----
   
   # Name of analysis to run
-  o$analysis_name = "v01"
+  o$analysis_name = "v02"
   
   # Create output directory system
   o = set_dirs(o)  # See directories.R

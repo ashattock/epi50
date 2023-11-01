@@ -75,10 +75,10 @@ plot_target = function() {
                by = "country") %>%
     split(f = .$d_v_a_id)
   
-  for (d_v_a_id in names(plot_list)) {
+  for (id in names(plot_list)) {
     
     plot_dt = plot_list %>%
-      pluck(d_v_a_id) %>%
+      pluck(id) %>%
       select(country, set, year, 
              fvps   = !!paste1("fvps", type1),
              impact = !!paste1("impact", type1)) %>%
@@ -95,7 +95,7 @@ plot_target = function() {
       facet_grid(variable ~ set, scales = "free_y")
     
     plot_dt = plot_list %>%
-      pluck(d_v_a_id) %>%
+      pluck(id) %>%
       select(country, set, year, 
              fvps   = !!paste1("fvps", type2),
              impact = !!paste1("impact", type2)) %>%
@@ -106,9 +106,12 @@ plot_target = function() {
       geom_line(show.legend = FALSE) +
       facet_wrap(~set, scales = "free_y", nrow = 2)
     
+    # Save in nested directory
+    save_dir = c("impute", "target")
+    
     # Save figure to file
-    save_fig(g1, "VIMC impact-FVP timing", d_v_a_id, dir = "impute")
-    save_fig(g2, "VIMC impact-FVP ratio",  d_v_a_id, dir = "impute")
+    save_fig(g1, "VIMC impact-FVP timing", id, dir = save_dir)
+    save_fig(g2, "VIMC impact-FVP ratio",  id, dir = save_dir)
   }
 }
 
@@ -222,16 +225,17 @@ plot_impute_countries = function() {
     lapply(load_results_fn) %>%
     rbindlist()
   
-  # ---- Plot 1: error by country ----
+  # ---- Plot 1: annual error by country ----
   
-  plot_dt = results_dt %>%
+  annual_dt = results_dt %>%
     select(country, d_v_a_id, year, 
            vimc   = impact_cum, 
            impute = impact_impute) %>%
+    filter(!is.na(vimc)) %>%
     mutate(lower = pmin(vimc, impute), 
            upper = pmax(vimc, impute))
   
-  g = ggplot(plot_dt, aes(x = year)) +
+  g = ggplot(annual_dt, aes(x = year)) +
     geom_ribbon(aes(ymin = lower, 
                     ymax = upper, 
                     fill = country),
@@ -246,7 +250,42 @@ plot_impute_countries = function() {
   g = g + theme(legend.position = "none")
   
   # Save figure to file
-  save_fig(g, "Imputation error", dir = "impute")
+  save_fig(g, "Imputation error annual", dir = "impute")
+  
+  # ---- Plot 2: total error by country ----
+  
+  total_dt = results_dt %>%
+    group_by(country, d_v_a_id) %>%
+    summarise(truth   = max(impact_cum), 
+              predict = max(impact_impute)) %>%
+    ungroup() %>%
+    mutate(source = ifelse(is.na(truth), "impute", "vimc"), 
+           truth  = ifelse(is.na(truth), predict, truth)) %>%
+    # mutate(source = factor(source, c("impute", "vimc"))) %>%
+    arrange(d_v_a_id, desc(source), country) %>%
+    as.data.table()
+  
+  # Maximum value in each facet (target or predict)
+  blank_dt = total_dt %>%
+    mutate(max_value = pmax(truth, predict)) %>%
+    group_by(d_v_a_id) %>%
+    summarise(max_value = max(max_value)) %>%
+    ungroup() %>%
+    expand_grid(type = c("truth", "predict")) %>%
+    pivot_wider(names_from  = type, 
+                values_from = max_value) %>%
+    as.data.table()
+  
+  # ---- Produce plot ----
+  
+  g = ggplot(total_dt, aes(x = truth, y = predict)) +
+    geom_abline(colour = "black") +  # To see quality of truth vs predict
+    geom_blank(data = blank_dt) +    # For square axes
+    geom_point(aes(colour = source)) + 
+    facet_wrap(~d_v_a_id, scales = "free")
+
+  # Save figure to file
+  save_fig(g, "Imputation error total", dir = "impute")
 }
 
 # ---------------------------------------------------------
@@ -604,8 +643,10 @@ save_fig = function(g, ..., dir = NULL) {
   
   # Construct path to save file to
   save_path = o$pth$figures
-  if (!is.null(dir)) 
-    save_path = paste0(save_path, dir, file_sep())
+  if (!is.null(dir)) {
+    ext_path  = paste(dir, collapse = file_sep())
+    save_path = paste0(save_path, ext_path, file_sep())
+  }
   
   # Create directory if it exists
   if (!dir.exists(save_path))
