@@ -45,9 +45,8 @@ set_dirs = function(o) {
   pth$uncertainty = file.path(pth_output, "3_uncertainty", o$analysis_name)
   
   # Path to figures and other output resusts
-  pth$results     = file.path(pth_output, "4_results", o$analysis_name)
-  pth$figures     = file.path(pth_output, "5_figures", o$analysis_name)
-  pth$diagnostics = file.path(pth$figures, "diagnostics")
+  pth$results = file.path(pth_output, "4_results", o$analysis_name)
+  pth$figures = file.path(pth_output, "5_figures", o$analysis_name)
   
   # ---- Create directory structure ----
   

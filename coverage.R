@@ -37,20 +37,8 @@ prepare_coverage = function() {
     arrange(country, v_a_id, year, age) %>%
     save_table("coverage")
   
-  # cols = colour_scheme(
-  #   map = "pals::kovesi.rainbow", 
-  #   n   = n_unique(vimc_dt$v_a_id))
-  # 
-  # g = ggplot(vimc_dt[, age_log2 := pmax(age, 1)]) +
-  #   aes(x = age_log2, 
-  #       y = ..scaled.., 
-  #       colour = as.factor(v_a_id),
-  #       fill   = as.factor(v_a_id)) + 
-  #   geom_density(alpha = 0.2) +
-  #   scale_x_continuous(trans = "log2") +
-  #   scale_colour_manual(values = cols) + 
-  #   scale_fill_manual(values = cols) +
-  #   facet_wrap(~v_a_id)
+  # Quick diagnostic plot of coverage data
+  plot_coverage()
 }
 
 # ---------------------------------------------------------
@@ -75,17 +63,8 @@ coverage_vimc = function() {
                by = c("vaccine", "activity")) %>%
     select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
+    mutate(source = "vimc") %>%
     as.data.table()
-  
-  # test_dt = vimc_dt %>%
-  #   left_join(y  = table("v_a"),
-  #             by = "v_a_id") %>%
-  #   left_join(y  = table("d_v_a"),
-  #             by = c("vaccine", "activity")) %>%
-  #   select(-disease, -vaccine, -activity) %>%
-  #   left_join(y  = table("vimc_estimates"),
-  #             by = c("country", "d_v_a_id", "year", "age")) %>%
-  #   filter(is.na(deaths_averted))
   
   return(vimc_dt)
 }
@@ -180,6 +159,7 @@ coverage_wiise = function(vimc_countries) {
     # Final formatting...
     select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
+    mutate(source = "wiise") %>%
     as.data.table()
   
   return(wiise_dt)

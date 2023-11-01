@@ -5,53 +5,44 @@
 #
 ###########################################################
 
-#' Plot coverage for a specific country
-#' @param dt A data.table with coverage data
-#' @return A plot of the coverage data
-#' @method plot coverage
-#' @export
-plot.coverage <- function(x, ...) {
-  gg <- ggplot2::ggplot(
-    x,
-    ggplot2::aes(
-      x = year,
-      y = value,
-      color = vaccine_short,
-      linetype = as.factor(gender)
-    )
-  ) +
-    ggplot2::geom_line()
+# ---------------------------------------------------------
+# xxxxxxx
+# ---------------------------------------------------------
+plot_coverage = function() {
   
-  return(gg)
-}
-
-## Scatter against covariates
-scatter_rr <- function(dt, x_var) {
-  for (a in 0:9) {
-    gg <- ggplot(dt[age == a], aes(x = get(x_var), y = rr)) +
-      geom_point(size = 0.1, alpha = 0.2) +
-      facet_wrap(~vaccine_short, scales = "free_y") +
-      theme_bw() +
-      ggtitle(paste(x_var, "vs mortality reduction by vaccine: Age", a)) +
-      xlab(x_var)
-    print(gg)
-  }
-}
-
-plot_age_year <- function(dt, log_transform = F, value_name = "") {
-  dt <- unique(dt[, .(year, age, value)])
+  plot_dt = table("coverage") %>%
+    mutate(trans_age = pmax(age, 1), .after = age)
   
-  gg <- ggplot(dt, aes(x = year, y = age, fill = value)) + 
-    geom_tile() +
-    xlab("Year") + ylab("Age") + labs(fill = value_name) +
-    viridis::scale_fill_viridis(
-      option = "viridis", 
-      direction = -1, 
-      trans = ifelse(log_transform, "log10", "identity")) + 
-    theme_minimal() +
-    coord_fixed() +
-    theme(text = element_text(size = 20))
-  print(gg)
+  g = ggplot(plot_dt[source == "vimc"]) +
+    aes(x = trans_age) +
+    geom_density(
+      data = plot_dt[source == "wiise"],
+      aes(y = ..scaled..), 
+      colour = "black", 
+      fill   = "black", 
+      alpha  = 0.2) +
+    geom_density(
+      aes(y = ..scaled..,
+          colour = as.factor(v_a_id),
+          fill   = as.factor(v_a_id)), 
+      alpha = 0.2) +
+    facet_wrap(~v_a_id)
+  
+  # Apply meaningful scale
+  g = g + scale_x_continuous(
+    trans  = "log2", 
+    limits = c(1, 2^7))
+  
+  g = g + theme(legend.position = "none")
+  
+  # colours = colour_scheme(
+  #   map = "pals::kovesi.rainbow",
+  #   n   = n_unique(vimc_dt$v_a_id))
+  # 
+  # g = g + scale_fill_manual(values = colours) + 
+  #   scale_colour_manual(values = colours)
+    
+  save_fig(g, "Coverage by age and source", dir = "prepare")
 }
 
 # ---------------------------------------------------------
@@ -580,54 +571,6 @@ plot_gbd_uncertainty_fit = function(fig_name) {
   
   # Save figure to file
   save_fig(g, fig_name, dir = "diagnostics")
-}
-
-# ---------------------------------------------------------
-# Prettify ggplot figure
-# ---------------------------------------------------------
-ggpretty = function(g, cols = NULL, colour = NULL, fill = NULL, title = NULL, x_rotate = FALSE,
-                    x_lab = NULL, y_lab = NULL, x_pretty = TRUE, y_pretty = TRUE) {
-  
-  # Set line colours if specified
-  if (!is.null(colour))
-    g = g + scale_colour_manual(values = cols[[colour]], 
-                                name   = first_cap(colour))
-  
-  # Set patch colours if specified
-  if (!is.null(fill))
-    g = g + scale_fill_manual(values = cols[[fill]], 
-                              name   = first_cap(fill))
-  
-  # Prettify x axis
-  if (x_pretty && !x_rotate)
-    g = g + scale_x_continuous(breaks = scales::pretty_breaks())
-  
-  # Prettify y axis
-  if (y_pretty)
-    g = g + scale_y_continuous(breaks = scales::pretty_breaks(), 
-                               expand = expansion(mult = c(0, 0.05)))
-  
-  # Set labels
-  g = g + ggtitle(title) +
-    xlab(x_lab) + 
-    ylab(y_lab)
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(plot.title    = element_text(size = o$font_size[1], hjust = 0.5),
-          axis.title    = element_text(size = o$font_size[2]),
-          axis.text     = element_text(size = o$font_size[3]),
-          axis.text.x   = element_text(angle = ifelse(x_rotate, 50, 0), 
-                                       hjust = ifelse(x_rotate, 1, 0.5)), 
-          axis.line     = element_blank(),
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-          panel.spacing = unit(1, "lines"),
-          strip.text    = element_text(size = o$font_size[4]),
-          strip.background = element_blank(),
-          legend.title  = element_text(size = o$font_size[5]),
-          legend.text   = element_text(size = o$font_size[6]))
-  
-  return(g)
 }
 
 # ---------------------------------------------------------

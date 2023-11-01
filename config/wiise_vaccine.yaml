@@ -50,18 +50,6 @@ table:
   coverage_category: WUENIC
   gender: "b"
   age: "0"
-- wiise_id: PRHPVC_F
-  vaccine: HPV
-  activity: campaign
-  coverage_category: HPV
-  gender: "f"
-  age: "8:13"
-- wiise_id: PRHPVC_M
-  vaccine: HPV
-  activity: campaign
-  coverage_category: HPV
-  gender: "m"
-  age: "8:13"
 - wiise_id: RCV1
   vaccine: Rubella
   activity: routine
