@@ -39,15 +39,13 @@ run_impute = function() {
   
   # Check flag
   if (o$plot_diagnostics) {
-    
-    message(" - Plotting diagnostics")
-    
-    plot_target()
 
+    # Plot predictor and response relationships
+    plot_target()
     plot_covariates()
 
+    # Plot imputation outcomes
     plot_impute_fit()
-    
     plot_impute_countries()
   }
 }
@@ -125,24 +123,29 @@ do_impute = function(d_v_a_id, target) {
   
   # ---- Normalise predictors and response ----
   
+  # Function to normalise ready for fitting
   transform_fn = function(x, a, b)
     y = t((x - a) / (b - a)) %>% as.data.table()
   
+  # Function to back transform to original scale
   retransform_fn = function(y, a, b)
     x = y * (b["target"] - a["target"]) + a["target"]
   
+  # Matrices of points to fit with and points to predict for
   data_mat = t(as.matrix(data_dt))
   pred_mat = t(as.matrix(pred_dt))
   
+  # Min and max in data used for fitting
   a = rowMins(data_mat)
   b = rowMaxs(data_mat)
   
+  # Use these min ana max values to normalise
   norm_data_dt = transform_fn(data_mat, a, b)
   norm_pred_dt = transform_fn(pred_mat, a, b)
   
   # ---- Fit a model to predict impact per FVP ----
   
-  # Fit a binomial GLM for relative risk using all covariates
+  # Fit a GLM for impact per FVP using all covariates
   fit_model = glm(
     formula = target ~ n_years + coverage + sdi + haqi + imr, 
     data    = norm_data_dt)
@@ -160,10 +163,11 @@ do_impute = function(d_v_a_id, target) {
     # Back-transform target and prediction...
     mutate(target  = retransform_fn(target,  a, b), 
            predict = retransform_fn(predict, a, b)) %>%
-    # ...
+    # Multiply through to obtain cumulative impact over time...
     mutate(impact_impute = fvps_cum * predict, 
            .after = impact_cum)
   
+  # Store the fitted model, the data used, and the result
   fit = list(
     model   = fit_model, 
     data    = norm_data_dt, 
@@ -231,17 +235,6 @@ get_target = function() {
   
   # Save this datatable to file for plotting purposes
   save_rds(target_dt, "impute", "target")
-  
-  # test_dt = target_dt %>%
-  #   group_by(country, d_v_a_id) %>%
-  #   summarise(test0 = sum(target, na.rm = TRUE),
-  #             test1 = sum(target, na.rm = FALSE)) %>%
-  #   ungroup() %>%
-  #   replace_na(list(test1 = 0)) %>%
-  #   filter(test0 != test1) %>%
-  #   inner_join(y  = target_dt,
-  #              by = c("country", "d_v_a_id")) %>%
-  #   as.data.table()
   
   return(target_dt)
 }
