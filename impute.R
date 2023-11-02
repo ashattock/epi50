@@ -25,6 +25,8 @@ run_impute = function() {
   
   # Load target to fit to: impact per FVP
   target_dt = get_target()
+  
+  # ---- Perform imputation ----
 
   # Impute missing countries for all d-v-a combinations
   impute_dt = table("d_v_a") %>%
@@ -38,8 +40,12 @@ run_impute = function() {
   # Save imputed results to file
   save_rds(impute_dt, "impute", "impute_result")
   
+  # ---- Plot results ----
+  
+  # NOTE: All plotting functionality lives in plotting.R
+  
   # Plot predictor and response relationships
-  # plot_target()
+  plot_target()
   plot_covariates()
   
   # Plot imputation outcomes

@@ -32,12 +32,12 @@ run_results = function() {
   if (o$plot_imputation) {
     
     # Plot predictor and response relationships
-    # plot_target()
-    plot_covariates()
-    
-    # Plot imputation outcomes
-    plot_impute_fit()
-    plot_impute_countries()
+    plot_target()
+    # plot_covariates()
+    # 
+    # # Plot imputation outcomes
+    # plot_impute_fit()
+    # plot_impute_countries()
   }
   
   # ---- Impact function plots ----

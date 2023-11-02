@@ -71,58 +71,85 @@ plot_target = function() {
   stat_1 = "cum"  # Timing figure
   stat_2 = "cum"  # Ratio figure
   
-  browser()
-  
+  # Number of sets to divide countries into
   n_sets = 8
   
+  # ---- Plot set up ----
+  
+  # Divide countries into 'sets'
   set_dt = table("country") %>%
     select(country) %>%
     mutate(set = rep(1 : n_sets, nrow(.))[1 : nrow(.)], 
            set = factor(set, levels = 1 : n_sets))
   
+  # Targets for VIMC diseases split by d_v_a
   plot_list = read_rds("impute", "target") %>%
     filter(!is.na(target)) %>%
     inner_join(y  = set_dt, 
                by = "country") %>%
-    split(f = .$d_v_a_id)
+    append_d_v_a_name() %>%
+    split(f = .$d_v_a_name)
   
-  for (id in names(plot_list)) {
+  # Save figures for each d_v_a
+  for (d_v_a in names(plot_list)) {
     
+    # ---- Plot 1: time lag between coverage and impact ----
+    
+    # Construct plotting datatable
     plot_dt = plot_list %>%
-      pluck(id) %>%
+      pluck(d_v_a) %>%
+      # Select metrics of choice...
       select(country, set, year, 
              fvps   = !!paste1("fvps", stat_1),
              impact = !!paste1("impact", stat_1)) %>%
+      # Remove countries that have only one data point...
+      add_count(country) %>%
+      filter(n > 1) %>%
+      select(-n) %>%
+      # Normalise for better visuals...
       pivot_longer(cols = c(fvps, impact),
                    names_to = "variable") %>%
       group_by(country, variable) %>% 
       mutate(norm = value / max(value)) %>%
       ungroup() %>%
+      filter(!is.na(norm)) %>%
       as.data.table()
     
+    # Plot (any) time lag between deployment and impact
     g1 = ggplot(plot_dt) +
       aes(x = year, y = norm, colour = country) +
       geom_line(show.legend = FALSE) +
       facet_grid(variable ~ set, scales = "free_y")
     
+    # ---- Plot 2: time-varying difference between FVP and impact ----
+    
+    # Construct plotting datatable
     plot_dt = plot_list %>%
-      pluck(id) %>%
+      pluck(d_v_a) %>%
+      # Select metrics of choice...
       select(country, set, year, 
              fvps   = !!paste1("fvps", stat_2),
              impact = !!paste1("impact", stat_2)) %>%
-      mutate(impact_fvp = fvps / impact)
+      # Calculate FVP - impact rate...
+      filter(impact > 0) %>%
+      mutate(impact_fvp = fvps / impact) %>%
+      # Remove countries that have only one data point...
+      add_count(country) %>%
+      filter(n > 1) %>%
+      select(-n)
     
+    # Plot (any) time-varying difference between FVP and impact
     g2 = ggplot(plot_dt) +
       aes(x = year, y = impact_fvp, colour = country) +
       geom_line(show.legend = FALSE) +
       facet_wrap(~set, scales = "free_y", nrow = 2)
     
     # Save in nested directory
-    save_dir = c("imputation", "target")
+    dir = c("imputation", "target")
     
     # Save figure to file
-    save_fig(g1, "VIMC impact-FVP timing", id, dir = save_dir)
-    save_fig(g2, "VIMC impact-FVP ratio",  id, dir = save_dir)
+    save_fig(g1, "VIMC impact-FVP timing", d_v_a, dir = dir)
+    save_fig(g2, "VIMC impact-FVP ratio",  d_v_a, dir = dir)
   }
 }
 

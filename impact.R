@@ -163,6 +163,16 @@ run_impact = function() {
   
   # Save to file
   save_rds(best_dt, "impact", "best_model")
+  
+  # ---- Plot results ----
+  
+  # NOTE: All plotting functionality lives in plotting.R
+  
+  # Plot occurancces of each 'best' function
+  plot_model_counts()
+  
+  # Plot impact function evaluation
+  plot_model_fits()
 }
 
 # ---------------------------------------------------------
