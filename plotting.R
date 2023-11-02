@@ -226,9 +226,20 @@ plot_covariates = function() {
   
   # Function to load imputation data
   load_data_fn = function(id) {
-    data = read_rds("impute", "impute", id) %>%
-      pluck("data") %>%
-      mutate(d_v_a_id = id, .before = 1)
+    
+    # Load imputation result for this d_v_a
+    impute = read_rds("impute", "impute", id)
+    
+    # If result is trivial, return trivial data
+    if (is.null(impute$result)) {
+      data = NULL 
+      
+    } else {  # Otherwise extract data
+      data = impute$data %>%
+        mutate(d_v_a_id = id, .before = 1)
+    }
+    
+    return(data)
   }
   
   # Load imputation data for all d-v-a
