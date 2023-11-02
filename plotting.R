@@ -325,6 +325,9 @@ plot_impute_countries = function() {
   
   message("  > Plotting country-aggregated imputation errors")
   
+  # Plot on log10 scale (second figure only)
+  log_scale = TRUE
+  
   # ---- Load results from fitting ----
   
   # Function to load imputation results
@@ -372,13 +375,17 @@ plot_impute_countries = function() {
   
   # Where imputed countries lie in terms of magnitude
   total_dt = results_dt %>%
+    # Take cumulative values for each country...
     group_by(country, d_v_a_name) %>%
     summarise(truth   = max(impact_cum), 
               predict = max(impact_impute)) %>%
     ungroup() %>%
+    # VIMC as truth-predict scatter, imputed along diagonal...
     mutate(source = ifelse(is.na(truth), "impute", "vimc"), 
            truth  = ifelse(is.na(truth), predict, truth)) %>%
-    # mutate(source = factor(source, c("impute", "vimc"))) %>%
+    # Set lower bound to stay finite if transforming scale...
+    mutate(truth   = pmax(truth,   1), 
+           predict = pmax(predict, 1)) %>%
     arrange(d_v_a_name, desc(source), country) %>%
     as.data.table()
   
@@ -400,8 +407,22 @@ plot_impute_countries = function() {
     geom_point(aes(colour = source)) + 
     facet_wrap(~d_v_a_name, scales = "free")
   
+  # Check scaling flag
+  if (log_scale == TRUE) {
+    
+    # Transform both axes
+    g = g + 
+      scale_x_continuous(trans = "log10") + 
+      scale_y_continuous(trans = "log10")
+  }
+  
+  # Construct file name to save figure
+  save_name = "Imputation error total"
+  if (log_scale == TRUE)
+    save_name = c(save_name, "log scale")
+  
   # Save figure to file
-  save_fig(g, "Imputation error total", dir = "imputation")
+  save_fig(g, save_name, dir = "imputation")
 }
 
 # ---------------------------------------------------------
