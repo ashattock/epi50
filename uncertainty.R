@@ -7,12 +7,11 @@
 
 # ---------------------------------------------------------
 # Parent function for generating uncertainty
-# Called by: launch.R, main.R (and other launch-style scripts)
 # ---------------------------------------------------------
 run_uncertainty = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(5, o$do_step)) return()
+  if (!is.element(6, o$do_step)) return()
   
   warning("Uncertainty calculation still need to be fully integrated... skipping this step")
   
@@ -104,7 +103,6 @@ run_uncertainty = function() {
 
 # ---------------------------------------------------------
 # Sample VIMC uncertainty using mean and sd from provided results
-# Called by: run_uncertainty()
 # ---------------------------------------------------------
 generate_vimc_uncertainty = function (vimc_dt) {
   
@@ -125,7 +123,6 @@ generate_vimc_uncertainty = function (vimc_dt) {
 
 # ---------------------------------------------------------
 # Sample GBD uncertainty using initial efficacy confidence intervals
-# Called by: run_uncertainty()
 # ---------------------------------------------------------
 generate_gbd_uncertainty = function(gbd_dt, scenario_impact) {
   

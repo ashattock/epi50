@@ -18,7 +18,7 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = 6)
+o = set_options(do_step = 5)
 
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
@@ -29,13 +29,16 @@ run_impute()  # See impute.R
 # Step 3) Calculate DALYs
 run_dalys()  # See dalys.R
 
-# Step 4) Calculate impact per FVP
+# Step 4) Fit and select impact-FVP functions
 run_impact()  # See impact.R
 
-# Step 5) Generate uncertainty draws
+# Step 5) Apply impact functions to historical coverage
+run_history()  # See history.R
+
+# Step 6) Generate uncertainty draws
 run_uncertainty()  # See uncertainty.R
 
-# Step 6) Produce results
+# Step 7) Produce results
 run_results()  # See results.R
 
 # Finish up
