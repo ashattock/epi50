@@ -45,6 +45,9 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_impact) {
     
+    # Exploratory plots of data used to fit impact functions
+    plot_impact_data()
+    
     # Plot occurancces of each 'best' function
     plot_model_counts()
     

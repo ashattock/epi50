@@ -46,21 +46,8 @@ run_impact = function() {
   # Save to file
   save_rds(data_dt, "impact", "data") 
   
-  # ---- Exploratory plots ----
-  
-  # Impact per FVP over time
-  g1 = ggplot(data_dt) +
-    aes(x = year, y = impact_fvp, colour = country) +
-    geom_line(show.legend = FALSE) +
-    facet_wrap(~d_v_a_id, scales = "free_y")
-  # prettify1(save = c("Year", "impact", "FVP"))
-  
-  # Cumulative FVPs vs cumulative deaths averted
-  g2 = ggplot(data_dt) + 
-    aes(x = fvps, y = impact, colour = country) +
-    geom_line(show.legend = FALSE) +
-    facet_wrap(~d_v_a_id, scales = "free")
-  # prettify1(save = c("FVP", "impact"))
+  # Exploratory plots of data used to fit impact functions
+  plot_impact_data()
   
   # ---- Determine best fitting model ----
   

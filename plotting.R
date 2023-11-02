@@ -343,6 +343,39 @@ plot_impute_countries = function() {
 }
 
 # ---------------------------------------------------------
+# Exploratory plots of data used to fit impact functions
+# ---------------------------------------------------------
+plot_impact_data = function() {
+  
+  message(" - Plotting impact function fitting data")
+  
+  # Load data used for impact function fitting
+  data_dt = read_rds("impact", "data") %>%
+    append_d_v_a_name()
+  
+  # Impact per FVP over time
+  g1 = ggplot(data_dt) +
+    aes(x = year, y = impact_fvp, colour = country) +
+    geom_line(show.legend = FALSE) +
+    facet_wrap(~d_v_a_name, scales = "free_y")
+  # prettify1(save = c("Year", "impact", "FVP"))
+  
+  # Cumulative FVPs vs cumulative deaths averted
+  g2 = ggplot(data_dt) + 
+    aes(x = fvps, y = impact, colour = country) +
+    geom_line(show.legend = FALSE) +
+    facet_wrap(~d_v_a_name, scales = "free")
+  # prettify1(save = c("FVP", "impact"))
+  
+  # Figure sub-directory to save to
+  dir = "impact_functions"
+  
+  # Save figures to file
+  save_fig(g1, "Data - impact ratio", dir = dir)
+  save_fig(g2, "Data - cumulative FVP vs impact", dir = dir)
+}
+
+# ---------------------------------------------------------
 # Plot occurancces of each 'best' model
 # ---------------------------------------------------------
 plot_model_counts = function() {
