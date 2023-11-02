@@ -6,6 +6,68 @@
 ###########################################################
 
 # ---------------------------------------------------------
+# Plot total number of FVP over time for each d_v_a
+# ---------------------------------------------------------
+plot_total_fvps = function() {
+  
+  message(" - Plotting total number of FVP")
+  
+  # Flag for whether to plot FVPs cumulatively over time
+  cumulative = TRUE
+  
+  # Number of FVPs by source of data
+  source_dt = table("coverage") %>%
+    # Summarise over countries and age...
+    group_by(v_a_id, source, year) %>%
+    summarise(fvps = sum(fvps)) %>%
+    ungroup() %>%
+    # Cumulative FVPs...
+    group_by(v_a_id, source) %>%
+    mutate(fvps_cum = cumsum(fvps)) %>%
+    ungroup() %>%
+    # Report for each d_v_a...
+    left_join(y  = table("v_a"), 
+              by = "v_a_id") %>%
+    full_join(y  = table("d_v_a"), 
+              by = c("vaccine", "activity"), 
+              relationship = "many-to-many") %>%
+    # Tidy up...
+    select(d_v_a_id, source, year, fvps, fvps_cum) %>%
+    arrange(d_v_a_id, source, year) %>%
+    append_d_v_a_name() %>%
+    as.data.table()
+  
+  # Total FVPs (sum of all sources)
+  total_dt = source_dt %>%
+    # Summarise over source...
+    group_by(d_v_a_id, year) %>%
+    summarise(fvps = sum(fvps)) %>%
+    ungroup() %>%
+    # Cumulative FVPs...
+    group_by(d_v_a_id) %>%
+    mutate(fvps_cum = cumsum(fvps)) %>%
+    ungroup() %>%
+    # Tidy up...
+    append_d_v_a_name() %>%
+    as.data.table()
+  
+  # Metric to use for y axis
+  y = ifelse(cumulative, "fvps_cum", "fvps")
+  
+  # Plot FVPs over time for each d_v_a
+  g = ggplot(source_dt) + 
+    aes(x = year, y = !!sym(y)) + 
+    geom_line(aes(colour = source)) + 
+    geom_line(data = total_dt, 
+              linetype = "dashed",
+              colour   = "black") + 
+    facet_wrap(~d_v_a_name)
+  
+  # Save to file
+  save_fig(g, "FVPs over time", dir = "data_visualisation")
+}
+
+# ---------------------------------------------------------
 # Plot age targets as defined by WIISE and VIMC coverage data
 # ---------------------------------------------------------
 plot_coverage_age_density = function() {
@@ -484,8 +546,8 @@ plot_model_fits = function() {
     mutate(x_max = x_max + o$eval_x_scale / 100) %>%
     as.data.table()
   
-  # Evaluate best fit model
-  best_fit = evaluate_best_model() %>%
+  # Evaluate selected impact function
+  best_fit = evaluate_impact_function() %>%
     append_d_v_a_name()
   
   # Apply max_data so we only plot up to data (or just past)
