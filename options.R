@@ -11,9 +11,9 @@
 # Set model options and assumptions
 # Called by: launch.R
 # ---------------------------------------------------------
-set_options = function(do_step = NA, quiet = FALSE) {
+set_options = function(do_step = NA) {
   
-  if (!quiet) message("* Setting options")
+  message("* Setting options")
   
   # Reset R's most annoying default options
   options(stringsAsFactors = FALSE, scipen = 999, dplyr.summarise.inform = FALSE)
@@ -49,9 +49,7 @@ set_options = function(do_step = NA, quiet = FALSE) {
   o$analysis_years = 1974 : 2024  # Vaccine deployed across these dates
   
   # Year and age ranges stored in coverage database
-  o$vimc_years = 2000 : 2024
-  o$data_years = 1980 : 2024  # Vaccine effect calculated across these dates
-  
+  o$data_years = 1980 : 2024
   o$data_ages  = 0 : 95
   
   # ---- Uncertainty settings ----
@@ -121,9 +119,6 @@ set_options = function(do_step = NA, quiet = FALSE) {
   # 
   # NOTE: Use a character vector to save with multiple formats at once
   o$figure_format = "png" # Classic options: "png", "pdf", or "svg"
-  
-  # Display analysis details
-  if (!quiet) message(" - Analysis name: ", o$analysis_name)
   
   return(o)
 }

@@ -1,7 +1,7 @@
 ###########################################################
 # COVERAGE
 #
-# xxxxxxxxxxxx
+# All coverage related functionality in one place.
 #
 ###########################################################
 
@@ -19,23 +19,29 @@ prepare_coverage = function() {
   vimc_dt = coverage_vimc()
   
   # However not every country is covered by VIMC for these pathogens
-  vimc_countries = vimc_dt %>%
+  vimc_countries_dt = vimc_dt %>%
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
-    select(vaccine, country) %>%
-    arrange(vaccine, country) %>%
-    unique() %>%
-    split(.$vaccine) %>%
-    lapply(function(x) x$country)
+    select(vaccine, country, year, source) %>%
+    arrange(vaccine, country, year) %>%
+    unique()
   
   # For everything remaining, extract coverage from WIISE database
-  wiise_dt = coverage_wiise(vimc_countries)
+  wiise_dt = coverage_wiise(vimc_countries_dt)
   
   # Combine sources
   rbind(vimc_dt, wiise_dt) %>%
     filter(fvps > 0) %>%  # Remove trivial values
     arrange(country, v_a_id, year, age) %>%
     save_table("coverage")
+  
+  # ---- Data visualisation plots ----
+  
+  # Plot total number of FVP over time
+  plot_total_fvps()
+  
+  # Coverage data density by age
+  plot_coverage_age_density()
 }
 
 # ---------------------------------------------------------
@@ -69,7 +75,7 @@ coverage_vimc = function() {
 # ---------------------------------------------------------
 # Extract coverage from WIISE database
 # ---------------------------------------------------------
-coverage_wiise = function(vimc_countries) {
+coverage_wiise = function(vimc_countries_dt) {
   
   # ---- Load data ----
   
@@ -102,21 +108,27 @@ coverage_wiise = function(vimc_countries) {
   for (i in seq_len(nrow(wiise_info))) {
     v = wiise_info[i, ]
     
-    # Countries to consider (ignoring VIMC countries)
-    wiise_countries = setdiff(
-      x = table("country")$country, 
-      y = vimc_countries[[v$vaccine]])
+    # Countries and years already covered by VIMC
+    vimc_countries = vimc_countries_dt %>%
+      filter(vaccine == v$vaccine) %>%
+      select(-vaccine)
     
     # Filter data by coverage_category type
     wiise_coverage = data_dt %>%
       setnames(names(.), tolower(names(.))) %>% 
       rename(country  = code, 
              wiise_id = antigen) %>%
-      # Select only vaccine and countries of interest...
+      # Select only vaccine and years of interest...
       filter(coverage_category == v$coverage_category, 
              wiise_id %in% v$wiise_id,
-             year     %in% o$analysis_years,
-             country  %in% wiise_countries) %>%  
+             year     %in% o$analysis_years, 
+             country  %in% table("country")$country) %>% 
+      select(country, year, coverage) %>%
+      # Remove countries and years already covered by VIMC...
+      left_join(y  = vimc_countries, 
+                by = c("country", "year")) %>%
+      filter(is.na(source)) %>%
+      select(-source) %>%
       # Format coverage...
       replace_na(list(coverage = 0)) %>%
       mutate(coverage = coverage / 100) %>%
