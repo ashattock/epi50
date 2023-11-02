@@ -10,7 +10,7 @@
 # ---------------------------------------------------------
 plot_total_fvps = function() {
   
-  message(" - Plotting total number of FVP")
+  message("  > Plotting total number of FVP")
   
   # Flag for whether to plot FVPs cumulatively over time
   cumulative = TRUE
@@ -72,7 +72,7 @@ plot_total_fvps = function() {
 # ---------------------------------------------------------
 plot_coverage_age_density = function() {
   
-  message(" - Plotting coverage data density by age")
+  message("  > Plotting coverage data density by age")
   
   # Construct plotting datatable
   plot_dt = table("coverage") %>%
@@ -125,7 +125,7 @@ plot_coverage_age_density = function() {
 # ---------------------------------------------------------
 plot_target = function() {
   
-  message(" - Plotting impact-FVP relationships")
+  message("  > Plotting impact-FVP relationships")
   
   # Stat to plot for both types of figures
   #
@@ -220,7 +220,7 @@ plot_target = function() {
 # ---------------------------------------------------------
 plot_covariates = function() {
   
-  message(" - Plotting covariate-target relationships")
+  message("  > Plotting covariate-target relationships")
   
   # ---- Load data used for fitting ----
   
@@ -262,7 +262,7 @@ plot_covariates = function() {
 # ---------------------------------------------------------
 plot_impute_fit = function() {
   
-  message(" - Plotting imputation quality of fit")
+  message("  > Plotting imputation quality of fit")
   
   # ---- Load results from fitting ----
   
@@ -323,7 +323,7 @@ plot_impute_fit = function() {
 # ---------------------------------------------------------
 plot_impute_countries = function() {
   
-  message(" - Plotting country-aggregated imputation errors")
+  message("  > Plotting country-aggregated imputation errors")
   
   # ---- Load results from fitting ----
   
@@ -409,7 +409,7 @@ plot_impute_countries = function() {
 # ---------------------------------------------------------
 plot_impact_data = function() {
   
-  message(" - Plotting impact function fitting data")
+  message("  > Plotting impact function fitting data")
   
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "data") %>%
@@ -442,7 +442,7 @@ plot_impact_data = function() {
 # ---------------------------------------------------------
 plot_model_selection = function() {
   
-  message(" - Plotting impact function counts")
+  message("  > Plotting impact function counts")
   
   # Load stuff: best fit functions and associtaed coefficients
   best_dt = read_rds("impact", "best_model") %>%
@@ -530,7 +530,7 @@ plot_model_selection = function() {
 # ---------------------------------------------------------
 plot_model_fits = function() {
   
-  message(" - Plotting impact function fits")
+  message("  > Plotting impact function fits")
   
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "data") %>%
@@ -577,7 +577,7 @@ plot_model_fits = function() {
 # ---------------------------------------------------------
 plot_annual_total = function() {
   
-  message(" - Plotting annual totals")
+  message("  > Plotting annual totals")
   
   browser() # Needs updating for EPI50 pipeline...
   
@@ -628,7 +628,7 @@ plot_annual_total = function() {
 # ---------------------------------------------------------
 plot_uncertainty_draws = function() {
   
-  message(" - Plotting uncertainty draws")
+  message("  > Plotting uncertainty draws")
   
   # Flag for transforming y axis to log10 scale
   y_transform = FALSE
@@ -689,7 +689,7 @@ plot_uncertainty_draws = function() {
 # ---------------------------------------------------------
 plot_gbd_uncertainty_dist = function() {
   
-  message(" - Plotting GBD uncertainty distribution")
+  message("  > Plotting GBD uncertainty distribution")
   
   # Points over which to evaluate beta distribution
   eval_pts = seq(0, 1, length.out = 100)
@@ -782,7 +782,7 @@ plot_gbd_uncertainty_dist = function() {
 # ---------------------------------------------------------
 plot_gbd_uncertainty_fit = function() {
   
-  message(" - Plotting GBD uncertainty fit")
+  message("  > Plotting GBD uncertainty fit")
   
   # Grid points for diagnostic plot
   n_grid = 100  # n_grid^2 total evaluations per disease

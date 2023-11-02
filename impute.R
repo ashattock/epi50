@@ -34,8 +34,12 @@ run_impute = function() {
     lapply(do_impute, target = target_dt) %>%
     rbindlist() %>%
     # Merge VIMC estimates with those just imputed...
-    mutate(impact = ifelse(is.na(target), impact_impute, impact_cum)) %>%
-    select(country, d_v_a_id, year, fvps = fvps_cum, impact)
+    mutate(impact = ifelse(
+      test = is.na(target), 
+      yes  = impact_impute, 
+      no   = impact_cum)) %>%
+    select(country, d_v_a_id, year, 
+           fvps = fvps_cum, impact)
 
   # Save imputed results to file
   save_rds(impute_dt, "impute", "impute_result")
@@ -66,7 +70,7 @@ do_impute = function(d_v_a_id, target) {
     select(disease, vaccine, activity, source)
   
   # Display progress message to user
-  message(paste0("  > ", paste(d_v_a, collapse = ", ")))
+  message(" - ", paste(d_v_a, collapse = ", "))
   
   # ---- Append covariates ----
   
@@ -93,9 +97,12 @@ do_impute = function(d_v_a_id, target) {
     ungroup() %>%
     as.data.table()
   
+  # TODO: We can either include or exclude zero here - arguably with zero is better...
+  
   # Data used to fit statistical model
   data_dt = target_dt %>%
     filter(!is.na(target)) %>%
+    # filter(target > 0) %>%
     select(target, n_years, coverage, sdi, haqi, imr) %>%
     # Remove target outliers for better normalisation...
     mutate(lower = mean(target) - 3 * sd(target), 
@@ -113,7 +120,7 @@ do_impute = function(d_v_a_id, target) {
   # Return out if no data available
   if (nrow(data_dt[target > 0]) < 10) {
     
-    message("  !! Insufficient data for imputation !!")
+    message(" !! Insufficient data for imputation !!")
     
     # Store trivial outcomes
     fit = list(data = data_dt, result = NULL)
@@ -204,27 +211,38 @@ get_target = function() {
               by = "d_v_a_id") %>%
     as.data.table()
   
+  # Remove any WIISE coverage for VIMC countries
+  rm_wiise_dt = impact_dt %>%
+    select(country, d_v_a_id) %>%
+    unique() %>%
+    mutate(source = "wiise", 
+           rm = TRUE)
+  
   # Extract coverage
   coverage_dt = table("coverage") %>%
-    filter(year %in% o$vimc_years) %>%
-    # Summarise over age...
-    group_by(country, v_a_id, year) %>%
-    summarise(coverage = mean(coverage), 
-              fvps_abs = sum(fvps)) %>%
-    ungroup() %>%
-    # Cumulative sum FVPs...
-    arrange(country, v_a_id, year) %>%
-    group_by(country, v_a_id) %>%
-    mutate(fvps_cum = cumsum(fvps_abs)) %>%
-    ungroup() %>%
     # Append v_a details...
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
     filter(vaccine %in% unique(impact_dt$vaccine)) %>%
     left_join(y  = table("d_v_a"), 
               by = c("vaccine", "activity")) %>%
-    select(country, d_v_a_id, year, coverage, 
-           fvps_abs, fvps_cum) %>%
+    select(country, d_v_a_id, year, coverage, fvps, source) %>%
+    # Remove data that isn't to be used for imputation...
+    filter(year >= min(impact_dt$year)) %>%
+    left_join(y  = rm_wiise_dt, 
+              by = c("country", "d_v_a_id", "source")) %>%
+    filter(is.na(rm)) %>%
+    select(-source, -rm) %>%
+    # Summarise over age...
+    group_by(country, d_v_a_id, year) %>%
+    summarise(coverage = mean(coverage), 
+              fvps_abs = sum(fvps)) %>%
+    ungroup() %>%
+    # Cumulative sum FVPs...
+    arrange(country, d_v_a_id, year) %>%
+    group_by(country, d_v_a_id) %>%
+    mutate(fvps_cum = cumsum(fvps_abs)) %>%
+    ungroup() %>%
     as.data.table()
   
   # Combine into single datatable
@@ -233,8 +251,7 @@ get_target = function() {
               by = c("country", "d_v_a_id", "year")) %>%
     select(-disease, -vaccine, -activity) %>%
     # Impact per FVP...
-    mutate(target = impact_cum / fvps_cum) # %>%
-    # select(country, d_v_a_id, year, target, coverage)
+    mutate(target = impact_cum / fvps_cum)
   
   # Save this datatable to file for plotting purposes
   save_rds(target_dt, "impute", "target")
