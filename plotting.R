@@ -376,14 +376,11 @@ plot_impact_data = function() {
 }
 
 # ---------------------------------------------------------
-# Plot occurancces of each 'best' model
+# Plot function selection statistics
 # ---------------------------------------------------------
-plot_model_counts = function() {
+plot_model_selection = function() {
   
   message(" - Plotting impact function counts")
-  
-  # Which function to highlight
-  focus = "log3"
   
   # Load stuff: best fit functions and associtaed coefficients
   best_dt = read_rds("impact", "best_model") %>%
@@ -392,14 +389,13 @@ plot_model_counts = function() {
   # ---- Plot function count ----
   
   # Simple plotting function with a few features
-  plot_count = function(var, type = "count", ord = "n") {
+  plot_selection = function(var, type = "count", stat = "n") {
     
     # Determine order - with 'focus' function first
-    fn_ord  = c(focus, setdiff(unique(best_dt$fn), focus))
     fn_dict = fn_set(dict = TRUE)
     
     # Number of times each model is optimal
-    count_dt = best_dt %>% 
+    selection_dt = best_dt %>% 
       rename(var = !!var) %>% 
       # Number and proportion of each fn...
       count(var, fn) %>%
@@ -408,12 +404,12 @@ plot_model_counts = function() {
       ungroup() %>%
       mutate(p = n / total) %>%
       # Set appropriate plotting order...
-      rename(val = !!ord) %>%
+      rename(val = !!stat) %>%
       select(var, fn, val) %>%
       pivot_wider(names_from  = fn, 
                   values_from = val, 
                   values_fill = 0) %>%
-      arrange_at(fn_ord) %>%
+      arrange_at(rev(names(fn_dict))) %>%
       # Final formatting...
       pivot_longer(cols = -var, 
                    names_to  = "fn", 
@@ -427,19 +423,19 @@ plot_model_counts = function() {
     if (type == "count") {
       
       # Number of occurances
-      g = ggplot(count_dt[val > 0]) + 
+      g = ggplot(selection_dt[val > 0]) + 
         aes(x = var, y = val, fill = fn) + 
         geom_col() + 
         coord_flip()
-      # prettify2(save = c("Count", focus, var, ord))
+      # prettify2(save = c("Count", focus, var, stat))
     }
     
     # Check figure type flag
     if (type == "density") {
       
       # Density of occurances
-      g = ggplot(count_dt[fn == fn_dict[focus]]) + 
-        aes(x = val) +
+      g = ggplot(selection_dt) + 
+        aes(x = val, fill = fn) +
         geom_bar()
     }
     
@@ -452,19 +448,19 @@ plot_model_counts = function() {
   save_dir = "impact_functions"
   
   # Plot by disease-vaccine-activity
-  g1 = plot_count("d_v_a_name", ord = "n")
-  g2 = plot_count("d_v_a_name", ord = "p")
+  g1 = plot_selection("d_v_a_name", stat = "n")
+  g2 = plot_selection("d_v_a_name", stat = "p")
   
-  save_fig(g1, "Count", "pathogen", "number",     dir = save_dir)
-  save_fig(g2, "Count", "pathogen", "proportion", dir = save_dir)
+  save_fig(g1, "Selection", "pathogen", "number",     dir = save_dir)
+  save_fig(g2, "Selection", "pathogen", "proportion", dir = save_dir)
   
   # Plot by country
-  g3 = plot_count("country", type = "count")
-  g4 = plot_count("country", type = "density")
+  g3 = plot_selection("country", type = "count")
+  g4 = plot_selection("country", type = "density")
   
   # Save the last figure
-  save_fig(g3, "Count",   "country", dir = save_dir)
-  save_fig(g4, "Density", "country", dir = save_dir)
+  save_fig(g3, "Selection", "country", dir = save_dir)
+  save_fig(g4, "Density",   "country", dir = save_dir)
 }
 
 # ---------------------------------------------------------

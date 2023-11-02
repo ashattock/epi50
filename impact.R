@@ -51,6 +51,8 @@ run_impact = function() {
   
   # ---- Determine best fitting model ----
   
+  message("* Fitting models")
+  
   # Country-disease-vaccine-activity combinations
   c_d_v_a = data_dt %>%
     select(country, d_v_a_id) %>%
@@ -88,6 +90,8 @@ run_impact = function() {
   close(pb)
   
   # ---- Store results ----
+  
+  message("* Selecting best models")
   
   # Collapse all fn coefficients into single datatable
   coef_dt = rbindlist(coef)
@@ -155,8 +159,8 @@ run_impact = function() {
   
   # NOTE: All plotting functionality lives in plotting.R
   
-  # Plot occurancces of each 'best' function
-  plot_model_counts()
+  # Plot function selection statistics
+  plot_model_selection()
   
   # Plot impact function evaluation
   plot_model_fits()

@@ -33,11 +33,11 @@ run_results = function() {
     
     # Plot predictor and response relationships
     plot_target()
-    # plot_covariates()
-    # 
-    # # Plot imputation outcomes
-    # plot_impute_fit()
-    # plot_impute_countries()
+    plot_covariates()
+
+    # Plot imputation outcomes
+    plot_impute_fit()
+    plot_impute_countries()
   }
   
   # ---- Impact function plots ----
@@ -48,8 +48,8 @@ run_results = function() {
     # Exploratory plots of data used to fit impact functions
     plot_impact_data()
     
-    # Plot occurancces of each 'best' function
-    plot_model_counts()
+    # Plot function selection statistics
+    plot_model_selection()
     
     # Plot impact function evaluation
     plot_model_fits()
