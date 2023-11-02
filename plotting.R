@@ -14,7 +14,8 @@ plot_coverage_age_density = function() {
   
   # Construct plotting datatable
   plot_dt = table("coverage") %>%
-    mutate(trans_age = pmax(age, 1), .after = age)
+    mutate(trans_age = pmax(age, 1), .after = age) %>%
+    append_v_a_name()
   
   # Plot age density of coverage data by source
   g = ggplot(plot_dt) +
@@ -22,7 +23,7 @@ plot_coverage_age_density = function() {
     # Coverage from WIISE (in black)...
     geom_density(
       data    = plot_dt[source == "wiise"],
-      mapping = aes(y = ..scaled..), 
+      mapping = aes(y = after_stat(scaled)), 
       colour  = "black", 
       fill    = "black", 
       alpha   = 0.2) +
@@ -30,11 +31,11 @@ plot_coverage_age_density = function() {
     geom_density(
       data    = plot_dt[source == "vimc"],
       mapping = aes(
-        y = ..scaled..,
-        colour = as.factor(v_a_id),
-        fill   = as.factor(v_a_id)), 
+        y = after_stat(scaled),
+        colour = v_a_name,
+        fill   = v_a_name), 
       alpha = 0.2) +
-    facet_wrap(~v_a_id)
+    facet_wrap(~v_a_name)
   
   # Apply meaningful scale
   g = g + scale_x_continuous(
@@ -54,7 +55,7 @@ plot_coverage_age_density = function() {
   #   scale_colour_manual(values = colours)
   
   # Save to file
-  save_fig(g, "Coverage density by age", dir = "data")
+  save_fig(g, "Coverage density by age", dir = "data_visualisation")
 }
 
 # ---------------------------------------------------------
@@ -70,7 +71,8 @@ plot_target = function() {
   stat_1 = "cum"  # Timing figure
   stat_2 = "cum"  # Ratio figure
   
-  #
+  browser()
+  
   n_sets = 8
   
   set_dt = table("country") %>%
@@ -116,7 +118,7 @@ plot_target = function() {
       facet_wrap(~set, scales = "free_y", nrow = 2)
     
     # Save in nested directory
-    save_dir = c("impute", "target")
+    save_dir = c("imputation", "target")
     
     # Save figure to file
     save_fig(g1, "VIMC impact-FVP timing", id, dir = save_dir)
@@ -153,16 +155,17 @@ plot_covariates = function() {
     pivot_longer(cols = -c(d_v_a_id, target), 
                  names_to = "covariate") %>%
     arrange(d_v_a_id, covariate, target) %>%
+    append_d_v_a_name() %>%
     as.data.table()
   
   # Plot covariates vs imputation target
   g = ggplot(plot_dt) +
     aes(x = target, y = value, colour = covariate) +
     geom_point(alpha = 0.2, shape = 16, show.legend = FALSE) +
-    facet_grid(d_v_a_id~covariate, scales = "free")
+    facet_grid(covariate~d_v_a_name, scales = "free")
   
   # Save figure to file
-  save_fig(g, "Covariate relationships", dir = "impute")
+  save_fig(g, "Covariate relationships", dir = "imputation")
 }
 
 # ---------------------------------------------------------
@@ -190,9 +193,9 @@ plot_impute_fit = function() {
   plot_dt = results_dt %>%
     filter(!is.na(target)) %>%
     select(-country) %>%
-    mutate(d_v_a_id = as.factor(d_v_a_id)) %>%
+    append_d_v_a_name() %>%
     # Remove target outliers for better normalisation...
-    group_by(d_v_a_id) %>%
+    group_by(d_v_a_name) %>%
     mutate(lower = mean(target) - 3 * sd(target), 
            upper = mean(target) + 3 * sd(target), 
            outlier = target < lower | target > upper) %>%
@@ -204,7 +207,7 @@ plot_impute_fit = function() {
   # Maximum value in each facet (target or predict)
   blank_dt = plot_dt %>%
     mutate(max_value = pmax(target, predict)) %>%
-    group_by(d_v_a_id) %>%
+    group_by(d_v_a_name) %>%
     summarise(max_value = max(max_value)) %>%
     ungroup() %>%
     expand_grid(type = c("target", "predict")) %>%
@@ -216,14 +219,14 @@ plot_impute_fit = function() {
   
   # Single plot with multiple facets
   g = ggplot(plot_dt) +
-    aes(x = target, y = predict, color = d_v_a_id) +
+    aes(x = target, y = predict, color = d_v_a_name) +
     geom_point(alpha = 0.5, shape = 16, show.legend = FALSE) +
     geom_blank(data = blank_dt) +    # For square axes
     geom_abline(colour = "black") +  # To see quality of predict vs target
-    facet_wrap(~d_v_a_id, scales = "free")
+    facet_wrap(~d_v_a_name, scales = "free")
   
   # Save figure to file
-  save_fig(g, "Imputation fit", dir = "impute")
+  save_fig(g, "Imputation fit", dir = "imputation")
 }
 
 # ---------------------------------------------------------
@@ -243,13 +246,14 @@ plot_impute_countries = function() {
   results_dt = table("d_v_a") %>%
     pluck("d_v_a_id") %>%
     lapply(load_results_fn) %>%
-    rbindlist()
+    rbindlist() %>%
+    append_d_v_a_name()
   
   # ---- Plot 1: annual error by country ----
   
   # Truth vs predicted over time for training data
   annual_dt = results_dt %>%
-    select(country, d_v_a_id, year, 
+    select(country, d_v_a_name, year, 
            vimc   = impact_cum, 
            impute = impact_impute) %>%
     filter(!is.na(vimc)) %>%
@@ -267,32 +271,32 @@ plot_impute_countries = function() {
     geom_line(aes(y = impute, colour = country), 
               linewidth = 0.5, 
               linetype  = "dashed") +
-    facet_wrap(~d_v_a_id, scales = "free_y")
+    facet_wrap(~d_v_a_name, scales = "free_y")
   
   # Remove legend
   g = g + theme(legend.position = "none")
   
   # Save figure to file
-  save_fig(g, "Imputation error annual", dir = "impute")
+  save_fig(g, "Imputation error annual", dir = "imputation")
   
   # ---- Plot 2: total error by country ----
   
   # Where imputed countries lie in terms of magnitude
   total_dt = results_dt %>%
-    group_by(country, d_v_a_id) %>%
+    group_by(country, d_v_a_name) %>%
     summarise(truth   = max(impact_cum), 
               predict = max(impact_impute)) %>%
     ungroup() %>%
     mutate(source = ifelse(is.na(truth), "impute", "vimc"), 
            truth  = ifelse(is.na(truth), predict, truth)) %>%
     # mutate(source = factor(source, c("impute", "vimc"))) %>%
-    arrange(d_v_a_id, desc(source), country) %>%
+    arrange(d_v_a_name, desc(source), country) %>%
     as.data.table()
   
   # Maximum value in each facet (target or predict)
   blank_dt = total_dt %>%
     mutate(max_value = pmax(truth, predict)) %>%
-    group_by(d_v_a_id) %>%
+    group_by(d_v_a_name) %>%
     summarise(max_value = max(max_value)) %>%
     ungroup() %>%
     expand_grid(type = c("truth", "predict")) %>%
@@ -305,10 +309,10 @@ plot_impute_countries = function() {
     geom_abline(colour = "black") +  # To see quality of truth vs predict
     geom_blank(data = blank_dt) +    # For square axes
     geom_point(aes(colour = source)) + 
-    facet_wrap(~d_v_a_id, scales = "free")
+    facet_wrap(~d_v_a_name, scales = "free")
   
   # Save figure to file
-  save_fig(g, "Imputation error total", dir = "impute")
+  save_fig(g, "Imputation error total", dir = "imputation")
 }
 
 # ---------------------------------------------------------
@@ -384,20 +388,23 @@ plot_model_counts = function() {
   
   # ---- A variety of plots ----
   
+  # Figure sub-directory to save to 
+  save_dir = "impact_functions"
+  
   # Plot by disease-vaccine-activity
   g1 = plot_count("d_v_a_name", ord = "n")
   g2 = plot_count("d_v_a_name", ord = "p")
   
-  save_fig(g1, "Count", "pathogen", "number",     dir = "impact")
-  save_fig(g2, "Count", "pathogen", "proportion", dir = "impact")
+  save_fig(g1, "Count", "pathogen", "number",     dir = save_dir)
+  save_fig(g2, "Count", "pathogen", "proportion", dir = save_dir)
   
   # Plot by country
   g3 = plot_count("country", type = "count")
   g4 = plot_count("country", type = "density")
   
   # Save the last figure
-  save_fig(g3, "Count",   "country", dir = "impact")
-  save_fig(g4, "Density", "country", dir = "impact")
+  save_fig(g3, "Count",   "country", dir = save_dir)
+  save_fig(g4, "Density", "country", dir = save_dir)
 }
 
 # ---------------------------------------------------------
@@ -408,27 +415,30 @@ plot_model_fits = function() {
   message(" - Plotting impact function fits")
   
   # Load data used for impact function fitting
-  data_dt = read_rds("impact", "data")
+  data_dt = read_rds("impact", "data") %>%
+    append_d_v_a_name()
   
   # Evaluate only as far as we have data
   max_data = data_dt %>%
-    group_by(country, d_v_a_id) %>%
+    group_by(country, d_v_a_name) %>%
     slice_max(fvps, n = 1, with_ties = FALSE) %>%
     ungroup() %>%
-    select(country, d_v_a_id, x_max = fvps) %>%
+    select(country, d_v_a_name, x_max = fvps) %>%
     # Increment up one so we plot slightly past the data
     mutate(x_max = x_max + o$eval_x_scale / 100) %>%
     as.data.table()
   
   # Evaluate best fit model
-  best_fit = evaluate_best_model()
+  best_fit = evaluate_best_model() %>%
+    append_d_v_a_name()
   
   # Apply max_data so we only plot up to data (or just past)
   plot_dt = best_fit %>%
     left_join(y  = max_data,
-              by = c("country", "d_v_a_id")) %>%
+              by = c("country", "d_v_a_name")) %>%
     filter(fvps < x_max) %>%
-    select(country, d_v_a_id, fvps, impact)
+    append_d_v_a_name() %>%
+    select(country, d_v_a_name, fvps, impact)
   
   # Plot function evaluation against the data
   g = ggplot(plot_dt) +
@@ -438,16 +448,67 @@ plot_model_fits = function() {
                alpha = 0.5,
                show.legend = FALSE) +
     geom_line(show.legend = FALSE) +
-    facet_wrap(~d_v_a_id, scales = "free")
+    facet_wrap(~d_v_a_name, scales = "free")
   # prettify1(save = c("Fit data", focus, name))
   
-  save_fig(g, "Impact function evaluation", dir = "impact")
+  save_fig(g, "Impact function evaluation", dir = "impact_functions")
+}
+
+# ---------------------------------------------------------
+# Plot annual totals - diagnostic figure to check alignment of means
+# ---------------------------------------------------------
+plot_annual_total = function() {
+  
+  message(" - Plotting annual totals")
+  
+  browser() # Needs updating for EPI50 pipeline...
+  
+  # Load modelled total deaths per year
+  scenario_total = try_load(o$pth$impact_factors, "scenario_total")
+  
+  # Load uncertainty draws - we want to see the means of these the same as above
+  draws_dt = try_load(o$pth$uncertainty, "draws")
+  
+  # Uncertainty per year (all diseases and countries) across draws
+  annual_dt = draws_dt %>%
+    # Melt to long format...
+    pivot_longer(cols = starts_with("draw"), 
+                 names_to = "draw") %>%
+    # Total deaths averted per year (per draw)...
+    group_by(year, draw) %>%
+    summarise(value = sum(value)) %>%
+    ungroup() %>%
+    # Mean and bounds across draws...
+    group_by(year) %>%
+    summarise(mean =  mean(value), 
+              lower = quantile(value, 0.05), 
+              upper = quantile(value, 0.95)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # Plot mean and bounds from draws, and overlay modelled mean
+  g = ggplot(annual_dt, aes(x = year)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper),
+                colour = "red", fill = "red", alpha = 0.5) +
+    geom_line(aes(y = mean), colour = "red", linewidth = 2) +
+    geom_point(data    = scenario_total,
+               mapping = aes(y = deaths_averted),
+               colour  = "black")
+  
+  # Prettify plot
+  g %<>% ggpretty(
+    x_lab = "Year", 
+    y_lab = "Deaths averted")
+  
+  # Save figure to file
+  save_name = "Uncertainty bounds - Annual total"
+  save_fig(g, save_name, dir = "uncertainty")
 }
 
 # ---------------------------------------------------------
 # Plot uncertainty draws
 # ---------------------------------------------------------
-plot_draws = function(fig_name) {
+plot_uncertainty_draws = function() {
   
   message(" - Plotting uncertainty draws")
   
@@ -501,63 +562,14 @@ plot_draws = function(fig_name) {
                         expand = expansion(mult = c(0, 0.05)))
   
   # Save figure to file
-  save_fig(g, fig_name, dir = "diagnostics")
-}
-
-# ---------------------------------------------------------
-# Plot annual totals - diagnostic figure to check alignment of means
-# ---------------------------------------------------------
-plot_annual_total = function(fig_name) {
-  
-  message(" - Plotting annual totals")
-  
-  browser() # Needs updating for EPI50 pipeline...
-  
-  # Load modelled total deaths per year
-  scenario_total = try_load(o$pth$impact_factors, "scenario_total")
-  
-  # Load uncertainty draws - we want to see the means of these the same as above
-  draws_dt = try_load(o$pth$uncertainty, "draws")
-  
-  # Uncertainty per year (all diseases and countries) across draws
-  annual_dt = draws_dt %>%
-    # Melt to long format...
-    pivot_longer(cols = starts_with("draw"), 
-                 names_to = "draw") %>%
-    # Total deaths averted per year (per draw)...
-    group_by(year, draw) %>%
-    summarise(value = sum(value)) %>%
-    ungroup() %>%
-    # Mean and bounds across draws...
-    group_by(year) %>%
-    summarise(mean =  mean(value), 
-              lower = quantile(value, 0.05), 
-              upper = quantile(value, 0.95)) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  # Plot mean and bounds from draws, and overlay modelled mean
-  g = ggplot(annual_dt, aes(x = year)) +
-    geom_ribbon(aes(ymin = lower, ymax = upper),
-                colour = "red", fill = "red", alpha = 0.5) +
-    geom_line(aes(y = mean), colour = "red", linewidth = 2) +
-    geom_point(data    = scenario_total,
-               mapping = aes(y = deaths_averted),
-               colour  = "black")
-  
-  # Prettify plot
-  g %<>% ggpretty(
-    x_lab = "Year", 
-    y_lab = "Deaths averted")
-  
-  # Save figure to file
-  save_fig(g, fig_name, dir = "diagnostics")
+  save_name = "Uncertainty draws - All diseases"
+  save_fig(g, save_name, dir = "uncertainty")
 }
 
 # ---------------------------------------------------------
 # Plot parameters of fitted beta distribution to vaccine efficacy
 # ---------------------------------------------------------
-plot_gbd_uncertainty_dist = function(fig_name) {
+plot_gbd_uncertainty_dist = function() {
   
   message(" - Plotting GBD uncertainty distribution")
   
@@ -643,13 +655,14 @@ plot_gbd_uncertainty_dist = function(fig_name) {
   g = g + theme(axis.text.y = element_blank())
   
   # Save figure to file
-  save_fig(g, fig_name, dir = "diagnostics")
+  save_name = "Uncertainty distributions - GBD diseases"
+  save_fig(g, save_name, dir = "uncertainty")
 }
 
 # ---------------------------------------------------------
 # Plot optimisation perfomance of dist fit to vaccine efficacy
 # ---------------------------------------------------------
-plot_gbd_uncertainty_fit = function(fig_name) {
+plot_gbd_uncertainty_fit = function() {
   
   message(" - Plotting GBD uncertainty fit")
   
@@ -745,7 +758,8 @@ plot_gbd_uncertainty_fit = function(fig_name) {
           axis.ticks   = element_blank())
   
   # Save figure to file
-  save_fig(g, fig_name, dir = "diagnostics")
+  save_name = "Uncertainty fit - GBD diseases"
+  save_fig(g, save_name, dir = "uncertainty")
 }
 
 # ---------------------------------------------------------
@@ -760,11 +774,28 @@ append_d_v_a_name = function(id_dt) {
     mutate(d_v_a_name = paste0(disease, " (", 
                                vaccine, "): ", 
                                activity), 
-           .after = d_v_a_id)
+           .after = d_v_a_id) %>%
+    select(-disease, -vaccine, -activity)
   
   return(name_dt)
 }
 
+# ---------------------------------------------------------
+# Convert v_a_id into human-readable sting
+# ---------------------------------------------------------
+append_v_a_name = function(id_dt) {
+  
+  # Append v_a description
+  name_dt = id_dt %>%
+    left_join(y  = table("v_a"), 
+              by = "v_a_id") %>%
+    mutate(v_a_name = paste0(vaccine, ": ", 
+                             activity), 
+           .after = v_a_id) %>%
+    select(-vaccine, -activity)
+  
+  return(name_dt)
+}
 # ---------------------------------------------------------
 # Apply colour scheme and tidy up axes - impact plots
 # ---------------------------------------------------------

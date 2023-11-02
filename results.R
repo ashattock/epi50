@@ -1,12 +1,14 @@
 ###########################################################
 # RESULTS
 #
-# xxxxxxx
+# Call plotting functions as defined by o$plot_xxx flags (see
+# options.R). All plotting functions themselves live in 
+# plotting.R.
 #
 ###########################################################
 
 # ---------------------------------------------------------
-# xxxxxxxx
+# Call plots as defined by o$plot_xxx flags
 # ---------------------------------------------------------
 run_results = function() {
   
@@ -43,8 +45,10 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_impact) {
     
+    # Plot occurancces of each 'best' function
     plot_model_counts()
     
+    # Plot impact function evaluation
     plot_model_fits()
   }
   
@@ -53,17 +57,14 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_uncertainty) {
     
-    # Plot parameters of fitted beta distribution to vaccine efficacy (GBD diseases only)
-    fig_name = "Uncertainty distributions - GBD diseases"
-    plot_gbd_uncertainty_dist(fig_name)  # See plotting.R
+    # Plot annual totals to check alignment of means
+    plot_annual_total()
     
     # Plot uncertainty draws for all diseases
-    fig_name = "Uncertainty draws - All diseases"
-    plot_draws(fig_name)  # See plotting.R
+    plot_uncertainty_draws()
     
-    # Plot annual totals to check alignment of means
-    fig_name = "Uncertainty bounds - Annual total"
-    plot_annual_total(fig_name)  # See plotting.R
+    # Plot fit parameters around vaccine efficacy (GBD diseases only)
+    plot_gbd_uncertainty_dist()
   }
 }
 
