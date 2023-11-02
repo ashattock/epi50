@@ -22,6 +22,9 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_inputs) {
     
+    # Plot total number of FVP over time
+    plot_total_fvps()
+    
     # Coverage data density by age
     plot_coverage_age_density()
   }
