@@ -79,8 +79,9 @@ set_options = function(do_step = NA, quiet = FALSE) {
   # ---- Plotting flags ----
   
   # Turn figures on or off
-  o$plot_inputs      = TRUE
-  o$plot_imputation  = TRUE
+  o$plot_inputs      = FALSE
+  o$plot_imputation  = FALSE
+  o$plot_impact      = TRUE
   o$plot_uncertainty = FALSE
   
   # ---- Plotting settings ----

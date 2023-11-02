@@ -48,11 +48,11 @@ plot_coverage_age_density = function() {
   # colours = colour_scheme(
   #   map = "pals::kovesi.rainbow",
   #   n   = n_unique(vimc_dt$v_a_id))
-
+  
   # Apply colour scheme
   # g = g + scale_fill_manual(values = colours) + 
   #   scale_colour_manual(values = colours)
-    
+  
   # Save to file
   save_fig(g, "Coverage density by age", dir = "data")
 }
@@ -306,9 +306,142 @@ plot_impute_countries = function() {
     geom_blank(data = blank_dt) +    # For square axes
     geom_point(aes(colour = source)) + 
     facet_wrap(~d_v_a_id, scales = "free")
-
+  
   # Save figure to file
   save_fig(g, "Imputation error total", dir = "impute")
+}
+
+# ---------------------------------------------------------
+# Plot occurancces of each 'best' model
+# ---------------------------------------------------------
+plot_model_counts = function() {
+  
+  message(" - Plotting impact function counts")
+  
+  # Which function to highlight
+  focus = "log3"
+  
+  # Load stuff: best fit functions and associtaed coefficients
+  best_dt = read_rds("impact", "best_model") %>%
+    append_d_v_a_name()
+  
+  # ---- Plot function count ----
+  
+  # Simple plotting function with a few features
+  plot_count = function(var, type = "count", ord = "n") {
+    
+    # Determine order - with 'focus' function first
+    fn_ord  = c(focus, setdiff(unique(best_dt$fn), focus))
+    fn_dict = fn_set(dict = TRUE)
+    
+    # Number of times each model is optimal
+    count_dt = best_dt %>% 
+      rename(var = !!var) %>% 
+      # Number and proportion of each fn...
+      count(var, fn) %>%
+      group_by(var) %>%
+      mutate(total = sum(n)) %>%
+      ungroup() %>%
+      mutate(p = n / total) %>%
+      # Set appropriate plotting order...
+      rename(val = !!ord) %>%
+      select(var, fn, val) %>%
+      pivot_wider(names_from  = fn, 
+                  values_from = val, 
+                  values_fill = 0) %>%
+      arrange_at(fn_ord) %>%
+      # Final formatting...
+      pivot_longer(cols = -var, 
+                   names_to  = "fn", 
+                   values_to = "val") %>%
+      mutate(fn  = recode(fn, !!!fn_dict), 
+             fn  = fct_inorder(fn),
+             var = fct_inorder(var)) %>%
+      as.data.table()
+    
+    # Check figure type flag
+    if (type == "count") {
+      
+      # Number of occurances
+      g = ggplot(count_dt[val > 0]) + 
+        aes(x = var, y = val, fill = fn) + 
+        geom_col() + 
+        coord_flip()
+      # prettify2(save = c("Count", focus, var, ord))
+    }
+    
+    # Check figure type flag
+    if (type == "density") {
+      
+      # Density of occurances
+      g = ggplot(count_dt[fn == fn_dict[focus]]) + 
+        aes(x = val) +
+        geom_bar()
+    }
+    
+    return(g)
+  }
+  
+  # ---- A variety of plots ----
+  
+  # Plot by disease-vaccine-activity
+  g1 = plot_count("d_v_a_name", ord = "n")
+  g2 = plot_count("d_v_a_name", ord = "p")
+  
+  save_fig(g1, "Count", "pathogen", "number",     dir = "impact")
+  save_fig(g2, "Count", "pathogen", "proportion", dir = "impact")
+  
+  # Plot by country
+  g3 = plot_count("country", type = "count")
+  g4 = plot_count("country", type = "density")
+  
+  # Save the last figure
+  save_fig(g3, "Count",   "country", dir = "impact")
+  save_fig(g4, "Density", "country", dir = "impact")
+}
+
+# ---------------------------------------------------------
+# Plot impact function evaluation
+# ---------------------------------------------------------
+plot_model_fits = function() {
+  
+  message(" - Plotting impact function fits")
+  
+  # Load data used for impact function fitting
+  data_dt = read_rds("impact", "data")
+  
+  # Evaluate only as far as we have data
+  max_data = data_dt %>%
+    group_by(country, d_v_a_id) %>%
+    slice_max(fvps, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    select(country, d_v_a_id, x_max = fvps) %>%
+    # Increment up one so we plot slightly past the data
+    mutate(x_max = x_max + o$eval_x_scale / 100) %>%
+    as.data.table()
+  
+  # Evaluate best fit model
+  best_fit = evaluate_best_model()
+  
+  # Apply max_data so we only plot up to data (or just past)
+  plot_dt = best_fit %>%
+    left_join(y  = max_data,
+              by = c("country", "d_v_a_id")) %>%
+    filter(fvps < x_max) %>%
+    select(country, d_v_a_id, fvps, impact)
+  
+  # Plot function evaluation against the data
+  g = ggplot(plot_dt) +
+    aes(x = fvps, y = impact, colour = country) +
+    geom_point(data = data_dt,
+               size = 0.75,
+               alpha = 0.5,
+               show.legend = FALSE) +
+    geom_line(show.legend = FALSE) +
+    facet_wrap(~d_v_a_id, scales = "free")
+  # prettify1(save = c("Fit data", focus, name))
+  
+  save_fig(g, "Impact function evaluation", dir = "impact")
 }
 
 # ---------------------------------------------------------
@@ -613,6 +746,125 @@ plot_gbd_uncertainty_fit = function(fig_name) {
   
   # Save figure to file
   save_fig(g, fig_name, dir = "diagnostics")
+}
+
+# ---------------------------------------------------------
+# Convert d_v_a_id into human-readable sting
+# ---------------------------------------------------------
+append_d_v_a_name = function(id_dt) {
+  
+  # Append d_v_a description
+  name_dt = id_dt %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    mutate(d_v_a_name = paste0(disease, " (", 
+                               vaccine, "): ", 
+                               activity), 
+           .after = d_v_a_id)
+  
+  return(name_dt)
+}
+
+# ---------------------------------------------------------
+# Apply colour scheme and tidy up axes - impact plots
+# ---------------------------------------------------------
+prettify1 = function(g, save = NULL) {
+  
+  # Colour map to sample from
+  map = "pals::kovesi.rainbow"
+  
+  # Axes label dictionary
+  lab_dict = c(
+    coverage    = "Coverage of target population",
+    year        = "Year",
+    fvps        = "Fully vaccinated persons (FVPs) in one year",
+    fvps_100k   = "Fully vaccinated persons (FVPs) per 100k people",
+    fvps_cum    = "Cumulative fully vaccinated persons (FVPs)",
+    fvps_rel    = "Cumulative fully vaccinated persons (FVPs) per population-person",
+    impact      = "Deaths averted",
+    impact_100k = "Deaths averted per 100k population",
+    impact_cum  = "Cumulative deaths averted", 
+    impact_rel  = "Cumulative deaths averted per population-person", 
+    impact_fvp  = "Deaths averted per fully vaccinated person (FVP)")
+  
+  # Extract info from the plot
+  g_info = ggplot_build(g)
+  
+  # Number of colours to generates - one per country
+  all_country  = table("country")$country
+  plot_country = unique(g_info$plot$data$country)
+  
+  # Construct colours from map
+  all_cols  = colour_scheme(map, n = length(all_country)) 
+  plot_cols = all_cols[all_country %in% plot_country]
+  
+  # Apply the colours
+  g = g + scale_colour_manual(values = plot_cols)
+  
+  # Prettyify axes
+  g = g + 
+    scale_x_continuous(
+      name   = lab_dict[g_info$plot$labels$x], 
+      expand = expansion(mult = c(0, 0.05)),  
+      labels = comma) +
+    scale_y_continuous(
+      name   = lab_dict[g_info$plot$labels$y], 
+      expand = expansion(mult = c(0, 0.05)),
+      labels = comma)
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(strip.text    = element_text(size = 18), #10),
+          axis.title    = element_text(size = 22), #15),
+          axis.text     = element_text(size = 12, angle = 30, hjust = 1),
+          # axis.text     = element_text(size = 7, angle = 30, hjust = 1),
+          axis.line     = element_blank(),
+          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+          panel.spacing = unit(0.5, "lines"),
+          strip.background = element_blank()) 
+  
+  # Save plots to file
+  if (!is.null(save))
+    save_fig(g, save)
+  
+  return(g)
+}
+
+# ---------------------------------------------------------
+# Apply colour scheme and tidy up axes - count plots
+# ---------------------------------------------------------
+prettify2 = function(g, save = NULL) {
+  
+  # Construct manual colour scheme
+  cols = c("grey60", "dodgerblue1")
+  
+  # Apply the colours
+  g = g + scale_fill_manual(name = "Best model", values = cols)
+  
+  # Prettyify axes
+  g = g + scale_y_continuous(expand = expansion(mult = c(0, 0.05)),
+                             breaks = pretty_breaks(), 
+                             name   = "Count")
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.y  = element_blank(),
+          axis.title.x  = element_text(size = 18),
+          axis.text     = element_text(size = 10),
+          axis.line     = element_blank(),
+          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+          panel.spacing = unit(0.5, "lines"),
+          legend.title  = element_text(size = 14),
+          legend.text   = element_text(size = 12),
+          legend.key    = element_blank(),
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines")) 
+  
+  # Save plots to file
+  if (!is.null(save))
+    save_fig(g, save)
+  
+  return(g)
 }
 
 # ---------------------------------------------------------

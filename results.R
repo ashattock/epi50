@@ -38,6 +38,16 @@ run_results = function() {
     plot_impute_countries()
   }
   
+  # ---- Impact function plots ----
+  
+  # Check plotting flag
+  if (o$plot_impact) {
+    
+    plot_model_counts()
+    
+    plot_model_fits()
+  }
+  
   # ---- Uncertainty plots ----
   
   # Check plotting flag

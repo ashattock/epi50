@@ -30,7 +30,7 @@ run_impact = function() {
     as.data.table()
   
   # Impact estimates (VIMC & imputed) per capita
-  impact_dt = read_rds("impute", "impute_result") %>%
+  data_dt = read_rds("impute", "impute_result") %>%
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
     mutate(fvps   = o$per_person * fvps / pop, 
@@ -43,17 +43,20 @@ run_impact = function() {
     filter(n > 1) %>%
     select(-n)
   
+  # Save to file
+  save_rds(data_dt, "impact", "data") 
+  
   # ---- Exploratory plots ----
   
   # Impact per FVP over time
-  g1 = ggplot(impact_dt) +
+  g1 = ggplot(data_dt) +
     aes(x = year, y = impact_fvp, colour = country) +
     geom_line(show.legend = FALSE) +
     facet_wrap(~d_v_a_id, scales = "free_y")
   # prettify1(save = c("Year", "impact", "FVP"))
   
   # Cumulative FVPs vs cumulative deaths averted
-  g2 = ggplot(impact_dt) + 
+  g2 = ggplot(data_dt) + 
     aes(x = fvps, y = impact, colour = country) +
     geom_line(show.legend = FALSE) +
     facet_wrap(~d_v_a_id, scales = "free")
@@ -62,7 +65,7 @@ run_impact = function() {
   # ---- Determine best fitting model ----
   
   # Country-disease-vaccine-activity combinations
-  c_d_v_a = impact_dt %>%
+  c_d_v_a = data_dt %>%
     select(country, d_v_a_id) %>%
     unique()
   
@@ -83,7 +86,7 @@ run_impact = function() {
     x = c_d_v_a[i, ]
     
     # Attempt to fit all fns and determine most suitable
-    result = get_best_model(fns, impact_dt, x$country, x$d_v_a_id)
+    result = get_best_model(fns, data_dt, x$country, x$d_v_a_id)
     
     # Store results
     coef[[i]] = result$coef
@@ -188,10 +191,10 @@ fn_set = function(dict = FALSE) {
 # ---------------------------------------------------------
 # Parent function to determine best fitting function
 # ---------------------------------------------------------
-get_best_model = function(fns, impact_dt, country, d_v_a_id) {
+get_best_model = function(fns, data_dt, country, d_v_a_id) {
   
   # Reduce data down to what we're interested in
-  data_dt = impact_dt %>%
+  c_d_v_a_dt = data_dt %>%
     filter(country  == !!country, 
            d_v_a_id == !!d_v_a_id) %>%
     select(x = fvps,
@@ -200,12 +203,12 @@ get_best_model = function(fns, impact_dt, country, d_v_a_id) {
     mutate(y = y * o$impact_scaler)
   
   # Do not fit if insufficient data
-  if (nrow(data_dt) <= 3)
+  if (nrow(c_d_v_a_dt) <= 3)
     return()
   
   # Declare x and y values for which we want to determine a relationship
-  x = data_dt$x
-  y = data_dt$y
+  x = c_d_v_a_dt$x
+  y = c_d_v_a_dt$y
   
   # Use optim algorithm to get good starting point for MLE
   start = credible_start(fns, x, y)
@@ -495,7 +498,7 @@ evaluate_best_model = function(country = NULL, d_v_a_id = NULL, x = NULL) {
   # Points at which to evaluate
   if (is.null(x)) {
     x_pts = seq(0, o$per_person * o$eval_x_scale, length.out = 101)
-    x = data.table(expand_grid(country, d_v_a_id, fvps_rel = x_pts))
+    x = data.table(expand_grid(country, d_v_a_id, fvps = x_pts))
   }
   
   # ---- Evaluate best fit model and coefficients ----
@@ -509,7 +512,7 @@ evaluate_best_model = function(country = NULL, d_v_a_id = NULL, x = NULL) {
     a = best_coef[i, ]
     
     # Extract x from input datatable
-    x = x[country == a$country & d_v_a_id == a$d_v_a_id, fvps_rel]
+    x = x[country == a$country & d_v_a_id == a$d_v_a_id, fvps]
     
     # Call function of interest with these coefficients
     y = do.call(fn_set()[[a$fn]], c(list(x = x), a$par[[1]]))
@@ -538,269 +541,9 @@ evaluate_best_model = function(country = NULL, d_v_a_id = NULL, x = NULL) {
     # Transform impact to real scale...
     mutate(y = y / o$impact_scaler) %>%
     select(country, d_v_a_id, fn,
-           fvps_rel   = x, 
-           impact_rel = y)
+           fvps   = x, 
+           impact = y)
   
   return(best_fit)
-}
-
-# ---------------------------------------------------------
-# Plot occurancces of each 'best' model
-# ---------------------------------------------------------
-plot_model_counts = function(focus = "log3") {
-  
-  # Load stuff: best fit functions and associtaed coefficients
-  best_dt = read_rds("impact", "best_model")
-  
-  # ---- Plot function count ----
-  
-  # Simple plotting function with a few features
-  plot_count = function(var, fig = "count", ord = "n") {
-    
-    # Determine order - with 'focus' function first
-    fn_ord  = c(focus, setdiff(unique(best_dt$fn), focus))
-    fn_dict = fn_set(dict = TRUE)
-    
-    # Number of times each model is optimal
-    count_dt = best_dt %>% 
-      rename(var = !!var) %>% 
-      # Number and proportion of each fn...
-      count(var, fn) %>%
-      group_by(var) %>%
-      mutate(total = sum(n)) %>%
-      ungroup() %>%
-      mutate(p = n / total) %>%
-      # Set appropriate plotting order...
-      rename(val = !!ord) %>%
-      select(var, fn, val) %>%
-      pivot_wider(names_from  = fn, 
-                  values_from = val, 
-                  values_fill = 0) %>%
-      arrange_at(fn_ord) %>%
-      # Final formatting...
-      pivot_longer(cols = -var, 
-                   names_to  = "fn", 
-                   values_to = "val") %>%
-      mutate(fn  = recode(fn, !!!fn_dict), 
-             fn  = fct_inorder(fn),
-             var = fct_inorder(var)) %>%
-      as.data.table()
-    
-    # Check figure type flag
-    if (fig == "count") {
-      
-      # Number of occurances
-      g = (ggplot(count_dt[val > 0]) + 
-             aes(x = var, y = val, fill = fn) + 
-             geom_col() + 
-             coord_flip()) %>%
-        prettify2(save = c("Count", focus, var, ord))
-    }
-    
-    # Check figure type flag
-    if (fig == "density") {
-      
-      # Density of occurances
-      g = ggplot(count_dt[fn == fn_dict[focus]]) + 
-        aes(x = val) +
-        geom_bar()
-    }
-    
-    return(g)
-  }
-  
-  # ---- A variety of plots ----
-  
-  # Plot by disease-vaccine-activity
-  g1 = plot_count("d_v_a_id", ord = "n")
-  g2 = plot_count("d_v_a_id", ord = "p")
-  
-  # Plot by country
-  g3 = plot_count("country", fig = "count")
-  g4 = plot_count("country", fig = "density")
-  
-  # Save the last figure
-  save_fig(g4, "Density", focus)
-}
-
-# ---------------------------------------------------------
-# Plot occurancces of each 'best' model
-# ---------------------------------------------------------
-plot_model_fits = function(focus, zoom = TRUE) {
-  
-  # Evaluate best fit model
-  best_fit = evaluate_best_model()
-  
-  # Also load the data - we'll plot fits against this
-  impact_dt = read_rds("impact", "impact_dt")
-  
-  # ---- Plot fitted FVPs vs impact ----
-  
-  # Plot of all succesful fits - not just the best
-  g1 = (ggplot(best_fit[fn == focus]) + 
-          aes(x = fvps_rel, 
-              y = impact_rel, 
-              colour = country, 
-              group  = country) + 
-          geom_line(data   = best_fit[fn != focus],
-                    colour = "grey40", 
-                    alpha  = 0.2, 
-                    show.legend = FALSE) + 
-          geom_line(size = 1, show.legend = FALSE) + 
-          facet_wrap(~d_v_a_id, scales = "free_y")) %>% 
-    prettify1(save = c("Best model", focus))
-  
-  # ---- Plot fitted against data ----
-  
-  # ALl combinations of C-D-V-A for this focus
-  c_d_v_a = best_fit %>%
-    filter(fn == focus) %>%
-    select(country, d_v_a_id) %>%
-    unique()
-  
-  # Data associated with all focus model fits
-  focus_data = impact_dt %>%
-    inner_join(y  = c_d_v_a,
-               by = c("country", "d_v_a_id")) %>%
-    select(country, d_v_a_id, fvps_rel, impact_rel)
-  
-  # Determine max data
-  max_data = focus_data %>%
-    group_by(d_v_a_id) %>%
-    slice_max(fvps_rel, n = 1, with_ties = FALSE) %>%
-    ungroup() %>%
-    select(d_v_a_id, x_max = fvps_rel) %>%
-    mutate(x_max = ceiling(x_max * 10) / 10) %>%
-    as.data.table()
-  
-  # Trivialise panel zoom if flag turned off
-  if (zoom == FALSE)
-    max_data$x_max = max(max_data$x_max, o$eval_x_scale)
-  
-  # Now shift focus soley to one function
-  focus_fit = best_fit %>%
-    filter(fn == focus) %>%
-    select(-fn) %>%
-    left_join(y  = max_data,
-              by = "d_v_a_id") %>%
-    filter(fvps_rel - 1e-4 <= x_max) %>%
-    select(-x_max)
-  
-  # Plot characteristics depends on zoom
-  scales = ifelse(zoom, "free", "free_y")
-  name   = ifelse(zoom, "zoom", "no zoom")
-  
-  # Plot best fits of focus function against the data
-  g2 = (ggplot(focus_fit) +
-          aes(x = fvps_rel, y = impact_rel, colour = country) +
-          geom_point(data = focus_data,
-                     size = 0.75,
-                     alpha = 0.5,
-                     show.legend = FALSE) +
-          geom_line(show.legend = FALSE) +
-          facet_wrap(~d_v_a_id, scales = scales)) %>%
-    prettify1(save = c("Fit data", focus, name))
-}
-
-# ---------------------------------------------------------
-# Apply colour scheme and tidy up axes - impact plots
-# ---------------------------------------------------------
-prettify1 = function(g, save = NULL) {
-  
-  # Colour map to sample from
-  map = "pals::kovesi.rainbow"
-  
-  # Axes label dictionary
-  lab_dict = c(
-    coverage    = "Coverage of target population",
-    year        = "Year",
-    fvps        = "Fully vaccinated persons (FVPs) in one year",
-    fvps_100k   = "Fully vaccinated persons (FVPs) per 100k people",
-    fvps_cum    = "Cumulative fully vaccinated persons (FVPs)",
-    fvps_rel    = "Cumulative fully vaccinated persons (FVPs) per population-person",
-    impact      = "Deaths averted",
-    impact_100k = "Deaths averted per 100k population",
-    impact_cum  = "Cumulative deaths averted", 
-    impact_rel  = "Cumulative deaths averted per population-person", 
-    impact_fvp  = "Deaths averted per fully vaccinated person (FVP)")
-  
-  # Extract info from the plot
-  g_info = ggplot_build(g)
-  
-  # Number of colours to generates - one per country
-  all_country  = table("country")$country
-  plot_country = unique(g_info$plot$data$country)
-  
-  # Construct colours from map
-  all_cols  = colour_scheme(map, n = length(all_country)) 
-  plot_cols = all_cols[all_country %in% plot_country]
-  
-  # Apply the colours
-  g = g + scale_colour_manual(values = plot_cols)
-  
-  # Prettyify axes
-  g = g + 
-    scale_x_continuous(
-      name   = lab_dict[g_info$plot$labels$x], 
-      expand = expansion(mult = c(0, 0.05)),  
-      labels = comma) +
-    scale_y_continuous(
-      name   = lab_dict[g_info$plot$labels$y], 
-      expand = expansion(mult = c(0, 0.05)),
-      labels = comma)
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(strip.text    = element_text(size = 18), #10),
-          axis.title    = element_text(size = 22), #15),
-          axis.text     = element_text(size = 12, angle = 30, hjust = 1),
-          # axis.text     = element_text(size = 7, angle = 30, hjust = 1),
-          axis.line     = element_blank(),
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-          panel.spacing = unit(0.5, "lines"),
-          strip.background = element_blank()) 
-  
-  # Save plots to file
-  if (!is.null(save))
-    save_fig(g, save)
-  
-  return(g)
-}
-
-# ---------------------------------------------------------
-# Apply colour scheme and tidy up axes - count plots
-# ---------------------------------------------------------
-prettify2 = function(g, save = NULL) {
-  
-  # Construct manual colour scheme
-  cols = c("grey60", "dodgerblue1")
-  
-  # Apply the colours
-  g = g + scale_fill_manual(name = "Best model", values = cols)
-  
-  # Prettyify axes
-  g = g + scale_y_continuous(expand = expansion(mult = c(0, 0.05)),
-                             breaks = pretty_breaks(), 
-                             name   = "Count")
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(axis.title.y  = element_blank(),
-          axis.title.x  = element_text(size = 18),
-          axis.text     = element_text(size = 10),
-          axis.line     = element_blank(),
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-          panel.spacing = unit(0.5, "lines"),
-          legend.title  = element_text(size = 14),
-          legend.text   = element_text(size = 12),
-          legend.key    = element_blank(),
-          legend.key.height = unit(2, "lines"),
-          legend.key.width  = unit(2, "lines")) 
-  
-  # Save plots to file
-  if (!is.null(save))
-    save_fig(g, save)
-  
-  return(g)
 }
 
