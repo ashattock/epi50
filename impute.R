@@ -91,11 +91,6 @@ do_impute = function(d_v_a_id, target) {
                by = c("country", "year")) %>%
     inner_join(y  = infant_mortality_dt,
                by = c("country", "year")) %>%
-    # TEMP: Testing if 'cumulative' coverage helps...
-    group_by(country) %>%
-    mutate(cov_cum = cumsum(coverage),
-           .after = coverage) %>%
-    ungroup() %>%
     # Calculate n years of estimates...
     mutate(n_years = 1) %>%
     group_by(country) %>%
@@ -109,7 +104,7 @@ do_impute = function(d_v_a_id, target) {
   data_dt = target_dt %>%
     filter(!is.na(target)) %>%
     # filter(target > 0) %>%
-    select(target, n_years, cov_cum, sdi, haqi, imr) %>%
+    select(target, n_years, coverage, sdi, haqi, imr) %>%
     # Remove target outliers for better normalisation...
     mutate(lower = mean(target) - 3 * sd(target), 
            upper = mean(target) + 3 * sd(target), 
@@ -163,7 +158,7 @@ do_impute = function(d_v_a_id, target) {
   
   # Fit a GLM for impact per FVP using all covariates
   fit_model = glm(
-    formula = target ~ n_years + cov_cum + sdi + haqi + imr, 
+    formula = target ~ n_years + coverage + sdi + haqi + imr, 
     data    = norm_data_dt)
   
   # Use fitted model to predict 
