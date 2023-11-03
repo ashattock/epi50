@@ -145,7 +145,9 @@ prepare_sia = function() {
   
   # Load and format data dictionary
   dict_dt = data_dict %>%
-    mutate(intervention = tolower(intervention)) %>%
+    mutate(intervention = tolower(intervention), 
+           intervention = ifelse(intervention != "", 
+                                 intervention, NA)) %>%
     fill(intervention) %>%
     select(-notes)
   

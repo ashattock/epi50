@@ -1,0 +1,650 @@
+---
+
+# Creates datatable: sia_dictionary_table
+table:
+- intervention: all_vaccines
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - Hib
+  - HepB
+  - Polio
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - Hib3
+  - HepB
+  - IPV
+  notes: "Assuming this is the hexavalent vaccine schedule"
+- intervention: bcg
+  disease: 
+  - TB
+  vaccine:
+  - BCG
+- intervention: bopv
+  disease:
+  - Polio
+  vaccine:
+  - OPV
+- intervention: bopv_ipv
+  disease:
+  - Polio
+  - Polio
+  vaccine:
+  - OPV
+  - IPV
+  notes: "Both types of vaccine? Really?"
+- intervention: bopv_ipv_frac
+  disease:
+  - Polio
+  - Polio
+  vaccine:
+  - OPV
+  - IPV
+  notes: "Both types of vaccine? Really?"
+- intervention: bopv_mopv1
+  disease: 
+  - Polio
+  vaccine: 
+  - OPV
+- intervention: bopv_mopv2
+  disease: 
+  - Polio
+  vaccine: 
+  - OPV
+- intervention: cholera
+  disease: 
+  - Cholera
+  vaccine: 
+  - Cholera
+- intervention: covid19
+  disease: 
+  - Covid
+  vaccine: 
+  - Covid
+- intervention: diphteria
+  disease: 
+  - Dip
+  vaccine: 
+  - Dip
+- intervention: dt
+  disease:
+  - Dip
+  - Tet
+  vaccine:
+  - Dip
+  - Tet
+- intervention: dt_td
+  disease:
+  - Dip
+  - Tet
+  vaccine:
+  - Dip
+  - Tet
+- intervention: dtap
+  disease:
+  - Dip
+  - Tet
+  - Per
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+- intervention: dtaphibhepbipv
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - Hib
+  - HepB
+  - Polio
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - Hib3
+  - HepB
+  - IPV
+- intervention: dtp
+  disease:
+  - Dip
+  - Tet
+  - Per
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+- intervention: dtpcv1
+  disease:
+  - Dip
+  - Tet
+  - Per
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  notes: "First DTP dose only? Ignore as incomplete schedule?"
+- intervention: dtpcv2
+  disease:
+  - Dip
+  - Tet
+  - Per
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  notes: "Second DTP dose only? Ignore as incomplete schedule?"
+- intervention: dtpcv3
+  disease:
+  - Dip
+  - Tet
+  - Per
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  notes: "Third DTP dose only? Ignore as incomplete schedule?"
+- intervention: dtpcv4
+  disease:
+  - Dip
+  - Tet
+  - Per
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  notes: "Fourth DTP dose only? Ignore as incomplete schedule?"
+- intervention: dtphepb
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - HepB
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - HepB
+- intervention: dtphib
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - Hib
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - Hib3
+- intervention: dtphibhepb
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - Hib
+  - HepB
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - Hib3
+  - HepB
+- intervention: dtphibhepb1
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - Hib
+  - HepB
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - Hib3
+  - HepB
+  notes: "First DTP dose only? Ignore as incomplete schedule?"
+- intervention: dtphibhepb2
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - Hib
+  - HepB
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - Hib3
+  - HepB
+  notes: "Second DTP dose only? Ignore as incomplete schedule?"
+- intervention: dtphibhepb3
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - Hib
+  - HepB
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - Hib3
+  - HepB
+  notes: "Third DTP dose only? Ignore as incomplete schedule?"
+- intervention: dtphibhepbipv
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - Hib
+  - HepB
+  - Polio
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - Hib3
+  - HepB
+  - IPV
+- intervention: dtwp
+  disease:
+  - Dip
+  - Tet
+  - Per
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+- intervention: flumist
+  disease: 
+  - Flu
+  vaccine: 
+  - Flu
+- intervention: h1n1
+  disease: 
+  - H1N1
+  vaccine: 
+  - H1N1
+- intervention: hepa
+  disease: 
+  - HepA
+  vaccine: 
+  - HepA
+- intervention: hepb
+  disease: 
+  - HepB
+  vaccine: 
+  - HepB
+- intervention: hepb_bd
+  disease: 
+  - HepB
+  vaccine: 
+  - HepB
+  notes: "Birth dose - ignore as incomplete schedule?"
+- intervention: hepb1
+  disease: 
+  - HepB
+  vaccine: 
+  - HepB
+  notes: "First dose - ignore as incomplete schedule?"
+- intervention: hepb2
+  disease: 
+  - HepB
+  vaccine: 
+  - HepB
+  notes: "Second dose - ignore as incomplete schedule?"
+- intervention: hepb3
+  disease: 
+  - HepB
+  vaccine: 
+  - HepB
+  notes: "Third dose - ignore as incomplete schedule?"
+- intervention: hib
+  disease: 
+  - Hib
+  vaccine: 
+  - Hib3
+- intervention: hibhepb
+  disease:
+  - Hib
+  - HepB
+  vaccine:
+  - Hib3
+  - HepB
+- intervention: hpv
+  disease: 
+  - HPV
+  vaccine: 
+  - HPV
+- intervention: hpv3
+  disease: 
+  - HPV
+  vaccine: 
+  - HPV
+- intervention: influenza
+  disease: 
+  - Flu
+  vaccine: 
+  - Flu
+- intervention: influenza_adult
+  disease: 
+  - Flu
+  vaccine: 
+  - Flu
+- intervention: influenza_pediatric
+  disease: 
+  - Flu
+  vaccine: 
+  - Flu
+- intervention: influenza_tiv
+  disease: 
+  - Flu
+  vaccine: 
+  - Flu
+- intervention: ipv
+  disease: 
+  - Polio
+  vaccine: 
+  - IPV
+- intervention: ipv_frac
+  disease: 
+  - Polio
+  vaccine: 
+  - IPV
+- intervention: japenc
+  disease: 
+  - JE
+  vaccine: 
+  - JE
+- intervention: m_mmr
+  disease:
+  - Measles
+  - Mumps
+  - Rubella
+  vaccine:
+  - Measles
+  - Mumps
+  - Rubella
+  notes: "What is the leading M?"
+- intervention: m_mr
+  disease:
+  - Measles
+  - Rubella
+  vaccine:
+  - Measles
+  - Rubella
+  notes: "What is the leading M?"
+- intervention: mcv
+  disease: 
+  - MenA
+  vaccine: 
+  - MenA
+  notes: "Only targets Meningitis A?"
+- intervention: measles
+  disease: 
+  - Measles
+  vaccine: 
+  - Measles
+  notes: "Many of these entires (~1,400)"
+- intervention: men_a
+  disease: 
+  - MenA
+  vaccine: 
+  - MenA
+- intervention: men_ac
+  disease:
+  - MenA
+  - MenOther
+  vaccine:
+  - MenA
+  - MenOther
+- intervention: men_acw
+  disease:
+  - MenA
+  - MenOther
+  vaccine:
+  - MenA
+  - MenOther
+- intervention: men_acwy
+  disease:
+  - MenA
+  - MenOther
+  vaccine:
+  - MenA
+  - MenOther
+- intervention: men_acyw_135conj
+  disease:
+  - MenA
+  - MenOther
+  vaccine:
+  - MenA
+  - MenOther
+- intervention: men_b
+  disease: 
+  - MenOther
+  vaccine: 
+  - MenOther
+- intervention: men_bc
+  disease: 
+  - MenOther
+  vaccine: 
+  - MenOther
+- intervention: men_c_conj
+  disease: 
+  - MenOther
+  vaccine: 
+  - MenOther
+- intervention: mmr
+  disease:
+  - Measles
+  - Mumps
+  - Rubella
+  vaccine:
+  - Measles
+  - Mumps
+  - Rubella
+- intervention: mmr_polio
+  disease:
+  - Measles
+  - Mumps
+  - Rubella
+  - Polio
+  vaccine:
+  - Measles
+  - Mumps
+  - Rubella
+  - IPV
+- intervention: mopv1
+  disease: 
+  - Polio
+  vaccine: 
+  - OPV
+- intervention: mopv2
+  disease: 
+  - Polio
+  vaccine: 
+  - OPV
+- intervention: mopv3
+  disease: 
+  - Polio
+  vaccine: 
+  - OPV
+- intervention: mr
+  disease:
+  - Measles
+  - Rubella
+  vaccine:
+  - Measles
+  - Rubella
+- intervention: mr_mmr
+  disease:
+  - Measles
+  - Mumps
+  - Rubella
+  vaccine:
+  - Measles
+  - Mumps
+  - Rubella
+- intervention: mumps
+  disease: 
+  - Mumps
+  vaccine: 
+  - Mumps
+- intervention: opv
+  disease: 
+  - Polio
+  vaccine: 
+  - OPV
+- intervention: opvt
+  disease: 
+  - Polio
+  vaccine: 
+  - OPV
+- intervention: ors
+  disease: 
+  - Flu
+  vaccine: 
+  - Flu
+- intervention: pcv1
+  disease: 
+  - PCV
+  vaccine: 
+  - PCV3
+- intervention: pcv10
+  disease: 
+  - PCV
+  vaccine: 
+  - PCV3
+- intervention: pcv13
+  disease: 
+  - PCV
+  vaccine: 
+  - PCV3
+- intervention: pcv2
+  disease: 
+  - PCV
+  vaccine: 
+  - PCV3
+- intervention: pcv3
+  disease: 
+  - PCV
+  vaccine: 
+  - PCV3
+- intervention: pcv7
+  disease: 
+  - PCV
+  vaccine: 
+  - PCV3
+- intervention: penta_td
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - Hib
+  - HepB
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - Hib3
+  - HepB
+- intervention: pneumo_conj
+  disease: 
+  - PCV
+  vaccine: 
+  - PCV3
+- intervention: ppv23
+  disease: 
+  - PCV
+  vaccine: 
+  - PCV3
+  notes: "Or model this as a new type of vaccine?"
+- intervention: rcv
+  disease: 
+  - Rubella
+  vaccine: 
+  - Rubella
+  notes: "Or RCV2?"
+- intervention: rota1
+  disease: 
+  - Rota
+  vaccine: 
+  - Rota
+- intervention: rota2
+  disease: 
+  - Rota
+  vaccine: 
+  - Rota
+- intervention: rotavirus
+  disease: 
+  - Rota
+  vaccine: 
+  - Rota
+- intervention: td_s
+  disease:
+  - Dip
+  - Tet
+  vaccine:
+  - Dip
+  - Tet
+  notes: "Reduced amount of diphtheria"
+- intervention: tdap_s
+  disease:
+  - Dip
+  - Tet
+  - Per
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  notes: "Reduced amount of diphtheria"
+- intervention: tdipv_s
+  disease:
+  - Dip
+  - Tet
+  - Polio
+  vaccine:
+  - Dip
+  - Tet
+  - IPV
+  notes: "Reduced amount of diphtheria"
+- intervention: tdpipv
+  disease:
+  - Dip
+  - Tet
+  - Per
+  - Polio
+  vaccine:
+  - Dip
+  - Tet
+  - Per
+  - IPV
+  notes: "Reduced amount of diphtheria"
+- intervention: tt
+  disease: 
+  - Tet
+  vaccine: 
+  - Tet
+- intervention: typhoid
+  disease: 
+  - Typhoid
+  vaccine: 
+  - Typhoid
+- intervention: varicella
+  disease: 
+  - Varicella
+  vaccine: 
+  - Varicella
+- intervention: yf
+  disease: 
+  - YF
+  vaccine: 
+  - YF
+- intervention: zoster
+  disease: 
+  - Shingles
+  vaccine: 
+  - Zoster
+
