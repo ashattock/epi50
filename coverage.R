@@ -10,24 +10,26 @@
 # ---------------------------------------------------------
 prepare_coverage = function() {
   
-  # TODO: Incorporate SIA data
-  # prepare_sia()  # See sia.R
-  
   message(" - Coverage data")
   
-  # Extract coverage for VIMC pathogens
-  vimc_dt = coverage_vimc()
+  # # Extract coverage for VIMC pathogens
+  # vimc_dt = coverage_vimc()
+  # 
+  # # However not every country is covered by VIMC for these pathogens
+  # vimc_countries_dt = vimc_dt %>%
+  #   left_join(y  = table("v_a"), 
+  #             by = "v_a_id") %>%
+  #   select(vaccine, country, year, source) %>%
+  #   arrange(vaccine, country, year) %>%
+  #   unique()
+  # 
+  # # For everything remaining, extract coverage from WIISE database
+  # wiise_dt = coverage_wiise(vimc_countries_dt)
   
-  # However not every country is covered by VIMC for these pathogens
-  vimc_countries_dt = vimc_dt %>%
-    left_join(y  = table("v_a"), 
-              by = "v_a_id") %>%
-    select(vaccine, country, year, source) %>%
-    arrange(vaccine, country, year) %>%
-    unique()
+  # Finally, incorporate SIA data (from WIISE)
+  sia_dt = coverage_sia()  # See sia.R
   
-  # For everything remaining, extract coverage from WIISE database
-  wiise_dt = coverage_wiise(vimc_countries_dt)
+  browser()
   
   # Combine sources
   rbind(vimc_dt, wiise_dt) %>%

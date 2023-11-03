@@ -5,16 +5,12 @@
 #   1) https://extranet.who.int/xmart4/WIISE/data/SIA_MAIN
 #   2) https://www.who-immunization-repository.org/
 #
-# Description of these sources:
-#   1) ???
-#   2) ???
-#
 ###########################################################
 
 # ---------------------------------------------------------
-# Explore and prepare SIA data
+# Extract SIA coverage data
 # ---------------------------------------------------------
-prepare_sia = function() {
+coverage_sia = function() {
   
   # ---- User options ----
   
@@ -22,7 +18,7 @@ prepare_sia = function() {
   from_date = "1980-01-01"
   
   # Flag for throwing data warnings
-  throw_warnings = FALSE
+  throw_warnings = TRUE
   
   # Entries to remove from data
   rm_var = list(
@@ -34,28 +30,20 @@ prepare_sia = function() {
   
   # ---- Load stuff ----
   
-  browser()
-  
   # Load raw data
-  #
-  # SOURCE: https://extranet.who.int/xmart4/WIISE/data/SIA_MAIN
-  file_raw = "data_export_WIISE_SIA_MAIN.csv"
-  data_raw = fread(system.file("sia", file_raw, package = "vieIA2030"))
+  data_raw = fread(paste0(o$pth$input, "sia_data.csv"))
   
   # Load data dictionary
-  file_dict = "SIA_data_dictionary.csv"
-  data_dict = fread(system.file("sia", file_dict, package = "vieIA2030"))
+  data_dict = table("sia_dictionary") %>%
+    select(-notes)
   
   # Load doses per FVP
-  file_fvps = "SIA_doses.csv"
-  data_fvps = fread(system.file("sia", file_fvps, package = "vieIA2030"))
-  
-  browser() # Use: table("vimc_estimates")
-  
-  # Used for disaggregating VIMC and non-VIMC countries
-  load_tables("vimc_estimates")
+  data_fvps = table("sia_doses") %>%
+    select(-notes)
   
   # ---- Format dates ----
+  
+  browser()
   
   # Define date columns in raw data set
   date_cols = c("plan", "postponed", "done")
