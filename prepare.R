@@ -54,14 +54,16 @@ prepare_config_tables = function() {
   for (file in config_files) {
     
     # Load the yaml file
-    y_file = paste0("config/", file, ".yaml")
-    y_data = read_yaml(y_file)$table
+    yaml_file = paste0("config/", file, ".yaml")
+    yaml_data = read_yaml(yaml_file)$table
     
     # Convert to datatable
-    dt = rbindlist(lapply(y_data, as.data.table))
+    config_dt = yaml_data %>%
+      lapply(as.data.table) %>%
+      rbindlist(fill=TRUE)
     
     # Save in tables cache
-    save_table(dt, file)
+    save_table(config_dt, file)
   }
   
   # Other config-related tables...

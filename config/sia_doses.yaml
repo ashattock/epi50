@@ -1,0 +1,35 @@
+---
+
+# Creates datatable: sia_doses_table
+table:
+# - disease: Covid
+#   doses: 2
+- disease: HepB
+  doses: 3
+  notes: "2-4 doses"
+- disease: Hib
+  doses: 3
+  notes: "3-4 doses"
+- disease: HPV
+  doses: 2
+- disease: Measles
+  doses: 2
+- disease: PCV
+  doses: 4
+# - disease: Polio
+#   doses: 4
+- disease: Rota
+  doses: 3
+- disease: Rubella
+  doses: 2
+- disease: YF
+  doses: 1
+- disease: Dip
+  doses: 5
+- disease: Tet
+  doses: 5
+- disease: Per
+  doses: 5
+- disease: TB
+  doses: 1
+
