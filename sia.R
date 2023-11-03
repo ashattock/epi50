@@ -12,13 +12,15 @@
 # ---------------------------------------------------------
 coverage_sia = function() {
   
+  message("  > SIA coverage")
+  
   # ---- User options ----
   
   # Ignore campaigns starting (or ending??) before this date
   from_date = "1980-01-01"
   
   # Flag for throwing data warnings
-  throw_warnings = TRUE
+  throw_warnings = FALSE
   
   # Entries to remove from data
   rm_var = list(
@@ -33,17 +35,16 @@ coverage_sia = function() {
   # Load raw data
   data_raw = fread(paste0(o$pth$input, "sia_data.csv"))
   
-  # Load data dictionary
+  # Load data dictionary table
   data_dict = table("sia_dictionary") %>%
     select(-notes)
   
-  # Load doses per FVP
+  # Load doses per FVP table
   data_fvps = table("sia_doses") %>%
+    rename(doses_fvps = doses) %>%
     select(-notes)
   
   # ---- Format dates ----
-  
-  browser()
   
   # Define date columns in raw data set
   date_cols = c("plan", "postponed", "done")
@@ -89,23 +90,21 @@ coverage_sia = function() {
   
   # ---- Select data of interest ----
   
-  # Select columns of interest and a few touchups 
+  # Select data of interest
   sia_dt = dates_dt %>%
     select(country      = ISO3_CODE,          # Country ISO3 codes
-           campaign_id  = CAMPAIGN_ID,        # Multiple rows per ID
            status       = ACTIVITY_STATUS,    # Done, Ongoing, Planned, Postponed, Cancelled, Unknown
            activity     = ACTIVITY_TYPE_CODE, 
            extent       = ACTIVITY_EXTENT,
-           # round        = ACTIVITY_ROUND,
-           # age_group    = ACTIVITY_AGE_GROUP,
            intervention = INTERVENTION_CODE,
            target       = TARGET, 
            doses        = DOSES, 
            coverage     = COVERAGE, 
            start_date, end_date) %>%
-    mutate(across(c(target, coverage, doses), as.numeric), 
-           across(c(country, campaign_id),    as.factor)) %>%
-    mutate_if(is.character, tolower)
+    # Format columns...
+    mutate(across(c(target, coverage, doses), as.numeric)) %>%
+    mutate_if(is.character, tolower) %>%
+    mutate(country = toupper(country))
   
   # Attempt to fill missing doses data with target-coverage info
   sia_dt %<>%
@@ -121,8 +120,8 @@ coverage_sia = function() {
   
   # Recode extent, and replace unknown entries with NA
   sia_dt %<>%
-    left_join(country_table[, .(country = factor(country), region, economy)], # Also append country details
-              by = "country") %>%  
+    inner_join(table("country")[, .(country, region, economy)],
+               by = "country") %>%  
     mutate(extent = str_extract(extent, get_words("national", "subnational")), 
            across(where(is.character), ~if_else(. %in% na_var, NA, .)), 
            across(where(is.character), ~if_else(is.na(.), "unknown", .)))
@@ -131,30 +130,20 @@ coverage_sia = function() {
   
   # TODO: Deal with partial dosing
   
-  # Load and format data dictionary
-  dict_dt = data_dict %>%
-    mutate(intervention = tolower(intervention), 
-           intervention = ifelse(intervention != "", 
-                                 intervention, NA)) %>%
-    fill(intervention) %>%
-    select(-notes)
-  
   # Throw a warning if any unidentified interventions
-  no_int = setdiff(sia_dt$intervention, dict_dt$intervention)
+  no_int = setdiff(sia_dt$intervention, data_dict$intervention)
   if (throw_warnings && length(no_int) > 0)
     warning("Undefined interventions: ", paste(no_int, collapse = ", "))
   
-  # Function to move any 'unknown' factor to the end for prettier plots
-  fct_fn = function(x)
-      forcats::fct_relevel(x, "unknown", after = Inf)
-  
   # Join the dict to the data for disease-vaccine activities
-  sia_dt %<>%
-    inner_join(dict_dt, by = "intervention", 
+  sia_dt = data_dict %>%
+    inner_join(y  = table("d_v"), 
+               by = c("disease", "vaccine")) %>%
+    inner_join(y  = sia_dt, 
+               by = "intervention", 
                relationship = "many-to-many") %>%
-    select(-intervention, -vaccine) %>%  # Experimenting with removing vaccine variable
-    mutate_if(is.character, as.factor) %>%
-    mutate(across(is.factor, quiet(fct_fn)))
+    select(-intervention, -d_v_id) %>%  # Experimenting with removing vaccine variable
+    mutate_if(is.character, as.factor)
   
   # Number of doses of interest - used for sanity checking
   #
@@ -194,77 +183,35 @@ coverage_sia = function() {
     group_by(disease, activity) %>%
     summarise(doses = sum(doses) / 1e9) %>%
     ungroup() %>%
-    mutate(no_polio = ifelse(disease == "Polio", 0, doses)) %>%
     complete(disease, activity, 
-             fill = list(doses = 0, no_polio = 0)) %>%
-    setDT()
+             fill = list(doses = 0)) %>%
+    as.data.table()
   
   # Activity frequency by region
   freq_dt2 = sia_dt %>%
-    mutate(doses = ifelse(disease == "Polio", 0, doses)) %>%
     group_by(region, activity, extent) %>%
     summarise(doses = sum(doses) / 1e9) %>%
     ungroup() %>%
     complete(region, activity, extent, 
              fill = list(doses = 0)) %>%
-    setDT()
+    as.data.table()
   
   # Activity frequency by economy
   freq_dt3 = sia_dt %>%
-    mutate(doses = ifelse(disease == "Polio", 0, doses)) %>%
     group_by(economy, activity, extent) %>%
     summarise(doses = sum(doses) / 1e9) %>%
     ungroup() %>%
     complete(economy, activity, extent, 
              fill = list(doses = 0)) %>%
-    setDT()
+    as.data.table()
   
   # Plot frequency of disease - stacked
-  gx = ggplot(freq_dt1) + 
+  g1 = ggplot(freq_dt1) + 
     aes(x = activity, y = doses, fill = disease) + 
     geom_bar(stat = "identity", colour = "black", size = 0.05)
   
-  # Plot frequency of disease - without Polio
-  gy = ggplot(freq_dt1) + 
-    aes(x = activity, y = no_polio, fill = disease) + 
-    geom_bar(stat = "identity", colour = "black", size = 0.05)
-  
-  # Function to prettify disease plots
-  prettify_fn = function(g) {
-    g = g + 
-      guides(fill = guide_legend(nrow = 36)) +
-      scale_y_continuous(name   = "Total doses (billions)", 
-                         expand = expansion(mult = c(0, 0.05))) +
-      scale_fill_manual(values = pals$disease) +
-      theme_classic() + 
-      theme(
-        axis.title    = element_text(size = 20),
-        axis.text     = element_text(size = 12),
-        axis.text.x   = element_text(angle = 50, hjust = 1),
-        axis.line     = element_blank(),
-        panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-        panel.spacing = unit(0.2, "lines"),
-        legend.title  = element_blank(),
-        legend.text   = element_text(size = 12))
-    
-    return(g)
-  }
-
-  # Prettify plots
-  gx = prettify_fn(gx)
-  gy = prettify_fn(gy)
-  
   # Save figures to file
-  save_fig(gx, dir = "diagnostics", "SIA activity by disease")
-  save_fig(gy, dir = "diagnostics", "SIA activity by disease - no Polio")
-  
-  # Plot activity by disease
-  # g1 = ggplot(freq_dt1) + 
-  #   aes(x = 1, y = no_polio, fill = disease) + 
-  #   geom_bar(stat = "identity", position = "dodge", 
-  #            colour = "black", size = 0.05) + 
-  #   facet_wrap(~activity) +
-  #   guides(fill = guide_legend(nrow = 36))
+  save_fig(g1, dir = "sia_data", "SIA activity by disease")
   
   # Plot activity by region
   g2 = ggplot(freq_dt2) + 
@@ -280,40 +227,9 @@ coverage_sia = function() {
              colour = "black", size = 0.05) + 
     facet_grid(extent ~ activity)
   
-  # Function to prettify country plots
-  prettify_fn = function(g, var) {
-    g = g + 
-      scale_y_continuous(name   = "Total doses (billions)", 
-                         expand = expansion(mult = c(0, 0.05))) +
-      scale_fill_manual(values = pals[[var]]) +
-      theme_classic() + 
-      theme(
-        axis.title.y  = element_text(size = 16),
-        axis.title.x  = element_blank(),
-        axis.text.y   = element_text(size = 8),
-        axis.text.x   = element_blank(),
-        axis.ticks.x  = element_blank(),
-        axis.line     = element_blank(),
-        panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-        panel.spacing = unit(0.2, "lines"),
-        strip.text.x  = element_text(size = 10),
-        strip.text.y  = element_text(size = 14),
-        strip.background = element_blank(),
-        legend.title  = element_blank(),
-        legend.text   = element_text(size = 12))
-    
-    return(g)
-  }
-  
-  # Prettify both figures
-  # g1 = prettify_fn(g1, "disease")
-  g2 = prettify_fn(g2, "region")
-  g3 = prettify_fn(g3, "economy")
-  
   # Save figures to file
-  # save_fig(g1, dir = "diagnostics", "SIA activity by disease")
-  save_fig(g2, dir = "diagnostics", "SIA activity by region")
-  save_fig(g3, dir = "diagnostics", "SIA activity by economy")
+  save_fig(g2, dir = "sia_data", "SIA activity by region")
+  save_fig(g3, dir = "sia_data", "SIA activity by economy")
   
   # ---- Doses per month ----
   
@@ -334,7 +250,7 @@ coverage_sia = function() {
     summarise(dur_mean   = mean(days,   na.rm = TRUE), 
               dur_median = median(days, na.rm = TRUE)) %>%
     ungroup() %>%
-    setDT()
+    as.data.table()
   
   # Fill in any missing end dates with extent average
   sia_dt %<>%
@@ -364,7 +280,7 @@ coverage_sia = function() {
              as.character(), 
            n_months = str_count(run_months, "&") + 1) %>%  # Number of months to distibute across
     ungroup() %>%
-    setDT()
+    as.data.table()
   
   # Expand for all possible and distrubte doses across months
   #
@@ -378,15 +294,15 @@ coverage_sia = function() {
            doses = (doses / n_months) * value) %>%     # Divide total doses across the months
     select(-start_date, -end_date, -run_months, -n_months) %>%
     arrange(country, disease, month) %>%
-    setDT()
+    as.data.table()
   
   # Remove these trivial dose entries from the main datatable
   #
   # NOTE: This reduced dt would be the desired output of this exploration
   sia_dt = sia_month_dt %>%
     filter(doses > 0) %>%
-    select(country, campaign_id, disease, activity, 
-           extent, month, doses, status, region, economy)
+    select(country, disease, activity, extent, 
+           month, doses, status, region, economy)
   
   # Sanity check that we haven't changed number of doses
   if (abs(sum(sia_dt$doses) - n_doses) > 1e-3)
@@ -395,53 +311,22 @@ coverage_sia = function() {
   # ---- Fully Vaccinated Persons (FVP) ----
   
   fvps_dt = sia_dt %>%
-    left_join(data_fvps[, .(disease, doses_fvps)], 
+    left_join(data_fvps, 
               by = "disease") %>%
     mutate(fvps = (doses / doses_fvps) / 1e6) %>%
     group_by(region, disease) %>%
     summarise(fvps = sum(fvps)) %>%
     ungroup() %>%
     complete(region, disease, fill = list(fvps = 0)) %>%
-    mutate(no_polio = ifelse(disease == "Polio", 0, fvps)) %>%
-    setDT()
+    as.data.table()
   
   g1 = ggplot(fvps_dt) + 
     aes(x = 1, y = fvps, fill = region) + 
     geom_bar(stat = "identity", colour = "black", size = 0.05) + 
     facet_wrap(~disease)
   
-  g2 = ggplot(fvps_dt) + 
-    aes(x = 1, y = no_polio, fill = region) + 
-    geom_bar(stat = "identity", colour = "black", size = 0.05) + 
-    facet_wrap(~disease)
-  
-  # Function to prettify disease plots
-  prettify_fn = function(g) {
-    g = g + 
-      scale_y_continuous(name   = "FVPs (millions)", 
-                         expand = expansion(mult = c(0, 0.05))) +
-      scale_fill_manual(values = pals$region) +
-      theme_classic() + 
-      theme(
-        axis.title    = element_text(size = 20),
-        axis.text     = element_text(size = 12),
-        axis.text.x   = element_blank(),
-        axis.line     = element_blank(),
-        panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-        panel.spacing = unit(0.2, "lines"),
-        legend.title  = element_blank(),
-        legend.text   = element_text(size = 12))
-    
-    return(g)
-  }
-  
-  # Prettify plots
-  g1 = prettify_fn(g1)
-  g2 = prettify_fn(g2)
-  
   # Save figures to file
-  save_fig(g1, dir = "diagnostics", "SIA FVPs")
-  save_fig(g2, dir = "diagnostics", "SIA FVPs", "excluding Polio")
+  save_fig(g1, dir = "sia_data", "SIA FVPs")
   
   # ---- Plot by country ----
   
@@ -455,7 +340,7 @@ coverage_sia = function() {
     summarise(doses = sum(doses)) %>%  # Doses over time country-disease-vaccine
     mutate(cum_doses = cumsum(doses)) %>%  # Cumulative doses country-disease-vaccine
     ungroup() %>%
-    setDT()
+    as.data.table()
   
   # Remove (most of) the zeros for nicer line plots
   country_dt2 = country_dt1 %>%
@@ -463,7 +348,7 @@ coverage_sia = function() {
     filter(lead(cum_doses) > 0) %>%  # Remove all but most recent trailing zeros (for pretty plotting)
     ungroup() %>%
     filter(!(doses == 0 & cum_doses > 0)) %>%  # Remove leading zeros
-    setDT()
+    as.data.table()
   
   # Get colours - one per country
   cols = get_colours(length(levels(country_dt2$country)))
@@ -480,40 +365,9 @@ coverage_sia = function() {
     geom_line() +
     facet_wrap(~disease, scales = "free_y") 
   
-  # Function to prettify country plots
-  prettify_fn = function(g) {
-    g = g + 
-      scale_y_continuous(
-        name   = "Cumulative doses (millions)", 
-        limits = c(0, NA), 
-        expand = expansion(mult = c(0, 0.05)),
-        labels = comma) + 
-      scale_colour_manual(values = cols) + 
-      scale_fill_manual(values = cols) + 
-      guides(colour = guide_legend(nrow = 36), 
-             fill   = guide_legend(nrow = 36)) + 
-      theme_classic() + 
-      theme(
-        axis.title    = element_text(size = 16),
-        axis.text     = element_text(size = 8),
-        axis.line     = element_blank(),
-        panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-        panel.spacing = unit(0.2, "lines"),
-        strip.text    = element_text(size = 8),
-        strip.background = element_blank(),
-        legend.title  = element_blank(),
-        legend.text   = element_text(size = 8))
-    
-    return(g)
-  }
-  
-  # Prettify both figures
-  g1 = prettify_fn(g1)
-  g2 = prettify_fn(g2)
-  
   # Save figures to file
-  save_fig(g1, dir = "diagnostics", "SIA doses by country", "area")
-  save_fig(g2, dir = "diagnostics", "SIA doses by country", "line")
+  save_fig(g1, dir = "sia_data", "SIA doses by country", "area")
+  save_fig(g2, dir = "sia_data", "SIA doses by country", "line")
   
   # ---- Plot by disease ----
   
@@ -526,12 +380,12 @@ coverage_sia = function() {
     mutate(cum_doses = cumsum(doses)) %>%
     ungroup() %>%
     # Number of FVPs...
-    left_join(data_fvps[, .(disease, doses_fvps)], 
+    left_join(data_fvps, 
               by = "disease") %>%
     mutate(fvps     = (doses     / doses_fvps), 
            cum_fvps = (cum_doses / doses_fvps)) %>%
     replace_na(list(fvps = 0, cum_fvps = 0)) %>%
-    setDT()
+    as.data.table()
   
   # Remove trivial entires for nicer line plot
   disease_dt2 = disease_dt1 %>%
@@ -567,53 +421,29 @@ coverage_sia = function() {
                        expand = expansion(mult = c(0, 0.05)),
                        labels = comma)
   
-  # Function to prettify country plots
-  prettify_fn = function(g) {
-    g = g + 
-      scale_colour_manual(values = cols) + 
-      scale_fill_manual(values = cols) + 
-      guides(colour = guide_legend(nrow = n_cols), 
-             fill   = guide_legend(nrow = n_cols)) + 
-      theme_classic() + 
-      theme(
-        axis.title.x  = element_blank(),
-        axis.title.y  = element_text(size = 24),
-        axis.text     = element_text(size = 14),
-        axis.line     = element_blank(),
-        panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-        panel.spacing = unit(0.2, "lines"),
-        legend.title  = element_blank(),
-        legend.text   = element_text(size = 14))
-    
-    return(g)
-  }
-  
-  # Prettify both figures
-  g1 = prettify_fn(g1)
-  g2 = prettify_fn(g2)
-  g3 = prettify_fn(g3)
-  
   # Save figures to file
-  save_fig(g1, dir = "diagnostics", "SIA doses by disease", "area")
-  save_fig(g2, dir = "diagnostics", "SIA FVPs by disease",  "area")
-  save_fig(g3, dir = "diagnostics", "SIA doses by disease", "line")
+  save_fig(g1, dir = "sia_data", "SIA doses by disease", "area")
+  save_fig(g2, dir = "sia_data", "SIA FVPs by disease",  "area")
+  save_fig(g3, dir = "sia_data", "SIA doses by disease", "line")
   
   # ---- Plot by data source ----
   
-  browser() # Use: table("vimc_estimates")
-  
   # First determine countries reported by VIMC
-  vimc_countries = vimc_estimates %>%
-    select(country, d_v_at_id) %>%
+  vimc_countries = table("vimc_estimates") %>%
+    select(country, d_v_a_id) %>%
     unique() %>%
-    left_join(d_v_at_table, 
-              by = "d_v_at_id") %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    select(country, disease) %>%
+    unique() %>%
     mutate(country_source = "vimc")
+  
+  browser() # disease_table
   
   # Join VIMC disease and countries to SIA data
   vimc_dt = sia_month_dt %>%
     # Number of FVPs...
-    left_join(data_fvps[, .(disease, doses_fvps)], 
+    left_join(data_fvps, 
               by = "disease") %>%
     mutate(fvps = (doses / doses_fvps)) %>%
     replace_na(list(fvps = 0)) %>%
@@ -621,7 +451,7 @@ coverage_sia = function() {
     # Information source...
     left_join(vimc_countries[, .(country, disease, country_source)], 
               by = c("country", "disease")) %>%
-    left_join(disease_table[, .(disease, source)], 
+    left_join(table("disease")[, .(disease, source)], 
               by = "disease") %>%
     rename(impact_source = source) %>%
     mutate(country_source = ifelse(is.na(country_source), "nosource", country_source),
@@ -630,64 +460,23 @@ coverage_sia = function() {
            impact_source  = paste0("impact_",  impact_source))
   
   # Group by source of data for disease and country
-  source_dt1 = vimc_dt %>%
-    # unite("d_v", disease, vaccine) %>%
-    # mutate(d_v = as.factor(d_v)) %>%
+  source_dt = vimc_dt %>%
     group_by(disease, country_source, impact_source, month) %>%
     summarise(doses = sum(doses), 
               fvps  = sum(fvps)) %>%
     mutate(cum_doses = cumsum(doses), 
            cum_fvps  = cumsum(fvps)) %>%
     ungroup() %>%
-    setDT()
-  
-  # Polio dominates - also plot without it
-  source_dt2 = source_dt1 %>%
-    filter(!str_detect(disease, "Polio"))
+    as.data.table()
   
   # Plot by data source - filled by d_v
-  g1 = ggplot(source_dt1) + 
+  g1 = ggplot(source_dt) + 
     aes(x = month, y = cum_fvps / 1e9, fill = disease) + 
     geom_area() + 
     facet_grid(country_source ~ impact_source)
   
-  # Produce similar plot without Polio
-  g2 = ggplot(source_dt2) + 
-    aes(x = month, y = cum_fvps / 1e9, fill = disease) + 
-    geom_area() + 
-    facet_grid(country_source ~ impact_source) # scales = "free_y")
-  
-  # Function to prettify country plots
-  prettify_fn = function(g) {
-    g = g + 
-      scale_y_continuous(
-        name   = "Cumulative FVPs (billions)", 
-        expand = expansion(mult = c(0, 0.05))) + 
-      scale_fill_manual(values = cols) + 
-      guides(fill = guide_legend(nrow = n_cols)) + 
-      theme_classic() + 
-      theme(
-        axis.title.x  = element_blank(),
-        axis.title.y  = element_text(size = 24),
-        axis.text     = element_text(size = 14),
-        axis.line     = element_blank(),
-        panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-        panel.spacing = unit(0.2, "lines"),
-        strip.text    = element_text(size = 16),
-        strip.background = element_blank(),
-        legend.title  = element_blank(),
-        legend.text   = element_text(size = 14))
-    
-    return(g)
-  }
-  
-  # Prettify both figures
-  g1 = prettify_fn(g1)
-  g2 = prettify_fn(g2)
-  
   # Save figures to file
-  save_fig(g1, dir = "diagnostics", "SIA doses by source")
-  save_fig(g2, dir = "diagnostics", "SIA doses by source", "exluding Polio")
+  save_fig(g1, dir = "sia_data", "SIA doses by source")
 }
 
 # ---------------------------------------------------------
@@ -776,6 +565,6 @@ plot_durations = function(dt, by = NULL, zoom = TRUE) {
   }
   
   # Save figure to file
-  save_fig(g, dir = "diagnostics", "SIA durations", by)
+  save_fig(g, dir = "sia_data", "SIA durations", by)
 }
 

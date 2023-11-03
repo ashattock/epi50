@@ -17,9 +17,9 @@ run_prepare = function() {
   
   message("* Preparing input data")
   
-  # # Convert config yaml files to datatables
-  # prepare_config_tables()
-  # 
+  # Convert config yaml files to datatables
+  prepare_config_tables()
+
   # # Streamline VIMC impact estimates for quick loading
   # prepare_vimc_estimates()
   # 
