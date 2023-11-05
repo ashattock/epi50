@@ -21,8 +21,9 @@ coverage_sia = function() {
   
   data_dict = table("sia_dictionary") %>%
     select(-notes) %>%
-    inner_join(y  = table("d_v"), 
-               by = c("disease", "vaccine"))
+    mutate(activity = "campaign") %>%
+    inner_join(y  = table("d_v_a"), 
+               by = c("disease", "vaccine", "activity"))
   
   # Entries to set as NA
   na_var = c("unknown", "undefined", "")
@@ -69,59 +70,17 @@ coverage_sia = function() {
     format_sia_dates() %>%
     impute_sia_dates() %>%
     # Parse age groups into age ranges...
-    parse_age_groups() 
-  
-  browser()
-  
-  # Convert to d_v_a...
-  left_join(y  = data_dict, 
-            by = "intervention", 
-            relationship = "many-to-many")
-  # Then covert to FVP...
-  xxx_fn() %>%
-    # Tidy up...
-    select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
+    parse_age_groups() %>%
+    # Then covert doses to FVP...
+    convert_fvps() %>%
+    # Convert to d_v_a...
+    left_join(y  = data_dict, 
+              by = "intervention", 
+              relationship = "many-to-many") %>%
+    select(country, d_v_a_id, year, age, fvps, cohort, coverage) %>%
     mutate(source = "sia")
   
   browser()
-  
-  # ---- Plot frequency of variables ----
-  
-  # Activity frequency by disease-vaccine
-  freq_dt = sia_dt %>%
-    group_by(disease, sia_type) %>%
-    summarise(doses = sum(doses) / 1e9) %>%
-    ungroup() %>%
-    complete(disease, sia_type, 
-             fill = list(doses = 0)) %>%
-    as.data.table()
-  
-  # Plot frequency of disease - stacked
-  g1 = ggplot(freq_dt) + 
-    aes(x = sia_type, y = doses, fill = disease) + 
-    geom_bar(stat = "identity", colour = "black", size = 0.05)
-  
-  # Save figures to file
-  save_fig(g1, dir = "sia_data", "SIA type by disease")
-  
-  # ---- Doses per month ----
-  
-  # Plot durations for all entries
-  plot_durations(sia_dt)
-  
-  # Then same plots grouped by different variables
-  plot_durations(sia_dt, "extent")
-  plot_durations(sia_dt, "sia_type")
-  plot_durations(sia_dt, "disease")
-  
-  # Sanity check that we haven't changed number of doses
-  if (abs(sum(sia_dt$doses) - check_doses) > 1e-3)
-    stop("We seem to have gained/lost doses here")
-  
-  browser()
-  
-  sia_output_dt = sia_dt # %>%
-  
   
   # ---- Fully Vaccinated Persons (FVP) ----
   
@@ -147,6 +106,16 @@ coverage_sia = function() {
   
   # Save figures to file
   save_fig(g1, dir = "sia_data", "SIA FVPs")
+  
+  # ---- Doses per month ----
+  
+  # Plot durations for all entries
+  plot_durations(sia_dt)
+  
+  # Then same plots grouped by different variables
+  plot_durations(sia_dt, "extent")
+  plot_durations(sia_dt, "sia_type")
+  plot_durations(sia_dt, "disease")
   
   # ---- Plot by country ----
   
@@ -301,7 +270,7 @@ coverage_sia = function() {
   
   
   
-  return(sia_output_dt)
+  return(sia_dt)
 }
 
 # ---------------------------------------------------------
@@ -493,7 +462,7 @@ parse_age_groups = function(sia_dt) {
   # ---- Apply parsed ages to data ----
   
   # Construct age group - age range dictionary
-  dict_dt = group_dt %>%
+  age_dict = group_dt %>%
     # Split at denominator if it exists...
     separate_wider_delim(
       cols  = age, 
@@ -537,7 +506,7 @@ parse_age_groups = function(sia_dt) {
   age_dt = sia_dt %>%
     rename(total_doses = doses) %>%
     # Expand with parsed age bins...
-    left_join(y  = dict_dt, 
+    left_join(y  = age_dict, 
               by = "age_group", 
               relationship = "many-to-many") %>%
     # Append population size...
@@ -548,7 +517,8 @@ parse_age_groups = function(sia_dt) {
     mutate(doses = total_doses * pop / sum(pop)) %>%
     ungroup() %>%
     # Tidy up...
-    select(country, intervention, year, age, doses) %>%
+    select(country, intervention, year, 
+           age, doses, cohort = pop) %>%
     as.data.table()
   
   # Sanity check that we haven't lost/gained doses
@@ -557,6 +527,14 @@ parse_age_groups = function(sia_dt) {
     stop("Age disaggregation failed")
     
   return(age_dt)
+}
+
+# ---------------------------------------------------------
+# Convert number of doses to FVPs
+# ---------------------------------------------------------
+doses2fvps = function() {
+  
+  browser()
 }
 
 # ---------------------------------------------------------
