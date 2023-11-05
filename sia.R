@@ -10,11 +10,9 @@
 # ---------------------------------------------------------
 # Extract SIA coverage data
 # ---------------------------------------------------------
-coverage_sia = function() {
+coverage_sia = function(vimc_countries_dt) {
   
   message("  > SIA coverage")
-  
-  # ---- Load and filter raw data ----
   
   # Entries to set as NA
   na_var = c("unknown", "undefined", "")
@@ -23,23 +21,20 @@ coverage_sia = function() {
   data_dict = table("sia_dictionary") %>%
     inner_join(y  = table("sia_schedule"), 
                by = "disease") %>%
-    # NOTE: Assuming full schedule if no info...
-    mutate(dose = ifelse(is.na(dose), 1, dose),
-           # dose = ifelse(is.na(dose), schedule, dose), 
+    # NOTE: Assuming single dose if no info given...
+    mutate(dose = ifelse(is.na(dose), 1, dose),  # TODO: Or use schedule?
            activity = "campaign") %>%
     inner_join(y  = table("d_v_a"), 
                by = c("disease", "vaccine", "activity")) %>%
-    select(intervention, d_v_a_id, dose, schedule)
+    select(intervention, d_v_a_id, vaccine, dose, schedule)
   
-  # Load raw data
-  sia_raw = fread(paste0(o$pth$input, "sia_data.csv"))
-  
-  # Select data of interest
-  sia_dt = sia_raw %>%
+  # Load and wrangle SIA data
+  sia_dt = fread(paste0(o$pth$input, "sia_data.csv")) %>%
+    # Select columns of interest...
     select(country      = ISO3_CODE,          # Country ISO3 codes
            intervention = INTERVENTION_CODE,
-           sia_type     = ACTIVITY_TYPE_CODE, 
-           status       = ACTIVITY_STATUS,    # Done, Ongoing, Planned, etc
+           sia_type     = ACTIVITY_TYPE_CODE, # Catch up, national day, etc
+           status       = ACTIVITY_STATUS,    # Done, ongoing, planned, etc
            age_group    = ACTIVITY_AGE_GROUP,
            cohort       = TARGET, 
            doses        = DOSES, 
@@ -76,6 +71,10 @@ coverage_sia = function() {
     left_join(y  = data_dict, 
               by = "intervention", 
               relationship = "many-to-many") %>%
+    # Remove entires already covered by VIMC...
+    left_join(y  = vimc_countries_dt, 
+              by = c("country", "year", "vaccine")) %>%
+    filter(is.na(source)) %>%
     # Group by d_v_a...
     group_by(country, d_v_a_id, year, age, schedule, dose) %>%
     summarise(all_doses = sum(doses), 
@@ -91,58 +90,6 @@ coverage_sia = function() {
     arrange(country, d_v_a_id, year, age) %>%
     mutate(source = "sia") %>%
     as.data.table()
-  
-  browser()
-  
-  # ---- Plot by data source ----
-  
-  # # First determine countries reported by VIMC
-  # vimc_countries = table("vimc_estimates") %>%
-  #   select(country, d_v_a_id) %>%
-  #   unique() %>%
-  #   left_join(y  = table("d_v_a"), 
-  #             by = "d_v_a_id") %>%
-  #   select(country, disease) %>%
-  #   unique() %>%
-  #   mutate(country_source = "vimc")
-  # 
-  # # Join VIMC disease and countries to SIA data
-  # vimc_dt = sia_month_dt %>%
-  #   # Number of FVPs...
-  #   left_join(doses_per_fvp, 
-  #             by = "disease") %>%
-  #   mutate(fvps = (doses / doses_fvps)) %>%
-  #   replace_na(list(fvps = 0)) %>%
-  #   select(-doses_fvps) %>%
-  #   # Information source...
-  #   left_join(vimc_countries[, .(country, disease, country_source)], 
-  #             by = c("country", "disease")) %>%
-  #   left_join(table("disease")[, .(disease, source)], 
-  #             by = "disease") %>%
-  #   rename(impact_source = source) %>%
-  #   mutate(country_source = ifelse(is.na(country_source), "nosource", country_source),
-  #          impact_source  = ifelse(is.na(impact_source),  "nosource", impact_source), 
-  #          country_source = paste0("country_", country_source), 
-  #          impact_source  = paste0("impact_",  impact_source))
-  # 
-  # # Group by source of data for disease and country
-  # source_dt = vimc_dt %>%
-  #   group_by(disease, country_source, impact_source, month) %>%
-  #   summarise(doses = sum(doses), 
-  #             fvps  = sum(fvps)) %>%
-  #   mutate(cum_doses = cumsum(doses), 
-  #          cum_fvps  = cumsum(fvps)) %>%
-  #   ungroup() %>%
-  #   as.data.table()
-  # 
-  # # Plot by data source - filled by d_v
-  # g1 = ggplot(source_dt) + 
-  #   aes(x = month, y = cum_fvps / 1e9, fill = disease) + 
-  #   geom_area() + 
-  #   facet_grid(country_source ~ impact_source)
-  # 
-  # # Save figures to file
-  # save_fig(g1, dir = "sia_data", "SIA doses by source")
   
   return(sia_dt)
 }
@@ -401,95 +348,5 @@ parse_age_groups = function(sia_dt) {
     stop("Age disaggregation failed")
     
   return(age_dt)
-}
-
-# ---------------------------------------------------------
-# Convert number of doses to FVPs
-# ---------------------------------------------------------
-doses2fvps = function(sia_dt, data_dict) {
-  
-  browser()
-  
-
-  
-  browser()
-}
-
-# ---------------------------------------------------------
-# Simple wrapper around colour_scheme()
-# ---------------------------------------------------------
-get_colours = function(n) {
-  
-  # Generate colour palettes (see auxiliary.R)
-  cols = colour_scheme(o$palette_sia, n = n)
-  
-  return(cols)
-}
-
-# ---------------------------------------------------------
-# Plot duration (in days) of campaigns - can be grouped
-# ---------------------------------------------------------
-plot_durations = function(dt, by = NULL, zoom = TRUE) {
-  
-  # Calculate duration in days
-  plot_dt = dt %>%
-    mutate(duration = as.numeric(end_date - start_date)) %>%
-    filter(duration > 0)
-  
-  # Check if plotting all data together
-  if (is.null(by)) {
-    
-    # Produce single density - looks better than boxplot
-    g = ggplot(plot_dt, aes(x = duration)) + 
-      stat_density(adjust = 5, alpha = 0.5)
-    
-  } else {  # Otherwise plot by group
-    
-    # Produce plot by group - boxplot looks good for this
-    g = ggplot(plot_dt) + 
-      aes_string(x = by, y = "duration", fill = by) + 
-      geom_boxplot(show.legend = FALSE)
-    
-    if (by == "disease") {
-      
-      # Get colours - one per disease
-      n_cols = length(unique(plot_dt$disease))
-      cols   = get_colours(n_cols)
-      
-      g = g + scale_fill_manual(values = cols)
-    }
-  }
-  
-  # Prettify plot
-  g = g + theme_classic() + 
-    theme(axis.title    = element_text(size = 20),
-          axis.text     = element_text(size = 12), 
-          axis.line     = element_blank(),
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-          panel.spacing = unit(1, "lines"))
-  
-  # Check if we want a zoomed in version too
-  if (zoom && !is.null(by)) {
-    
-    # Determine IQR for a second 'zoomed in' plot
-    iqr_dt = plot_dt %>%
-      group_by_at(by) %>%
-      summarise(p = list(boxplot.stats(duration)$stats)) %>%
-      ungroup() %>%
-      unnest_wider(p, names_sep = "") %>%
-      select(lb = p2, ub = p4)
-    
-    # Min and max IQR - across groups if need be
-    iqr_lim = c(min(iqr_dt$lb), max(iqr_dt$ub))
-    
-    # Zoom in for the second plot
-    g_zoom = g + coord_cartesian(ylim = c(0, max(iqr_lim)))  # Actually, just reset the upper limit
-    
-    # Place one on top of the other
-    g = ggpubr::ggarrange(g, g_zoom, ncol = 1, align = "v")
-  }
-  
-  # Save figure to file
-  save_fig(g, dir = "sia_data", "SIA durations", by)
 }
 
