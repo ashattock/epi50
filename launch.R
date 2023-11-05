@@ -18,7 +18,7 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = 1)
+o = set_options(do_step = 7)
 
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
@@ -26,7 +26,7 @@ run_prepare()  # See prepare.R
 # Step 2) Impute missing VIMC countries
 run_impute()  # See impute.R
 
-# Step 3) Calculate DALYs
+# Step 3) Calculate DALYs for non-modelled pathogens
 run_dalys()  # See dalys.R
 
 # Step 4) Fit and select impact-FVP functions

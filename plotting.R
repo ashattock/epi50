@@ -81,40 +81,17 @@ plot_coverage_age_density = function() {
   
   # Plot age density of coverage data by source
   g = ggplot(plot_dt) +
-    aes(x = trans_age) +
-    # Coverage from WIISE (in black)...
-    geom_density(
-      data    = plot_dt[source == "wiise"],
-      mapping = aes(y = after_stat(scaled)), 
-      colour  = "black", 
-      fill    = "black", 
-      alpha   = 0.2) +
-    # Coverage from VIMC (in colour)...
-    geom_density(
-      data    = plot_dt[source == "vimc"],
-      mapping = aes(
-        y = after_stat(scaled),
-        colour = v_a_name,
-        fill   = v_a_name), 
-      alpha = 0.2) +
+    aes(x = trans_age, 
+        y = after_stat(scaled), 
+        colour = source,
+        fill   = source) +
+    geom_density(alpha = 0.2) +
     facet_wrap(~v_a_name)
   
   # Apply meaningful scale
   g = g + scale_x_continuous(
     trans  = "log2", 
     limits = c(1, 2^7))
-  
-  # Remove unnecessary legend
-  g = g + theme(legend.position = "none")
-  
-  # Generate pretty colour sheme
-  # colours = colour_scheme(
-  #   map = "pals::kovesi.rainbow",
-  #   n   = n_unique(vimc_dt$v_a_id))
-  
-  # Apply colour scheme
-  # g = g + scale_fill_manual(values = colours) + 
-  #   scale_colour_manual(values = colours)
   
   # Save to file
   save_fig(g, "Coverage density by age", dir = "data_visualisation")
