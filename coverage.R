@@ -29,10 +29,8 @@ prepare_coverage = function() {
   # Finally, incorporate SIA data (from WIISE)
   sia_dt = coverage_sia(vimc_countries_dt)  # See sia.R
   
-  browser()
-  
   # Combine sources
-  rbind(vimc_dt, wiise_dt) %>%
+  rbind(vimc_dt, wiise_dt, sia_dt) %>%
     filter(fvps > 0) %>%  # Remove trivial values
     arrange(country, v_a_id, year, age) %>%
     save_table("coverage")

@@ -20,13 +20,14 @@ coverage_sia = function(vimc_countries_dt) {
   # Data dictionary for converting to d_v_a
   data_dict = table("sia_dictionary") %>%
     inner_join(y  = table("sia_schedule"), 
-               by = "disease") %>%
+               by = "disease") %>%  # TODO: We should infact join on vaccine
     # NOTE: Assuming single dose if no info given...
     mutate(dose = ifelse(is.na(dose), 1, dose),  # TODO: Or use schedule?
            activity = "campaign") %>%
-    inner_join(y  = table("d_v_a"), 
-               by = c("disease", "vaccine", "activity")) %>%
-    select(intervention, d_v_a_id, vaccine, dose, schedule)
+    inner_join(y  = table("v_a"), 
+               by = c("vaccine", "activity")) %>%
+    select(intervention, v_a_id, vaccine, dose, schedule) %>%
+    unique()
   
   # Load and wrangle SIA data
   sia_dt = fread(paste0(o$pth$input, "sia_data.csv")) %>%
@@ -67,7 +68,7 @@ coverage_sia = function(vimc_countries_dt) {
     impute_sia_dates() %>%
     # Parse age groups...
     parse_age_groups() %>%
-    # Convert to d_v_a...
+    # Convert to v_a...
     left_join(y  = data_dict, 
               by = "intervention", 
               relationship = "many-to-many") %>%
@@ -75,8 +76,8 @@ coverage_sia = function(vimc_countries_dt) {
     left_join(y  = vimc_countries_dt, 
               by = c("country", "year", "vaccine")) %>%
     filter(is.na(source)) %>%
-    # Group by d_v_a...
-    group_by(country, d_v_a_id, year, age, schedule, dose) %>%
+    # Group by v_a...
+    group_by(country, v_a_id, year, age, schedule, dose) %>%
     summarise(all_doses = sum(doses), 
               cohort    = mean(cohort)) %>%
     ungroup() %>%
@@ -86,8 +87,8 @@ coverage_sia = function(vimc_countries_dt) {
     # Append coverage...
     mutate(coverage = fvps / cohort) %>%
     # Tidy up...
-    select(country, d_v_a_id, year, age, fvps, cohort, coverage) %>%
-    arrange(country, d_v_a_id, year, age) %>%
+    select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
+    arrange(country, v_a_id, year, age) %>%
     mutate(source = "sia") %>%
     as.data.table()
   
