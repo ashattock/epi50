@@ -91,14 +91,10 @@ table:
   vaccine: DTP3
   activity: campaign
 - d_v_a_id: 23
-  disease: Per
-  vaccine: Per
-  activity: campaign
-- d_v_a_id: 24
   disease: TB
   vaccine: BCG
   activity: routine
-- d_v_a_id: 25
+- d_v_a_id: 24
   disease: TB
   vaccine: BCG
   activity: campaign

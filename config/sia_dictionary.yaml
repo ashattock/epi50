@@ -3,633 +3,267 @@
 # Creates datatable: sia_dictionary_table
 table:
 - intervention: all_vaccines
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - Hib
-  - HepB
-  - Polio
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - Hib3
   - HepB
   - IPV
 - intervention: bcg
-  disease: 
-  - TB
-  vaccine:
-  - BCG
+  vaccine: BCG
 - intervention: bopv
-  disease:
-  - Polio
-  vaccine:
-  - OPV
+  vaccine: OPV
 - intervention: bopv_ipv
-  disease:
-  - Polio
-  - Polio
   vaccine:
   - OPV
   - IPV
 - intervention: bopv_ipv_frac
-  disease:
-  - Polio
-  - Polio
   vaccine:
   - OPV
   - IPV
 - intervention: bopv_mopv1
-  disease: 
-  - Polio
-  vaccine: 
-  - OPV
+  vaccine: OPV
 - intervention: bopv_mopv2
-  disease: 
-  - Polio
-  vaccine: 
-  - OPV
+  vaccine: OPV
 - intervention: cholera
-  disease: 
-  - Cholera
-  vaccine: 
-  - Cholera
+  vaccine: Cholera
 - intervention: covid19
-  disease: 
-  - Covid
-  vaccine: 
-  - Covid
+  vaccine: Covid
 - intervention: diphteria
-  disease: 
-  - Dip
-  vaccine: 
-  - Dip
+  vaccine: Dip
 - intervention: dt
-  disease:
-  - Dip
-  - Tet
   vaccine:
   - Dip
   - Tet
-- intervention: dt_td
-  disease:
-  - Dip
-  - Tet
+- intervention: dt_tdt
   vaccine:
   - Dip
   - Tet
 - intervention: dtap
-  disease:
-  - Dip
-  - Tet
-  - Per
-  vaccine:
-  - DTP3
-  - DTP3
-  - DTP3
+  vaccine: DTP3
 - intervention: dtaphibhepbipv
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - Hib
-  - HepB
-  - Polio
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - Hib3
   - HepB
   - IPV
 - intervention: dtp
-  disease:
-  - Dip
-  - Tet
-  - Per
-  vaccine:
-  - DTP3
-  - DTP3
-  - DTP3
+  vaccine: DTP3
 - intervention: dtpcv1
-  disease:
-  - Dip
-  - Tet
-  - Per
-  vaccine:
-  - DTP3
-  - DTP3
-  - DTP3
+  vaccine: DTP3
   dose: 1
 - intervention: dtpcv2
-  disease:
-  - Dip
-  - Tet
-  - Per
-  vaccine:
-  - DTP3
-  - DTP3
-  - DTP3
+  vaccine: DTP3
   dose: 2
 - intervention: dtpcv3
-  disease:
-  - Dip
-  - Tet
-  - Per
-  vaccine:
-  - DTP3
-  - DTP3
-  - DTP3
+  vaccine: DTP3
   dose: 3
 - intervention: dtpcv4
-  disease:
-  - Dip
-  - Tet
-  - Per
-  vaccine:
-  - DTP3
-  - DTP3
-  - DTP3
+  vaccine: DTP3
   dose: 4
 - intervention: dtphepb
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - HepB
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - HepB
 - intervention: dtphib
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - Hib
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - Hib3
 - intervention: dtphibhepb
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - Hib
-  - HepB
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - Hib3
   - HepB
 - intervention: dtphibhepb1
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - Hib
-  - HepB
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - Hib3
   - HepB
   dose: 1
 - intervention: dtphibhepb2
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - Hib
-  - HepB
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - Hib3
   - HepB
   dose: 2
 - intervention: dtphibhepb3
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - Hib
-  - HepB
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - Hib3
   - HepB
   dose: 3
 - intervention: dtphibhepbipv
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - Hib
-  - HepB
-  - Polio
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - Hib3
   - HepB
   - IPV
 - intervention: dtwp
-  disease:
-  - Dip
-  - Tet
-  - Per
-  vaccine:
-  - DTP3
-  - DTP3
-  - DTP3
+  vaccine: DTP3
 - intervention: flumist
-  disease: 
-  - Flu
-  vaccine: 
-  - Flu
+  vaccine: Flu
 - intervention: h1n1
-  disease: 
-  - H1N1
-  vaccine: 
-  - H1N1
+  vaccine: H1N1
 - intervention: hepa
-  disease: 
-  - HepA
-  vaccine: 
-  - HepA
+  vaccine: HepA
 - intervention: hepb
-  disease: 
-  - HepB
-  vaccine: 
-  - HepB
+  vaccine: HepB
 - intervention: hepb_bd
-  disease: 
-  - HepB
-  vaccine: 
-  - HepB_BD
+  vaccine: HepB_BD
 - intervention: hepb1
-  disease: 
-  - HepB
-  vaccine: 
-  - HepB
+  vaccine: HepB
   dose: 1
 - intervention: hepb2
-  disease: 
-  - HepB
-  vaccine: 
-  - HepB
+  vaccine: HepB
   dose: 2
 - intervention: hepb3
-  disease: 
-  - HepB
-  vaccine: 
-  - HepB
+  vaccine: HepB
   dose: 3
 - intervention: hib
-  disease: 
-  - Hib
-  vaccine: 
-  - Hib3
+  vaccine: Hib3
 - intervention: hibhepb
-  disease:
-  - Hib
-  - HepB
   vaccine:
   - Hib3
   - HepB
 - intervention: hpv
-  disease: 
-  - HPV
-  vaccine: 
-  - HPV
+  vaccine: HPV
 - intervention: hpv3
-  disease: 
-  - HPV
-  vaccine: 
-  - HPV
+  vaccine: HPV
 - intervention: influenza
-  disease: 
-  - Flu
-  vaccine: 
-  - Flu
+  vaccine: Flu
 - intervention: influenza_adult
-  disease: 
-  - Flu
-  vaccine: 
-  - Flu
+  vaccine: Flu
 - intervention: influenza_pediatric
-  disease: 
-  - Flu
-  vaccine: 
-  - Flu
+  vaccine: Flu
 - intervention: influenza_tiv
-  disease: 
-  - Flu
-  vaccine: 
-  - Flu
+  vaccine: Flu
 - intervention: ipv
-  disease: 
-  - Polio
-  vaccine: 
-  - IPV
+  vaccine: IPV
 - intervention: ipv_frac
-  disease: 
-  - Polio
-  vaccine: 
-  - IPV
+  vaccine: IPV
 - intervention: japenc
-  disease: 
-  - JE
-  vaccine: 
-  - JE
+  vaccine: JE
 - intervention: m_mmr
-  disease:
-  - Measles
-  - Mumps
-  - Rubella
   vaccine:
   - Measles
   - Mumps
   - Rubella
 - intervention: m_mr
-  disease:
-  - Measles
-  - Rubella
   vaccine:
   - Measles
   - Rubella
 - intervention: mcv
-  disease: 
-  - MenA
-  vaccine: 
-  - MenA
+  vaccine: MenA
 - intervention: measles
-  disease: 
-  - Measles
-  vaccine: 
-  - Measles
+  vaccine: Measles
 - intervention: men_a
-  disease: 
-  - MenA
-  vaccine: 
-  - MenA
+  vaccine: MenA
 - intervention: men_ac
-  disease:
-  - MenA
-  - MenOther
   vaccine:
   - MenA
   - MenOther
 - intervention: men_acw
-  disease:
-  - MenA
-  - MenOther
   vaccine:
   - MenA
   - MenOther
 - intervention: men_acwy
-  disease:
-  - MenA
-  - MenOther
   vaccine:
   - MenA
   - MenOther
 - intervention: men_acyw_135conj
-  disease:
-  - MenA
-  - MenOther
   vaccine:
   - MenA
   - MenOther
 - intervention: men_b
-  disease: 
-  - MenOther
-  vaccine: 
-  - MenOther
+  vaccine: MenOther
 - intervention: men_bc
-  disease: 
-  - MenOther
-  vaccine: 
-  - MenOther
+  vaccine: MenOther
 - intervention: men_c_conj
-  disease: 
-  - MenOther
-  vaccine: 
-  - MenOther
+  vaccine: MenOther
 - intervention: mmr
-  disease:
-  - Measles
-  - Mumps
-  - Rubella
   vaccine:
   - Measles
   - Mumps
   - Rubella
 - intervention: mmr_polio
-  disease:
-  - Measles
-  - Mumps
-  - Rubella
-  - Polio
   vaccine:
   - Measles
   - Mumps
   - Rubella
   - IPV
 - intervention: mopv1
-  disease: 
-  - Polio
-  vaccine: 
-  - OPV
+  vaccine: OPV
 - intervention: mopv2
-  disease: 
-  - Polio
-  vaccine: 
-  - OPV
+  vaccine: OPV
 - intervention: mopv3
-  disease: 
-  - Polio
-  vaccine: 
-  - OPV
+  vaccine: OPV
 - intervention: mr
-  disease:
-  - Measles
-  - Rubella
   vaccine:
   - Measles
   - Rubella
 - intervention: mr_mmr
-  disease:
-  - Measles
-  - Mumps
-  - Rubella
   vaccine:
   - Measles
   - Mumps
   - Rubella
 - intervention: mumps
-  disease: 
-  - Mumps
-  vaccine: 
-  - Mumps
+  vaccine: Mumps
 - intervention: opv
-  disease: 
-  - Polio
-  vaccine: 
-  - OPV
+  vaccine: OPV
 - intervention: opvt
-  disease: 
-  - Polio
-  vaccine: 
-  - OPV
+  vaccine: OPV
 - intervention: ors
-  disease: 
-  - Flu
-  vaccine: 
-  - Flu
+  vaccine: Flu
 - intervention: pcv1
-  disease: 
-  - PCV
-  vaccine: 
-  - PCV3
+  vaccine: PCV3
 - intervention: pcv10
-  disease: 
-  - PCV
-  vaccine: 
-  - PCV3
+  vaccine: PCV3
 - intervention: pcv13
-  disease: 
-  - PCV
-  vaccine: 
-  - PCV3
+  vaccine: PCV3
 - intervention: pcv2
-  disease: 
-  - PCV
-  vaccine: 
-  - PCV3
+  vaccine: PCV3
 - intervention: pcv3
-  disease: 
-  - PCV
-  vaccine: 
-  - PCV3
+  vaccine: PCV3
 - intervention: pcv7
-  disease: 
-  - PCV
-  vaccine: 
-  - PCV3
+  vaccine: PCV3
 - intervention: penta_td
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - Hib
-  - HepB
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - Hib3
   - HepB
 - intervention: pneumo_conj
-  disease: 
-  - PCV
-  vaccine: 
-  - PCV3
+  vaccine: PCV3
 - intervention: ppv23
-  disease: 
-  - PCV
-  vaccine: 
-  - PCV3
+  vaccine: PCV3
 - intervention: rcv
-  disease: 
-  - Rubella
-  vaccine: 
-  - Rubella
+  vaccine: Rubella
 - intervention: rota1
-  disease: 
-  - Rota
-  vaccine: 
-  - Rota
+  vaccine: Rota
 - intervention: rota2
-  disease: 
-  - Rota
-  vaccine: 
-  - Rota
+  vaccine: Rota
 - intervention: rotavirus
-  disease: 
-  - Rota
-  vaccine: 
-  - Rota
+  vaccine: Rota
 - intervention: td_s
-  disease:
-  - Dip
-  - Tet
   vaccine:
   - Dip
   - Tet
 - intervention: tdap_s
-  disease:
-  - Dip
-  - Tet
-  - Per
-  vaccine:
-  - DTP3
-  - DTP3
-  - DTP3
+  vaccine: DTP3
 - intervention: tdipv_s
-  disease:
-  - Dip
-  - Tet
-  - Polio
   vaccine:
   - Dip
   - Tet
   - IPV
 - intervention: tdpipv
-  disease:
-  - Dip
-  - Tet
-  - Per
-  - Polio
   vaccine:
-  - DTP3
-  - DTP3
   - DTP3
   - IPV
 - intervention: tt
-  disease: 
-  - Tet
-  vaccine: 
-  - Tet
+  vaccine: Tet
 - intervention: typhoid
-  disease: 
-  - Typhoid
-  vaccine: 
-  - Typhoid
+  vaccine: Typhoid
 - intervention: varicella
-  disease: 
-  - Varicella
-  vaccine: 
-  - Varicella
+  vaccine: Varicella
 - intervention: yf
-  disease: 
-  - YF
-  vaccine: 
-  - YF
+  vaccine: YF
 - intervention: zoster
-  disease: 
-  - Shingles
-  vaccine: 
-  - Zoster
+  vaccine: Shingles

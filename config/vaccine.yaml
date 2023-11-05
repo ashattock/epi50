@@ -32,7 +32,5 @@ table:
   vaccine_name: "Diphtheria-containing vaccine"
 - vaccine: Tet
   vaccine_name: "Tetanus-containing vaccine"
-- vaccine: Per
-  vaccine_name: "Pertussis-containing vaccine"
 - vaccine: BCG
   vaccine_name: "Bacille Calmette-Guerin"

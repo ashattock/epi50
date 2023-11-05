@@ -1,32 +1,30 @@
 ---
 
-# Creates datatable: sia_doses_table
+# Creates datatable: sia_schedule_table
 table:
-# - disease: Covid
-#   schedule: 2
-- disease: HepB
+- vaccine: HepB
   schedule: 3
-- disease: Hib
-  schedule: 3
-- disease: HPV
-  schedule: 2
-- disease: Measles
-  schedule: 2
-- disease: PCV
-  schedule: 4
-# - disease: Polio
-#   schedule: 4
-- disease: Rota
-  schedule: 3
-- disease: Rubella
-  schedule: 2
-- disease: YF
+- vaccine: HepB_BD
   schedule: 1
-- disease: Dip
+- vaccine: Hib3
+  schedule: 3
+- vaccine: HPV
+  schedule: 2
+- vaccine: Measles
+  schedule: 2
+- vaccine: PCV3
+  schedule: 4
+- vaccine: Rota
+  schedule: 3
+- vaccine: Rubella
+  schedule: 2
+- vaccine: YF
+  schedule: 1
+- vaccine: DTP3
   schedule: 5
-- disease: Tet
+- vaccine: Dip
   schedule: 5
-- disease: Per
+- vaccine: Tet
   schedule: 5
-- disease: TB
+- vaccine: BCG
   schedule: 1

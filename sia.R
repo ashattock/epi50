@@ -17,17 +17,12 @@ coverage_sia = function(vimc_countries_dt) {
   # Entries to set as NA
   na_var = c("unknown", "undefined", "")
   
-  # Data dictionary for converting to d_v_a
+  # Data dictionary for converting to v_a
   data_dict = table("sia_dictionary") %>%
-    inner_join(y  = table("sia_schedule"), 
-               by = "disease") %>%  # TODO: We should infact join on vaccine
-    # NOTE: Assuming single dose if no info given...
-    mutate(dose = ifelse(is.na(dose), 1, dose),  # TODO: Or use schedule?
-           activity = "campaign") %>%
+    mutate(activity = "campaign") %>%
     inner_join(y  = table("v_a"), 
                by = c("vaccine", "activity")) %>%
-    select(intervention, v_a_id, vaccine, dose, schedule) %>%
-    unique()
+    select(intervention, v_a_id, vaccine)
   
   # Load and wrangle SIA data
   sia_dt = fread(paste0(o$pth$input, "sia_data.csv")) %>%
@@ -74,18 +69,19 @@ coverage_sia = function(vimc_countries_dt) {
               relationship = "many-to-many") %>%
     # Remove entires already covered by VIMC...
     left_join(y  = vimc_countries_dt, 
-              by = c("country", "year", "vaccine")) %>%
+              by = c("vaccine", "country", "year")) %>%
     filter(is.na(source)) %>%
     # Group by v_a...
-    group_by(country, v_a_id, year, age, schedule, dose) %>%
+    group_by(country, v_a_id, vaccine, year, age) %>%
     summarise(all_doses = sum(doses), 
               cohort    = mean(cohort)) %>%
     ungroup() %>%
-    # Calculate FVPs (set cohort as upper bound)...
-    mutate(fvps = all_doses * (dose / schedule), 
-           fvps = pmin(fvps, cohort)) %>%
-    # Append coverage...
-    mutate(coverage = fvps / cohort) %>%
+    # Calculate FVPs and coverage...
+    left_join(y  = table("sia_schedule"),
+               by = "vaccine") %>%
+    mutate(fvps = all_doses / schedule, 
+           fvps = pmin(fvps, cohort), # Cohort as upper bound
+           coverage = fvps / cohort) %>%
     # Tidy up...
     select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
