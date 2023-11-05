@@ -16,22 +16,23 @@ coverage_sia = function() {
   
   # ---- Load and filter raw data ----
   
-  # TODO: There is nothing we can do (in terms of impact estimation)
-  #       for SIA events not modelled by VIMC, so filter out these.
-  
-  data_dict = table("sia_dictionary") %>%
-    select(-notes) %>%
-    mutate(activity = "campaign") %>%
-    inner_join(y  = table("d_v_a"), 
-               by = c("disease", "vaccine", "activity"))
-  
   # Entries to set as NA
   na_var = c("unknown", "undefined", "")
   
+  # Data dictionary for converting to d_v_a
+  data_dict = table("sia_dictionary") %>%
+    inner_join(y  = table("sia_schedule"), 
+               by = "disease") %>%
+    # NOTE: Assuming full schedule if no info...
+    mutate(dose = ifelse(is.na(dose), 1, dose),
+           # dose = ifelse(is.na(dose), schedule, dose), 
+           activity = "campaign") %>%
+    inner_join(y  = table("d_v_a"), 
+               by = c("disease", "vaccine", "activity")) %>%
+    select(intervention, d_v_a_id, dose, schedule)
+  
   # Load raw data
   sia_raw = fread(paste0(o$pth$input, "sia_data.csv"))
-  
-  # browser()
   
   # Select data of interest
   sia_dt = sia_raw %>%
@@ -69,206 +70,79 @@ coverage_sia = function() {
     # Deal with dates...
     format_sia_dates() %>%
     impute_sia_dates() %>%
-    # Parse age groups into age ranges...
+    # Parse age groups...
     parse_age_groups() %>%
-    # Then covert doses to FVP...
-    convert_fvps() %>%
     # Convert to d_v_a...
     left_join(y  = data_dict, 
               by = "intervention", 
               relationship = "many-to-many") %>%
+    # Group by d_v_a...
+    group_by(country, d_v_a_id, year, age, schedule, dose) %>%
+    summarise(all_doses = sum(doses), 
+              cohort    = mean(cohort)) %>%
+    ungroup() %>%
+    # Calculate FVPs (set cohort as upper bound)...
+    mutate(fvps = all_doses * (dose / schedule), 
+           fvps = pmin(fvps, cohort)) %>%
+    # Append coverage...
+    mutate(coverage = fvps / cohort) %>%
+    # Tidy up...
     select(country, d_v_a_id, year, age, fvps, cohort, coverage) %>%
-    mutate(source = "sia")
+    arrange(country, d_v_a_id, year, age) %>%
+    mutate(source = "sia") %>%
+    as.data.table()
   
   browser()
   
-  # ---- Fully Vaccinated Persons (FVP) ----
-  
-  # Load doses per FVP table
-  doses_per_fvp = table("sia_doses") %>%
-    rename(doses_fvps = doses) %>%
-    select(-notes)
-  
-  fvps_dt = sia_dt %>%
-    left_join(doses_per_fvp, 
-              by = "disease") %>%
-    mutate(fvps = (doses / doses_fvps) / 1e6) %>%
-    group_by(region, disease) %>%
-    summarise(fvps = sum(fvps)) %>%
-    ungroup() %>%
-    complete(region, disease, fill = list(fvps = 0)) %>%
-    as.data.table()
-  
-  g1 = ggplot(fvps_dt) + 
-    aes(x = 1, y = fvps, fill = region) + 
-    geom_bar(stat = "identity", colour = "black", size = 0.05) + 
-    facet_wrap(~disease)
-  
-  # Save figures to file
-  save_fig(g1, dir = "sia_data", "SIA FVPs")
-  
-  # ---- Doses per month ----
-  
-  # Plot durations for all entries
-  plot_durations(sia_dt)
-  
-  # Then same plots grouped by different variables
-  plot_durations(sia_dt, "extent")
-  plot_durations(sia_dt, "sia_type")
-  plot_durations(sia_dt, "disease")
-  
-  # ---- Plot by country ----
-  
-  # Calculate doses and cumulative doses for all possible months
-  #
-  # NOTE: we only keep trivial months for nicer plotting of cumulative doses
-  country_dt1 = sia_month_dt %>%
-    # unite("d_v", disease, vaccine) %>%
-    # group_by(country, d_v, month) %>%
-    group_by(country, disease, month) %>%
-    summarise(doses = sum(doses)) %>%  # Doses over time country-disease-vaccine
-    mutate(cum_doses = cumsum(doses)) %>%  # Cumulative doses country-disease-vaccine
-    ungroup() %>%
-    as.data.table()
-  
-  # Remove (most of) the zeros for nicer line plots
-  country_dt2 = country_dt1 %>%
-    group_by(country, disease) %>%
-    filter(lead(cum_doses) > 0) %>%  # Remove all but most recent trailing zeros (for pretty plotting)
-    ungroup() %>%
-    filter(!(doses == 0 & cum_doses > 0)) %>%  # Remove leading zeros
-    as.data.table()
-  
-  # Get colours - one per country
-  cols = get_colours(length(levels(country_dt2$country)))
-  
-  # Plot area of cumulative doses per country over time
-  g1 = ggplot(country_dt1) + 
-    aes(x = month, y = cum_doses / 1e6, fill = country) +
-    geom_area() +
-    facet_wrap(~disease, scales = "free_y")
-  
-  # Plot cumulative doses per country over time
-  g2 = ggplot(country_dt2) + 
-    aes(x = month, y = cum_doses / 1e6, colour = country) +
-    geom_line() +
-    facet_wrap(~disease, scales = "free_y") 
-  
-  # Save figures to file
-  save_fig(g1, dir = "sia_data", "SIA doses by country", "area")
-  save_fig(g2, dir = "sia_data", "SIA doses by country", "line")
-  
-  # ---- Plot by disease ----
-  
-  # Total doses for each d_v - sum over countries
-  disease_dt1 = sia_month_dt %>%
-    # unite("d_v", disease, vaccine) %>%
-    # group_by(d_v, month) %>%
-    group_by(disease, month) %>%
-    summarise(doses = sum(doses)) %>%
-    mutate(cum_doses = cumsum(doses)) %>%
-    ungroup() %>%
-    # Number of FVPs...
-    left_join(doses_per_fvp, 
-              by = "disease") %>%
-    mutate(fvps     = (doses     / doses_fvps), 
-           cum_fvps = (cum_doses / doses_fvps)) %>%
-    replace_na(list(fvps = 0, cum_fvps = 0)) %>%
-    as.data.table()
-  
-  # Remove trivial entires for nicer line plot
-  disease_dt2 = disease_dt1 %>%
-    filter(doses > 0, cum_doses > 0)
-  
-  # Get colours - one per disease
-  n_cols = length(unique(disease_dt2$disease))
-  cols   = get_colours(n_cols)
-  
-  # Plot doses as areas using full datatable
-  g1 = ggplot(disease_dt1) +
-    aes(x = month, y = cum_doses / 1e9, fill = disease) +
-    geom_area() +
-    scale_y_continuous(name   = "Cumulative doses (billions)",
-                       expand = expansion(mult = c(0, 0.05)),
-                       labels = comma)
-  
-  # Plot FVPs as areas using full datatable
-  g2 = ggplot(disease_dt1) +
-    aes(x = month, y = cum_fvps / 1e9, fill = disease) +
-    geom_area() +
-    scale_y_continuous(name   = "Cumulative FVPs (billions)",
-                       expand = expansion(mult = c(0, 0.05)),
-                       labels = comma)
-  
-  # Plot lines using reduced datatable
-  g3 = ggplot(disease_dt2) +
-    aes(x = month, y = cum_doses, colour = disease) +
-    geom_line(size = 2) +
-    scale_y_continuous(name   = "Cumulative doses (log10 scale)", 
-                       trans  = "log10", 
-                       limits = c(1, NA),
-                       expand = expansion(mult = c(0, 0.05)),
-                       labels = comma)
-  
-  # Save figures to file
-  save_fig(g1, dir = "sia_data", "SIA doses by disease", "area")
-  save_fig(g2, dir = "sia_data", "SIA FVPs by disease",  "area")
-  save_fig(g3, dir = "sia_data", "SIA doses by disease", "line")
-  
   # ---- Plot by data source ----
   
-  # First determine countries reported by VIMC
-  vimc_countries = table("vimc_estimates") %>%
-    select(country, d_v_a_id) %>%
-    unique() %>%
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    select(country, disease) %>%
-    unique() %>%
-    mutate(country_source = "vimc")
-  
-  # Join VIMC disease and countries to SIA data
-  vimc_dt = sia_month_dt %>%
-    # Number of FVPs...
-    left_join(doses_per_fvp, 
-              by = "disease") %>%
-    mutate(fvps = (doses / doses_fvps)) %>%
-    replace_na(list(fvps = 0)) %>%
-    select(-doses_fvps) %>%
-    # Information source...
-    left_join(vimc_countries[, .(country, disease, country_source)], 
-              by = c("country", "disease")) %>%
-    left_join(table("disease")[, .(disease, source)], 
-              by = "disease") %>%
-    rename(impact_source = source) %>%
-    mutate(country_source = ifelse(is.na(country_source), "nosource", country_source),
-           impact_source  = ifelse(is.na(impact_source),  "nosource", impact_source), 
-           country_source = paste0("country_", country_source), 
-           impact_source  = paste0("impact_",  impact_source))
-  
-  # Group by source of data for disease and country
-  source_dt = vimc_dt %>%
-    group_by(disease, country_source, impact_source, month) %>%
-    summarise(doses = sum(doses), 
-              fvps  = sum(fvps)) %>%
-    mutate(cum_doses = cumsum(doses), 
-           cum_fvps  = cumsum(fvps)) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  # Plot by data source - filled by d_v
-  g1 = ggplot(source_dt) + 
-    aes(x = month, y = cum_fvps / 1e9, fill = disease) + 
-    geom_area() + 
-    facet_grid(country_source ~ impact_source)
-  
-  # Save figures to file
-  save_fig(g1, dir = "sia_data", "SIA doses by source")
-  
-  
-  
-  
-  
+  # # First determine countries reported by VIMC
+  # vimc_countries = table("vimc_estimates") %>%
+  #   select(country, d_v_a_id) %>%
+  #   unique() %>%
+  #   left_join(y  = table("d_v_a"), 
+  #             by = "d_v_a_id") %>%
+  #   select(country, disease) %>%
+  #   unique() %>%
+  #   mutate(country_source = "vimc")
+  # 
+  # # Join VIMC disease and countries to SIA data
+  # vimc_dt = sia_month_dt %>%
+  #   # Number of FVPs...
+  #   left_join(doses_per_fvp, 
+  #             by = "disease") %>%
+  #   mutate(fvps = (doses / doses_fvps)) %>%
+  #   replace_na(list(fvps = 0)) %>%
+  #   select(-doses_fvps) %>%
+  #   # Information source...
+  #   left_join(vimc_countries[, .(country, disease, country_source)], 
+  #             by = c("country", "disease")) %>%
+  #   left_join(table("disease")[, .(disease, source)], 
+  #             by = "disease") %>%
+  #   rename(impact_source = source) %>%
+  #   mutate(country_source = ifelse(is.na(country_source), "nosource", country_source),
+  #          impact_source  = ifelse(is.na(impact_source),  "nosource", impact_source), 
+  #          country_source = paste0("country_", country_source), 
+  #          impact_source  = paste0("impact_",  impact_source))
+  # 
+  # # Group by source of data for disease and country
+  # source_dt = vimc_dt %>%
+  #   group_by(disease, country_source, impact_source, month) %>%
+  #   summarise(doses = sum(doses), 
+  #             fvps  = sum(fvps)) %>%
+  #   mutate(cum_doses = cumsum(doses), 
+  #          cum_fvps  = cumsum(fvps)) %>%
+  #   ungroup() %>%
+  #   as.data.table()
+  # 
+  # # Plot by data source - filled by d_v
+  # g1 = ggplot(source_dt) + 
+  #   aes(x = month, y = cum_fvps / 1e9, fill = disease) + 
+  #   geom_area() + 
+  #   facet_grid(country_source ~ impact_source)
+  # 
+  # # Save figures to file
+  # save_fig(g1, dir = "sia_data", "SIA doses by source")
   
   return(sia_dt)
 }
@@ -532,7 +406,11 @@ parse_age_groups = function(sia_dt) {
 # ---------------------------------------------------------
 # Convert number of doses to FVPs
 # ---------------------------------------------------------
-doses2fvps = function() {
+doses2fvps = function(sia_dt, data_dict) {
+  
+  browser()
+  
+
   
   browser()
 }

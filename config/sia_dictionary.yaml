@@ -17,7 +17,6 @@ table:
   - Hib3
   - HepB
   - IPV
-  notes: "Assuming this is the hexavalent vaccine schedule"
 - intervention: bcg
   disease: 
   - TB
@@ -35,7 +34,6 @@ table:
   vaccine:
   - OPV
   - IPV
-  notes: "Both types of vaccine? Really?"
 - intervention: bopv_ipv_frac
   disease:
   - Polio
@@ -43,7 +41,6 @@ table:
   vaccine:
   - OPV
   - IPV
-  notes: "Both types of vaccine? Really?"
 - intervention: bopv_mopv1
   disease: 
   - Polio
@@ -125,7 +122,7 @@ table:
   - DTP3
   - DTP3
   - DTP3
-  notes: "First DTP dose only? Ignore as incomplete schedule?"
+  dose: 1
 - intervention: dtpcv2
   disease:
   - Dip
@@ -135,7 +132,7 @@ table:
   - DTP3
   - DTP3
   - DTP3
-  notes: "Second DTP dose only? Ignore as incomplete schedule?"
+  dose: 2
 - intervention: dtpcv3
   disease:
   - Dip
@@ -145,7 +142,7 @@ table:
   - DTP3
   - DTP3
   - DTP3
-  notes: "Third DTP dose only? Ignore as incomplete schedule?"
+  dose: 3
 - intervention: dtpcv4
   disease:
   - Dip
@@ -155,7 +152,7 @@ table:
   - DTP3
   - DTP3
   - DTP3
-  notes: "Fourth DTP dose only? Ignore as incomplete schedule?"
+  dose: 4
 - intervention: dtphepb
   disease:
   - Dip
@@ -204,7 +201,7 @@ table:
   - DTP3
   - Hib3
   - HepB
-  notes: "First DTP dose only? Ignore as incomplete schedule?"
+  dose: 1
 - intervention: dtphibhepb2
   disease:
   - Dip
@@ -218,7 +215,7 @@ table:
   - DTP3
   - Hib3
   - HepB
-  notes: "Second DTP dose only? Ignore as incomplete schedule?"
+  dose: 2
 - intervention: dtphibhepb3
   disease:
   - Dip
@@ -232,7 +229,7 @@ table:
   - DTP3
   - Hib3
   - HepB
-  notes: "Third DTP dose only? Ignore as incomplete schedule?"
+  dose: 3
 - intervention: dtphibhepbipv
   disease:
   - Dip
@@ -281,26 +278,25 @@ table:
   disease: 
   - HepB
   vaccine: 
-  - HepB
-  notes: "Birth dose - ignore as incomplete schedule?"
+  - HepB_BD
 - intervention: hepb1
   disease: 
   - HepB
   vaccine: 
   - HepB
-  notes: "First dose - ignore as incomplete schedule?"
+  dose: 1
 - intervention: hepb2
   disease: 
   - HepB
   vaccine: 
   - HepB
-  notes: "Second dose - ignore as incomplete schedule?"
+  dose: 2
 - intervention: hepb3
   disease: 
   - HepB
   vaccine: 
   - HepB
-  notes: "Third dose - ignore as incomplete schedule?"
+  dose: 3
 - intervention: hib
   disease: 
   - Hib
@@ -367,7 +363,6 @@ table:
   - Measles
   - Mumps
   - Rubella
-  notes: "What is the leading M?"
 - intervention: m_mr
   disease:
   - Measles
@@ -375,19 +370,16 @@ table:
   vaccine:
   - Measles
   - Rubella
-  notes: "What is the leading M?"
 - intervention: mcv
   disease: 
   - MenA
   vaccine: 
   - MenA
-  notes: "Only targets Meningitis A?"
 - intervention: measles
   disease: 
   - Measles
   vaccine: 
   - Measles
-  notes: "Many of these entires (~1,400)"
 - intervention: men_a
   disease: 
   - MenA
@@ -560,13 +552,11 @@ table:
   - PCV
   vaccine: 
   - PCV3
-  notes: "Or model this as a new type of vaccine?"
 - intervention: rcv
   disease: 
   - Rubella
   vaccine: 
   - Rubella
-  notes: "Or RCV2?"
 - intervention: rota1
   disease: 
   - Rota
@@ -589,7 +579,6 @@ table:
   vaccine:
   - Dip
   - Tet
-  notes: "Reduced amount of diphtheria"
 - intervention: tdap_s
   disease:
   - Dip
@@ -599,7 +588,6 @@ table:
   - DTP3
   - DTP3
   - DTP3
-  notes: "Reduced amount of diphtheria"
 - intervention: tdipv_s
   disease:
   - Dip
@@ -609,7 +597,6 @@ table:
   - Dip
   - Tet
   - IPV
-  notes: "Reduced amount of diphtheria"
 - intervention: tdpipv
   disease:
   - Dip
@@ -621,7 +608,6 @@ table:
   - DTP3
   - DTP3
   - IPV
-  notes: "Reduced amount of diphtheria"
 - intervention: tt
   disease: 
   - Tet
