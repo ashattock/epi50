@@ -12,6 +12,8 @@ plot_total_fvps = function() {
   
   message("  > Plotting total number of FVP")
   
+  # ---- Plot 1: by d_v_a ----
+  
   # Flag for whether to plot FVPs cumulatively over time
   cumulative = TRUE
   
@@ -64,7 +66,35 @@ plot_total_fvps = function() {
     facet_wrap(~d_v_a_name)
   
   # Save to file
-  save_fig(g, "FVPs over time", dir = "data_visualisation")
+  save_dir = "data_visualisation"
+  save_fig(g, "FVPs by source", dir = save_dir)
+  
+  # ---- Plot 2: by disease & vaccine ----
+  
+  # Produce plot for both disease and vaccine
+  for (d_v in c("disease", "vaccine")) {
+    
+    # Sum FVPs for each disease or vaccine
+    plot_dt = source_dt %>%
+      left_join(y  = table("d_v_a"), 
+                by = "d_v_a_id") %>%
+      select(d_v = !!d_v, activity, year, fvps_cum) %>%
+      group_by(d_v, activity, year) %>%
+      summarise(fvps_cum = sum(fvps_cum)) %>%
+      ungroup() %>%
+      as.data.table()
+    
+    # Plot FVPs over time for each disease or vaccine
+    g = ggplot(plot_dt) + 
+      aes(x = year, 
+          y = !!sym(y), 
+          fill = activity) + 
+      geom_area() + 
+      facet_wrap(~d_v)
+    
+    # Save to file
+    save_fig(g, paste0("FVPs by ", d_v), dir = save_dir)
+  }
 }
 
 # ---------------------------------------------------------
