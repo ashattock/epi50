@@ -30,7 +30,7 @@ coverage_sia = function() {
   # Load raw data
   sia_raw = fread(paste0(o$pth$input, "sia_data.csv"))
   
-  browser()
+  # browser()
   
   # Select data of interest
   sia_dt = sia_raw %>%
@@ -68,8 +68,8 @@ coverage_sia = function() {
     # Deal with dates...
     format_sia_dates() %>%
     impute_sia_dates() %>%
-    # Interpret age groups...
-    interpret_age_groups() 
+    # Parse age groups into age ranges...
+    parse_age_groups() 
   
   browser()
   
@@ -79,12 +79,12 @@ coverage_sia = function() {
             relationship = "many-to-many")
   # Then covert to FVP...
   xxx_fn() %>%
-  # Tidy up...
-  select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
-  mutate(source = "sia")
+    # Tidy up...
+    select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
+    mutate(source = "sia")
   
   browser()
-
+  
   # ---- Plot frequency of variables ----
   
   # Activity frequency by disease-vaccine
@@ -121,7 +121,7 @@ coverage_sia = function() {
   browser()
   
   sia_output_dt = sia_dt # %>%
-
+  
   
   # ---- Fully Vaccinated Persons (FVP) ----
   
@@ -439,11 +439,124 @@ impute_sia_dates = function(sia_dt) {
 }
 
 # ---------------------------------------------------------
-# Impute missing end dates, distribute over time, and sum over years
+# Parse age groups into age ranges
 # ---------------------------------------------------------
-interpret_age_groups = function(sia_dt) {
+parse_age_groups = function(sia_dt) {
   
-  browser() # TODO: All of this...
+  # All unique age group strings to parse
+  age_groups = sort(unique(sia_dt$age_group))
+  
+  # Initialise working datatable
+  group_dt = data.table(
+    group = age_groups, 
+    age   = age_groups)
+  
+  # ---- Parse age group stings ----
+  
+  # Regular expression to remove
+  exp_rm = c(",.+", "\n.+", "\\+", "=", "[a-z, ]")
+  
+  # Regular expression to substitute
+  exp_sub = c(
+    "&"  = "and",
+    "^<" = "0&", 
+    "^>" = "100&", 
+    "-<" = "&", 
+    "->" = "&", 
+    "-"  = "&", 
+    " y" = "#", 
+    " m" = "@") 
+  
+  # Several named special cases
+  exp_txt = c(
+    "all ages"    = "0-100",
+    "adolescents" = "10-19",
+    "adults"      = "18-60",
+    "children"    = "1-12",
+    "elderly"     = "60-100",
+    "school"      = "5-16",
+    "women"       = "18-60")
+  
+  # Parse key characters
+  for (exp in names(exp_sub))
+    group_dt[grepl(exp, age), age := gsub(exp, exp_sub[[exp]], age)]
+  
+  # Remove certain characters
+  for (exp in exp_rm)
+    group_dt[grepl(exp, age), age := gsub(exp, "", age)]
+  
+  # Parse strings that we don't yet have info for
+  for (exp in names(exp_txt))
+    group_dt[grepl(exp, group) & age == "", 
+           age := gsub("-", "&", exp_txt[[exp]])]
+  
+  # ---- Apply parsed ages to data ----
+  
+  # Construct age group - age range dictionary
+  dict_dt = group_dt %>%
+    # Split at denominator if it exists...
+    separate_wider_delim(
+      cols  = age, 
+      delim = "&", 
+      names = c("a1", "a2"), 
+      too_few = "align_start", 
+      cols_remove = FALSE) %>%
+    # Extract units - years (#) or months (@)...
+    mutate(u1 = str_extract(a1, "#|@"), 
+           u2 = str_extract(a2, "#|@"), 
+           u1 = ifelse(is.na(u1), u2, u1), 
+           u2 = ifelse(is.na(u2), u1, u2)) %>%
+    # Assume units are years if still trivial...
+    mutate(u1 = ifelse(is.na(u1), "#", u1), 
+           u2 = ifelse(is.na(u2), "#", u2)) %>%
+    # Convert ages to numeric...
+    mutate(a1 = str_remove(a1, "(#|@).*"), 
+           a2 = str_remove(a2, "(#|@).*"), 
+           a1 = suppressWarnings(as.numeric(a1)), 
+           a2 = suppressWarnings(as.numeric(a2))) %>%
+    # Convert all ages to year format...
+    mutate(y1 = ifelse(u1 == "@", a1 / 12, a1), 
+           y2 = ifelse(u2 == "@", a2 / 12, a2)) %>%
+    # Deal with missing and infeasible values...
+    mutate(y1 = ifelse(y1 > 100, NA, y1), 
+           y2 = ifelse(is.na(y2), y1, y2)) %>%
+    replace_na(list(y1 = 0, y2 = 0)) %>%
+    # Ensure correct order and round...
+    mutate(age_min = round(pmin(y1, y2)), 
+           age_max = round(pmax(y1, y2))) %>%
+    # Expand out for single age bins...
+    select(age_group = group, age_min, age_max) %>%
+    expand_grid(age = 0 : 100) %>%
+    filter(age >= age_min, 
+           age <= age_max) %>%
+    # Tidy up...
+    select(age_group, age) %>%
+    as.data.table()
+  
+  # Convert to long form and distribute across age bins
+  age_dt = sia_dt %>%
+    rename(total_doses = doses) %>%
+    # Expand with parsed age bins...
+    left_join(y  = dict_dt, 
+              by = "age_group", 
+              relationship = "many-to-many") %>%
+    # Append population size...
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    # Distribute across age bins...
+    group_by(country, intervention, year, age_group) %>%
+    mutate(doses = total_doses * pop / sum(pop)) %>%
+    ungroup() %>%
+    # Tidy up...
+    select(country, intervention, year, age, doses) %>%
+    as.data.table()
+  
+  # Sanity check that we haven't lost/gained doses
+  dose_diff = sum(sia_dt$doses) - sum(age_dt$doses)
+  if (abs(dose_diff) > 1e-6)
+    stop("Age disaggregation failed")
+    
+  return(age_dt)
 }
 
 # ---------------------------------------------------------
