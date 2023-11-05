@@ -612,6 +612,36 @@ plot_model_fits = function() {
 }
 
 # ---------------------------------------------------------
+# Main results plot - impact over time
+# ---------------------------------------------------------
+plot_history = function() {
+  
+  # Wrangle final results
+  plot_dt = read_rds("results", "results") %>%
+    # Append full disease names...
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    # Cumulative results for each disease...
+    group_by(disease_name, year) %>%
+    summarise(impact = sum(impact)) %>%
+    mutate(impact_cum = cumsum(impact)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # Stacked area plot by disease
+  g = ggplot(plot_dt) +
+    aes(x = year, 
+        y = impact_cum, 
+        fill = disease_name) + 
+    geom_area()
+  
+  # Save to file
+  save_fig(g, "Historical impact", dir = "history")
+}
+
+# ---------------------------------------------------------
 # Plot annual totals - diagnostic figure to check alignment of means
 # ---------------------------------------------------------
 plot_annual_total = function() {

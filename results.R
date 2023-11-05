@@ -58,6 +58,15 @@ run_results = function() {
     plot_model_fits()
   }
   
+  # ---- Historical results ----
+  
+  # Check plotting flag
+  if (o$plot_history) {
+    
+    # Main results plot - impact over time
+    plot_history()
+  }
+  
   # ---- Uncertainty plots ----
   
   # Check plotting flag
