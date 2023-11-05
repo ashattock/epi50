@@ -76,22 +76,28 @@ plot_coverage_age_density = function() {
   
   # Construct plotting datatable
   plot_dt = table("coverage") %>%
-    mutate(trans_age = pmax(age, 1), .after = age) %>%
-    append_v_a_name()
+    # Sum over country and time...
+    group_by(v_a_id, source, age) %>%
+    summarise(fvps = sum(fvps)) %>%
+    ungroup() %>%
+    # Proportion of FVPs in each age bin...
+    group_by(v_a_id, source) %>%
+    mutate(p_fvps = fvps / sum(fvps)) %>%
+    ungroup() %>%
+    # Tidy up...
+    append_v_a_name() %>%
+    select(v_a_name, source, age, p_fvps) %>%
+    arrange(v_a_name, source) %>%
+    as.data.table()
   
-  # Plot age density of coverage data by source
+  # Plot age histogram of coverage data by source
   g = ggplot(plot_dt) +
-    aes(x = trans_age, 
-        y = after_stat(scaled), 
-        colour = source,
-        fill   = source) +
-    geom_density(alpha = 0.2) +
+    aes(x = age, 
+        y = p_fvps,
+        fill = source) +
+    geom_bar(stat = 'identity', 
+             position = position_dodge()) +
     facet_wrap(~v_a_name)
-  
-  # Apply meaningful scale
-  g = g + scale_x_continuous(
-    trans  = "log2", 
-    limits = c(1, 2^7))
   
   # Save to file
   save_fig(g, "Coverage density by age", dir = "data_visualisation")
