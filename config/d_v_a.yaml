@@ -63,14 +63,30 @@ table:
   vaccine: DTP3
   activity: routine
 - d_v_a_id: 16
+  disease: Dip
+  vaccine: Dip
+  activity: campaign
+- d_v_a_id: 17
   disease: Tet
   vaccine: DTP3
   activity: routine
-- d_v_a_id: 17
+- d_v_a_id: 18
+  disease: Tet
+  vaccine: Tet
+  activity: campaign
+- d_v_a_id: 19
   disease: Per
   vaccine: DTP3
   activity: routine
-- d_v_a_id: 18
+- d_v_a_id: 20
+  disease: Per
+  vaccine: Per
+  activity: campaign
+- d_v_a_id: 21
   disease: TB
   vaccine: BCG
   activity: routine
+- d_v_a_id: 22
+  disease: TB
+  vaccine: BCG
+  activity: campaign

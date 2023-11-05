@@ -4,49 +4,49 @@
 table:
 - disease_id: 1
   disease: HepB
-  disease_name: Hepatitis B
+  disease_name: "Hepatitis B"
   source: vimc
 - disease_id: 2
   disease: Hib
-  disease_name: Haemophilus influenzae type b
+  disease_name: "Haemophilus influenzae type b"
   source: vimc
 - disease_id: 3
   disease: HPV
-  disease_name: Human papillomavirus
+  disease_name: "Human papillomavirus"
   source: vimc
 - disease_id: 4
   disease: Measles
-  disease_name: Measles
+  disease_name: "Measles"
   source: vimc
 - disease_id: 5
   disease: PCV
-  disease_name: Pneumococcal
+  disease_name: "Pneumococcal"
   source: vimc
 - disease_id: 6
   disease: Rota
-  disease_name: Rotavirus
+  disease_name: "Rotavirus"
   source: vimc
 - disease_id: 7
   disease: Rubella
-  disease_name: Rubella
+  disease_name: "Rubella"
   source: vimc
 - disease_id: 8
   disease: YF
-  disease_name: Yellow Fever
+  disease_name: "Yellow Fever"
   source: vimc
 - disease_id: 9
   disease: Dip
-  disease_name: Diphtheria
+  disease_name: "Diphtheria"
   source: gbd
 - disease_id: 10
   disease: Tet
-  disease_name: Tetanus
+  disease_name: "Tetanus"
   source: gbd
 - disease_id: 11
   disease: Per
-  disease_name: Pertussis
+  disease_name: "Pertussis"
   source: gbd
 - disease_id: 12
   disease: TB
-  disease_name: Tuberculosis
+  disease_name: "Tuberculosis"
   source: gbd

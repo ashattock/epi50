@@ -11,9 +11,9 @@ table:
   - HepB
   - Polio
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - Hib3
   - HepB
   - IPV
@@ -89,9 +89,9 @@ table:
   - Tet
   - Per
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
 - intervention: dtaphibhepbipv
   disease:
   - Dip
@@ -101,9 +101,9 @@ table:
   - HepB
   - Polio
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - Hib3
   - HepB
   - IPV
@@ -113,18 +113,18 @@ table:
   - Tet
   - Per
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
 - intervention: dtpcv1
   disease:
   - Dip
   - Tet
   - Per
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   notes: "First DTP dose only? Ignore as incomplete schedule?"
 - intervention: dtpcv2
   disease:
@@ -132,9 +132,9 @@ table:
   - Tet
   - Per
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   notes: "Second DTP dose only? Ignore as incomplete schedule?"
 - intervention: dtpcv3
   disease:
@@ -142,9 +142,9 @@ table:
   - Tet
   - Per
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   notes: "Third DTP dose only? Ignore as incomplete schedule?"
 - intervention: dtpcv4
   disease:
@@ -152,9 +152,9 @@ table:
   - Tet
   - Per
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   notes: "Fourth DTP dose only? Ignore as incomplete schedule?"
 - intervention: dtphepb
   disease:
@@ -163,9 +163,9 @@ table:
   - Per
   - HepB
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - HepB
 - intervention: dtphib
   disease:
@@ -174,9 +174,9 @@ table:
   - Per
   - Hib
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - Hib3
 - intervention: dtphibhepb
   disease:
@@ -186,9 +186,9 @@ table:
   - Hib
   - HepB
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - Hib3
   - HepB
 - intervention: dtphibhepb1
@@ -199,9 +199,9 @@ table:
   - Hib
   - HepB
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - Hib3
   - HepB
   notes: "First DTP dose only? Ignore as incomplete schedule?"
@@ -213,9 +213,9 @@ table:
   - Hib
   - HepB
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - Hib3
   - HepB
   notes: "Second DTP dose only? Ignore as incomplete schedule?"
@@ -227,9 +227,9 @@ table:
   - Hib
   - HepB
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - Hib3
   - HepB
   notes: "Third DTP dose only? Ignore as incomplete schedule?"
@@ -242,9 +242,9 @@ table:
   - HepB
   - Polio
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - Hib3
   - HepB
   - IPV
@@ -254,9 +254,9 @@ table:
   - Tet
   - Per
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
 - intervention: flumist
   disease: 
   - Flu
@@ -545,9 +545,9 @@ table:
   - Hib
   - HepB
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - Hib3
   - HepB
 - intervention: pneumo_conj
@@ -596,9 +596,9 @@ table:
   - Tet
   - Per
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   notes: "Reduced amount of diphtheria"
 - intervention: tdipv_s
   disease:
@@ -617,9 +617,9 @@ table:
   - Per
   - Polio
   vaccine:
-  - Dip
-  - Tet
-  - Per
+  - DTP3
+  - DTP3
+  - DTP3
   - IPV
   notes: "Reduced amount of diphtheria"
 - intervention: tt
@@ -647,4 +647,3 @@ table:
   - Shingles
   vaccine: 
   - Zoster
-
