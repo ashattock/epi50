@@ -40,11 +40,11 @@ set_dirs = function(o) {
   pth$impact = file.path(pth_output, "2_impact")
   
   # Path to relative risk and impact factor files
-  pth$uncertainty = file.path(pth_output, "3_uncertainty")
+  # pth$uncertainty = file.path(pth_output, "3_uncertainty")
   
   # Path to figures and other output resusts
-  pth$results = file.path(pth_output, "4_results")
-  pth$figures = file.path(pth_output, "5_figures")
+  pth$results = file.path(pth_output, "3_results")
+  pth$figures = file.path(pth_output, "4_figures")
   
   # ---- Create directory structure ----
   

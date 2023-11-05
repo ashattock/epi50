@@ -33,8 +33,8 @@ run_impact = function() {
   data_dt = read_rds("impute", "impute_result") %>%
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
-    mutate(fvps   = o$per_person * fvps / pop, 
-           impact = o$per_person * impact / pop) %>%
+    mutate(fvps   = fvps / pop, 
+           impact = impact / pop) %>%
     select(-pop) %>%
     # Impact per FVP...
     mutate(impact_fvp = impact / fvps) %>%

@@ -36,7 +36,7 @@ compare_nonlinear = function() {
     # ... relative to 100k people...
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
-    mutate(fvps_rel = o$per_person * fvps_cum / pop) %>%
+    mutate(fvps_rel = fvps_cum / pop) %>%
     select(-pop) %>%
     as.data.table()
   
@@ -97,7 +97,7 @@ compare_nonlinear = function() {
     # Population weight for population-level impact...
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
-    mutate(impact_cum = impact_rel * pop / o$per_person) %>%
+    mutate(impact_cum = impact_rel * pop) %>%
     # Revere cumsum to derive annual impact...
     group_by(country, d_v_a) %>%
     mutate(impact = rev_cumsum(impact_cum)) %>%

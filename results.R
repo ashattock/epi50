@@ -48,9 +48,9 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_impact) {
     
-    # Exploratory plots of data used to fit impact functions
+    # # Exploratory plots of data used to fit impact functions
     plot_impact_data()
-    
+
     # Plot function selection statistics
     plot_model_selection()
     

@@ -26,9 +26,6 @@ set_options = function(do_step = NA) {
   
   # ---- Non-linear impact assumptions ----
   
-  # Per capita scaling for impact estimates
-  o$per_person = 1
-  
   # A very good fit is required to go non-linear
   #
   # NOTE: We also require a better AICc than the simple linear model
@@ -77,9 +74,9 @@ set_options = function(do_step = NA) {
   # ---- Plotting flags ----
   
   # Turn figures on or off
-  o$plot_inputs      = TRUE
+  o$plot_inputs      = FALSE
   o$plot_imputation  = FALSE
-  o$plot_impact      = FALSE
+  o$plot_impact      = TRUE
   o$plot_uncertainty = FALSE
   
   # ---- Plotting settings ----
