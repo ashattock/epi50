@@ -18,9 +18,11 @@ run_impact = function() {
   # Only continue if specified by do_step
   if (!is.element(4, o$do_step)) return()
   
-  message("* Calculating impact per FVP")
+  message("* Fitting impact functions")
   
   # ---- FVPs and impact estimates ----
+  
+  message(" - Preparing FVP-impact data")
   
   # Population size of each country over time
   pop_dt = table("wpp_pop") %>%
@@ -51,7 +53,7 @@ run_impact = function() {
   
   # ---- Determine best fitting model ----
   
-  message("* Fitting models")
+  message(" - Evaluating impact functions")
   
   # Country-disease-vaccine-activity combinations
   c_d_v_a = data_dt %>%
@@ -91,7 +93,7 @@ run_impact = function() {
   
   # ---- Store results ----
   
-  message("* Selecting best models")
+  message(" - Selecting best functions")
   
   # Collapse all fn coefficients into single datatable
   coef_dt = rbindlist(coef)
