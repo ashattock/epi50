@@ -3,4 +3,5 @@
 core*
 *.nfs*
 data/
+input/sia_data.csv
 output/
