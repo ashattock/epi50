@@ -4,25 +4,23 @@
 table:
 - disease: Dip
   vaccine: DTP3
-  efficacy: 0.969
+  efficacy: 0.969 # https://apps.who.int/iris/bitstream/handle/10665/258681/WER9231.pdf?sequence=1
   lower: 0.943
   upper: 0.984
-  source: "https://apps.who.int/iris/bitstream/handle/10665/258681/WER9231.pdf?sequence=1"
 - disease: Per
   vaccine: DTP3
-  efficacy: 0.8
+  efficacy: 0.8 # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5088088/
   lower: 0.71
   upper: 0.86
-  source: "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5088088/"
+  decay_x: 5 # (in years) https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547082/
+  decay_y: 0.49 # (0.75 * 0.65) https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547082/
 - disease: Tet
   vaccine: DTP3
-  efficacy: 0.99
+  efficacy: 0.99 # https://apps.who.int/iris/bitstream/handle/10665/233093/WER8120_198-208.PDF
   lower: 0.8
   upper: 1.0
-  source: "https://apps.who.int/iris/bitstream/handle/10665/233093/WER8120_198-208.PDF"
 - disease: TB
   vaccine: BCG
-  efficacy: 0.66
+  efficacy: 0.66 # https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-016-0685-4
   lower: 0.08
   upper: 0.88
-  source: "https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-016-0685-4"

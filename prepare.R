@@ -19,16 +19,19 @@ run_prepare = function() {
   
   # Convert config yaml files to datatables
   prepare_config_tables()
-
-  # Streamline VIMC impact estimates for quick loading
-  prepare_vimc_estimates()
-
-  # Prepare GBD estimates of deaths for non-VIMC pathogens
-  prepare_gbd_estimates()
-
+  
+  # # Streamline VIMC impact estimates for quick loading
+  # prepare_vimc_estimates()
+  # 
+  # # Prepare GBD estimates of deaths for non-VIMC pathogens
+  # prepare_gbd_estimates()
+  
+  # Parse vaccine efficacy profile for non-VIMC pathogens
+  prepare_gbd_efficacy()
+  
   # Prepare GBD covariates for extrapolating to non-VIMC countries
   prepare_gbd_covariates()
-
+  
   # Prepare demography-related estimates from WPP
   prepare_demography()
   
@@ -146,6 +149,84 @@ prepare_gbd_estimates = function() {
               relationship = "many-to-many") %>%
     select(country, d_v_a_id, year, age, deaths_disease) %>%
     save_table("gbd_estimates")
+}
+
+# ---------------------------------------------------------
+# Parse vaccine efficacy profile for non-VIMC pathogens
+# ---------------------------------------------------------
+prepare_gbd_efficacy = function() {
+  
+  message(" - GBD vaccine efficacy profiles")
+  
+  # Function to generate immunity profiles for each disease
+  immunity_profile_fn = function(idx) {
+    
+    # Parameters for this disease
+    pars = pars_dt[idx, ]
+    
+    # If values are NA, interpret as no immunity decay
+    has_decay = !any(is.na(pars[, .(decay_x, decay_y)]))
+    
+    # In this case, constant efficacy for n years
+    if (!has_decay)
+      profile = rep(pars$efficacy, n)
+    
+    # Otherwise represent this decay
+    if (has_decay) {
+      
+      # TODO: This can be solved analytically
+      
+      # Fit decay rate to hit halflife
+      optim = asd(
+        fn   = obj_fn,
+        x0   = runif(1),
+        args = pars,
+        lb   = 0, 
+        ub   = 1e3,
+        max_iters = 100)
+      
+      # Optimal parameter value
+      optim_rate = optim$x
+      
+      # Evaluate exponential using this rate
+      profile = pars$efficacy * exp(-t * optim_rate)
+    }
+    
+    # Form profile into a datatable
+    profile_dt = pars %>%
+      select(disease, vaccine) %>%
+      expand_grid(year = t) %>%
+      mutate(profile = profile) %>%
+      as.data.table()
+    
+    return(profile_dt)
+  }
+  
+  # Objective function to minimise
+  obj_fn = function(rate, pars) {
+    
+    # Exponential decay function at args$x
+    y = pars$efficacy * exp(-pars$decay_x * rate)
+    
+    # Squared difference
+    diff_sq = (y - pars$decay_y) ^ 2
+    
+    # The sum of the squared difference
+    obj_val = list(y = sum(diff_sq))
+    
+    return(obj_val)
+  }
+  
+  # Vaccine efficacy details
+  pars_dt = table("gbd_efficacy")
+  
+  n = length(o$analysis_years)
+  t = seq_len(n) - 1
+  
+  seq_row(pars_dt) %>% 
+    lapply(immunity_profile_fn) %>%
+    rbindlist() %>%
+    save_table("gbd_efficacy_profiles")
 }
 
 # ---------------------------------------------------------
