@@ -273,12 +273,9 @@ credible_start = function(fns, x, y, plot = FALSE) {
     optim = asd(
       fn   = asd_fn[[fn]],
       x0   = rep(1, n_pars),
-      args = NULL,
       lb   = rep(0, n_pars), 
       ub   = rep(Inf, n_pars),
-      max_iters  = 10000, 
-      plot_iters = NULL, 
-      verbose    = FALSE)
+      max_iters = 10000)
     
     # Overwrite starting point with optimal parameters
     start[[fn]] = c(s0, optim$x) %>%

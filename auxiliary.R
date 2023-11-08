@@ -446,6 +446,11 @@ scale_fill_fermenter_custom = function(cols, guide = "coloursteps", na.value = "
 }
 
 # ---------------------------------------------------------
+# Simple wrapper for sequence along dataframe rows
+# ---------------------------------------------------------
+seq_row = function(x) seq_len(nrow(x))
+
+# ---------------------------------------------------------
 # Initiate progress bar with normal-use options
 # ---------------------------------------------------------
 start_progress_bar = function(n_tasks) {

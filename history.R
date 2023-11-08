@@ -137,8 +137,7 @@ evaluate_impact_function = function(eval_dt = NULL) {
     select(country, d_v_a_id) %>%
     unique()
   
-  result_dt = nrow(c_d_v_a) %>%
-    seq_len() %>%
+  result_dt = seq_row(c_d_v_a) %>%
     lapply(eval_fn) %>%
     rbindlist() %>%
     # Transform impact to real scale...

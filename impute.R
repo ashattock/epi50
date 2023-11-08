@@ -19,9 +19,11 @@
 run_impute = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(2, o$do_step)) return()
+  if (!is.element(3, o$do_step)) return()
   
   message("* Running country imputation")
+  
+  browser()  # TODO: Repeat process for DALYs
   
   # Load target to fit to: impact per FVP
   target_dt = get_target()

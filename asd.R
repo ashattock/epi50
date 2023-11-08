@@ -47,7 +47,7 @@
 # Main function: Adaptive Stochastic Descent algorithm.
 # ---------------------------------------------------------
 asd = function(fn, x0, args = NULL, lb = NULL, ub = NULL, max_iters = 100, 
-               plot_iters = 10, plot_fn = NULL, verbose = TRUE) {
+               plot_iters = NULL, plot_fn = NULL, verbose = FALSE) {
   
   # ---- Algorithm settings ----
   

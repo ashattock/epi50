@@ -18,16 +18,16 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = 1 : 7)
+o = set_options(do_step = 1)
 
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
 
-# Step 2) Impute missing VIMC countries
-run_impute()  # See impute.R
+# Step 2) Estimate impact for non-modelled pathogens using GBD
+run_gbd()  # See gbd.R
 
-# Step 3) Calculate DALYs for non-modelled pathogens
-run_dalys()  # See dalys.R
+# Step 3) Impute missing countries for VIMC-modelled pathogens
+run_impute()  # See impute.R
 
 # Step 4) Fit and select impact-FVP functions
 run_impact()  # See impact.R

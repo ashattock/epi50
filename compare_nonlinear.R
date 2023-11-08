@@ -230,7 +230,7 @@ compare_nonlinear = function() {
   }
   
   # Iterate through plots to produce
-  for (i in seq_len(nrow(plot_years))) {
+  for (i in seq_row(plot_years)) {
     y0 = plot_years$from[i]
     y1 = plot_years$to[i]
     
