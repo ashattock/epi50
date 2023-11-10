@@ -181,13 +181,9 @@ coverage_wiise = function(vimc_countries_dt) {
 # ---------------------------------------------------------
 # Calculate total lifetime coverage for each cohort
 # ---------------------------------------------------------
-total_coverage = function(coverage_dt) {
+total_coverage = function(coverage_dt, d_v_a) {
   
   # TODO: Allow each d_v_a to be 'targeted' or 'non-targeted'
-  # TODO: Set a cap on BCG effect at age 15
-  # TODO: May be use an efficacy decay for each pathogen
-  
-  browser()
   
   # Create full combination table
   #
@@ -197,6 +193,18 @@ total_coverage = function(coverage_dt) {
     year    = o$data_years, 
     age     = o$data_ages) %>%
     as.data.table()
+  
+  # Extract waning immunity profile for this d_v
+  profile = table("gbd_efficacy_profiles") %>%
+    filter(disease == d_v_a$disease, 
+           vaccine == d_v_a$vaccine) %>%
+    pull(profile)
+  
+  # Normalise profile between 0 and 1
+  norm_profile = profile / max(profile)
+  
+  if (length(norm_profile) == 0)
+    stop("No waning immunity profile detected")
   
   # Function to extract total coverage for each data point
   total_coverage_fn = function(i) {
@@ -211,12 +219,15 @@ total_coverage = function(coverage_dt) {
     # Index upto only the smallest of these two vectors
     vec_idx = 1 : min(length(year_idx), length(age_idx))
     
+    # Represent immunity decay with waning coverage
+    waning_coverage = data$coverage * norm_profile
+    
     # These form the only non-trivial entries
     total_dt = data.table(
       country = data$country, 
       year    = o$data_years[year_idx[vec_idx]],
       age     = o$data_ages[age_idx[vec_idx]], 
-      value   = data$coverage)
+      value   = waning_coverage[vec_idx])
     
     return(total_dt)
   }

@@ -128,6 +128,40 @@ plot_coverage_age_density = function() {
 }
 
 # ---------------------------------------------------------
+# Plot non-modelled vaccine efficacy with immunity decay
+# ---------------------------------------------------------
+plot_vaccine_efficacy = function() {
+  
+  message("  > Plotting vaccine efficacy profiles")
+  
+  # Load vaccine efficacy profiles
+  plot_dt = table("gbd_efficacy_profiles")
+  
+  # Load data used to calculate these profiles
+  data_dt = table("gbd_efficacy") %>%
+    select(disease, vaccine, time = decay_x, 
+           halflife = decay_y, init = efficacy) %>%
+    pivot_longer(cols = c(init, halflife), 
+                 values_to = "profile") %>%
+    mutate(time = ifelse(name == "init", 0, time)) %>%
+    filter(!is.na(time), 
+           !is.na(profile)) %>%
+    as.data.table()
+  
+  # Plot vaccine efficacy with waning immunity (if any)
+  g = ggplot(plot_dt) + 
+    aes(x = time, y = profile) + 
+    geom_line(colour = "grey") + 
+    geom_point(data = data_dt, 
+               colour = "darkred") + 
+    facet_wrap(disease~vaccine)
+  
+  # Save figure to file
+  save_fig(g, "Vaccine efficacy profiles", 
+           dir = "data_visualisation")
+}
+
+# ---------------------------------------------------------
 # Plot impact-FVP relationships prior to imputation
 # ---------------------------------------------------------
 plot_target = function() {
