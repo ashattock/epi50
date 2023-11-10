@@ -128,6 +128,59 @@ plot_coverage_age_density = function() {
 }
 
 # ---------------------------------------------------------
+# Plot coverage with waning immunity for non-modelled pathogens
+# ---------------------------------------------------------
+plot_total_coverage = function() {
+  
+  message("  > Plotting 'total' coverage by year and age")
+  
+  # Plot only up to a certain age
+  age_max = 50
+  
+  # Load previously calculated total coverage file
+  total_coverage_dt = read_rds("non_modelled", "total_coverage")
+  
+  # Population weight over all countries
+  total_dt = total_coverage_dt %>%
+    filter(age <= age_max) %>%
+    # Summarise over disease
+    # TODO: This should be handeled WITHIN total_coverage function!
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    group_by(country, disease, year, age) %>%
+    summarise(coverage = sum(total_coverage)) %>%  
+    ungroup() %>%
+    mutate(coverage = pmin(coverage, 1)) %>%
+    # Append population size...
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    mutate(n = pop * coverage) %>%
+    # Population weighted coverage...
+    group_by(disease, year, age) %>%
+    summarise(coverage = sum(n / sum(pop))) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # Plot each pathogen by year ana age
+  g = ggplot(total_dt) + 
+    aes(x = year, y = age, fill = coverage) + 
+    geom_tile() +
+    facet_wrap(~disease)
+  
+  # Manually define appropriate number of colours 
+  colours = colour_scheme("pals::brewer.blues", n = 8)
+  
+  # Set continuous colour bar
+  g = g + scale_fill_gradientn(
+    colours = colours, 
+    limits  = c(0, NA))
+  
+  # Save figure to file
+  save_fig(g, "Effective coverage by year and age", 
+           dir = "non_modelled")
+}
+
+# ---------------------------------------------------------
 # Plot non-modelled vaccine efficacy with immunity decay
 # ---------------------------------------------------------
 plot_vaccine_efficacy = function() {

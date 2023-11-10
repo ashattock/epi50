@@ -20,10 +20,16 @@ run_gbd = function() {
     filter(source == "gbd") %>%
     left_join(y  = table("d_v_a"), 
               by = "disease") %>%
+    # TEMP...
+    filter(activity == "routine") %>%
     select(d_v_a_id, disease, vaccine, activity)
   
-  for (i in seq_row(d_v_a_dt)) {
-    d_v_a = d_v_a_dt[i, ]
+  total_list = list()
+  
+  for (id in d_v_a_dt$d_v_a_id) {
+    
+    # Details of this d_v_a
+    d_v_a = d_v_a_dt[d_v_a_id == id, ]
     
     total_coverage_dt = table("coverage") %>%
       left_join(y  = table("v_a"), 
@@ -33,54 +39,39 @@ run_gbd = function() {
              activity == d_v_a$activity) %>%
       # Calculate coverage by cohort...
       total_coverage(d_v_a)  # See coverage.R
-  
     
+    total_list[[id]] = total_coverage_dt %>%
+      mutate(d_v_a_id = id, .after = 1)
     
-    
-    # total_mat = total_coverage_dt %>%
-    #   filter(country == "ETH") %>%
-    #   select(-country) %>%
-    #   mutate(age = paste1("age", age), 
-    #          total_coverage = round(total_coverage, digits = 3)) %>%
-    #   pivot_wider(names_from  = age, 
-    #               values_from = total_coverage) %>%
-    #   as.matrix()
+    # relative_risk_fn = get("gbd_rr")
     # 
-    # subset_mat = total_mat[, 1 : 20]
-    # 
-    # 
-    # if (i == 7)
-    #   browser()
-    
-    
-    
-    # Load table and rr function relevant for this strata source
-    estimates_table  = paste1(strata$source, "estimates") %>% table()
-    relative_risk_fn = paste1(strata$source, "rr") %>% get()
-
-    # Load either deaths_averted or deaths_disease for this strata
-    rr_dt = estimates_table %>%
-      filter(d_v_a_id == strata$d_v_a_id) %>%
-      select(-d_v_a_id) %>%
-      # Append all-cause deaths...
-      full_join(y  = table("wpp_death"),
-                by = c("country", "year", "age")) %>%
-      rename(deaths_allcause = death) %>%
-      # Append total coverage...
-      inner_join(y  = total_coverage_dt,
-                 by = c("country", "year", "age")) %>%
-      arrange(country, year, age) %>%
-      # Calculate relative risk...
-      relative_risk_fn()
+    # # Load either deaths_averted or deaths_disease for this strata
+    # rr_dt = table("gbd_estimates") %>%
+    #   filter(d_v_a_id == id) %>%
+    #   select(-d_v_a_id) %>%
+    #   # Append all-cause deaths...
+    #   full_join(y  = table("wpp_death"),
+    #             by = c("country", "year", "age")) %>%
+    #   rename(deaths_allcause = death) %>%
+    #   # Append total coverage...
+    #   inner_join(y  = total_coverage_dt,
+    #              by = c("country", "year", "age")) %>%
+    #   arrange(country, year, age) %>%
+    #   # Calculate relative risk...
+    #   relative_risk_fn()
 
 
 
     # ---- Use deaths averted to calculate DALYs averted ----
 
-    browser()
-
-    run_dalys()
+    # browser()
+    # 
+    # run_dalys()
   }
+  
+  # Save total coverage datatable to file
+  total_dt = rbindlist(total_list)
+  save_rds(total_dt, "non_modelled", "total_coverage")
 }
 
 # ---------------------------------------------------------

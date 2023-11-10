@@ -15,14 +15,14 @@ set_options = function(do_step = NA) {
   
   message("* Setting options")
   
-  # Reset R's most annoying default options
-  options(stringsAsFactors = FALSE, scipen = 999, dplyr.summarise.inform = FALSE)
+  # Several global R settings to make life easier
+  default_R_options()  # See auxiliary.R
   
   # Initiate options list
   o = list(do_step = do_step)
   
-  # Create output directory system
-  o = set_dirs(o)  # See directories.R
+  # Prepare output directory system
+  o = prepare_dirs(o)  # See directories.R
   
   # ---- Non-linear impact assumptions ----
   
@@ -74,11 +74,12 @@ set_options = function(do_step = NA) {
   # ---- Plotting flags ----
   
   # Turn figures on or off
-  o$plot_inputs      = TRUE
-  o$plot_imputation  = TRUE
-  o$plot_impact      = TRUE
-  o$plot_history     = TRUE  # Primary result
-  o$plot_uncertainty = FALSE
+  o$plot_inputs       = TRUE
+  o$plot_non_modelled = TRUE
+  o$plot_imputation   = TRUE
+  o$plot_impact       = TRUE
+  o$plot_uncertainty  = FALSE
+  o$plot_history      = TRUE  # Primary result
   
   # ---- Plotting settings ----
   

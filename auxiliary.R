@@ -120,6 +120,15 @@ create_bash_log = function(pth, log = NULL, err = NULL) {
 }
 
 # ---------------------------------------------------------
+# Reset R's most annoying default options
+# ---------------------------------------------------------
+default_R_options = function() {
+  options(dplyr.summarise.inform = FALSE, 
+          stringsAsFactors = FALSE, 
+          scipen = 999)
+}
+
+# ---------------------------------------------------------
 # Evaluate a string (in calling function environment) using eval
 # ---------------------------------------------------------
 eval_str = function(...)

@@ -22,11 +22,20 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_inputs) {
     
-    # Plot total number of FVP over time
+    # Total number of FVP over time
     plot_total_fvps()
     
     # Coverage data density by age
     plot_coverage_age_density()
+  }
+  
+  # ---- Non-modelled plots ----
+  
+  # Check plotting flag
+  if (o$plot_non_modelled) {
+    
+    # Coverage with waning immunity for non-modelled pathogens
+    plot_total_coverage()
   }
   
   # ---- Imputation plots ----
