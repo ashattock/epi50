@@ -132,7 +132,7 @@ plot_coverage_age_density = function() {
 # ---------------------------------------------------------
 plot_total_coverage = function() {
   
-  message("  > Plotting 'total' coverage by year and age")
+  message("  > Plotting cohort coverage by year and age")
   
   # Plot only up to a certain age
   age_max = 50
@@ -173,7 +173,7 @@ plot_total_coverage = function() {
   # Set continuous colour bar
   g = g + scale_fill_gradientn(
     colours = colours, 
-    limits  = c(0, NA))
+    limits  = c(0, 1))
   
   # Save figure to file
   save_fig(g, "Effective coverage by year and age", 
@@ -188,10 +188,10 @@ plot_vaccine_efficacy = function() {
   message("  > Plotting vaccine efficacy profiles")
   
   # Load vaccine efficacy profiles
-  plot_dt = table("gbd_efficacy_profiles")
+  plot_dt = table("vaccine_efficacy_profiles")
   
   # Load data used to calculate these profiles
-  data_dt = table("gbd_efficacy") %>%
+  data_dt = table("vaccine_efficacy") %>%
     select(disease, vaccine, time = decay_x, 
            halflife = decay_y, init = efficacy) %>%
     pivot_longer(cols = c(init, halflife), 
@@ -852,7 +852,7 @@ plot_gbd_uncertainty_dist = function() {
   
   # ---- Load and format plot datatables ----
   
-  browser() # gbd_efficacy is now efficacy
+  browser() # gbd_efficacy is now vaccine_efficacy
   
   # Load actual vaccine efficacy for GBD diseases and collapse disease-vaccine
   efficacy_dt = gbd_efficacy %>%
@@ -967,7 +967,7 @@ plot_gbd_uncertainty_fit = function() {
   # Initate list of grids
   grid_list = list()
   
-  browser() # gbd_efficacy is now efficacy
+  browser() # gbd_efficacy is now vaccine_efficacy
   
   # Loop through diseases
   for (i in 1 : nrow(gbd_efficacy)) {

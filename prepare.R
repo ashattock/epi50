@@ -156,10 +156,10 @@ prepare_gbd_estimates = function() {
 # ---------------------------------------------------------
 prepare_gbd_efficacy = function() {
   
-  message(" - GBD vaccine efficacy")
+  message(" - Non-modelled vaccine efficacy")
   
   # Vaccine efficacy details
-  pars_dt = table("gbd_efficacy") %>%
+  pars_dt = table("vaccine_efficacy") %>%
     select(disease, vaccine, 
            a = efficacy, 
            x = decay_x, 
@@ -206,7 +206,7 @@ prepare_gbd_efficacy = function() {
   
   # Bind into single datatable and save
   rbindlist(profile_list) %>%
-    save_table("gbd_efficacy_profiles")
+    save_table("vaccine_efficacy_profiles")
   
   # Plot these profiles
   plot_vaccine_efficacy()

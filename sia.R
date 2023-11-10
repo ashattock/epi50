@@ -18,7 +18,7 @@ coverage_sia = function(vimc_countries_dt) {
   na_var = c("unknown", "undefined", "")
   
   # Data dictionary for converting to v_a
-  data_dict = table("sia_dictionary") %>%
+  data_dict = table("vaccine_sia") %>%
     mutate(activity = "campaign") %>%
     inner_join(y  = table("v_a"), 
                by = c("vaccine", "activity")) %>%
@@ -77,7 +77,7 @@ coverage_sia = function(vimc_countries_dt) {
               cohort    = mean(cohort)) %>%
     ungroup() %>%
     # Calculate FVPs and coverage...
-    left_join(y  = table("sia_schedule"),
+    left_join(y  = table("vaccine_schedule"),
                by = "vaccine") %>%
     mutate(fvps = all_doses / schedule, 
            fvps = pmin(fvps, cohort), # Cohort as upper bound

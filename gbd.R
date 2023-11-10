@@ -43,30 +43,32 @@ run_gbd = function() {
     total_list[[id]] = total_coverage_dt %>%
       mutate(d_v_a_id = id, .after = 1)
     
-    # relative_risk_fn = get("gbd_rr")
-    # 
-    # # Load either deaths_averted or deaths_disease for this strata
-    # rr_dt = table("gbd_estimates") %>%
-    #   filter(d_v_a_id == id) %>%
-    #   select(-d_v_a_id) %>%
-    #   # Append all-cause deaths...
-    #   full_join(y  = table("wpp_death"),
-    #             by = c("country", "year", "age")) %>%
-    #   rename(deaths_allcause = death) %>%
-    #   # Append total coverage...
-    #   inner_join(y  = total_coverage_dt,
-    #              by = c("country", "year", "age")) %>%
-    #   arrange(country, year, age) %>%
-    #   # Calculate relative risk...
-    #   relative_risk_fn()
+    browser()
+    
+    relative_risk_fn = get("gbd_rr")
+
+    # Load either deaths_averted or deaths_disease for this strata
+    rr_dt = table("gbd_estimates") %>%
+      filter(d_v_a_id == id) %>%
+      select(-d_v_a_id) %>%
+      # Append all-cause deaths...
+      full_join(y  = table("wpp_death"),
+                by = c("country", "year", "age")) %>%
+      rename(deaths_allcause = death) %>%
+      # Append total coverage...
+      inner_join(y  = total_coverage_dt,
+                 by = c("country", "year", "age")) %>%
+      arrange(country, year, age) %>%
+      # Calculate relative risk...
+      relative_risk_fn()
 
 
 
     # ---- Use deaths averted to calculate DALYs averted ----
 
-    # browser()
-    # 
-    # run_dalys()
+    browser()
+
+    run_dalys()
   }
   
   # Save total coverage datatable to file
@@ -84,7 +86,7 @@ gbd_rr = function(strata_dt) {
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_id") %>%
     # Append vaccine efficacy...
-    left_join(y  = table("gbd_efficacy"), 
+    left_join(y  = table("vaccine_efficacy"), 
               by = c("disease", "vaccine")) %>%
     select(all_of(names(strata_dt)), efficacy) %>%
     # Use this to estimate deaths without a vaccine...

@@ -101,7 +101,7 @@ coverage_wiise = function(vimc_countries_dt) {
   }
   
   # Load WIISE-related vaccine details 
-  wiise_info = table("wiise_vaccine")
+  wiise_info = table("vaccine_wiise")
   
   # ---- Extract coverage ----
   
@@ -179,7 +179,7 @@ coverage_wiise = function(vimc_countries_dt) {
 }
 
 # ---------------------------------------------------------
-# Calculate total lifetime coverage for each cohort
+# Calculate effective coverage for each cohort
 # ---------------------------------------------------------
 total_coverage = function(coverage_dt, d_v_a) {
   
@@ -195,7 +195,7 @@ total_coverage = function(coverage_dt, d_v_a) {
     as.data.table()
   
   # Extract waning immunity profile for this d_v
-  profile = table("gbd_efficacy_profiles") %>%
+  profile = table("vaccine_efficacy_profiles") %>%
     filter(disease == d_v_a$disease, 
            vaccine == d_v_a$vaccine) %>%
     pull(profile)
