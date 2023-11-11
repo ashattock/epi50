@@ -1,5 +1,5 @@
 ###########################################################
-# GBD
+# NON-MODELLED
 #
 # Estimate impact (deaths and DALYs averted) for non-modelled
 # pathogens using Global Burden of Disease estimates.
@@ -7,9 +7,9 @@
 ###########################################################
 
 # ---------------------------------------------------------
-# Parent function for calculating DALYs
+# Parent function for calculating impact for non-modelled pathogens
 # ---------------------------------------------------------
-run_gbd = function() {
+run_non_modelled = function() {
   
   # Only continue if specified by do_step
   if (!is.element(2, o$do_step)) return()

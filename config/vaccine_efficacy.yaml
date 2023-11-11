@@ -1,6 +1,6 @@
 ---
 
-# Creates datatable: gbd_efficacy_table
+# Creates datatable: vaccine_efficacy_table
 table:
 - disease: Dip
   vaccine: DTP3

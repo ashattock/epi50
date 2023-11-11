@@ -25,17 +25,16 @@ coverage_sia = function(vimc_countries_dt) {
     select(intervention, v_a_id, vaccine)
   
   # Load and wrangle SIA data
-  sia_dt = fread(paste0(o$pth$input, "sia_data.csv")) %>%
+  data_dt = fread(paste0(o$pth$input, "sia_data.csv")) %>%
+    setnames(names(.), tolower(names(.))) %>% 
     # Select columns of interest...
-    select(country      = ISO3_CODE,          # Country ISO3 codes
-           intervention = INTERVENTION_CODE,
-           sia_type     = ACTIVITY_TYPE_CODE, # Catch up, national day, etc
-           status       = ACTIVITY_STATUS,    # Done, ongoing, planned, etc
-           age_group    = ACTIVITY_AGE_GROUP,
-           cohort       = TARGET, 
-           doses        = DOSES, 
-           coverage     = COVERAGE, 
-           matches("YEAR$|MONTH$|DAY$")) %>%
+    select(country      = iso3_code,          # Country ISO3 codes
+           intervention = intervention_code,
+           sia_type     = activity_type_code, # Catch up, national day, etc
+           status       = activity_status,    # Done, ongoing, planned, etc
+           age_group    = activity_age_group,
+           cohort       = target, 
+           doses, coverage, matches("year$|month$|day$")) %>%
     # Format data types...
     mutate_if(is.character, tolower) %>%
     mutate(across(.cols = c(cohort, coverage, doses), 
@@ -62,7 +61,13 @@ coverage_sia = function(vimc_countries_dt) {
     format_sia_dates() %>%
     impute_sia_dates() %>%
     # Parse age groups...
-    parse_age_groups() %>%
+    parse_age_groups()
+  
+  # Save intermediary file for plotting purposes
+  save_rds(data_dt, "data", "sia_coverage")
+  
+  # Interpret 'interventions'
+  sia_dt = data_dt %>%
     # Convert to v_a...
     left_join(y  = data_dict, 
               by = "intervention", 
@@ -108,9 +113,9 @@ format_sia_dates = function(sia_dt) {
     
     # Combine all columns to create y-m-d string
     date_str = paste(
-      sia_dt[[toupper(paste0(col, "_year"))]], 
-      sia_dt[[toupper(paste0(col, "_month"))]], 
-      sia_dt[[toupper(paste0(col, "_day"))]], 
+      sia_dt[[paste0(col, "_year")]], 
+      sia_dt[[paste0(col, "_month")]], 
+      sia_dt[[paste0(col, "_day")]], 
       sep = ".")
     
     # Trivialise any dates containing NA
@@ -143,7 +148,7 @@ format_sia_dates = function(sia_dt) {
     mutate(start_date = format_date(start_date), 
            end_date   = format_date(end_date)) %>%
     # Remove the numerous now-redundant date columns...
-    select(-matches("YEAR$|MONTH$|DAY$"), 
+    select(-matches("year$|month$|day$"), 
            -ends_with("start"), 
            -ends_with("end")) %>%
     # Remove ineligible dates...

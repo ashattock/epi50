@@ -14,7 +14,7 @@ prepare_coverage = function() {
   
   # Extract coverage for VIMC pathogens
   vimc_dt = coverage_vimc()
-
+  
   # However not every country is covered by VIMC for these pathogens
   vimc_countries_dt = vimc_dt %>%
     left_join(y  = table("v_a"),
@@ -22,7 +22,7 @@ prepare_coverage = function() {
     select(vaccine, country, year, source) %>%
     arrange(vaccine, country, year) %>%
     unique()
-
+  
   # For everything remaining, extract coverage from WIISE database
   wiise_dt = coverage_wiise(vimc_countries_dt)
   
@@ -42,6 +42,9 @@ prepare_coverage = function() {
   
   # Coverage data density by age
   plot_coverage_age_density()
+  
+  # Plot unparsed 'interventions' from WIISE and SIA 
+  plot_interventions()
 }
 
 # ---------------------------------------------------------
@@ -84,29 +87,76 @@ coverage_wiise = function(vimc_countries_dt) {
   # ---- Load data ----
   
   # File path for already-downloaded WIISE coverage data
-  coverage_file = paste0(o$pth$data, "wiise_coverage.rds")
+  raw_file = paste0(o$pth$data, "wiise_raw.rds")
   
   # If file has already been downloaded, read it now
-  if (file.exists(coverage_file)) {
-    data_dt = readRDS(coverage_file)
+  if (file.exists(raw_file)) {
+    raw_dt = read_rds(raw_file)
     
   } else {  # Otherwise we'll need to download
     
     # Non-VIMC coverage taken from WIISE database
-    data_url = "https://whowiise.blob.core.windows.net/upload/coverage--2021.xlsx"
-    data_dt  = read_url_xls(data_url, sheet = 1) 
+    raw_url = "https://whowiise.blob.core.windows.net/upload/coverage--2021.xlsx"
+    raw_dt  = read_url_xls(raw_url, sheet = 1) 
     
     # Save as an RDS file for easy future loading
-    save_rds(data_dt, coverage_file)
+    save_rds(raw_dt, raw_file)
   }
   
-  # Load WIISE-related vaccine details 
-  wiise_info = table("vaccine_wiise")
+  # ---- Initial clean up ----
+  
+  browser()
+  
+  # Basic data cleaning
+  data_dt = raw_dt %>%
+    # Convert to lower case...
+    setnames(names(.), tolower(names(.))) %>% 
+    mutate_if(is.character, tolower) %>%
+    # Reduce columns...
+    select(country = code, intervention = antigen, 
+           year, coverage, source = coverage_category) %>% 
+    # Remove any unknown countries...
+    mutate(country = toupper(country)) %>%
+    filter(country %in% table("country")$country, 
+           year    %in% o$analysis_years) %>%
+    # Convert coverage to proportion...
+    mutate(coverage = coverage / 100) %>%
+    filter(coverage > 0) %>%
+    # Use WUENIC data as primary source...
+    mutate(wuenic   = ifelse(source == "wuenic", coverage, NA), 
+           coverage = ifelse(source != "wuenic", coverage, NA)) %>%
+    # Salvage coverage from non-WUENIC sources...
+    group_by(country, intervention, year) %>%
+    summarise(wuenic = mean(wuenic,   na.rm = TRUE),
+              other  = mean(coverage, na.rm = TRUE)) %>%
+    ungroup() %>%
+    arrange(country, intervention, year)
+    as.data.table()
+
+  
+  
+  data_dt %>%
+    filter(!is.nan(wuenic), 
+           !is.nan(other)) %>%
+    mutate(diff = wuenic - other) %>%
+    filter(diff < 1, 
+           diff > -1) %>%
+    pull(diff) %>%
+    hist(breaks = seq(-1, 1, by = 0.01))
+    
+    
+    
+  
+  # Save intermediary file for plotting purposes
+  save_rds(data_dt, "data", "wiise_coverage")
   
   # ---- Extract coverage ----
   
   # Initiate list to store results
   wiise_list = list()
+  
+  # Load WIISE-related vaccine details 
+  wiise_info = table("vaccine_wiise")
   
   # Iterate through WIISE vaccines
   for (i in seq_row(wiise_info)) {
@@ -117,16 +167,13 @@ coverage_wiise = function(vimc_countries_dt) {
       filter(vaccine == v$vaccine) %>%
       select(-vaccine)
     
+    browser()
+    
     # Filter data by coverage_category type
     wiise_coverage = data_dt %>%
-      setnames(names(.), tolower(names(.))) %>% 
-      rename(country  = code, 
-             wiise_id = antigen) %>%
-      # Select only vaccine and years of interest...
-      filter(coverage_category == v$coverage_category, 
-             wiise_id %in% v$wiise_id,
-             year     %in% o$analysis_years, 
-             country  %in% table("country")$country) %>% 
+      # Select only vaccine of interest...
+      filter(intervention      == v$intervention, 
+             coverage_category == v$coverage_category) %>% 
       select(country, year, coverage) %>%
       # Remove countries and years already covered by VIMC...
       left_join(y  = vimc_countries, 
@@ -144,26 +191,20 @@ coverage_wiise = function(vimc_countries_dt) {
       # Expand for each age considered...
       slice(i) %>% 
       expand_grid(expand_age = eval_str(age)) %>%
-      select(vaccine, activity, gender, age = expand_age) %>%
+      select(vaccine, activity, age = expand_age) %>%
       # Repeat coverage values for each age...
       expand_grid(wiise_coverage) %>%
       # Apply v_a ID...
       left_join(y  = table("v_a"), 
                 by = c("vaccine", "activity")) %>%
-      select(country, v_a_id, gender, year, age, coverage) %>%
+      select(country, v_a_id, year, age, coverage) %>%
       as.data.table()
   }
   
   # ---- Calculate FVPs ----
   
-  # TODO: Check whether HPV coverage is actually modelled this way...
-  
   # Calculate FVPs from coverage 
   wiise_dt = rbindlist(wiise_list) %>%
-    # Combine gender where necessary...
-    group_by(country, v_a_id, year, age) %>%
-    summarise(coverage = mean(coverage)) %>%
-    ungroup() %>%
     # Calculate number of fully vaccinated people...
     inner_join(y  = table("wpp_pop"), 
                by = c("country", "year", "age")) %>%

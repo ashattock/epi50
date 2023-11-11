@@ -22,11 +22,14 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_inputs) {
     
-    # Total number of FVP over time
+    # Total number of FVP over time by source
     plot_total_fvps()
     
     # Coverage data density by age
     plot_coverage_age_density()
+    
+    # Plot unparsed 'interventions' from WIISE and SIA 
+    plot_interventions()
   }
   
   # ---- Non-modelled plots ----

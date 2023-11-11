@@ -1,59 +1,59 @@
 ---
 
-# Creates datatable: wiise_table
+# Creates datatable: vaccine_wiise_table
 table:
-- wiise_id: BCG
+- intervention: bcg
   vaccine: BCG
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"
-- wiise_id: DTPCV3
+- intervention: dtpcv3
   vaccine: DTP3
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"
-- wiise_id: HEPB3
+- intervention: hepb3
   vaccine: HepB
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"
-- wiise_id: HEPB_BD
+- intervention: hepb_bd
   vaccine: HepB_BD
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"
-- wiise_id: HIB3
+- intervention: hib3
   vaccine: Hib3
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"
-- wiise_id: MCV1
+- intervention: mcv1
   vaccine: MCV1
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"
-- wiise_id: MCV2
+- intervention: mcv2
   vaccine: MCV2
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"
-- wiise_id: PCV3
+- intervention: pcv3
   vaccine: PCV3
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"
-- wiise_id: RCV1
+- intervention: rcv1
   vaccine: Rubella
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"
-- wiise_id: ROTAC
+- intervention: rotac
   vaccine: Rota
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"
-- wiise_id: YFV
+- intervention: yfv
   vaccine: YF
   activity: routine
-  coverage_category: WUENIC
+  coverage_category: wuenic
   age: "0"

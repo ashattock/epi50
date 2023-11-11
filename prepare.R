@@ -22,12 +22,12 @@ run_prepare = function() {
   
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
+  
+  # Parse vaccine efficacy profile for non-VIMC pathogens
+  prepare_vaccine_efficacy()
 
   # Prepare GBD estimates of deaths for non-VIMC pathogens
   prepare_gbd_estimates()
-  
-  # Parse vaccine efficacy profile for non-VIMC pathogens
-  prepare_gbd_efficacy()
   
   # Prepare GBD covariates for extrapolating to non-VIMC countries
   prepare_gbd_covariates()
@@ -116,47 +116,11 @@ prepare_vimc_estimates = function() {
 }
 
 # ---------------------------------------------------------
-# Prepare GBD estimates of deaths for non-VIMC pathogens
-# ---------------------------------------------------------
-prepare_gbd_estimates = function() {
-  
-  message(" - GBD estimates")
-  
-  # Load GBD estimates of deaths for relevant diseases
-  gbd_dt = read_rds("input", "gbd19_estimates")
-  
-  # Construct age datatable to expand age bins to single years
-  age_bins = sort(unique(gbd_dt$age))
-  age_dt   = data.table(age = o$data_ages) %>%
-    mutate(age_bin = ifelse(age %in% age_bins, age, NA)) %>%
-    fill(age_bin, .direction = "down") %>%
-    group_by(age_bin) %>%
-    add_count(age_bin) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  # Expand to all ages and store
-  gbd_dt %>%
-    rename(age_bin = age) %>%
-    full_join(y  = age_dt, 
-              by = "age_bin", 
-              relationship = "many-to-many") %>%
-    arrange(country, disease, year, age) %>%
-    mutate(deaths_disease = value / n) %>%
-    # NOTE: OK to join only on disease as d_v_a is unique for GBD pathogens...
-    left_join(y  = table("d_v_a"), 
-              by = "disease", 
-              relationship = "many-to-many") %>%
-    select(country, d_v_a_id, year, age, deaths_disease) %>%
-    save_table("gbd_estimates")
-}
-
-# ---------------------------------------------------------
 # Parse vaccine efficacy profile for non-VIMC pathogens
 # ---------------------------------------------------------
-prepare_gbd_efficacy = function() {
+prepare_vaccine_efficacy = function() {
   
-  message(" - Non-modelled vaccine efficacy")
+  message(" - Vaccine efficacy")
   
   # Vaccine efficacy details
   pars_dt = table("vaccine_efficacy") %>%
@@ -210,6 +174,42 @@ prepare_gbd_efficacy = function() {
   
   # Plot these profiles
   plot_vaccine_efficacy()
+}
+
+# ---------------------------------------------------------
+# Prepare GBD estimates of deaths for non-VIMC pathogens
+# ---------------------------------------------------------
+prepare_gbd_estimates = function() {
+  
+  message(" - GBD estimates")
+  
+  # Load GBD estimates of deaths for relevant diseases
+  gbd_dt = read_rds("input", "gbd19_estimates")
+  
+  # Construct age datatable to expand age bins to single years
+  age_bins = sort(unique(gbd_dt$age))
+  age_dt   = data.table(age = o$data_ages) %>%
+    mutate(age_bin = ifelse(age %in% age_bins, age, NA)) %>%
+    fill(age_bin, .direction = "down") %>%
+    group_by(age_bin) %>%
+    add_count(age_bin) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # Expand to all ages and store
+  gbd_dt %>%
+    rename(age_bin = age) %>%
+    full_join(y  = age_dt, 
+              by = "age_bin", 
+              relationship = "many-to-many") %>%
+    arrange(country, disease, year, age) %>%
+    mutate(deaths_disease = value / n) %>%
+    # NOTE: OK to join only on disease as d_v_a is unique for GBD pathogens...
+    left_join(y  = table("d_v_a"), 
+              by = "disease", 
+              relationship = "many-to-many") %>%
+    select(country, d_v_a_id, year, age, deaths_disease) %>%
+    save_table("gbd_estimates")
 }
 
 # ---------------------------------------------------------

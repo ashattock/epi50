@@ -1,6 +1,6 @@
 ---
 
-# Creates datatable: sia_schedule_table
+# Creates datatable: vaccine_schedule_table
 table:
 - vaccine: HepB
   schedule: 3

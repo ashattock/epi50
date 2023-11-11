@@ -128,6 +128,21 @@ plot_coverage_age_density = function() {
 }
 
 # ---------------------------------------------------------
+# Plot 'intervention' categories prior to parsing into d_v_a
+# ---------------------------------------------------------
+plot_interventions = function() {
+  
+  wiise_dt = read_rds("data", "wiise_coverage")
+  sia_dt   = read_rds("data", "sia_coverage")
+  
+  browser()
+  
+  # wiise_dt %<>%
+    
+  
+}
+
+# ---------------------------------------------------------
 # Plot coverage with waning immunity for non-modelled pathogens
 # ---------------------------------------------------------
 plot_total_coverage = function() {

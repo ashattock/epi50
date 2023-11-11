@@ -1,6 +1,6 @@
 ---
 
-# Creates datatable: sia_dictionary_table
+# Creates datatable: vaccine_sia_table
 table:
 - intervention: all_vaccines
   vaccine:
