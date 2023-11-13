@@ -1,34 +1,96 @@
 ---
 
+# NOTE: Where not specified, vaccination occurs at age 0
+# Source for DTP-containing booster dose age groups:
+#   https://terrance.who.int/mediacentre/data/sage/SAGE_Docs_Ppt_Apr2017/10_session_diptheria/Apr2017_session10_diphtheria_vax_effectiveness.pdf
+
 # Creates datatable: vaccine_table
 table:
 - vaccine: HepB
   vaccine_name: "Hepatitis B"
+  dose: 3
+  age: 0
 - vaccine: HepB_BD
-  vaccine_name: "Hepatitis B (birth-dose)"
+  vaccine_name: "Hepatitis B (birth dose)"
+  dose: 1
+  age: 0
 - vaccine: Hib3
-  vaccine_name: "Haemophilus influenzae type b (third-dose)"
+  vaccine_name: "Haemophilus influenzae type b"
+  dose: 3
+  age: 0
 # - vaccine: HPV
 #   vaccine_name: "Human papillomavirus"
+#   dose: 2
+#   age: "8:13"
 - vaccine: MCV1
-  vaccine_name: "Measles-containing vaccine (first-dose)"
+  vaccine_name: "Measles-containing (first dose)"
+  dose: 1
+  age: 1
 - vaccine: MCV2
-  vaccine_name: "Measles-containing vaccine (second-dose)"
+  vaccine_name: "Measles-containing (second dose)"
+  dose: 2
+  age: "4:6"
 - vaccine: Measles
   vaccine_name: "Measles"
+  dose: 2
+  age: "4:6"
 - vaccine: PCV3
-  vaccine_name: "Pneumococcal (third-dose)"
+  vaccine_name: "Pneumococcal"
+  dose: 3
+  age: 0
 - vaccine: RCV2
-  vaccine_name: "Rubella-containing vaccine (second-dose)"
+  vaccine_name: "Rubella-containing"
+  dose: 2
+  age: 0
 - vaccine: Rota
   vaccine_name: "Rotavirus"
+  dose: 3
+  age: 0
 - vaccine: Rubella
   vaccine_name: "Rubella"
-- vaccine: Dip
-  vaccine_name: "Diphtheria-containing vaccine"
-- vaccine: Tet
-  vaccine_name: "Tetanus-containing vaccine"
-- vaccine: Per
-  vaccine_name: "Tetanus-containing vaccine"
+  dose: 2
+  age: 0
+- vaccine: Dip3
+  vaccine_name: "Diphtheria-containing"
+  dose: 3
+  age: 0
+- vaccine: Dip4
+  vaccine_name: "Diphtheria-containing (first booster)"
+  dose: 4
+  age: "1:2"
+- vaccine: Dip5
+  vaccine_name: "Diphtheria-containing (second booster)"
+  dose: 5
+  age: "4:7"
+- vaccine: Dip6
+  vaccine_name: "Diphtheria-containing (third booster)"
+  dose: 6
+  age: "9:15"
+- vaccine: Tet3
+  vaccine_name: "Tetanus-containing"
+  dose: 3
+  age: 0
+- vaccine: Tet4
+  vaccine_name: "Tetanus-containing (first booster)"
+  dose: 4
+  age: "1:2"
+- vaccine: Tet5
+  vaccine_name: "Tetanus-containing (second booster)"
+  dose: 5
+  age: "4:7"
+- vaccine: Tet6
+  vaccine_name: "Tetanus-containing (third booster)"
+  dose: 6
+  age: "9:15"
+- vaccine: Per3
+  vaccine_name: "Pertussis-containing"
+  dose: 3
+  age: 0
+- vaccine: Per4
+  vaccine_name: "Pertussis-containing (first booster)"
+  dose: 4
+  age: "4:7"
 - vaccine: BCG
   vaccine_name: "Bacille Calmette-Guerin"
+  dose: 1
+  age: 0

@@ -245,12 +245,25 @@ plot_vaccine_efficacy = function() {
   message("  > Plotting vaccine efficacy profiles")
   
   # Load vaccine efficacy profiles
-  plot_dt = table("vaccine_efficacy_profiles")
+  plot_dt = table("vaccine_efficacy_profiles") %>%
+    left_join(y  = table("vaccine"), 
+              by = "vaccine") %>%
+    mutate(vaccine = str_remove(vaccine, "[0-9]+"), 
+           d_v = paste1(disease, vaccine)) %>%
+    select(d_v, dose, time, profile)
   
   # Load data used to calculate these profiles
   data_dt = table("vaccine_efficacy") %>%
-    select(disease, vaccine, time = decay_x, 
-           halflife = decay_y, init = efficacy) %>%
+    left_join(y  = table("vaccine"), 
+              by = "vaccine") %>%
+    left_join(y  = table("d_v"), 
+              by = "vaccine") %>%
+    mutate(vaccine = str_remove(vaccine, "[0-9]+"), 
+           d_v = paste1(disease, vaccine)) %>%
+    select(d_v, dose, 
+           time     = decay_x, 
+           halflife = decay_y, 
+           init     = efficacy) %>%
     pivot_longer(cols = c(init, halflife), 
                  values_to = "profile") %>%
     mutate(time = ifelse(name == "init", 0, time)) %>%
@@ -260,11 +273,10 @@ plot_vaccine_efficacy = function() {
   
   # Plot vaccine efficacy with waning immunity (if any)
   g = ggplot(plot_dt) + 
-    aes(x = time, y = profile) + 
-    geom_line(colour = "grey") + 
-    geom_point(data = data_dt, 
-               colour = "darkred") + 
-    facet_wrap(disease~vaccine)
+    aes(x = time, y = profile, colour = as.factor(dose)) + 
+    geom_line() + 
+    geom_point(data = data_dt) + 
+    facet_wrap(~d_v)
   
   # Save figure to file
   save_fig(g, "Vaccine efficacy profiles", 

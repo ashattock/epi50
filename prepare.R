@@ -124,6 +124,8 @@ prepare_vaccine_efficacy = function() {
   
   # Vaccine efficacy details
   pars_dt = table("vaccine_efficacy") %>%
+    left_join(y  = table("d_v"), 
+              by = "vaccine") %>%
     select(disease, vaccine, 
            a = efficacy, 
            x = decay_x, 

@@ -52,17 +52,45 @@ table:
   activity: campaign
 - d_v_a_id: 12
   disease: Dip
-  vaccine: Dip
+  vaccine: Dip3
   activity: all
 - d_v_a_id: 13
-  disease: Tet
-  vaccine: Tet
+  disease: Dip
+  vaccine: Dip4
   activity: all
 - d_v_a_id: 14
-  disease: Per
-  vaccine: Per
+  disease: Dip
+  vaccine: Dip5
   activity: all
 - d_v_a_id: 15
+  disease: Dip
+  vaccine: Dip6
+  activity: all
+- d_v_a_id: 16
+  disease: Tet
+  vaccine: Tet3
+  activity: all
+- d_v_a_id: 17
+  disease: Tet
+  vaccine: Tet4
+  activity: all
+- d_v_a_id: 18
+  disease: Tet
+  vaccine: Tet5
+  activity: all
+- d_v_a_id: 19
+  disease: Tet
+  vaccine: Tet6
+  activity: all
+- d_v_a_id: 20
+  disease: Per
+  vaccine: Per3
+  activity: all
+- d_v_a_id: 21
+  disease: Per
+  vaccine: Per4
+  activity: all
+- d_v_a_id: 22
   disease: TB
   vaccine: BCG
   activity: all
