@@ -24,10 +24,14 @@ prepare_coverage = function() {
     unique()
   
   # For everything remaining, extract coverage from WIISE database
-  wiise_dt = coverage_wiise(vimc_countries_dt)
+  list[wiise_dt, gbd1_dt] = coverage_wiise(vimc_countries_dt)
+  
+  browser()
   
   # Finally, incorporate SIA data (from WIISE)
-  sia_dt = coverage_sia(vimc_countries_dt)  # See sia.R
+  list[sia_dt, gbd2_dt] = coverage_sia(vimc_countries_dt)  # See sia.R
+  
+  browser()
   
   # Combine sources
   rbind(vimc_dt, wiise_dt, sia_dt) %>%
@@ -103,11 +107,9 @@ coverage_wiise = function(vimc_countries_dt) {
     save_rds(raw_dt, raw_file)
   }
   
-  # ---- Initial clean up ----
+  # ---- Wrangle WIISE data ----
   
-  browser()
-  
-  # Basic data cleaning
+  # Primary data cleaning
   data_dt = raw_dt %>%
     # Convert to lower case...
     setnames(names(.), tolower(names(.))) %>% 
@@ -125,98 +127,94 @@ coverage_wiise = function(vimc_countries_dt) {
     # Use WUENIC data as primary source...
     mutate(wuenic   = ifelse(source == "wuenic", coverage, NA), 
            coverage = ifelse(source != "wuenic", coverage, NA)) %>%
-    # Salvage coverage from non-WUENIC sources...
+    # Compare against average of all other sources...
     group_by(country, intervention, year) %>%
     summarise(wuenic = mean(wuenic,   na.rm = TRUE),
               other  = mean(coverage, na.rm = TRUE)) %>%
     ungroup() %>%
-    arrange(country, intervention, year)
+    # Salvage coverage from non-WUENIC sources...
+    mutate(wuenic = ifelse(is.nan(wuenic), other, wuenic)) %>%
+    select(country, intervention, year, coverage = wuenic) %>%
+    filter(coverage > 0) %>%
+    # Interpret 'intervention'...
+    left_join(y  = table("vaccine_dict"), 
+              by = "intervention", 
+              relationship = "many-to-many") %>%
+    filter(!is.na(vaccine)) %>%
+    # Append source of impact estimates...
+    left_join(y  = table("d_v"), 
+              by = "vaccine") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    # Tidy up...
+    select(country, vaccine, dose, year, coverage, source) %>%
+    arrange(country, vaccine, year) %>%
     as.data.table()
-
   
-  
-  data_dt %>%
-    filter(!is.nan(wuenic), 
-           !is.nan(other)) %>%
-    mutate(diff = wuenic - other) %>%
-    filter(diff < 1, 
-           diff > -1) %>%
-    pull(diff) %>%
-    hist(breaks = seq(-1, 1, by = 0.01))
-    
-    
-    
-  
-  # Save intermediary file for plotting purposes
-  save_rds(data_dt, "data", "wiise_coverage")
-  
-  # ---- Extract coverage ----
-  
-  # Initiate list to store results
-  wiise_list = list()
-  
-  # Load WIISE-related vaccine details 
-  wiise_info = table("vaccine_wiise")
-  
-  # Iterate through WIISE vaccines
-  for (i in seq_row(wiise_info)) {
-    v = wiise_info[i, ]
-    
-    # Countries and years already covered by VIMC
-    vimc_countries = vimc_countries_dt %>%
-      filter(vaccine == v$vaccine) %>%
-      select(-vaccine)
-    
-    browser()
-    
-    # Filter data by coverage_category type
-    wiise_coverage = data_dt %>%
-      # Select only vaccine of interest...
-      filter(intervention      == v$intervention, 
-             coverage_category == v$coverage_category) %>% 
-      select(country, year, coverage) %>%
-      # Remove countries and years already covered by VIMC...
-      left_join(y  = vimc_countries, 
-                by = c("country", "year")) %>%
-      filter(is.na(source)) %>%
-      select(-source) %>%
-      # Format coverage...
-      replace_na(list(coverage = 0)) %>%
-      mutate(coverage = coverage / 100) %>%
-      select(country, year, coverage) %>%
-      arrange(country, year)
-    
-    # In some cases coverage is repeated for multiple ages
-    wiise_list[[i]] = wiise_info %>% 
-      # Expand for each age considered...
-      slice(i) %>% 
-      expand_grid(expand_age = eval_str(age)) %>%
-      select(vaccine, activity, age = expand_age) %>%
-      # Repeat coverage values for each age...
-      expand_grid(wiise_coverage) %>%
-      # Apply v_a ID...
-      left_join(y  = table("v_a"), 
-                by = c("vaccine", "activity")) %>%
-      select(country, v_a_id, year, age, coverage) %>%
-      as.data.table()
-  }
-  
-  # ---- Calculate FVPs ----
-  
-  # Calculate FVPs from coverage 
-  wiise_dt = rbindlist(wiise_list) %>%
-    # Calculate number of fully vaccinated people...
+  # Calculate FVP for VIMC pathogens
+  wiise_dt = data_dt %>%
+    filter(source == "vimc") %>%
+    select(-source) %>%
+    # Remove countries and years already covered by VIMC...
+    left_join(y  = vimc_countries_dt, 
+              by = c("vaccine", "country", "year")) %>%
+    filter(is.na(source)) %>%
+    select(-source) %>%
+    # Filter for only the complete schedule (as modelled by VIMC)...
+    left_join(y  = table("vaccine_schedule"), 
+              by = "vaccine") %>%
+    filter(is.na(dose) | dose == schedule) %>%
+    select(-dose, -schedule) %>%
+    # Calculate fully vaccinated people...
+    mutate(age = 0) %>%
     inner_join(y  = table("wpp_pop"), 
                by = c("country", "year", "age")) %>%
     rename(cohort = pop) %>%
     mutate(fvps = coverage * cohort) %>%
-    # Final formatting...
+    # Apply v_a ID...
+    mutate(activity = "routine") %>%
+    left_join(y  = table("v_a"), 
+              by = c("vaccine", "activity")) %>%
+    # Tidy up...
     select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
     mutate(source = "wiise") %>%
     as.data.table()
   
-  return(wiise_dt)
+  browser()
+  
+  # Retain dose details for GBD pathogens
+  gbd_dt = data_dt %>%
+    filter(source == "gbd") %>%
+    select(-source) %>%
+    # Assume missing dose info means full schedule...
+    left_join(y  = table("vaccine_schedule"), 
+              by = "vaccine") %>%
+    mutate(dose = ifelse(is.na(dose), schedule, dose)) %>%
+    # Filter for complete schedule and booster doses...
+    filter(dose >= schedule) %>%
+    select(-schedule) %>%
+    # Calculate number of doses distributed...
+    mutate(age = 0) %>%
+    inner_join(y  = table("wpp_pop"), 
+               by = c("country", "year", "age")) %>%
+    rename(cohort = pop) %>%
+    mutate(doses = coverage * cohort) %>%
+    # Apply v_a ID...
+    mutate(activity = "all") %>%
+    left_join(y  = table("v_a"), 
+              by = c("vaccine", "activity")) %>%
+    # Tidy up...
+    select(country, v_a_id, dose, year, age, 
+           doses, cohort, coverage, intervention) %>%
+    arrange(country, v_a_id, year, age) %>%
+    mutate(source = "wiise") %>%
+    as.data.table()
+  
+  # Save file for plotting purposes
+  save_rds(wiise_dt, "data", "wiise_coverage")
+  
+  return(list(wiise_dt, gbd_dt))
 }
 
 # ---------------------------------------------------------

@@ -43,32 +43,27 @@ for (file in src_files)
 # ---- Define packages ----
 
 # Complete list of all R packages required for this project
-packages = c("tidyverse",      # Includes ggplot2, dplyr, tidyr (www.tidyverse.org/packages/)
-             "data.table",     # Next generation dataframes
-             # "gsubfn",         # Output multiple variables from functions
-             "magrittr",       # Additional pipe operators, such as %<>%
-             # "rlist",          # List-related operation functions
-             "wrapr",          # Convenience functions (eg qc)
-             "stats",          # Statistical calculations and random number generation
-             "stats4",         # MLE algorithm
-             "matrixStats",    # Matrix row and column operations
-             "tgp",            # Latin hypercube sampler
-             "splines",        # Spline fitting functions
-             # "pspline",        # Spline fitting functions
-             # "wpp2022",        # Demographic data
-             "yaml",           # Data loading functionality
-             # "xlsx",           # Data loading functionality (or use readxl?)
-             "lubridate",      # Data formatting functionality
-             "naniar",         # Data formatting functionality
-             "ggpubr",         # Plotting functionality
-             "scales",         # Plotting functionality
-             "pals",           # Colour palettes
-             "colorspace")     # Colour palettes
-
-# Other packages that may be needed...
-# DBI
-# DT
-# rnaturalearthdata
+packages = c(
+  "tidyverse",      # Includes ggplot2, dplyr, tidyr (www.tidyverse.org/packages/)
+  "data.table",     # Next generation dataframes
+  "gsubfn",         # Output multiple variables from functions
+  "magrittr",       # Additional pipe operators, such as %<>%
+  # "rlist",          # List-related operation functions
+  "wrapr",          # Convenience functions (eg qc)
+  "stats",          # Statistical calculations and random number generation
+  "stats4",         # MLE algorithm
+  "matrixStats",    # Matrix row and column operations
+  "tgp",            # Latin hypercube sampler
+  "splines",        # Spline fitting functions
+  # "pspline",        # Spline fitting functions
+  # "wpp2022",        # Demographic data
+  "yaml",           # Data loading functionality
+  "lubridate",      # Data formatting functionality
+  "naniar",         # Data formatting functionality
+  "ggpubr",         # Plotting functionality
+  "scales",         # Plotting functionality
+  "pals",           # Colour palettes
+  "colorspace")     # Colour palettes
 
 # ---- Install and/or load R packages with pacman ----
 

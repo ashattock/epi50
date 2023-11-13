@@ -132,12 +132,54 @@ plot_coverage_age_density = function() {
 # ---------------------------------------------------------
 plot_interventions = function() {
   
+  # Load data
   wiise_dt = read_rds("data", "wiise_coverage")
   sia_dt   = read_rds("data", "sia_coverage")
   
   browser()
   
-  # wiise_dt %<>%
+  # Construct plotting datatable
+  annual_dt = wiise_dt %>%
+    # Cohort and pop size for WIISE data...
+    mutate(age = 0) %>%
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    rename(cohort = pop) %>%
+    mutate(doses = cohort * coverage) %>%
+    select(all_of(names(sia_dt))) %>%
+    mutate(source = "wiise") %>%
+    # Append SIA data...
+    bind_rows(sia_dt) %>%
+    replace_na(list(source = "sia")) %>%
+    # Number of doses...
+    group_by(source, intervention, year) %>%
+    summarise(doses = sum(doses)) %>%
+    ungroup() %>%
+    group_by(source, intervention) %>%
+    mutate(cum_doses = cumsum(doses)) %>%
+    ungroup() %>%
+    as.data.table()
+    
+  g1 = ggplot(annual_dt) + 
+    aes(x = year, y = cum_doses, colour = intervention) + 
+    geom_line() + 
+    facet_wrap(~source)
+  
+  total_dt = annual_dt %>%
+    group_by(source, intervention) %>%
+    summarise(doses = sum(doses)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  g2 = ggplot(total_dt) + 
+    aes(x = intervention, y = doses, fill = source) + 
+    geom_bar(stat = "identity", position = "stack")
+  
+  g2 = g2 + scale_y_continuous(trans = "log10")
+  
+  g2 = g2 + theme(axis.text.x = element_text(angle = 50, hjust = 1))
+  
+  browser()
     
   
 }

@@ -2,28 +2,10 @@
 
 # Creates datatable: vaccine_sia_table
 table:
-- intervention: all_vaccines
-  vaccine:
-  - DTP3
-  - Hib3
-  - HepB
-  - IPV
+
+# Vaccines modelled
 - intervention: bcg
   vaccine: BCG
-- intervention: bopv
-  vaccine: OPV
-- intervention: bopv_ipv
-  vaccine:
-  - OPV
-  - IPV
-- intervention: bopv_ipv_frac
-  vaccine:
-  - OPV
-  - IPV
-- intervention: bopv_mopv1
-  vaccine: OPV
-- intervention: bopv_mopv2
-  vaccine: OPV
 - intervention: diphcv4
   vaccine: Dip
   dose: 4
@@ -44,66 +26,101 @@ table:
   - Dip
   - Tet
 - intervention: dtap
-  vaccine: DTP3
+  vaccine:
+  - Dip
+  - Tet
+  - Per
 - intervention: dtaphibhepbipv
   vaccine:
-  - DTP3
+  - Dip
+  - Tet
+  - Per
   - Hib3
   - HepB
-  - IPV
 - intervention: dtp
-  vaccine: DTP3
+  vaccine:
+  - Dip
+  - Tet
+  - Per
 - intervention: dtpcv1
-  vaccine: DTP3
+  vaccine:
+  - Dip
+  - Tet
+  - Per
   dose: 1
 - intervention: dtpcv2
-  vaccine: DTP3
+  vaccine:
+  - Dip
+  - Tet
+  - Per
   dose: 2
 - intervention: dtpcv3
-  vaccine: DTP3
+  vaccine:
+  - Dip
+  - Tet
+  - Per
   dose: 3
 - intervention: dtpcv4
-  vaccine: DTP3
+  vaccine:
+  - Dip
+  - Tet
+  - Per
   dose: 4
 - intervention: dtphepb
   vaccine:
-  - DTP3
+  - Dip
+  - Tet
+  - Per
   - HepB
 - intervention: dtphib
   vaccine:
-  - DTP3
+  - Dip
+  - Tet
+  - Per
   - Hib3
 - intervention: dtphibhepb
   vaccine:
-  - DTP3
+  - Dip
+  - Tet
+  - Per
   - Hib3
   - HepB
 - intervention: dtphibhepb1
   vaccine:
-  - DTP3
+  - Dip
+  - Tet
+  - Per
   - Hib3
   - HepB
   dose: 1
 - intervention: dtphibhepb2
   vaccine:
-  - DTP3
+  - Dip
+  - Tet
+  - Per
   - Hib3
   - HepB
   dose: 2
 - intervention: dtphibhepb3
   vaccine:
-  - DTP3
+  - Dip
+  - Tet
+  - Per
   - Hib3
   - HepB
   dose: 3
 - intervention: dtphibhepbipv
   vaccine:
-  - DTP3
+  - Dip
+  - Tet
+  - Per
   - Hib3
   - HepB
-  - IPV
 - intervention: dtwp
-  vaccine: DTP3
+  vaccine:
+  - Dip
+  - Tet
+  - Per
 - intervention: hepb
   vaccine: HepB
 - intervention: hepb_bd
@@ -127,88 +144,62 @@ table:
   vaccine:
   - Hib3
   - HepB
-- intervention: ipv
-  vaccine: IPV
-- intervention: ipv_frac
-  vaccine: IPV
-- intervention: ipv1
-  vaccine: IPV
-  dose: 1
-- intervention: ipv1_frac
-  vaccine: IPV
-  dose: 1
-- intervention: ipv1
-  vaccine: IPV
-  dose: 2
-- intervention: ipv1_frac
-  vaccine: IPV
-  dose: 2
 - intervention: m_mmr
   vaccine:
   - Measles
-  - Mumps
   - Rubella
 - intervention: m_mr
   vaccine:
   - Measles
   - Rubella
-- intervention: mcv
-  vaccine: MenA
+# - intervention: mcv
+#   vaccine: MenA
 - intervention: mcv1
   vaccine: MCV1
 - intervention: mcv2
   vaccine: MCV2
 - intervention: measles
   vaccine: Measles
-- intervention: men_a
-  vaccine: MenA
-- intervention: men_a_conj
-  vaccine:
-  - MenA
-  - MenOther
-- intervention: men_ac
-  vaccine:
-  - MenA
-  - MenOther
-- intervention: men_acw
-  vaccine:
-  - MenA
-  - MenOther
-- intervention: men_acwy
-  vaccine:
-  - MenA
-  - MenOther
-- intervention: men_acyw_135conj
-  vaccine:
-  - MenA
-  - MenOther
-- intervention: men_acyw_conj
-  vaccine:
-  - MenA
-  - MenOther
-- intervention: men_b
-  vaccine: MenOther
-- intervention: men_bc
-  vaccine: MenOther
-- intervention: men_c_conj
-  vaccine: MenOther
+# - intervention: men_a
+#   vaccine: MenA
+# - intervention: men_a_conj
+#   vaccine:
+#   - MenA
+#   - MenOther
+# - intervention: men_ac
+#   vaccine:
+#   - MenA
+#   - MenOther
+# - intervention: men_acw
+#   vaccine:
+#   - MenA
+#   - MenOther
+# - intervention: men_acwy
+#   vaccine:
+#   - MenA
+#   - MenOther
+# - intervention: men_acyw_135conj
+#   vaccine:
+#   - MenA
+#   - MenOther
+# - intervention: men_acyw_conj
+#   vaccine:
+#   - MenA
+#   - MenOther
+# - intervention: men_b
+#   vaccine: MenOther
+# - intervention: men_bc
+#   vaccine: MenOther
+# - intervention: men_c_conj
+#   vaccine: MenOther
 - intervention: mmr
   vaccine:
   - Measles
-  - Mumps
   - Rubella
 - intervention: mmr_polio
   vaccine:
   - Measles
-  - Mumps
   - Rubella
-  - IPV
-- intervention: mopv1
-  vaccine: OPV
-- intervention: mopv2
-  vaccine: OPV
-- intervention: mopv3
-  vaccine: OPV
 - intervention: mr
   vaccine:
   - Measles
@@ -216,37 +207,34 @@ table:
 - intervention: mr_mmr
   vaccine:
   - Measles
-  - Mumps
   - Rubella
-- intervention: mumps
-  vaccine: Mumps
-- intervention: opv
-  vaccine: OPV
-- intervention: opvt
-  vaccine: OPV
 - intervention: pab
-  vaccine: Tet # And pertussis?
+  vaccine: Tet
 - intervention: pcv1
+  vaccine: PCV3
+  dose: 1
+- intervention: pcv2
+  vaccine: PCV3
+  dose: 2
+- intervention: pcv3
+  vaccine: PCV3
+  dose: 3
+- intervention: pcv7
   vaccine: PCV3
 - intervention: pcv10
   vaccine: PCV3
 - intervention: pcv13
   vaccine: PCV3
-- intervention: pcv2
-  vaccine: PCV3
-- intervention: pcv3
-  vaccine: PCV3
-- intervention: pcv7
-  vaccine: PCV3
 - intervention: penta_td
   vaccine:
-  - DTP3
+  - Dip
+  - Tet
+  - Per
   - Hib3
   - HepB
-- intervention: pol3
-  vaccine:
-  - OPV
-  - IPV
+- intervention: percv4
+  vaccine: Per
+  dose: 4
 - intervention: pneumo_conj
   vaccine: PCV3
 - intervention: ppv23
@@ -255,12 +243,16 @@ table:
   vaccine: Rubella
 - intervention: rcv1
   vaccine: Rubella
+  dose: 1
 - intervention: rota1
   vaccine: Rota
+  dose: 1
 - intervention: rota2
   vaccine: Rota
+  dose: 2
 - intervention: rotac
   vaccine: Rota
+  dose: 3
 - intervention: rotavirus
   vaccine: Rota
 - intervention: td_s
@@ -268,20 +260,24 @@ table:
   - Dip
   - Tet
 - intervention: tdap_s
-  vaccine: DTP3
+  vaccine:
+  - Dip
+  - Tet
+  - Per
 - intervention: tdipv_s
   vaccine:
   - Dip
   - Tet
-  - IPV
 - intervention: tdpipv
   vaccine:
-  - DTP3
-  - IPV
+  - Dip
+  - Tet
+  - Per
 - intervention: tt
   vaccine: Tet
 - intervention: tt2plus
   vaccine: Tet
+  dose: 3
 - intervention: ttcv4
   vaccine: Tet
   dose: 4
@@ -291,17 +287,18 @@ table:
 - intervention: ttcv6
   vaccine: Tet
   dose: 6
-- intervention: yf
-  vaccine: YF
-- intervention: yfv
-  vaccine: YF
-
 
 # Vaccines not modelled
-- intervention: 15hpv1_f
-- intervention: 15hpv1_m
-- intervention: 15hpvc_f
-- intervention: 15hpvc_m
+- intervention: "15hpv1_f"
+- intervention: "15hpv1_m"
+- intervention: "15hpvc_f"
+- intervention: "15hpvc_m"
+- intervention: all_vaccines
+- intervention: bopv
+- intervention: bopv_ipv
+- intervention: bopv_ipv_frac
+- intervention: bopv_mopv1
+- intervention: bopv_mopv2
 - intervention: flu_all
 - intervention: flu_child1
 - intervention: flu_child2
@@ -316,13 +313,25 @@ table:
 - intervention: flu_resident
 - intervention: hpv_fem
 - intervention: hpv_male
+- intervention: ipv
+- intervention: ipv_frac
+- intervention: ipv1
+- intervention: ipv1_frac
+- intervention: ipv1
+- intervention: ipv1_frac
 - intervention: ipv2
 - intervention: ipv2_frac
+- intervention: mopv1
+- intervention: mopv2
+- intervention: mopv3
+- intervention: mumps
 - intervention: japenc
 - intervention: japenc_1
-- intervention: japenc_c   
+- intervention: japenc_c
+- intervention: opv
+- intervention: opvt
 - intervention: percv_pw
-- intervention: percv4
+- intervention: pol3
 - intervention: prhpv1_f
 - intervention: prhpv1_m
 - intervention: prhpvc_f
@@ -330,3 +339,5 @@ table:
 - intervention: typhoid
 - intervention: typhoid_conj
 - intervention: vad1
+- intervention: yf
+- intervention: yfv

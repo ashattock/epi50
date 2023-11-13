@@ -8,8 +8,8 @@ table:
   vaccine_name: "Hepatitis B (birth-dose)"
 - vaccine: Hib3
   vaccine_name: "Haemophilus influenzae type b (third-dose)"
-- vaccine: HPV
-  vaccine_name: "Human papillomavirus"
+# - vaccine: HPV
+#   vaccine_name: "Human papillomavirus"
 - vaccine: MCV1
   vaccine_name: "Measles-containing vaccine (first-dose)"
 - vaccine: MCV2
@@ -24,13 +24,11 @@ table:
   vaccine_name: "Rotavirus"
 - vaccine: Rubella
   vaccine_name: "Rubella"
-- vaccine: YF
-  vaccine_name: "Yellow Fever"
-- vaccine: DTP3
-  vaccine_name: "Diphtheria-tetanus-pertussis (third-dose)"
 - vaccine: Dip
   vaccine_name: "Diphtheria-containing vaccine"
 - vaccine: Tet
+  vaccine_name: "Tetanus-containing vaccine"
+- vaccine: Per
   vaccine_name: "Tetanus-containing vaccine"
 - vaccine: BCG
   vaccine_name: "Bacille Calmette-Guerin"

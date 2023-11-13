@@ -4,56 +4,34 @@
 table:
 - intervention: bcg
   vaccine: BCG
-  activity: routine
-  coverage_category: wuenic
   age: "0"
 - intervention: dtpcv3
   vaccine: DTP3
-  activity: routine
-  coverage_category: wuenic
   age: "0"
 - intervention: hepb3
   vaccine: HepB
-  activity: routine
-  coverage_category: wuenic
   age: "0"
 - intervention: hepb_bd
   vaccine: HepB_BD
-  activity: routine
-  coverage_category: wuenic
   age: "0"
 - intervention: hib3
   vaccine: Hib3
-  activity: routine
-  coverage_category: wuenic
   age: "0"
 - intervention: mcv1
   vaccine: MCV1
-  activity: routine
-  coverage_category: wuenic
   age: "0"
 - intervention: mcv2
   vaccine: MCV2
-  activity: routine
-  coverage_category: wuenic
   age: "0"
 - intervention: pcv3
   vaccine: PCV3
-  activity: routine
-  coverage_category: wuenic
   age: "0"
 - intervention: rcv1
   vaccine: Rubella
-  activity: routine
-  coverage_category: wuenic
   age: "0"
 - intervention: rotac
   vaccine: Rota
-  activity: routine
-  coverage_category: wuenic
   age: "0"
 - intervention: yfv
   vaccine: YF
-  activity: routine
-  coverage_category: wuenic
   age: "0"
