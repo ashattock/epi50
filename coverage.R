@@ -19,19 +19,15 @@ prepare_coverage = function() {
   vimc_countries_dt = vimc_dt %>%
     left_join(y  = table("v_a"),
               by = "v_a_id") %>%
-    select(vaccine, country, year, source) %>%
+    select(country, vaccine, year, source) %>%
     arrange(vaccine, country, year) %>%
     unique()
   
   # For everything remaining, extract coverage from WIISE database
-  list[wiise_dt, gbd1_dt] = coverage_wiise(vimc_countries_dt)
-  
-  browser()
+  wiise_dt = coverage_wiise(vimc_countries_dt)
   
   # Finally, incorporate SIA data (from WIISE)
-  list[sia_dt, gbd2_dt] = coverage_sia(vimc_countries_dt)  # See sia.R
-  
-  browser()
+  sia_dt = coverage_sia(vimc_countries_dt)  # See sia.R
   
   # Combine sources
   rbind(vimc_dt, wiise_dt, sia_dt) %>%
@@ -46,9 +42,6 @@ prepare_coverage = function() {
   
   # Coverage data density by age
   plot_coverage_age_density()
-  
-  # Plot unparsed 'interventions' from WIISE and SIA 
-  plot_interventions()
 }
 
 # ---------------------------------------------------------
@@ -109,7 +102,7 @@ coverage_wiise = function(vimc_countries_dt) {
   
   # ---- Wrangle WIISE data ----
   
-  # Primary data cleaning
+  # Parse 'interventions' into EPI50 vaccines
   data_dt = raw_dt %>%
     # Convert to lower case...
     setnames(names(.), tolower(names(.))) %>% 
@@ -141,80 +134,58 @@ coverage_wiise = function(vimc_countries_dt) {
               by = "intervention", 
               relationship = "many-to-many") %>%
     filter(!is.na(vaccine)) %>%
-    # Append source of impact estimates...
-    left_join(y  = table("d_v"), 
-              by = "vaccine") %>%
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
     # Tidy up...
-    select(country, vaccine, dose, year, coverage, source) %>%
+    select(country, vaccine, year, coverage) %>%
     arrange(country, vaccine, year) %>%
     as.data.table()
   
-  # Calculate FVP for VIMC pathogens
+  # Function for parsing and expanding to single age bins
+  expand_age_fn = function(x)
+    y = expand_grid(x, expand_age = eval_str(x$age))
+  
+  # Expanded datatable of ages per vaccine
+  age_dt = table("vaccine") %>%
+    select(vaccine, age) %>%
+    dtapply(expand_age_fn) %>%
+    rbindlist() %>%
+    select(vaccine, age = expand_age)
+  
+  # Routine activities (or 'all' for GBD pathogens)
+  v_a_dt = table("v_a") %>%
+    filter(activity %in% c("routine", "all"))
+  
+  # Append age and calculate FVPs
   wiise_dt = data_dt %>%
-    filter(source == "vimc") %>%
-    select(-source) %>%
     # Remove countries and years already covered by VIMC...
     left_join(y  = vimc_countries_dt, 
-              by = c("vaccine", "country", "year")) %>%
+              by = c("country", "vaccine", "year")) %>%
     filter(is.na(source)) %>%
     select(-source) %>%
-    # Filter for only the complete schedule (as modelled by VIMC)...
-    left_join(y  = table("vaccine_schedule"), 
-              by = "vaccine") %>%
-    filter(is.na(dose) | dose == schedule) %>%
-    select(-dose, -schedule) %>%
+    # Append ages...
+    left_join(y  = age_dt, 
+              by = "vaccine", 
+              relationship = "many-to-many") %>%
     # Calculate fully vaccinated people...
-    mutate(age = 0) %>%
-    inner_join(y  = table("wpp_pop"), 
-               by = c("country", "year", "age")) %>%
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
     rename(cohort = pop) %>%
     mutate(fvps = coverage * cohort) %>%
+    # Summarise in case of multiple interventions...
+    group_by(country, vaccine, year, age) %>%
+    summarise(cohort = mean(cohort), 
+              fvps   = sum(fvps)) %>%
+    ungroup() %>%
+    mutate(coverage = pmin(fvps / cohort, 1)) %>%
     # Apply v_a ID...
-    mutate(activity = "routine") %>%
-    left_join(y  = table("v_a"), 
-              by = c("vaccine", "activity")) %>%
+    left_join(y  = v_a_dt, 
+              by = c("vaccine")) %>%
     # Tidy up...
     select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
     mutate(source = "wiise") %>%
     as.data.table()
   
-  browser()
-  
-  # Retain dose details for GBD pathogens
-  gbd_dt = data_dt %>%
-    filter(source == "gbd") %>%
-    select(-source) %>%
-    # Assume missing dose info means full schedule...
-    left_join(y  = table("vaccine_schedule"), 
-              by = "vaccine") %>%
-    mutate(dose = ifelse(is.na(dose), schedule, dose)) %>%
-    # Filter for complete schedule and booster doses...
-    filter(dose >= schedule) %>%
-    select(-schedule) %>%
-    # Calculate number of doses distributed...
-    mutate(age = 0) %>%
-    inner_join(y  = table("wpp_pop"), 
-               by = c("country", "year", "age")) %>%
-    rename(cohort = pop) %>%
-    mutate(doses = coverage * cohort) %>%
-    # Apply v_a ID...
-    mutate(activity = "all") %>%
-    left_join(y  = table("v_a"), 
-              by = c("vaccine", "activity")) %>%
-    # Tidy up...
-    select(country, v_a_id, dose, year, age, 
-           doses, cohort, coverage, intervention) %>%
-    arrange(country, v_a_id, year, age) %>%
-    mutate(source = "wiise") %>%
-    as.data.table()
-  
-  # Save file for plotting purposes
-  save_rds(wiise_dt, "data", "wiise_coverage")
-  
-  return(list(wiise_dt, gbd_dt))
+  return(wiise_dt)
 }
 
 # ---------------------------------------------------------

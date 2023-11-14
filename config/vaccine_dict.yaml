@@ -7,11 +7,11 @@ table:
 - intervention: bcg
   vaccine: BCG
 - intervention: diphcv4
-  vaccine: Dip4
+  vaccine: Dip_BX
 - intervention: diphcv5
-  vaccine: Dip5
+  vaccine: Dip_BX
 - intervention: diphcv6
-  vaccine: Dip6
+  vaccine: Dip_BX
 - intervention: diphteria
   vaccine: Dip3
 - intervention: dt
@@ -46,9 +46,9 @@ table:
   - Per3
 - intervention: dtpcv4
   vaccine:
-  - Dip4
-  - Tet4
-  - Per4
+  - Dip_BX
+  - Tet_BX
+  - Per_BX
 - intervention: dtphepb
   vaccine:
   - Dip3
@@ -171,7 +171,7 @@ table:
   - Hib3
   - HepB
 - intervention: percv4
-  vaccine: Per4
+  vaccine: Per_BX
 - intervention: pneumo_conj
   vaccine: PCV3
 - intervention: ppv23
@@ -205,11 +205,11 @@ table:
 - intervention: tt2plus
   vaccine: Tet3
 - intervention: ttcv4
-  vaccine: Tet4
+  vaccine: Tet_BX
 - intervention: ttcv5
-  vaccine: Tet5
+  vaccine: Tet_BX
 - intervention: ttcv6
-  vaccine: Tet6
+  vaccine: Tet_BX
 
 # Vaccines not modelled
 - intervention: "15hpv1_f"

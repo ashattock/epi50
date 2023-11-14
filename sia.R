@@ -17,12 +17,16 @@ coverage_sia = function(vimc_countries_dt) {
   # Entries to set as NA
   na_var = c("unknown", "undefined", "")
   
+  # Campaign activities (or 'all' for GBD pathogens)
+  v_a_dt = table("v_a") %>%
+    filter(activity %in% c("campaign", "all"))
+  
   # Data dictionary for converting to v_a
-  data_dict = table("vaccine_sia") %>%
-    mutate(activity = "campaign") %>%
-    inner_join(y  = table("v_a"), 
-               by = c("vaccine", "activity")) %>%
-    select(intervention, v_a_id, vaccine)
+  data_dict = table("vaccine_dict") %>%
+    filter(!is.na(vaccine)) %>%
+    left_join(y  = v_a_dt, 
+              by = "vaccine") %>%
+    select(intervention, vaccine, v_a_id)
   
   # Load and wrangle SIA data
   data_dt = fread(paste0(o$pth$input, "sia_data.csv")) %>%
@@ -53,9 +57,9 @@ coverage_sia = function(vimc_countries_dt) {
     filter(intervention %in% unique(data_dict$intervention)) %>%
     arrange(country, intervention) %>%
     # Deal with other unknown entries...
-    mutate(across(.cols = where(is.character), 
-                  .fns  = ~if_else(. %in% na_var, NA, .)), 
-           across(.cols = where(is.character), 
+    mutate(across(.cols = where(is.character),
+                  .fns  = ~if_else(. %in% na_var, NA, .)),
+           across(.cols = where(is.character),
                   .fns  = ~if_else(is.na(.), "unknown", .))) %>%
     # Deal with dates...
     format_sia_dates() %>%
@@ -63,32 +67,28 @@ coverage_sia = function(vimc_countries_dt) {
     # Parse age groups...
     parse_age_groups()
   
-  # Save intermediary file for plotting purposes
-  save_rds(data_dt, "data", "sia_coverage")
-  
   # Interpret 'interventions'
   sia_dt = data_dt %>%
     # Convert to v_a...
     left_join(y  = data_dict, 
               by = "intervention", 
               relationship = "many-to-many") %>%
+    filter(!is.na(v_a_id)) %>%
     # Remove entires already covered by VIMC...
     left_join(y  = vimc_countries_dt, 
               by = c("vaccine", "country", "year")) %>%
     filter(is.na(source)) %>%
-    # Group by v_a...
-    group_by(country, v_a_id, vaccine, year, age) %>%
-    summarise(all_doses = sum(doses), 
-              cohort    = mean(cohort)) %>%
+    select(-source) %>%
+    # Calculate FVPs...
+    group_by(country, v_a_id, year, age) %>%
+    summarise(fvps = sum(doses)) %>%
     ungroup() %>%
-    # Calculate FVPs and coverage...
-    left_join(y  = table("vaccine_schedule"),
-               by = "vaccine") %>%
-    mutate(fvps = all_doses / schedule, 
-           fvps = pmin(fvps, cohort), # Cohort as upper bound
-           coverage = fvps / cohort) %>%
+    # Calculate coverage...
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    rename(cohort = pop) %>%
+    mutate(coverage = pmin(fvps / cohort, 1)) %>%
     # Tidy up...
-    select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
     mutate(source = "sia") %>%
     as.data.table()

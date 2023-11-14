@@ -128,63 +128,6 @@ plot_coverage_age_density = function() {
 }
 
 # ---------------------------------------------------------
-# Plot 'intervention' categories prior to parsing into d_v_a
-# ---------------------------------------------------------
-plot_interventions = function() {
-  
-  # Load data
-  wiise_dt = read_rds("data", "wiise_coverage")
-  sia_dt   = read_rds("data", "sia_coverage")
-  
-  browser()
-  
-  # Construct plotting datatable
-  annual_dt = wiise_dt %>%
-    # Cohort and pop size for WIISE data...
-    mutate(age = 0) %>%
-    left_join(y  = table("wpp_pop"), 
-              by = c("country", "year", "age")) %>%
-    rename(cohort = pop) %>%
-    mutate(doses = cohort * coverage) %>%
-    select(all_of(names(sia_dt))) %>%
-    mutate(source = "wiise") %>%
-    # Append SIA data...
-    bind_rows(sia_dt) %>%
-    replace_na(list(source = "sia")) %>%
-    # Number of doses...
-    group_by(source, intervention, year) %>%
-    summarise(doses = sum(doses)) %>%
-    ungroup() %>%
-    group_by(source, intervention) %>%
-    mutate(cum_doses = cumsum(doses)) %>%
-    ungroup() %>%
-    as.data.table()
-    
-  g1 = ggplot(annual_dt) + 
-    aes(x = year, y = cum_doses, colour = intervention) + 
-    geom_line() + 
-    facet_wrap(~source)
-  
-  total_dt = annual_dt %>%
-    group_by(source, intervention) %>%
-    summarise(doses = sum(doses)) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  g2 = ggplot(total_dt) + 
-    aes(x = intervention, y = doses, fill = source) + 
-    geom_bar(stat = "identity", position = "stack")
-  
-  g2 = g2 + scale_y_continuous(trans = "log10")
-  
-  g2 = g2 + theme(axis.text.x = element_text(angle = 50, hjust = 1))
-  
-  browser()
-    
-  
-}
-
-# ---------------------------------------------------------
 # Plot coverage with waning immunity for non-modelled pathogens
 # ---------------------------------------------------------
 plot_total_coverage = function() {
@@ -244,39 +187,52 @@ plot_vaccine_efficacy = function() {
   
   message("  > Plotting vaccine efficacy profiles")
   
+  # Function to group similar vaccines but split by dose
+  schedule_fn = function(dt) {
+    
+    # Append descriptive columns
+    shedule_dt = dt %>%
+      # Primary schedule or booster dose...
+      mutate(schedule = ifelse(
+        !str_detect(vaccine, "_BX$"), "primary", "booster")) %>%
+      mutate(schedule = factor(schedule, c("primary", "booster"))) %>%
+      # Append disease-vaccine name
+      mutate(vaccine = str_remove(vaccine, "[0-9]|(_BX)"), 
+             d_v = paste0(disease, " (", vaccine, ")"), 
+             d_v = fct_inorder(d_v))
+    
+    return(shedule_dt)
+  }
+  
   # Load vaccine efficacy profiles
   plot_dt = table("vaccine_efficacy_profiles") %>%
-    left_join(y  = table("vaccine"), 
-              by = "vaccine") %>%
-    mutate(vaccine = str_remove(vaccine, "[0-9]+"), 
-           d_v = paste1(disease, vaccine)) %>%
-    select(d_v, dose, time, profile)
+    schedule_fn() %>%
+    select(d_v, schedule, time, profile)
   
   # Load data used to calculate these profiles
   data_dt = table("vaccine_efficacy") %>%
-    left_join(y  = table("vaccine"), 
-              by = "vaccine") %>%
     left_join(y  = table("d_v"), 
               by = "vaccine") %>%
-    mutate(vaccine = str_remove(vaccine, "[0-9]+"), 
-           d_v = paste1(disease, vaccine)) %>%
-    select(d_v, dose, 
+    schedule_fn() %>%
+    select(d_v, schedule, 
+           init     = efficacy, 
            time     = decay_x, 
-           halflife = decay_y, 
-           init     = efficacy) %>%
+           halflife = decay_y) %>%
     pivot_longer(cols = c(init, halflife), 
                  values_to = "profile") %>%
     mutate(time = ifelse(name == "init", 0, time)) %>%
     filter(!is.na(time), 
            !is.na(profile)) %>%
+    select(all_of(names(plot_dt))) %>%
     as.data.table()
   
   # Plot vaccine efficacy with waning immunity (if any)
   g = ggplot(plot_dt) + 
-    aes(x = time, y = profile, colour = as.factor(dose)) + 
+    aes(x = time, y = profile) + 
     geom_line() + 
-    geom_point(data = data_dt) + 
-    facet_wrap(~d_v)
+    geom_point(data   = data_dt, 
+               colour = "darkred") + 
+    facet_grid(schedule~d_v)
   
   # Save figure to file
   save_fig(g, "Vaccine efficacy profiles", 
@@ -1139,6 +1095,7 @@ append_v_a_name = function(id_dt) {
   
   return(name_dt)
 }
+
 # ---------------------------------------------------------
 # Apply colour scheme and tidy up axes - impact plots
 # ---------------------------------------------------------

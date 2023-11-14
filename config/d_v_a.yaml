@@ -56,41 +56,25 @@ table:
   activity: all
 - d_v_a_id: 13
   disease: Dip
-  vaccine: Dip4
+  vaccine: Dip_BX
   activity: all
 - d_v_a_id: 14
-  disease: Dip
-  vaccine: Dip5
-  activity: all
-- d_v_a_id: 15
-  disease: Dip
-  vaccine: Dip6
-  activity: all
-- d_v_a_id: 16
   disease: Tet
   vaccine: Tet3
   activity: all
-- d_v_a_id: 17
+- d_v_a_id: 15
   disease: Tet
-  vaccine: Tet4
+  vaccine: Tet_BX
   activity: all
-- d_v_a_id: 18
-  disease: Tet
-  vaccine: Tet5
-  activity: all
-- d_v_a_id: 19
-  disease: Tet
-  vaccine: Tet6
-  activity: all
-- d_v_a_id: 20
+- d_v_a_id: 16
   disease: Per
   vaccine: Per3
   activity: all
-- d_v_a_id: 21
+- d_v_a_id: 17
   disease: Per
-  vaccine: Per4
+  vaccine: Per_BX
   activity: all
-- d_v_a_id: 22
+- d_v_a_id: 18
   disease: TB
   vaccine: BCG
   activity: all

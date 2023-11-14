@@ -6,15 +6,7 @@ table:
   efficacy: 0.969 # https://apps.who.int/iris/bitstream/handle/10665/258681/WER9231.pdf?sequence=1
   lower: 0.943
   upper: 0.984
-- vaccine: Dip4
-  efficacy: 0.969 # Placeholder
-  lower: 0.943
-  upper: 0.984
-- vaccine: Dip5
-  efficacy: 0.969 # Placeholder
-  lower: 0.943
-  upper: 0.984
-- vaccine: Dip6
+- vaccine: Dip_BX
   efficacy: 0.969 # Placeholder
   lower: 0.943
   upper: 0.984
@@ -22,15 +14,7 @@ table:
   efficacy: 0.99 # https://apps.who.int/iris/bitstream/handle/10665/233093/WER8120_198-208.PDF
   lower: 0.8
   upper: 1.0
-- vaccine: Tet4
-  efficacy: 0.99 # Placeholder
-  lower: 0.8
-  upper: 1.0
-- vaccine: Tet5
-  efficacy: 0.99 # Placeholder
-  lower: 0.8
-  upper: 1.0
-- vaccine: Tet6
+- vaccine: Tet_BX
   efficacy: 0.99 # Placeholder
   lower: 0.8
   upper: 1.0
@@ -40,7 +24,7 @@ table:
   upper: 0.86
   decay_x: 5 # (in years) https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547082/
   decay_y: 0.49 # (0.75 * 0.65) https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547082/
-- vaccine: Per4
+- vaccine: Per_BX
   efficacy: 0.8 # Placeholder
   lower: 0.71
   upper: 0.86

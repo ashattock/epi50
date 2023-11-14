@@ -27,9 +27,6 @@ run_results = function() {
 
     # Coverage data density by age
     plot_coverage_age_density()
-    
-    # Plot unparsed 'interventions' from WIISE and SIA 
-    plot_interventions()
   }
   
   # ---- Non-modelled plots ----
