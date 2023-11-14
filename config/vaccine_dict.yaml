@@ -8,10 +8,6 @@ table:
   vaccine: BCG
 - intervention: diphcv4
   vaccine: Dip_BX
-- intervention: diphcv5
-  vaccine: Dip_BX
-- intervention: diphcv6
-  vaccine: Dip_BX
 - intervention: diphteria
   vaccine: Dip3
 - intervention: dt
@@ -206,10 +202,6 @@ table:
   vaccine: Tet3
 - intervention: ttcv4
   vaccine: Tet_BX
-- intervention: ttcv5
-  vaccine: Tet_BX
-- intervention: ttcv6
-  vaccine: Tet_BX
 
 # Vaccines not modelled
 - intervention: "15hpv1_f"
@@ -226,6 +218,8 @@ table:
 - intervention: dtpcv2
 - intervention: dtphibhepb1
 - intervention: dtphibhepb2
+- intervention: diphcv5
+- intervention: diphcv6
 - intervention: flu_all
 - intervention: flu_child1
 - intervention: flu_child2
@@ -274,6 +268,8 @@ table:
 - intervention: rcv1
 - intervention: rota1
 - intervention: rota2
+- intervention: ttcv5
+- intervention: ttcv6
 - intervention: typhoid
 - intervention: typhoid_conj
 - intervention: vad1

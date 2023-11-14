@@ -80,14 +80,7 @@ coverage_sia = function(vimc_countries_dt) {
     filter(is.na(source)) %>%
     select(-source) %>%
     # Calculate FVPs...
-    group_by(country, v_a_id, year, age) %>%
-    summarise(fvps = sum(doses)) %>%
-    ungroup() %>%
-    # Calculate coverage...
-    left_join(y  = table("wpp_pop"), 
-              by = c("country", "year", "age")) %>%
-    rename(cohort = pop) %>%
-    mutate(coverage = pmin(fvps / cohort, 1)) %>%
+    calculate_fvps() %>%
     # Tidy up...
     arrange(country, v_a_id, year, age) %>%
     mutate(source = "sia") %>%
@@ -340,8 +333,7 @@ parse_age_groups = function(sia_dt) {
     mutate(doses = total_doses * pop / sum(pop)) %>%
     ungroup() %>%
     # Tidy up...
-    select(country, intervention, year, 
-           age, doses, cohort = pop) %>%
+    select(country, intervention, year, age, doses, pop) %>%
     as.data.table()
   
   # Sanity check that we haven't lost/gained doses

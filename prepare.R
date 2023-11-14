@@ -97,9 +97,6 @@ prepare_vimc_estimates = function() {
   
   # TODO: In raw form, we could instead use vimc_estimates.csv
   
-  # Dictionary for dealing with gender variables
-  # gender_dict = setNames(1 : 3, c("Male", "Female", "Both"))
-  
   # Prepare VIMC vaccine impact estimates
   read_rds("input", "vimc_estimates") %>%
     left_join(y  = table("d_v_a"), 
