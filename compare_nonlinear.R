@@ -28,7 +28,7 @@ compare_nonlinear = function() {
   fvps_dt = get_temporal_fvps() %>%
     filter(country %in% countries) %>%
     # Coverage over lifetime?...
-    # total_coverage() %>%
+    # effective_coverage() %>%
     # Cumulative sum of FVPs...
     group_by(country, d_v_a) %>%
     mutate(fvps_cum = cumsum(fvps)) %>%
@@ -43,7 +43,7 @@ compare_nonlinear = function() {
   # y = coverage %>%
   #   filter(country %in% countries, 
   #          v_at_id == 3) %>%
-  #   total_coverage()
+  #   effective_coverage()
   
   # x = get_scenario_fvps()
   

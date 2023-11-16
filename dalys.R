@@ -386,7 +386,7 @@ get_pop = function(countries, years) {
 # ---------------------------------------------------------
 get_cov = function(d_info, countries, years) {
   
-  # TODO: I guess we should be using total_coverage here
+  # TODO: I guess we should be using effective_coverage here
   
   browser() # v_at_table is now v_a_table
   
@@ -415,7 +415,7 @@ get_cov = function(d_info, countries, years) {
   # Total vaccine coverage
   total_cov_dt = cov_dt %>%
     # Calculate 'total' coverage... 
-    full_join(y  = total_coverage(.), 
+    full_join(y  = effective_coverage(.), 
               by = c("country", "vaccine", "activity_type", 
                      "year", "age", "gender")) %>%
     mutate(coverage = pmax(coverage, value, na.rm = TRUE)) %>%
@@ -588,7 +588,7 @@ get_temporal_fvps_age = function(d_info, countries, years) {
            activity_type == d_info$activity_type, 
            year >= 2000) %>% 
     # Calculate 'total' coverage... 
-    full_join(y  = total_coverage(.), 
+    full_join(y  = effective_coverage(.), 
               by = c("country", "vaccine", "activity_type", 
                      "year", "age", "gender")) %>%
     mutate(coverage = pmax(coverage, value, na.rm = TRUE)) %>%

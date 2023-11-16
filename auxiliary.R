@@ -122,8 +122,10 @@ create_bash_log = function(pth, log = NULL, err = NULL) {
 # ---------------------------------------------------------
 # Apply lappy to each row of a dataframe or datatable
 # ---------------------------------------------------------
-dtapply = function(dt, fn, ...)
-  y = lapply(seq_row(dt), function(i) fn(dt[i, ]), ...)
+dtapply = function(dt, fn, ...) {
+  y = lapply(seq_row(dt), function(i) fn(dt[i, ], ...))
+  return(y)
+}
 
 # ---------------------------------------------------------
 # Reset R's most annoying default options
@@ -299,7 +301,7 @@ n_unique = function(x) length(unique(x))
 # Wrapper for lapply that also extracts element name
 # ---------------------------------------------------------
 napply = function(x, fn, ...) {
-  y = lapply(seq_along(x), function(i) fn(x[[i]], name = names(x)[i]), ...)
+  y = lapply(seq_along(x), function(i) fn(x[[i]], name = names(x)[i], ...))
   return(y)
 }
 

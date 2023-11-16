@@ -35,7 +35,7 @@ run_results = function() {
   if (o$plot_non_modelled) {
     
     # Coverage with waning immunity for non-modelled pathogens
-    plot_total_coverage()
+    plot_effective_coverage()
   }
   
   # ---- Imputation plots ----

@@ -322,7 +322,7 @@ prepare_demography = function() {
         mutate(metric = metric * 1e3) %>%
         rename_with(~type, metric) %>%
         # Only countries and years of interest...
-        filter(country %in% table("country")$country,
+        filter(country %in% all_countries(),
                year    %in% o$analysis_years) %>%
         mutate(age = ifelse(age == "100+", 100, age),
                age = as.integer(age))
@@ -333,6 +333,17 @@ prepare_demography = function() {
       arrange(country, year, age) %>%
       save_table(paste1("wpp", type))
   }
+}
+
+# ---------------------------------------------------------
+# Simple wrapper to load all countries
+# ---------------------------------------------------------
+all_countries = function() {
+  
+  # Pull all countries defined in config file
+  countries = table("country")$country
+  
+  return(countries)
 }
 
 # ---------------------------------------------------------

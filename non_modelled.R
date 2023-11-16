@@ -16,31 +16,137 @@ run_non_modelled = function() {
   
   message("* Estimating vaccine impact for non-modelled pathogens")
   
-  d_v_a_dt = table("disease") %>%
+  # ---- Set up ----
+  
+  # All diseases of interest (everything non-modelled)
+  diseases = table("disease") %>%
     filter(source == "gbd") %>%
-    left_join(y  = table("d_v_a"), 
-              by = "disease") %>%
-    # TEMP...
-    filter(activity == "routine") %>%
-    select(d_v_a_id, disease, vaccine, activity)
+    pull(disease)
+    
+  # Vaccine and shedule info for these diseases
+  d_v_dt = table("d_v_a") %>%
+    filter(disease %in% diseases) %>%
+    mutate(schedule = ifelse(
+      test = grepl("_BX$", vaccine), 
+      yes  = "booster", 
+      no   = "primary")) %>%
+    select(disease, vaccine, schedule)
+  
+  # Vaccine efficacy profiles
+  efficacy_dt = table("vaccine_efficacy_profiles") %>%
+    pivot_wider(id_cols = time, 
+                names_from  = vaccine,
+                values_from = profile) %>%
+    select(time, all_of(d_v_dt$vaccine)) %>%
+    as.data.table()
+  
+  # Vaccine coverage
+  coverage_dt = table("coverage") %>%
+    left_join(y  = table("v_a"), 
+              by = "v_a_id") %>%
+    filter(vaccine %in% d_v_dt$vaccine) %>%
+    select(country, v_a_id, vaccine, year, age, fvps)
+
+  # Full factorial country-year-age grid (we join results to this)
+  full_dt = expand_grid(
+    country = all_countries(),
+    year    = o$data_years, 
+    age     = o$data_ages) %>%
+    as.data.table()
+  
+  # ---- xxxx ----
+  
+  # TODO: Allow each d_v_a to be 'targeted' or 'non-targeted'
   
   total_list = list()
   
-  for (id in d_v_a_dt$d_v_a_id) {
+  # Iterate through these diseases
+  for (disease in diseases) {
     
-    # Details of this d_v_a
-    d_v_a = d_v_a_dt[d_v_a_id == id, ]
+    message(" - ", disease)
     
-    total_coverage_dt = table("coverage") %>%
-      left_join(y  = table("v_a"), 
-                by = "v_a_id") %>%
-      # Coverage is per vaccine, not per strata...
-      filter(vaccine  == d_v_a$vaccine, 
-             activity == d_v_a$activity) %>%
-      # Calculate coverage by cohort...
-      total_coverage(d_v_a)  # See coverage.R
+    vaccine_info = d_v_dt %>% 
+      filter(disease == !!disease) %>% 
+      select(vaccine, schedule)
     
-    total_list[[id]] = total_coverage_dt %>%
+    # ---- Step 1: collate coverage over sources
+    
+    has_booster = any(vaccine_info$schedule == "booster")
+    
+    if (has_booster == TRUE) {
+      
+      browser()
+      
+      coverage_dt %>% 
+        inner_join(y  = vaccine_info, 
+                   by = "vaccine") %>%
+        select(country, year, age, schedule, fvps) %>%
+        pivot_wider(names_from  = schedule, 
+                    values_from = fvps)
+      
+      
+    }
+    
+    browser()
+    
+    
+    
+    coverage_dt
+    
+    # Initiate list for effective results
+    effective_list = list()
+    
+    # Iterate through these vaccines
+    for (vaccine in vaccine_info$vaccine) {
+      
+      # Effiacy profile for this vaccine
+      efficacy = efficacy_dt[[vaccine]]
+      
+      # Whether vaccine is primary series or booster dose
+      schedule = ifelse(
+        test = grepl("_BX$", vaccine), 
+        yes  = "booster", 
+        no   = "primary")
+      
+      # Apply effective coverage function to each coverage entry
+      effective_list[[vaccine]] = coverage_dt %>%
+        filter(vaccine == !!vaccine) %>%
+        dtapply(efficacy_fn, efficacy) %>%
+        rbindlist() %>%
+        # First summarise for effective FVPs...
+        group_by(country, year, age) %>%
+        summarise(effective_fvps = sum(value)) %>%   # Assumes targeted SIA
+        # summarise(effective_fvps = 1 - prod(1 - value)) %>%  # Assumes non-targeted SIA
+        ungroup() %>%
+        # Join with full factorial grid...
+        full_join(y  = full_dt, 
+                  by = names(full_dt)) %>%
+        replace_na(list(effective_fvps = 0)) %>%
+        # Append vaccine details...
+        mutate(schedule = schedule) %>%
+        arrange(country, year, age) %>%
+        as.data.table()
+    }
+    
+    
+    browser()
+    
+    effective_dt = rbindlist(effective_list) %>%
+      pivot_wider(names_from  = schedule, 
+                  values_from = effective_fvps) # %>%
+      # mutate(primary, booster)
+    
+    # First summarise for cumulative total coverage...
+    group_by(country, year, age) %>%
+      # summarise(effective_coverage = 1 - prod(1 - value)) %>%  # Assumes non-targeted vaccination
+      summarise(effective_coverage = min(sum(value), 1)) %>%   # Assumes targeted vaccination
+      ungroup()
+    
+    
+    
+    
+    
+    total_list[[id]] = effective_coverage_dt %>%
       mutate(d_v_a_id = id, .after = 1)
     
     browser()
@@ -56,11 +162,15 @@ run_non_modelled = function() {
                 by = c("country", "year", "age")) %>%
       rename(deaths_allcause = death) %>%
       # Append total coverage...
-      inner_join(y  = total_coverage_dt,
+      inner_join(y  = effective_coverage_dt,
                  by = c("country", "year", "age")) %>%
-      arrange(country, year, age) %>%
+      arrange(country, year, age) # %>%
       # Calculate relative risk...
-      relative_risk_fn()
+      # relative_risk_fn()
+    
+    # Use this to estimate deaths without a vaccine...
+    mutate(deaths_without = deaths_disease / (1 - efficacy * effective_coverage), 
+           deaths_without = ifelse(effective_coverage == 0, NA, deaths_without))
 
 
 
@@ -73,7 +183,11 @@ run_non_modelled = function() {
   
   # Save total coverage datatable to file
   total_dt = rbindlist(total_list)
-  save_rds(total_dt, "non_modelled", "total_coverage")
+  save_rds(total_dt, "non_modelled", "effective_coverage")
+  
+  # ---- Impact visualisation plots ----
+  
+  plot_effective_coverage()
 }
 
 # ---------------------------------------------------------
@@ -90,8 +204,8 @@ gbd_rr = function(strata_dt) {
               by = c("disease", "vaccine")) %>%
     select(all_of(names(strata_dt)), efficacy) %>%
     # Use this to estimate deaths without a vaccine...
-    mutate(deaths_without = deaths_disease / (1 - efficacy * total_coverage), 
-           deaths_without = ifelse(total_coverage == 0, NA, deaths_without))
+    mutate(deaths_without = deaths_disease / (1 - efficacy * effective_coverage), 
+           deaths_without = ifelse(effective_coverage == 0, NA, deaths_without))
   
   # Shorthand variable for readability
   #
@@ -120,13 +234,13 @@ vimc_rr = function(strata_dt) {
   # Shorthand variable for readability
   o = strata_dt$deaths_allcause  # Deaths [o]bserved
   a = strata_dt$deaths_averted   # Deaths [a]verted from vaccination
-  c = strata_dt$total_coverage   # Lifetime vaccine [c]overage
+  c = strata_dt$effective_coverage   # Lifetime vaccine [c]overage
   
   # Calculate relative risk
   rr_dt = strata_dt %>%
     mutate(rr = (o - (a * (1 - c) / c)) / (o + a)) %>%
     # Tidy up trivial values...
-    mutate(rr = ifelse(total_coverage == 0, NA, rr), 
+    mutate(rr = ifelse(effective_coverage == 0, NA, rr), 
            rr = ifelse(is.infinite(rr), NA, rr))
   
   return(rr_dt)
@@ -156,38 +270,27 @@ calculate_averted_deaths = function(deaths_obs, coverage, rr) {
 }
 
 # ---------------------------------------------------------
-# Perform sanity checks on relative risk calculations
+# xxxxxxxxxxx
 # ---------------------------------------------------------
-check_rr = function(rr_dt) {
+efficacy_fn = function(data, efficacy) {
   
-  # Throw error if no valid relative risk results
-  if (nrow(rr_dt[rr > 0 & rr < 1]) == 0)
-    stop("Error calculating relative risk")
+  # Indicies for years and ages
+  year_idx = match(data$year, o$data_years) : length(o$data_years)
+  age_idx  = match(data$age,  o$data_ages)  : length(o$data_ages)
   
-  browser()
+  # Index upto only the smallest of these two vectors
+  vec_idx = 1 : min(length(year_idx), length(age_idx))
   
-  # Look for missing coverage where deaths averted are non-zero
-  if (nrow(rr_dt[coverage == 0 & deaths_averted > 0]) > 0) {
-    
-    # Proportion of cases
-    prop <- round(nrow(rr_dt[coverage == 0 & deaths_averted > 0]) /
-                    nrow(rr_dt[deaths_averted > 0]) * 100, 2)
-    
-    # Throw warning
-    warning("Missing coverage in ", prop,
-            "% of country-age-years with deaths averted")
-  }
+  # Effective FVPs: initial efficacy and immunity decay
+  effective_fvps = data$fvps * efficacy
   
-  # Check for non-sensical numbers
-  if (any(range(rr_dt[!is.na(rr)]$rr) < 0 | range(rr_dt[!is.na(rr)]$rr) > 1)) {
-    
-    # Proportion of cases
-    prop <- round(nrow(rr_dt[coverage > 0 & (rr < 0 | rr > 1)]) /
-                    nrow(rr_dt) * 100, 2)
-    
-    # Throw warning
-    warning("Over 1 or less than 0 mortality reduction in ", prop,
-            "% of country-age-years")
-  }
+  # These form the only non-trivial entries
+  effective_dt = data.table(
+    country = data$country, 
+    year    = o$data_years[year_idx[vec_idx]],
+    age     = o$data_ages[age_idx[vec_idx]], 
+    value   = effective_fvps[vec_idx])
+  
+  return(effective_dt)
 }
 

@@ -29,11 +29,25 @@ prepare_coverage = function() {
   # Finally, incorporate SIA data (from WIISE)
   sia_dt = coverage_sia(vimc_countries_dt)  # See sia.R
   
-  # Combine sources
-  rbind(vimc_dt, wiise_dt, sia_dt) %>%
+  # Combine and retain sources
+  source_dt = rbind(vimc_dt, wiise_dt, sia_dt) %>%
     filter(fvps > 0) %>%  # Remove trivial values
-    arrange(country, v_a_id, year, age) %>%
-    save_table("coverage")
+    arrange(country, v_a_id, year, age)
+  
+  # Summarise, assuming partially targeted SIAs
+  coverage_dt = source_dt %>%
+    group_by(country, v_a_id, year, age) %>%
+    summarise(fvps     = max(fvps),  # Essentially a placeholder
+              cohort   = mean(cohort), 
+              coverage = 1 - prod(1 - coverage)) %>%  # Key assumption
+    ungroup() %>%
+    # Use combined coverage - unless FVPs already eclipses 100% (unlikely)
+    mutate(fvps = pmax(cohort * coverage, fvps)) %>%
+    as.data.table()
+  
+  # Save both datatables to file
+  save_table(source_dt,   "coverage_source")
+  save_table(coverage_dt, "coverage")
   
   # ---- Data visualisation plots ----
   
@@ -112,7 +126,7 @@ coverage_wiise = function(vimc_countries_dt) {
            year, coverage, source = coverage_category) %>% 
     # Remove any unknown countries...
     mutate(country = toupper(country)) %>%
-    filter(country %in% table("country")$country, 
+    filter(country %in% all_countries(), 
            year    %in% o$analysis_years) %>%
     # Convert coverage to proportion...
     mutate(coverage = coverage / 100) %>%
@@ -213,78 +227,5 @@ calculate_fvps = function(coverage_dt) {
     mutate(coverage = pmin(fvps / cohort, 1))
   
   return(fvps_dt)
-}
-
-# ---------------------------------------------------------
-# Calculate effective coverage for each cohort
-# ---------------------------------------------------------
-total_coverage = function(coverage_dt, d_v_a) {
-  
-  # TODO: Allow each d_v_a to be 'targeted' or 'non-targeted'
-  
-  # Create full combination table
-  #
-  # NOTE: Final result is sparse => most age-year values will be zero
-  full_dt = expand_grid(
-    country = unique(coverage_dt$country),
-    year    = o$data_years, 
-    age     = o$data_ages) %>%
-    as.data.table()
-  
-  # Extract waning immunity profile for this d_v
-  profile = table("vaccine_efficacy_profiles") %>%
-    filter(disease == d_v_a$disease, 
-           vaccine == d_v_a$vaccine) %>%
-    pull(profile)
-  
-  # Normalise profile between 0 and 1
-  norm_profile = profile / max(profile)
-  
-  if (length(norm_profile) == 0)
-    stop("No waning immunity profile detected")
-  
-  # Function to extract total coverage for each data point
-  total_coverage_fn = function(i) {
-    
-    # Data relating to this row of coverage_dt
-    data = coverage_dt[i, ]
-    
-    # Indicies for years and ages
-    year_idx = match(data$year, o$data_years) : length(o$data_years)
-    age_idx  = match(data$age,  o$data_ages)  : length(o$data_ages)
-    
-    # Index upto only the smallest of these two vectors
-    vec_idx = 1 : min(length(year_idx), length(age_idx))
-    
-    # Represent immunity decay with waning coverage
-    waning_coverage = data$coverage * norm_profile
-    
-    # These form the only non-trivial entries
-    total_dt = data.table(
-      country = data$country, 
-      year    = o$data_years[year_idx[vec_idx]],
-      age     = o$data_ages[age_idx[vec_idx]], 
-      value   = waning_coverage[vec_idx])
-    
-    return(total_dt)
-  }
-  
-  # Apply total coverage function to each row of coverage datatable
-  total_dt = seq_row(coverage_dt) %>%
-    lapply(total_coverage_fn) %>%
-    rbindlist() %>%
-    # First summarise for cumulative total coverage...
-    group_by(country, year, age) %>%
-    # summarise(total_coverage = 1 - prod(1 - value)) %>%  # Assumes non-targeted vaccination
-    summarise(total_coverage = min(sum(value), 1)) %>%   # Assumes targeted vaccination
-    ungroup() %>%
-    # Then join with full grid...
-    full_join(y  = full_dt, 
-              by = names(full_dt)) %>%
-    replace_na(list(total_coverage = 0)) %>%
-    arrange(country, year, age) %>%
-    as.data.table()
-  
-  return(total_dt)
 }
 

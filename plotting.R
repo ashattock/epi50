@@ -18,7 +18,7 @@ plot_total_fvps = function() {
   cumulative = TRUE
   
   # Number of FVPs by source of data
-  source_dt = table("coverage") %>%
+  source_dt = table("coverage_source") %>%
     # Summarise over countries and age...
     group_by(v_a_id, source, year) %>%
     summarise(fvps = sum(fvps)) %>%
@@ -40,16 +40,27 @@ plot_total_fvps = function() {
     as.data.table()
   
   # Total FVPs (sum of all sources)
-  total_dt = source_dt %>%
-    # Summarise over source...
-    group_by(d_v_a_id, year) %>%
+  #
+  # NOTE: Not necessarily equal to sum of all sources as
+  #       SIA are assumed to be only partially targeted
+  total_dt = table("coverage") %>%
+    # Summarise over countries and age...
+    group_by(v_a_id, year) %>%
     summarise(fvps = sum(fvps)) %>%
     ungroup() %>%
     # Cumulative FVPs...
-    group_by(d_v_a_id) %>%
+    group_by(v_a_id) %>%
     mutate(fvps_cum = cumsum(fvps)) %>%
     ungroup() %>%
+    # Report for each d_v_a...
+    left_join(y  = table("v_a"), 
+              by = "v_a_id") %>%
+    full_join(y  = table("d_v_a"), 
+              by = c("vaccine", "activity"), 
+              relationship = "many-to-many") %>%
     # Tidy up...
+    select(d_v_a_id, year, fvps, fvps_cum) %>%
+    arrange(d_v_a_id, year) %>%
     append_d_v_a_name() %>%
     as.data.table()
   
@@ -105,7 +116,7 @@ plot_coverage_age_density = function() {
   message("  > Plotting coverage data density by age")
   
   # Construct plotting datatable
-  plot_dt = table("coverage") %>%
+  plot_dt = table("coverage_source") %>%
     mutate(trans_age = pmax(age, 1), .after = age) %>%
     append_v_a_name()
   
@@ -125,59 +136,6 @@ plot_coverage_age_density = function() {
   
   # Save to file
   save_fig(g, "Coverage density by age", dir = "data_visualisation")
-}
-
-# ---------------------------------------------------------
-# Plot coverage with waning immunity for non-modelled pathogens
-# ---------------------------------------------------------
-plot_total_coverage = function() {
-  
-  message("  > Plotting cohort coverage by year and age")
-  
-  # Plot only up to a certain age
-  age_max = 50
-  
-  # Load previously calculated total coverage file
-  total_coverage_dt = read_rds("non_modelled", "total_coverage")
-  
-  # Population weight over all countries
-  total_dt = total_coverage_dt %>%
-    filter(age <= age_max) %>%
-    # Summarise over disease
-    # TODO: This should be handeled WITHIN total_coverage function!
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    group_by(country, disease, year, age) %>%
-    summarise(coverage = sum(total_coverage)) %>%  
-    ungroup() %>%
-    mutate(coverage = pmin(coverage, 1)) %>%
-    # Append population size...
-    left_join(y  = table("wpp_pop"), 
-              by = c("country", "year", "age")) %>%
-    mutate(n = pop * coverage) %>%
-    # Population weighted coverage...
-    group_by(disease, year, age) %>%
-    summarise(coverage = sum(n / sum(pop))) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  # Plot each pathogen by year ana age
-  g = ggplot(total_dt) + 
-    aes(x = year, y = age, fill = coverage) + 
-    geom_tile() +
-    facet_wrap(~disease)
-  
-  # Manually define appropriate number of colours 
-  colours = colour_scheme("pals::brewer.blues", n = 8)
-  
-  # Set continuous colour bar
-  g = g + scale_fill_gradientn(
-    colours = colours, 
-    limits  = c(0, 1))
-  
-  # Save figure to file
-  save_fig(g, "Effective coverage by year and age", 
-           dir = "non_modelled")
 }
 
 # ---------------------------------------------------------
@@ -228,15 +186,69 @@ plot_vaccine_efficacy = function() {
   
   # Plot vaccine efficacy with waning immunity (if any)
   g = ggplot(plot_dt) + 
-    aes(x = time, y = profile) + 
+    aes(x = time, y = profile, colour = d_v) + 
     geom_line() + 
-    geom_point(data   = data_dt, 
-               colour = "darkred") + 
-    facet_grid(schedule~d_v)
+    geom_point(data = data_dt) + 
+    facet_grid(~schedule)
   
   # Save figure to file
   save_fig(g, "Vaccine efficacy profiles", 
            dir = "data_visualisation")
+}
+
+# ---------------------------------------------------------
+# Plot coverage with waning immunity for non-modelled pathogens
+# ---------------------------------------------------------
+plot_effective_coverage = function() {
+  
+  message("  > Plotting cohort coverage by year and age")
+  
+  browser()
+  
+  # Plot only up to a certain age
+  age_max = 50
+  
+  # Load previously calculated total coverage file
+  effective_dt = read_rds("non_modelled", "effective_coverage")
+  
+  # Population weight over all countries
+  total_dt = effective_dt %>%
+    filter(age <= age_max) %>%
+    # Summarise over disease
+    # TODO: This should be handeled WITHIN effective_coverage function!
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    group_by(country, disease, year, age) %>%
+    summarise(coverage = sum(effective_coverage)) %>%  
+    ungroup() %>%
+    mutate(coverage = pmin(coverage, 1)) %>%
+    # Append population size...
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    mutate(n = pop * coverage) %>%
+    # Population weighted coverage...
+    group_by(disease, year, age) %>%
+    summarise(coverage = sum(n / sum(pop))) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # Plot each pathogen by year ana age
+  g = ggplot(total_dt) + 
+    aes(x = year, y = age, fill = coverage) + 
+    geom_tile() +
+    facet_wrap(~disease)
+  
+  # Manually define appropriate number of colours 
+  colours = colour_scheme("pals::brewer.blues", n = 8)
+  
+  # Set continuous colour bar
+  g = g + scale_fill_gradientn(
+    colours = colours, 
+    limits  = c(0, 1))
+  
+  # Save figure to file
+  save_fig(g, "Effective coverage by year and age", 
+           dir = "non_modelled")
 }
 
 # ---------------------------------------------------------
@@ -1122,12 +1134,11 @@ prettify1 = function(g, save = NULL) {
   g_info = ggplot_build(g)
   
   # Number of colours to generates - one per country
-  all_country  = table("country")$country
   plot_country = unique(g_info$plot$data$country)
   
   # Construct colours from map
-  all_cols  = colour_scheme(map, n = length(all_country)) 
-  plot_cols = all_cols[all_country %in% plot_country]
+  all_cols  = colour_scheme(map, n = length(all_countries())) 
+  plot_cols = all_cols[all_countries() %in% plot_country]
   
   # Apply the colours
   g = g + scale_colour_manual(values = plot_cols)

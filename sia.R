@@ -52,7 +52,7 @@ coverage_sia = function(vimc_countries_dt) {
     select(-status, -sia_type) %>%
     # Remove any unknown countries...
     mutate(country = toupper(country)) %>%
-    filter(country %in% table("country")$country) %>%
+    filter(country %in% all_countries()) %>%
     # Remove any unknown interventions...
     filter(intervention %in% unique(data_dict$intervention)) %>%
     arrange(country, intervention) %>%
@@ -254,11 +254,11 @@ parse_age_groups = function(sia_dt) {
   
   # Several named special cases
   exp_txt = c(
-    "all ages"    = "0-100",
+    "all ages"    = "0-95",
     "adolescents" = "10-19",
     "adults"      = "18-60",
     "children"    = "1-12",
-    "elderly"     = "60-100",
+    "elderly"     = "60-95",
     "school"      = "5-16",
     "women"       = "18-60")
   
@@ -303,7 +303,8 @@ parse_age_groups = function(sia_dt) {
     mutate(y1 = ifelse(u1 == "@", a1 / 12, a1), 
            y2 = ifelse(u2 == "@", a2 / 12, a2)) %>%
     # Deal with missing and infeasible values...
-    mutate(y1 = ifelse(y1 > 100, NA, y1), 
+    mutate(y1 = ifelse(y1 > 1e3, NA, y1), 
+           y1 = pmin(y1, max(o$data_ages)), 
            y2 = ifelse(is.na(y2), y1, y2)) %>%
     replace_na(list(y1 = 0, y2 = 0)) %>%
     # Ensure correct order and round...
@@ -311,7 +312,7 @@ parse_age_groups = function(sia_dt) {
            age_max = round(pmax(y1, y2))) %>%
     # Expand out for single age bins...
     select(age_group = group, age_min, age_max) %>%
-    expand_grid(age = 0 : 100) %>%
+    expand_grid(age = o$data_ages) %>%
     filter(age >= age_min, 
            age <= age_max) %>%
     # Tidy up...

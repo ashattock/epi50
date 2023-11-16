@@ -214,6 +214,8 @@ get_target = function() {
               by = "d_v_a_id") %>%
     as.data.table()
   
+  browser() # We want ONLY vimc data here, so remove wiise AND sia
+  
   # Remove any WIISE coverage for VIMC countries
   rm_wiise_dt = impact_dt %>%
     select(country, d_v_a_id) %>%
@@ -222,7 +224,7 @@ get_target = function() {
            rm = TRUE)
   
   # Extract coverage
-  coverage_dt = table("coverage") %>%
+  coverage_dt = table("coverage") %>%  # Use coverage_source here!
     # Append v_a details...
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%

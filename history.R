@@ -31,6 +31,8 @@ run_history = function() {
     ungroup() %>%
     as.data.table()
   
+  browser()
+  
   eval_dt = table("coverage") %>%
     group_by(country, v_a_id, year) %>%
     summarise(fvps_temporal = sum(fvps)) %>%
