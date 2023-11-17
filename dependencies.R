@@ -57,6 +57,7 @@ packages = c(
   "splines",        # Spline fitting functions
   # "pspline",        # Spline fitting functions
   # "wpp2022",        # Demographic data
+  "countrycode",    # Country name <-> code transformation
   "yaml",           # Data loading functionality
   "lubridate",      # Data formatting functionality
   "naniar",         # Data formatting functionality

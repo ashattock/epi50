@@ -113,7 +113,7 @@ prepare_vimc_estimates = function() {
 }
 
 # ---------------------------------------------------------
-# Parse vaccine efficacy profile for non-VIMC pathogens
+# Parse vaccine efficacy profile for non-modelled pathogens
 # ---------------------------------------------------------
 prepare_vaccine_efficacy = function() {
   
@@ -176,17 +176,64 @@ prepare_vaccine_efficacy = function() {
 }
 
 # ---------------------------------------------------------
-# Prepare GBD estimates of deaths for non-VIMC pathogens
+# Prepare GBD estimates of deaths for non-modelled pathogens
 # ---------------------------------------------------------
 prepare_gbd_estimates = function() {
   
   message(" - GBD estimates")
   
+  # GBD metric to use ('number' or 'rate')
+  metric = "number"  # NOTE: IA2030 uses 'rate', which is per 100k
+  
+  browser()
+  
+  # Parse specific age strings
+  age_dict = c(
+    "<1 year" = "0 to 1", 
+    "80 plus" = "80 to 95")
+  
+  disease_dict = c(
+    )
+  
+  # Diseases of interest - all non-modelled pathogens
+  disease_dt = table("disease") %>%
+    filter(source == "gbd") %>%
+    mutate(cause_name = tolower(disease_name)) %>%
+    select(disease, cause_name)
+  
+  browser()
+  
   # Load GBD estimates of deaths for relevant diseases
-  gbd_dt = read_rds("input", "gbd19_estimates")
+  gbd_dt = paste0(o$pth$data, "gbd") %>%
+    # Load all files...
+    list.files(full.names = TRUE) %>%
+    lapply(fread) %>%
+    rbindlist(fill = TRUE) %>% 
+    # Diseases and metric of interest...
+    mutate(across(.cols = c(cause_name, metric_name), 
+                  .fns  = tolower)) %>% 
+    inner_join(y  = disease_dt, 
+               by = "cause_name") %>%
+    filter(metric_name == metric) %>%
+    # Countries of interest...
+    mutate(country = countrycode(
+      sourcevar   = location_name,
+      origin      = "country.name", 
+      destination = "iso3c")) %>%
+    filter(country %in% all_countries()) %>%
+    # Parse age groups...
+    mutate(age_name = recode(age_name, !!!age_dict)) %>%
+    filter(str_detect(age_name, "^[0-9]+ to [0-9]+$")) %>%
+    mutate(age_bin = str_extract(age_name, "^[0-9]+"), 
+           age_bin = as.numeric(age_bin)) %>%
+    # Summarise over gender...
+    group_by(country, disease, year, age_bin) %>%
+    summarise(deaths_disease = sum(val)) %>%
+    ungroup() %>%
+    as.data.table()
   
   # Construct age datatable to expand age bins to single years
-  age_bins = sort(unique(gbd_dt$age))
+  age_bins = sort(unique(gbd_dt$age_bin))
   age_dt   = data.table(age = o$data_ages) %>%
     mutate(age_bin = ifelse(age %in% age_bins, age, NA)) %>%
     fill(age_bin, .direction = "down") %>%
@@ -197,22 +244,17 @@ prepare_gbd_estimates = function() {
   
   # Expand to all ages and store
   gbd_dt %>%
-    rename(age_bin = age) %>%
     full_join(y  = age_dt, 
               by = "age_bin", 
               relationship = "many-to-many") %>%
     arrange(country, disease, year, age) %>%
-    mutate(deaths_disease = value / n) %>%
-    # NOTE: OK to join only on disease as d_v_a is unique for GBD pathogens...
-    left_join(y  = table("d_v_a"), 
-              by = "disease", 
-              relationship = "many-to-many") %>%
-    select(country, d_v_a_id, year, age, deaths_disease) %>%
+    mutate(deaths_disease = deaths_disease / n) %>%
+    select(country, disease, year, age, deaths_disease) %>%
     save_table("gbd_estimates")
 }
 
 # ---------------------------------------------------------
-# Prepare GBD covariates for extrapolating to non-VIMC countries
+# Prepare GBD covariates for extrapolating to non-modelled countries
 # ---------------------------------------------------------
 prepare_gbd_covariates = function() {
   
@@ -223,8 +265,12 @@ prepare_gbd_covariates = function() {
   # Prep GBD 2019 SDI for use as a covariate
   
   # fread(paste0(o$pth$input, "gbd19_sdi.csv"), header = TRUE) %>%
+  #   # mutate(country = countrycode(
+  #   #   sourcevar   = Location,
+  #   #   origin      = "country.name", 
+  #   #   destination = "iso3c")) %>%
   #   mutate(n = 1 : n()) %>%
-  #   mutate(Location = ifelse(n == 654, "Côte d'Ivoire", Location), 
+  #   mutate(Location = ifelse(n == 654, "Côte d'Ivoire", Location),
   #          Location = ifelse(n == 664, "São Tomé and PrÍncipe", Location)) %>%
   #   filter(n != 105) %>%
   #   select(-n) %>%
@@ -292,7 +338,7 @@ prepare_demography = function() {
   for (type in names(file_names)) {
     
     # Filename part of this datataype
-    name = file_names[[type]]
+    metric = file_names[[type]]
     
     # Initiate list to store data
     data_list = list()
@@ -301,19 +347,20 @@ prepare_demography = function() {
     for (year in file_years) {
       
       # Construct full file name
-      file = paste0("WPP2022_", name, "BySingleAgeSex_Medium_", year, ".csv")
+      name = paste0("WPP2022_", metric, "BySingleAgeSex_Medium_", year, ".csv")
+      file = paste0(o$pth$data, file.path("wpp", name))
       
       # Stop here if file missing - ask user to download raw data
-      if (!file.exists(paste0(o$pth$data, file)))
-        stop("Please first download the file '", file, "' from",
+      if (!file.exists(file))
+        stop("Please first download the file '", name, "' from",
              " https://population.un.org/wpp/Download/Standard",  
-             " and copy to the /data/ directory")
+             " and copy to the /data/wpp/ directory")
       
       # Construct name of key data column
       data_name = paste0(first_cap(type), "Total")
       
       # Load the file and wrangle what we need
-      data_list[[file]] = fread(paste0(o$pth$data, file)) %>%
+      data_list[[name]] = fread(file) %>%
         select(country = ISO3_code,
                year    = Time,
                age     = AgeGrp,

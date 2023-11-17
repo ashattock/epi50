@@ -49,11 +49,18 @@ prepare_dirs = function(o) {
   pth$results = file.path(pth_output, "4_results")
   pth$figures = file.path(pth_output, "5_figures")
   
-  # ---- Create directory structure ----
-  
   # Append paths to o list
   o = set_dirs(o, pth)
   
+  # ---- Data URLs ----
+  
+  # stem = "https://ghdx.healthdata.org/sites/default/files/record-attached-files/"
+  # 
+  # o$data = list(
+  #   sdi = c("IHME_GBD_2019_SDI_1990_2019_Y2020M10D15.CSV", 
+  #           "IHME_GBD_2019_SDI_1970_1989_Y2020M10D15.CSV"), 
+  #   haqi = "IHME_GBD_2019_HAQ_1990_2019_DATA.zip")
+    
   return(o)
 }
 

@@ -22,7 +22,7 @@ run_non_modelled = function() {
   diseases = table("disease") %>%
     filter(source == "gbd") %>%
     pull(disease)
-    
+  
   # Vaccine and shedule info for these diseases
   d_v_dt = table("d_v_a") %>%
     filter(disease %in% diseases) %>%
@@ -46,7 +46,7 @@ run_non_modelled = function() {
               by = "v_a_id") %>%
     filter(vaccine %in% d_v_dt$vaccine) %>%
     select(country, v_a_id, vaccine, year, age, fvps)
-
+  
   # Full factorial country-year-age grid (we join results to this)
   full_dt = expand_grid(
     country = all_countries(),
@@ -66,38 +66,20 @@ run_non_modelled = function() {
     message(" - ", disease)
     
     vaccine_info = d_v_dt %>% 
-      filter(disease == !!disease) %>% 
+      filter(disease == !!disease) %>%
       select(vaccine, schedule)
     
-    # ---- Step 1: collate coverage over sources
+    # ---- Step 1: Effective coverage per vaccine ----
     
-    has_booster = any(vaccine_info$schedule == "booster")
-    
-    if (has_booster == TRUE) {
-      
-      browser()
-      
-      coverage_dt %>% 
-        inner_join(y  = vaccine_info, 
-                   by = "vaccine") %>%
-        select(country, year, age, schedule, fvps) %>%
-        pivot_wider(names_from  = schedule, 
-                    values_from = fvps)
-      
-      
-    }
-    
-    browser()
-    
-    
-    
-    coverage_dt
+    # Considers primary vs booster doses, and waning immunity (if any)
     
     # Initiate list for effective results
     effective_list = list()
     
     # Iterate through these vaccines
     for (vaccine in vaccine_info$vaccine) {
+      
+      message("  > ", vaccine)
       
       # Effiacy profile for this vaccine
       efficacy = efficacy_dt[[vaccine]]
@@ -113,50 +95,70 @@ run_non_modelled = function() {
         filter(vaccine == !!vaccine) %>%
         dtapply(efficacy_fn, efficacy) %>%
         rbindlist() %>%
-        # First summarise for effective FVPs...
+        # xxx...
         group_by(country, year, age) %>%
-        summarise(effective_fvps = sum(value)) %>%   # Assumes targeted SIA
-        # summarise(effective_fvps = 1 - prod(1 - value)) %>%  # Assumes non-targeted SIA
+        summarise(covered   = sum(covered), 
+                  effective = sum(effective)) %>%
         ungroup() %>%
         # Join with full factorial grid...
         full_join(y  = full_dt, 
                   by = names(full_dt)) %>%
-        replace_na(list(effective_fvps = 0)) %>%
+        replace_na(list(covered   = 0, 
+                        effective = 0)) %>%
         # Append vaccine details...
         mutate(schedule = schedule) %>%
         arrange(country, year, age) %>%
         as.data.table()
     }
     
+    # ---- Step 2: Overall effective coverage ----
     
-    browser()
+    has_booster = "booster" %in% vaccine_info$schedule
+    if (has_booster == FALSE) {
+      
+      browser()
+    }
     
-    effective_dt = rbindlist(effective_list) %>%
+    # Weighting towards booster efficacy (and away from primary efficacy)
+    weight_dt = rbindlist(effective_list) %>%
+      select(country, year, age, covered, schedule) %>%
       pivot_wider(names_from  = schedule, 
-                  values_from = effective_fvps) # %>%
-      # mutate(primary, booster)
+                  values_from = covered) %>%
+      # Proportion of primary cases that have booster (capped at 100%)...
+      mutate(primary = pmax(primary, booster), 
+             weight  = pmin(booster / primary, 1)) %>%
+      filter(!is.nan(weight)) %>%
+      select(country, year, age, weight) %>%
+      as.data.table()
     
-    # First summarise for cumulative total coverage...
-    group_by(country, year, age) %>%
-      # summarise(effective_coverage = 1 - prod(1 - value)) %>%  # Assumes non-targeted vaccination
-      summarise(effective_coverage = min(sum(value), 1)) %>%   # Assumes targeted vaccination
-      ungroup()
+    # xxx
+    effective_dt = rbindlist(effective_list) %>%
+      select(country, year, age, effective, schedule) %>%
+      pivot_wider(names_from  = schedule, 
+                  values_from = effective) %>%
+      # Append booster weighting details...
+      left_join(y  = weight_dt, 
+                by = c("country", "year", "age")) %>%
+      replace_na(list(weight = 0)) %>%
+      # Weight efficacies based on number covered...
+      mutate(effective = primary * (1 - weight) + booster * weight) %>%
+      select(country, year, age, effective) %>%
+      as.data.table()
     
+    # xxx
+    total_list[[disease]] = effective_dt %>%
+      mutate(disease = disease, .after = 1)
     
+    # ---- Step 2: combined booster effect ----
     
-    
-    
-    total_list[[id]] = effective_coverage_dt %>%
-      mutate(d_v_a_id = id, .after = 1)
     
     browser()
     
-    relative_risk_fn = get("gbd_rr")
-
+    # relative_risk_fn = get("gbd_rr")
+    
     # Load either deaths_averted or deaths_disease for this strata
     rr_dt = table("gbd_estimates") %>%
-      filter(d_v_a_id == id) %>%
-      select(-d_v_a_id) %>%
+      filter(disease == !!disease) %>%
       # Append all-cause deaths...
       full_join(y  = table("wpp_death"),
                 by = c("country", "year", "age")) %>%
@@ -165,19 +167,19 @@ run_non_modelled = function() {
       inner_join(y  = effective_coverage_dt,
                  by = c("country", "year", "age")) %>%
       arrange(country, year, age) # %>%
-      # Calculate relative risk...
-      # relative_risk_fn()
+    # Calculate relative risk...
+    # relative_risk_fn()
     
     # Use this to estimate deaths without a vaccine...
     mutate(deaths_without = deaths_disease / (1 - efficacy * effective_coverage), 
            deaths_without = ifelse(effective_coverage == 0, NA, deaths_without))
-
-
-
+    
+    
+    
     # ---- Use deaths averted to calculate DALYs averted ----
-
+    
     browser()
-
+    
     run_dalys()
   }
   
@@ -286,10 +288,11 @@ efficacy_fn = function(data, efficacy) {
   
   # These form the only non-trivial entries
   effective_dt = data.table(
-    country = data$country, 
-    year    = o$data_years[year_idx[vec_idx]],
-    age     = o$data_ages[age_idx[vec_idx]], 
-    value   = effective_fvps[vec_idx])
+    country   = data$country, 
+    year      = o$data_years[year_idx[vec_idx]],
+    age       = o$data_ages[age_idx[vec_idx]], 
+    covered   = data$fvps, 
+    effective = effective_fvps[vec_idx])
   
   return(effective_dt)
 }
