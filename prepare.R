@@ -182,26 +182,20 @@ prepare_gbd_estimates = function() {
   
   message(" - GBD estimates")
   
-  # GBD metric to use ('number' or 'rate')
-  metric = "number"  # NOTE: IA2030 uses 'rate', which is per 100k
-  
-  browser()
+  # NOTE: We are using GBD's 'number' metric here, where IA2030
+  #       pipeline uses 'rate' (which is number per 100k people)
   
   # Parse specific age strings
   age_dict = c(
     "<1 year" = "0 to 1", 
     "80 plus" = "80 to 95")
   
+  # Parse diseases
   disease_dict = c(
-    )
-  
-  # Diseases of interest - all non-modelled pathogens
-  disease_dt = table("disease") %>%
-    filter(source == "gbd") %>%
-    mutate(cause_name = tolower(disease_name)) %>%
-    select(disease, cause_name)
-  
-  browser()
+    "Diphtheria"     = "Dip",
+    "Tetanus"        = "Tet",
+    "Whooping cough" = "Per", 
+    "Tuberculosis"   = "TB")
   
   # Load GBD estimates of deaths for relevant diseases
   gbd_dt = paste0(o$pth$data, "gbd") %>%
@@ -209,28 +203,20 @@ prepare_gbd_estimates = function() {
     list.files(full.names = TRUE) %>%
     lapply(fread) %>%
     rbindlist(fill = TRUE) %>% 
-    # Diseases and metric of interest...
-    mutate(across(.cols = c(cause_name, metric_name), 
-                  .fns  = tolower)) %>% 
-    inner_join(y  = disease_dt, 
-               by = "cause_name") %>%
-    filter(metric_name == metric) %>%
-    # Countries of interest...
-    mutate(country = countrycode(
-      sourcevar   = location_name,
-      origin      = "country.name", 
-      destination = "iso3c")) %>%
+    # Parse disease and countries...
+    mutate(disease = recode(cause, !!!disease_dict), 
+           country = countrycode(
+             sourcevar   = location,
+             origin      = "country.name", 
+             destination = "iso3c")) %>%
     filter(country %in% all_countries()) %>%
     # Parse age groups...
-    mutate(age_name = recode(age_name, !!!age_dict)) %>%
-    filter(str_detect(age_name, "^[0-9]+ to [0-9]+$")) %>%
-    mutate(age_bin = str_extract(age_name, "^[0-9]+"), 
+    mutate(age     = recode(age, !!!age_dict), 
+           age_bin = str_extract(age, "^[0-9]+"), 
            age_bin = as.numeric(age_bin)) %>%
-    # Summarise over gender...
-    group_by(country, disease, year, age_bin) %>%
-    summarise(deaths_disease = sum(val)) %>%
-    ungroup() %>%
-    as.data.table()
+    # Tidy up...
+    select(country, disease, year, age_bin, val) %>%
+    arrange(country, disease, year, age_bin)
   
   # Construct age datatable to expand age bins to single years
   age_bins = sort(unique(gbd_dt$age_bin))
@@ -248,7 +234,7 @@ prepare_gbd_estimates = function() {
               by = "age_bin", 
               relationship = "many-to-many") %>%
     arrange(country, disease, year, age) %>%
-    mutate(deaths_disease = deaths_disease / n) %>%
+    mutate(deaths_disease = val / n) %>%
     select(country, disease, year, age, deaths_disease) %>%
     save_table("gbd_estimates")
 }
