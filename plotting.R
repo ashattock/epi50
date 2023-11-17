@@ -347,6 +347,43 @@ plot_target = function() {
 }
 
 # ---------------------------------------------------------
+# Plot relationship bewteen SDI and HAQi
+# ---------------------------------------------------------
+plot_sdi_haqi = function() {
+  
+  message("  > SDI vs HAQi by country")
+  
+  # Load SDI and HAQi values
+  gbd_covariates = table("gbd_covariates")
+  
+  # Whether country is covered by VIMC
+  source_dt = table("vimc_estimates") %>%
+    select(country) %>%
+    unique() %>%
+    mutate(source = "vimc") %>%
+    full_join(tibble(country = all_countries()), 
+              by = "country") %>%
+    replace_na(list(source = "non_vimc")) %>%
+    arrange(country)
+  
+  # Join metrics with country source
+  plot_dt = gbd_covariates %>%
+    filter(!is.na(sdi), 
+           !is.na(haqi)) %>%
+    left_join(y  = source_dt, 
+              by = "country")
+  
+  # Plot SDI vs HAQi by country and source
+  g = ggplot(plot_dt) + 
+    aes(x = sdi, y = haqi, colour = source) + 
+    geom_line(aes(group = country))
+  
+  # Save figure to file
+  save_fig(g, "SDI vs HAQi by country", 
+           dir = "data_visualisation")
+}
+
+# ---------------------------------------------------------
 # Plot (any) correlation between covariates and imputation target
 # ---------------------------------------------------------
 plot_covariates = function() {
