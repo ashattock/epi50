@@ -15,7 +15,7 @@ coverage_sia = function(vimc_countries_dt) {
   message("  > SIA coverage")
   
   # Entries to set as NA
-  na_var = c("unknown", "undefined", "")
+  # na_var = c("unknown", "undefined", "")
   
   # Campaign activities (or 'all' for GBD pathogens)
   v_a_dt = table("v_a") %>%
@@ -29,7 +29,7 @@ coverage_sia = function(vimc_countries_dt) {
     select(intervention, vaccine, v_a_id)
   
   # Load and wrangle SIA data
-  data_dt = fread(paste0(o$pth$input, "sia_data.csv")) %>%
+  data_dt = fread(paste0(o$pth$input, "sia_coverage.csv")) %>%
     setnames(names(.), tolower(names(.))) %>% 
     # Select columns of interest...
     select(country      = iso3_code,          # Country ISO3 codes
@@ -57,10 +57,10 @@ coverage_sia = function(vimc_countries_dt) {
     filter(intervention %in% unique(data_dict$intervention)) %>%
     arrange(country, intervention) %>%
     # Deal with other unknown entries...
-    mutate(across(.cols = where(is.character),
-                  .fns  = ~if_else(. %in% na_var, NA, .)),
-           across(.cols = where(is.character),
-                  .fns  = ~if_else(is.na(.), "unknown", .))) %>%
+    # mutate(across(.cols = where(is.character),
+    #               .fns  = ~if_else(. %in% na_var, NA, .)),
+    #        across(.cols = where(is.character),
+    #               .fns  = ~if_else(is.na(.), "unknown", .))) %>%
     # Deal with dates...
     format_sia_dates() %>%
     impute_sia_dates() %>%

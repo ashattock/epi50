@@ -240,57 +240,55 @@ prepare_gbd_estimates = function() {
 # ---------------------------------------------------------
 prepare_gbd_covariates = function() {
   
-  # TODO: Covariates stop at 2019... can we get an updated version?
-  
   message(" - GBD covariates")
   
-  # Prep GBD 2019 SDI for use as a covariate
+  # Prepare GBD 2019 HAQI for use as a covariate
+  haqi_dt = fread(paste0(o$pth$input, "gbd19_haqi.csv")) %>%
+    # Countries of interest...
+    rename(country_name = location_name) %>%
+    inner_join(y  = table("country"),
+               by = "country_name") %>%
+    # Tidy up...
+    select(country, year = year_id, haqi = val) %>%
+    mutate(haqi = haqi / 100) %>%
+    arrange(country, year)
+
+  # Function to load each SDI file
+  load_sdi = function(name) {
+    
+    # Full file name
+    file = paste0(o$pth$input, name, ".csv")
+    
+    # Load and convert to long form to allow binding
+    sdi_dt = fread(file, header = TRUE) %>%
+      rename(gbd_alt_name = Location) %>%
+      pivot_longer(cols = -gbd_alt_name,
+                   names_to  = "year",
+                   values_to = "sdi") %>%
+      as.data.table()
+    
+    return(sdi_dt)
+  }
   
-  # fread(paste0(o$pth$input, "gbd19_sdi.csv"), header = TRUE) %>%
-  #   # mutate(country = countrycode(
-  #   #   sourcevar   = Location,
-  #   #   origin      = "country.name", 
-  #   #   destination = "iso3c")) %>%
-  #   mutate(n = 1 : n()) %>%
-  #   mutate(Location = ifelse(n == 654, "Côte d'Ivoire", Location),
-  #          Location = ifelse(n == 664, "São Tomé and PrÍncipe", Location)) %>%
-  #   filter(n != 105) %>%
-  #   select(-n) %>%
-  #   rename(gbd_alt_name = Location) %>%
-  #   inner_join(y  = table("country")[, .(country, gbd_alt_name)],
-  #              by = "gbd_alt_name") %>%
-  #   select(country, all_of(as.character(1990 : 2019))) %>%
-  #   pivot_longer(cols = -country,
-  #                names_to = "year",
-  #                values_to = "sdi") %>%
-  #   mutate(year = as.integer(year)) %>%
-  #   arrange(country, year) %>%
-  #   as.data.table() %>%
-  #   save_rds("input", "gbd19_sdi")
-  
-  # Prep GBD 2019 HAQI for use as a covariate
-  
-  # fread(paste0(o$pth$input, "gbd19_haqi.csv")) %>%
-  #   mutate(n = 1 : n()) %>%
-  #   filter(!n %in% (8641 : 8680)) %>%
-  #   select(-n) %>%
-  #   rename(country_name = location_name) %>%
-  #   inner_join(y  = table("country")[, .(country, country_name)],
-  #              by = "country_name") %>%
-  #   select(country, year = year_id, haqi = val) %>%
-  #   mutate(haqi = haqi / 100) %>%
-  #   arrange(country, year) %>%
-  #   save_rds("input", "gbd19_haqi")
-  
-  # NOTE: We're missing SDI for two countries: 
-  gbd_sdi  = read_rds("input", "gbd19_sdi")
-  gbd_haqi = read_rds("input", "gbd19_haqi")
+  # Prepare GBD 2019 SDI for use as a covariate
+  sdi_dt = rbind(load_sdi("gbd19_sdi_1"), 
+        load_sdi("gbd19_sdi_2")) %>%
+    # Countries of interest...
+    inner_join(y  = table("country"),
+               by = "gbd_alt_name") %>%
+    select(country, year, sdi) %>%
+    # Years of interest...
+    mutate(year = as.integer(year)) %>%
+    filter(year %in% o$analysis_years) %>%
+    # Tidy up...
+    arrange(country, year) %>%
+    as.data.table()
   
   # Join metrics into single datatable
   gbd_covariates = 
-    inner_join(x  = gbd_sdi, 
-               y  = gbd_haqi, 
-               by = c("country", "year")) %>%
+    full_join(x  = sdi_dt, 
+              y  = haqi_dt, 
+              by = c("country", "year")) %>%
     arrange(country, year)
   
   # Save in tables cache
@@ -330,13 +328,13 @@ prepare_demography = function() {
       
       # Construct full file name
       name = paste0("WPP2022_", metric, "BySingleAgeSex_Medium_", year, ".csv")
-      file = paste0(o$pth$data, file.path("wpp", name))
+      file = paste0(o$pth$input, file.path("wpp", name))
       
       # Stop here if file missing - ask user to download raw data
       if (!file.exists(file))
         stop("Please first download the file '", name, "' from",
              " https://population.un.org/wpp/Download/Standard",  
-             " and copy to the /data/wpp/ directory")
+             " and copy to the /input/wpp/ directory")
       
       # Construct name of key data column
       data_name = paste0(first_cap(type), "Total")
