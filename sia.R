@@ -14,8 +14,14 @@ coverage_sia = function(vimc_countries_dt) {
   
   message("  > SIA coverage")
   
-  # Entries to set as NA
-  # na_var = c("unknown", "undefined", "")
+  # Throw an error if the necessary data is not available
+  sia_file = paste0(o$pth$input, "sia_coverage.csv")
+  if (!file.exists(sia_file))
+    stop("This pipeline uses one non-publicly available file.\n",
+         "Please request this file (sia_coverage.csv) from the developers.\n",
+         "Contact: shattocka@who.int")
+  
+  # ---- Set up ----
   
   # Campaign activities (or 'all' for GBD pathogens)
   v_a_dt = table("v_a") %>%
@@ -27,6 +33,8 @@ coverage_sia = function(vimc_countries_dt) {
     left_join(y  = v_a_dt, 
               by = "vaccine") %>%
     select(intervention, vaccine, v_a_id)
+  
+  # ---- Load and wrangle data ----
   
   # Load and wrangle SIA data
   data_dt = fread(paste0(o$pth$input, "sia_coverage.csv")) %>%
@@ -56,11 +64,6 @@ coverage_sia = function(vimc_countries_dt) {
     # Remove any unknown interventions...
     filter(intervention %in% unique(data_dict$intervention)) %>%
     arrange(country, intervention) %>%
-    # Deal with other unknown entries...
-    # mutate(across(.cols = where(is.character),
-    #               .fns  = ~if_else(. %in% na_var, NA, .)),
-    #        across(.cols = where(is.character),
-    #               .fns  = ~if_else(is.na(.), "unknown", .))) %>%
     # Deal with dates...
     format_sia_dates() %>%
     impute_sia_dates() %>%
