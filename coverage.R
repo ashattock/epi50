@@ -98,11 +98,11 @@ coverage_wiise = function(vimc_countries_dt) {
   # ---- Load data ----
   
   # File path for already-downloaded WIISE coverage data
-  raw_file = paste0(o$pth$data, "wiise_download.rds")
+  raw_file = paste0(o$pth$input, "wiise_coverage.csv")
   
   # If file has already been downloaded, read it now
   if (file.exists(raw_file)) {
-    raw_dt = read_rds(raw_file)
+    raw_dt = fread(raw_file)
     
   } else {  # Otherwise we'll need to download
     
@@ -110,8 +110,8 @@ coverage_wiise = function(vimc_countries_dt) {
     raw_url = "https://whowiise.blob.core.windows.net/upload/coverage--2021.xlsx"
     raw_dt  = read_url_xls(raw_url, sheet = 1) 
     
-    # Save as an RDS file for easy future loading
-    save_rds(raw_dt, raw_file)
+    # Save csv file locally for easy re-loading
+    write_delim(raw_dt, raw_file, delim = ",")
   }
   
   # ---- Wrangle WIISE data ----

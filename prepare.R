@@ -198,11 +198,7 @@ prepare_gbd_estimates = function() {
     "Tuberculosis"   = "TB")
   
   # Load GBD estimates of deaths for relevant diseases
-  gbd_dt = paste0(o$pth$data, "gbd") %>%
-    # Load all files...
-    list.files(full.names = TRUE) %>%
-    lapply(fread) %>%
-    rbindlist(fill = TRUE) %>% 
+  gbd_dt = fread(paste0(o$pth$input, "gbd19_deaths.csv")) %>%
     # Parse disease and countries...
     mutate(disease = recode(cause, !!!disease_dict), 
            country = countrycode(

@@ -25,7 +25,6 @@ prepare_dirs = function(o) {
   # Parent path of all input files
   pth$input  = file.path(pth$code, "input")
   pth$config = file.path(pth$code, "config")
-  pth$data   = file.path(pth$code, "data")
   
   # ---- Output directories ----
   

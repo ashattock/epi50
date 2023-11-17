@@ -2,6 +2,7 @@
 .Rhistory
 core*
 *.nfs*
-data/
-input/sia_data.csv
+input/wpp/*.csv
+input/sia_coverage.csv
+input/wiise_coverage.csv
 output/
