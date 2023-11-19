@@ -40,8 +40,11 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_non_modelled) {
     
-    # Coverage with waning immunity for non-modelled pathogens
+    # Effective coverage with waning immunity for non-modelled pathogens
     plot_effective_coverage()
+    
+    # Deaths and DALYs averted for non-modelled pathogens
+    plot_non_modelled()
   }
   
   # ---- Imputation plots ----

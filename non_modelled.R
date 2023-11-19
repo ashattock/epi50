@@ -42,8 +42,11 @@ run_non_modelled = function() {
   
   # ---- Plot results ----
   
-  # Call plotting functions
+  # Effective coverage with waning immunity for non-modelled pathogens
   plot_effective_coverage()
+  
+  # Deaths and DALYs averted for non-modelled pathogens
+  plot_non_modelled()
 }
 
 # ---------------------------------------------------------
@@ -149,14 +152,16 @@ effective_coverage = function(disease) {
   
   # ---- Overall effective coverage ----
   
+  # TODO: Can we avoid this conversion back to coverage?
+  
   # Convert effective FVPs to effective coverage
-  #
-  # TODO: Can we avoid converting back to coverage here?
   effective_dt = weighted_dt %>%
     left_join(y  = table("wpp_pop"),
               by = c("country", "year", "age")) %>%
-    mutate(coverage = pmin(effective / pop, effective_capped), 
-           disease  = disease) %>%
+    mutate(coverage = pmin(effective / pop, effective_capped)) %>%
+    replace_na(list(coverage = 0)) %>%
+    # Append disease details and tidy up...
+    mutate(disease = disease) %>%
     select(country, disease, year, age, coverage) %>%
     arrange(country, disease, year, age) %>%
     as.data.table()

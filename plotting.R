@@ -197,11 +197,11 @@ plot_vaccine_efficacy = function() {
 }
 
 # ---------------------------------------------------------
-# Plot coverage with waning immunity for non-modelled pathogens
+# Plot effective coverage with waning immunity for non-modelled pathogens
 # ---------------------------------------------------------
 plot_effective_coverage = function() {
   
-  message("  > Plotting cohort coverage by year and age")
+  message("  > Plotting effective coverage by year and age")
   
   # Plot only up to a certain age
   age_max = 50
@@ -239,6 +239,42 @@ plot_effective_coverage = function() {
   # Save figure to file
   save_fig(g, "Effective coverage by year and age", 
            dir = "non_modelled")
+}
+
+# ---------------------------------------------------------
+# Plot deaths and DALYs averted for non-modelled pathogens
+# ---------------------------------------------------------
+plot_non_modelled = function() {
+  
+  message("  > Plotting non-modelled impact results")
+  
+  # Load previously calculated total coverage file
+  averted_dt = read_rds("non_modelled", "deaths_averted")
+  
+  # Summarise results over country and age
+  plot_dt = averted_dt %>%
+    pivot_longer(cols = starts_with("deaths"), 
+                 names_to = "metric") %>%
+    group_by(disease, year, metric) %>%
+    summarise(value = sum(value)) %>%
+    ungroup() %>%
+    arrange(metric, disease, year) %>%
+    as.data.table()
+  
+  # Plot deaths and deaths averted by disease
+  g = ggplot(plot_dt) + 
+    aes(x = year, 
+        y = value, 
+        colour   = disease, 
+        linetype = metric) + 
+    geom_line() + 
+    facet_wrap(~disease)
+  
+  # Set axis lower bound
+  g = g + ylim(0, NA)
+  
+  # Save figure to file
+  save_fig(g, "Deaths averted by disease", dir = "non_modelled")
 }
 
 # ---------------------------------------------------------
