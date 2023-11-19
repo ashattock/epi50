@@ -271,8 +271,8 @@ prepare_gbd_covariates = function() {
   }
   
   # Prepare GBD 2019 SDI for use as a covariate
-  sdi_dt = rbind(load_sdi("gbd19_sdi_1"), 
-        load_sdi("gbd19_sdi_2")) %>%
+  sdi_dt = rbind(load_sdi("gbd19_sdi_1970"), 
+                 load_sdi("gbd19_sdi_1990")) %>%
     # Countries of interest...
     inner_join(y  = table("country"),
                by = "gbd_alt_name") %>%

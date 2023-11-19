@@ -27,6 +27,12 @@ run_results = function() {
 
     # Coverage data density by age
     plot_coverage_age_density()
+    
+    # Plot SDI - HAQi relationship
+    plot_sdi_haqi()
+    
+    # Plot vaccine efficacy profiles (non-modelled pathogens)
+    plot_vaccine_efficacy()
   }
   
   # ---- Non-modelled plots ----

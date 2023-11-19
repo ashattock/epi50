@@ -16,35 +16,70 @@ run_non_modelled = function() {
   
   message("* Estimating vaccine impact for non-modelled pathogens")
   
-  # ---- Set up ----
-  
   # All diseases of interest (everything non-modelled)
   diseases = table("disease") %>%
     filter(source == "gbd") %>%
     pull(disease)
   
-  # Vaccine and shedule info for these diseases
-  d_v_dt = table("d_v_a") %>%
-    filter(disease %in% diseases) %>%
-    mutate(schedule = ifelse(
-      test = grepl("_BX$", vaccine), 
-      yes  = "booster", 
-      no   = "primary")) %>%
-    select(disease, vaccine, schedule)
+  # Iterate through these diseases
+  for (disease in diseases) {
+
+    message(" - ", disease)
+
+    # Effective coverage considering waning immunity and boosters
+    effective_coverage(disease)
+
+    # Deaths averted considering effective coverage and GBD disease burden
+    deaths_averted(disease)
+
+    # Use deaths averted to calculate DALYs ----
+    # dalys_averted(disease)
+  }
   
-  # Vaccine efficacy profiles
-  efficacy_dt = table("vaccine_efficacy_profiles") %>%
+  # Compile all results
+  outputs = qc(effective_coverage, deaths_averted) #, dalys_averted)
+  compile_outputs(outputs, diseases)
+  
+  # ---- Plot results ----
+  
+  # Call plotting functions
+  plot_effective_coverage()
+}
+
+# ---------------------------------------------------------
+# Effective coverage considering waning immunity and boosters
+# ---------------------------------------------------------
+effective_coverage = function(disease) {
+  
+  # CALCULATION PROCESS: 
+  # 1) Number of immune people over time - considering waning immunity
+  # 2) Number of people covered with different vaccine / schedules
+  # 3) Weight immunity by primary & booster dosing
+  
+  # TODO: Why are so many values hitting this cap?...
+  
+  effective_capped = 0.95
+  
+  # ---- Set up ----
+  
+  # Vaccines targeting this disease
+  vaccines = table("d_v_a") %>% 
+    filter(disease == !!disease) %>%
+    pull(vaccine)
+  
+  # Vaccine immunity efficacy profiles
+  profile_dt = table("vaccine_efficacy_profiles") %>%
     pivot_wider(id_cols = time, 
                 names_from  = vaccine,
                 values_from = profile) %>%
-    select(time, all_of(d_v_dt$vaccine)) %>%
+    select(time, all_of(vaccines)) %>%
     as.data.table()
   
   # Vaccine coverage
   coverage_dt = table("coverage") %>%
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
-    filter(vaccine %in% d_v_dt$vaccine) %>%
+    filter(vaccine %in% vaccines) %>%
     select(country, v_a_id, vaccine, year, age, fvps)
   
   # Full factorial country-year-age grid (we join results to this)
@@ -54,227 +89,86 @@ run_non_modelled = function() {
     age     = o$data_ages) %>%
     as.data.table()
   
-  # ---- xxxx ----
+  # ---- Waning immunity per vaccine / shedule ----
   
-  # TODO: Allow each d_v_a to be 'targeted' or 'non-targeted'
+  # Initiate list for effective immunity
+  immunity_list = list()
   
-  total_list = list()
-  
-  # Iterate through these diseases
-  for (disease in diseases) {
+  # Iterate through these vaccines
+  for (vaccine in vaccines) {
     
-    message(" - ", disease)
+    message("  > ", vaccine)
     
-    vaccine_info = d_v_dt %>% 
-      filter(disease == !!disease) %>%
-      select(vaccine, schedule)
+    # Immunity effiacy profile for this vaccine
+    profile = profile_dt[[vaccine]]
     
-    # ---- Step 1: Effective coverage per vaccine ----
+    # Whether vaccine is primary series or booster dose
+    schedule = ifelse(
+      test = grepl("_BX$", vaccine), 
+      yes  = "booster", 
+      no   = "primary")
     
-    # Considers primary vs booster doses, and waning immunity (if any)
-    
-    # Initiate list for effective results
-    effective_list = list()
-    
-    # Iterate through these vaccines
-    for (vaccine in vaccine_info$vaccine) {
-      
-      message("  > ", vaccine)
-      
-      # Effiacy profile for this vaccine
-      efficacy = efficacy_dt[[vaccine]]
-      
-      # Whether vaccine is primary series or booster dose
-      schedule = ifelse(
-        test = grepl("_BX$", vaccine), 
-        yes  = "booster", 
-        no   = "primary")
-      
-      # Apply effective coverage function to each coverage entry
-      effective_list[[vaccine]] = coverage_dt %>%
-        filter(vaccine == !!vaccine) %>%
-        dtapply(efficacy_fn, efficacy) %>%
-        rbindlist() %>%
-        # xxx...
-        group_by(country, year, age) %>%
-        summarise(covered   = sum(covered), 
-                  effective = sum(effective)) %>%
-        ungroup() %>%
-        # Join with full factorial grid...
-        full_join(y  = full_dt, 
-                  by = names(full_dt)) %>%
-        replace_na(list(covered   = 0, 
-                        effective = 0)) %>%
-        # Append vaccine details...
-        mutate(schedule = schedule) %>%
-        arrange(country, year, age) %>%
-        as.data.table()
-    }
-    
-    # ---- Step 2: Overall effective coverage ----
-    
-    has_booster = "booster" %in% vaccine_info$schedule
-    if (has_booster == FALSE) {
-      
-      browser()
-    }
-    
-    # Weighting towards booster efficacy (and away from primary efficacy)
-    weight_dt = rbindlist(effective_list) %>%
-      select(country, year, age, covered, schedule) %>%
-      pivot_wider(names_from  = schedule, 
-                  values_from = covered) %>%
-      # Proportion of primary cases that have booster (capped at 100%)...
-      mutate(primary = pmax(primary, booster), 
-             weight  = pmin(booster / primary, 1)) %>%
-      filter(!is.nan(weight)) %>%
-      select(country, year, age, weight) %>%
+    # For each entry, apply waning immunity over time
+    immunity_list[[vaccine]] = coverage_dt %>%
+      filter(vaccine == !!vaccine) %>%
+      dtapply(waning_immunity, profile) %>%
+      rbindlist() %>%
+      # Summarise where multiple sources of immunity...
+      group_by(country, year, age) %>%
+      summarise(covered   = sum(covered), 
+                effective = sum(effective)) %>%
+      ungroup() %>%
+      # Join with full factorial grid...
+      full_join(y  = full_dt, 
+                by = names(full_dt)) %>%
+      replace_na(list(covered   = 0, 
+                      effective = 0)) %>%
+      # Append vaccine details...
+      mutate(schedule = schedule) %>%
+      arrange(country, year, age) %>%
       as.data.table()
-    
-    # xxx
-    effective_dt = rbindlist(effective_list) %>%
-      select(country, year, age, effective, schedule) %>%
-      pivot_wider(names_from  = schedule, 
-                  values_from = effective) %>%
-      # Append booster weighting details...
-      left_join(y  = weight_dt, 
-                by = c("country", "year", "age")) %>%
-      replace_na(list(weight = 0)) %>%
-      # Weight efficacies based on number covered...
-      mutate(effective = primary * (1 - weight) + booster * weight) %>%
-      select(country, year, age, effective) %>%
-      as.data.table()
-    
-    # xxx
-    total_list[[disease]] = effective_dt %>%
-      mutate(disease = disease, .after = 1)
-    
-    # ---- Step 2: combined booster effect ----
-    
-    
-    browser()
-    
-    # relative_risk_fn = get("gbd_rr")
-    
-    # Load either deaths_averted or deaths_disease for this strata
-    rr_dt = table("gbd_estimates") %>%
-      filter(disease == !!disease) %>%
-      # Append all-cause deaths...
-      full_join(y  = table("wpp_death"),
-                by = c("country", "year", "age")) %>%
-      rename(deaths_allcause = death) %>%
-      # Append total coverage...
-      inner_join(y  = effective_coverage_dt,
-                 by = c("country", "year", "age")) %>%
-      arrange(country, year, age) # %>%
-    # Calculate relative risk...
-    # relative_risk_fn()
-    
-    # Use this to estimate deaths without a vaccine...
-    mutate(deaths_without = deaths_disease / (1 - efficacy * effective_coverage), 
-           deaths_without = ifelse(effective_coverage == 0, NA, deaths_without))
-    
-    
-    
-    # ---- Use deaths averted to calculate DALYs averted ----
-    
-    browser()
-    
-    run_dalys()
   }
   
-  # Save total coverage datatable to file
-  total_dt = rbindlist(total_list)
-  save_rds(total_dt, "non_modelled", "effective_coverage")
+  # Bind results of each vaccine / schedule
+  immunity_dt = rbindlist(immunity_list)
   
-  # ---- Impact visualisation plots ----
+  # ---- Weight between primary & booster ----
   
-  plot_effective_coverage()
+  # Flag for whether vaccine has booster
+  has_booster = "booster" %in% immunity_dt$schedule
+  
+  # If booster, apply primary-booster weighting
+  if (has_booster == TRUE)
+    weighted_dt = weight_booster(immunity_dt)
+  
+  # If no booster, nothing to do here
+  if (has_booster == FALSE) {
+    weighted_dt = immunity_dt %>%
+      select(country, year, age, effective)
+  }
+  
+  # ---- Overall effective coverage ----
+  
+  # Convert effective FVPs to effective coverage
+  #
+  # TODO: Can we avoid converting back to coverage here?
+  effective_dt = weighted_dt %>%
+    left_join(y  = table("wpp_pop"),
+              by = c("country", "year", "age")) %>%
+    mutate(coverage = pmin(effective / pop, effective_capped), 
+           disease  = disease) %>%
+    select(country, disease, year, age, coverage) %>%
+    arrange(country, disease, year, age) %>%
+    as.data.table()
+  
+  # Save this result to file
+  save_rds(effective_dt, "non_modelled", "effective_coverage", disease)
 }
 
 # ---------------------------------------------------------
-# Calculate relative risk for GBD disease
+# People effectively covered over time considering waning immunity
 # ---------------------------------------------------------
-gbd_rr = function(strata_dt) {
-  
-  # Append vaccine efficacy
-  strata_dt %<>%
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    # Append vaccine efficacy...
-    left_join(y  = table("vaccine_efficacy"), 
-              by = c("disease", "vaccine")) %>%
-    select(all_of(names(strata_dt)), efficacy) %>%
-    # Use this to estimate deaths without a vaccine...
-    mutate(deaths_without = deaths_disease / (1 - efficacy * effective_coverage), 
-           deaths_without = ifelse(effective_coverage == 0, NA, deaths_without))
-  
-  # Shorthand variable for readability
-  #
-  # Note that w - d equivalent to a (ie deaths averted from vimc_rr function)
-  o = strata_dt$deaths_allcause  # Deaths [o]bserved
-  d = strata_dt$deaths_disease   # Deaths attributable to this [d]isease
-  w = strata_dt$deaths_without   # Deaths estimated [w]ithout a vaccine
-  e = strata_dt$efficacy         # Vaccine [e]fficacy
-  
-  # Calculate relative risk
-  rr_dt = strata_dt %>%
-    mutate(rr = (o - d + (1 - e) * w) / (o - d + w)) %>%
-    # Remove redundant variables...
-    select(-efficacy, -deaths_without)
-  
-  return(rr_dt)
-}
-
-# ---------------------------------------------------------
-# Calculate relative risk for VIMC disease
-# ---------------------------------------------------------
-vimc_rr = function(strata_dt) {
-  
-  browser()
-  
-  # Shorthand variable for readability
-  o = strata_dt$deaths_allcause  # Deaths [o]bserved
-  a = strata_dt$deaths_averted   # Deaths [a]verted from vaccination
-  c = strata_dt$effective_coverage   # Lifetime vaccine [c]overage
-  
-  # Calculate relative risk
-  rr_dt = strata_dt %>%
-    mutate(rr = (o - (a * (1 - c) / c)) / (o + a)) %>%
-    # Tidy up trivial values...
-    mutate(rr = ifelse(effective_coverage == 0, NA, rr), 
-           rr = ifelse(is.infinite(rr), NA, rr))
-  
-  return(rr_dt)
-}
-
-# ---------------------------------------------------------
-# Extract averted deaths from relative risk equation
-# ---------------------------------------------------------
-calculate_averted_deaths = function(deaths_obs, coverage, rr) {
-  
-  # rr = (o - (a * (1 - c) / c)) / (o + a)
-  #
-  # => a = (o * (1 - rr) * c) / (1 + (rr - 1) * c)
-  #
-  # where:
-  #   o = deaths observed
-  #   a = deaths averted from vaccine
-  #   c = coverage
-  
-  # Estimate deaths averted given relative risk
-  #
-  # NOTE: Equation derived by solving vimc_rr for a
-  averted_deaths <- deaths_obs * (coverage * (1 - rr) / 
-                                    (1 - coverage * (1 - rr)))
-  
-  return(averted_deaths)
-}
-
-# ---------------------------------------------------------
-# xxxxxxxxxxx
-# ---------------------------------------------------------
-efficacy_fn = function(data, efficacy) {
+waning_immunity = function(data, profile) {
   
   # Indicies for years and ages
   year_idx = match(data$year, o$data_years) : length(o$data_years)
@@ -284,16 +178,96 @@ efficacy_fn = function(data, efficacy) {
   vec_idx = 1 : min(length(year_idx), length(age_idx))
   
   # Effective FVPs: initial efficacy and immunity decay
-  effective_fvps = data$fvps * efficacy
+  effective_fvps = data$fvps * profile
   
   # These form the only non-trivial entries
-  effective_dt = data.table(
+  waning_immunity_dt = data.table(
     country   = data$country, 
     year      = o$data_years[year_idx[vec_idx]],
     age       = o$data_ages[age_idx[vec_idx]], 
     covered   = data$fvps, 
     effective = effective_fvps[vec_idx])
   
-  return(effective_dt)
+  return(waning_immunity_dt)
+}
+
+# ---------------------------------------------------------
+# Weight between primary & booster for total effective FVPs
+# ---------------------------------------------------------
+weight_booster = function(immunity_dt) {
+  
+  # Weighting towards booster efficacy (and away from primary efficacy)
+  weighting_dt = immunity_dt %>%
+    select(country, year, age, covered, schedule) %>%
+    pivot_wider(names_from  = schedule, 
+                values_from = covered) %>%
+    # Proportion of primary cases that have booster (capped at 100%)...
+    mutate(primary = pmax(primary, booster), 
+           weight  = pmin(booster / primary, 1)) %>%
+    filter(!is.nan(weight)) %>%
+    select(country, year, age, weight) %>%
+    as.data.table()
+  
+  # Effective number of FVP after booster considerations
+  weighted_dt = immunity_dt %>%
+    select(country, year, age, effective, schedule) %>%
+    pivot_wider(names_from  = schedule, 
+                values_from = effective) %>%
+    # Append booster weighting details...
+    left_join(y  = weighting_dt, 
+              by = c("country", "year", "age")) %>%
+    replace_na(list(weight = 0)) %>%
+    # Weight efficacies based on number covered...
+    mutate(effective = primary * (1 - weight) + booster * weight) %>%
+    select(country, year, age, effective) %>%
+    as.data.table()
+  
+  return(weighted_dt)
+}
+
+# ---------------------------------------------------------
+# Deaths averted considering effective coverage and GBD disease burden
+# ---------------------------------------------------------
+deaths_averted = function(disease) {
+  
+  # Load effective coverage for this disease from file
+  effective_dt = read_rds("non_modelled", "effective_coverage", disease)
+  
+  # Load disease deaths, append coverage, and estimate deaths averted
+  averted_dt = effective_dt %>%
+    inner_join(y  = table("gbd_estimates"),
+               by = c("disease", "country", "year", "age")) %>%
+    # Use this to estimate deaths without a vaccine...
+    mutate(deaths_without = deaths_disease / (1 - coverage), 
+           deaths_averted = deaths_without - deaths_disease) %>%
+    select(country, disease, year, age, deaths_disease, deaths_averted)
+  
+  # Save this result to file
+  save_rds(averted_dt, "non_modelled", "deaths_averted", disease)
+}
+
+# ---------------------------------------------------------
+# Compile and save all non-modelled outputs 
+# ---------------------------------------------------------
+compile_outputs = function(outputs, diseases) {
+  
+  message(" - Compiling results")
+
+  # Function to read rds files
+  load_fn = function(file)
+    read_rds("non_modelled", file)
+  
+  # Loop through all outputs
+  for (output in outputs) {
+    
+    # Load all files related to this output
+    output_dt = paste1(output, diseases) %>%
+      lapply(load_fn) %>%
+      rbindlist() %>%
+      arrange(country, disease, year, age)
+    
+    # Save compiled results to file
+    save_rds(output_dt, "non_modelled", output)
+  }
 }
 

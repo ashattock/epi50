@@ -203,8 +203,6 @@ plot_effective_coverage = function() {
   
   message("  > Plotting cohort coverage by year and age")
   
-  browser()
-  
   # Plot only up to a certain age
   age_max = 50
   
@@ -212,29 +210,21 @@ plot_effective_coverage = function() {
   effective_dt = read_rds("non_modelled", "effective_coverage")
   
   # Population weight over all countries
-  total_dt = effective_dt %>%
+  plot_dt = effective_dt %>%
     filter(age <= age_max) %>%
-    # Summarise over disease
-    # TODO: This should be handeled WITHIN effective_coverage function!
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    group_by(country, disease, year, age) %>%
-    summarise(coverage = sum(effective_coverage)) %>%  
-    ungroup() %>%
-    mutate(coverage = pmin(coverage, 1)) %>%
     # Append population size...
-    left_join(y  = table("wpp_pop"), 
+    left_join(y  = table("wpp_pop"),
               by = c("country", "year", "age")) %>%
     mutate(n = pop * coverage) %>%
     # Population weighted coverage...
     group_by(disease, year, age) %>%
-    summarise(coverage = sum(n / sum(pop))) %>%
+    summarise(effective_coverage = sum(n / sum(pop))) %>%
     ungroup() %>%
     as.data.table()
   
   # Plot each pathogen by year ana age
-  g = ggplot(total_dt) + 
-    aes(x = year, y = age, fill = coverage) + 
+  g = ggplot(plot_dt) + 
+    aes(x = year, y = age, fill = effective_coverage) + 
     geom_tile() +
     facet_wrap(~disease)
   
@@ -791,15 +781,23 @@ plot_history = function() {
     ungroup() %>%
     as.data.table()
   
-  # Stacked area plot by disease
-  g = ggplot(plot_dt) +
+  # Stacked area plot: temporal results
+  g1 = ggplot(plot_dt) +
+    aes(x = year, 
+        y = impact, 
+        fill = disease_name) + 
+    geom_area()
+  
+  # Stacked area plot: cumulative results
+  g2 = ggplot(plot_dt) +
     aes(x = year, 
         y = impact_cum, 
         fill = disease_name) + 
     geom_area()
   
-  # Save to file
-  save_fig(g, "Historical impact", dir = "history")
+  # Save these figures to file
+  save_fig(g1, "Historical impact - temporal", dir = "history")
+  save_fig(g2, "Historical impact - cumulative", dir = "history")
 }
 
 # ---------------------------------------------------------
