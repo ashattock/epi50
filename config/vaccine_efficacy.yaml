@@ -3,17 +3,21 @@
 # Creates datatable: vaccine_efficacy_table
 table:
 - vaccine: Dip3
-  efficacy: 0.969 # https://apps.who.int/iris/bitstream/handle/10665/258681/WER9231.pdf?sequence=1
-  lower: 0.943
-  upper: 0.984
+  efficacy: 0.97 # https://apps.who.int/iris/bitstream/handle/10665/258681/WER9231.pdf?sequence=1
+  lower: 0.94
+  upper: 0.98
+  decay_x: 19 # (in years) https://www.sciencedirect.com/science/article/pii/S2666636723000593#:~:text=Tetanus%20and%20diphtheria%20immunity%20decrease,years%2C%20respectively%20%5B22%5D.
+  decay_y: 0.485 # (halflife)
 - vaccine: Dip_BX
-  efficacy: 0.969 # Placeholder
-  lower: 0.943
-  upper: 0.984
+  efficacy: 0.97 # Placeholder
+  lower: 0.94
+  upper: 0.98
 - vaccine: Tet3
   efficacy: 0.99 # https://apps.who.int/iris/bitstream/handle/10665/233093/WER8120_198-208.PDF
   lower: 0.8
   upper: 1.0
+  decay_x: 11 # (in years) https://www.sciencedirect.com/science/article/pii/S2666636723000593#:~:text=Tetanus%20and%20diphtheria%20immunity%20decrease,years%2C%20respectively%20%5B22%5D.
+  decay_y: 0.495 # (halflife)
 - vaccine: Tet_BX
   efficacy: 0.99 # Placeholder
   lower: 0.8
@@ -32,3 +36,5 @@ table:
   efficacy: 0.66 # https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-016-0685-4
   lower: 0.08
   upper: 0.88
+  decay_x: 15 # (in years) Assumption
+  decay_y: 0.33 # (halflife)
