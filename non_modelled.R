@@ -97,7 +97,7 @@ effective_coverage = function(disease) {
   # Iterate through these vaccines
   for (vaccine in vaccines) {
     
-    message(" - ", disease, ": ", vaccine)
+    message(" - ", disease, ", ", vaccine)
     
     # Immunity effiacy profile for this vaccine
     profile = profile_dt[[vaccine]]

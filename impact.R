@@ -24,19 +24,7 @@ run_impact = function() {
   
   message(" - Preparing FVP-impact data")
   
-  # Population size of each country over time
-  pop_dt = table("wpp_pop") %>%
-    group_by(country, year) %>%
-    summarise(pop = sum(pop)) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  data_dt = rbind(
-    load_data_vimc(pop_dt), 
-    load_data_gbd(pop_dt))
-  
-  # Save to file
-  save_rds(data_dt, "impact", "data") 
+  data_dt = load_data()
   
   # Exploratory plots of data used to fit impact functions
   plot_impact_data()
@@ -161,12 +149,22 @@ run_impact = function() {
 # ---------------------------------------------------------
 # xxxxxxxx
 # ---------------------------------------------------------
-load_data_vimc = function(pop_dt) {
+load_data = function() {
   
-  browser()
+  # Load impact estimates from VIMC (incl imputed) and non-modelled
+  vimc_dt = read_rds("impute",       "impute_result")
+  gbd_dt  = read_rds("non_modelled", "deaths_averted_vaccine")
   
-  # Impact estimates (VIMC & imputed) per capita
-  data_dt = read_rds("impute", "impute_result") %>%
+  # Population size of each country over time
+  pop_dt = table("wpp_pop") %>%
+    group_by(country, year) %>%
+    summarise(pop = sum(pop)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # Impact estimates per capita from all sources
+  data_dt = rbind(vimc_dt, gbd_dt) %>%
+    # Scale results to per capita...
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
     mutate(fvps   = fvps / pop, 
@@ -178,70 +176,11 @@ load_data_vimc = function(pop_dt) {
     add_count(country, d_v_a_id) %>%
     filter(n > 1) %>%
     select(-n)
+  
+  # Save to file
+  save_rds(data_dt, "impact", "data") 
   
   return(data_dt)
-}
-
-# ---------------------------------------------------------
-# xxxxxxxx
-# ---------------------------------------------------------
-load_data_gbd = function(pop_dt) {
-  
-  browser()
-  
-  # Whether vaccine is primary series or booster dose
-  schedule_dt = ifelse(
-    test = grepl("_BX$", vaccine), 
-    yes  = "booster", 
-    no   = "primary")
-  
-  # First job is to load coverage
-  fvps_dt = table("coverage") %>%
-    # Append d_v_a details...
-    left_join(y  = table("v_a"),
-              by = "v_a_id") %>%
-    left_join(y  = table("d_v_a"),
-              by = c("vaccine", "activity")) %>%
-    # Select only non-modelled pathogens...
-    left_join(y  = table("disease"),
-              by = "disease") %>%
-    filter(source == "gbd") %>%
-    # Append schedule details...
-    mutate(schedule = ifelse(
-      test = grepl("_BX$", vaccine), 
-      yes  = "booster", 
-      no   = "primary")) %>%
-    select()
-
-    
-    
-    
-    group_by(country, v_a_id, year) %>%
-    summarise(fvps = sum(fvps)) %>%
-    ungroup() # %>%
-  
-  
-  impact_dt = read_rds("non_modelled", "deaths_averted") %>%
-    group_by(country, v_a_id, year) %>%
-    summarise(fvps = sum(fvps)) %>%
-    ungroup() # %>%
-    
-
-    # Impact estimates per capita for non-modelled pathogens
-    data_gbd_dt = read_rds("non_modelled", "deaths_averted") %>%
-    left_join(y  = pop_dt, 
-              by = c("country", "year")) %>%
-    mutate(fvps   = fvps / pop, 
-           impact = impact / pop) %>%
-    select(-pop) %>%
-    # Impact per FVP...
-    mutate(impact_fvp = impact / fvps) %>%
-    # Ingore cases with a single data point...
-    add_count(country, d_v_a_id) %>%
-    filter(n > 1) %>%
-    select(-n)
-    
-    browser()
 }
 
 # ---------------------------------------------------------
