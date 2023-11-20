@@ -193,7 +193,7 @@ plot_vaccine_efficacy = function() {
   
   # Save figure to file
   save_fig(g, "Vaccine efficacy profiles", 
-           dir = "data_visualisation")
+           dir = "non_modelled")
 }
 
 # ---------------------------------------------------------
@@ -207,7 +207,7 @@ plot_effective_coverage = function() {
   age_max = 50
   
   # Load previously calculated total coverage file
-  effective_dt = read_rds("non_modelled", "effective_coverage")
+  effective_dt = read_rds("non_modelled", "effective_coverage_disease")
   
   # Population weight over all countries
   plot_dt = effective_dt %>%
@@ -249,7 +249,7 @@ plot_non_modelled = function() {
   message("  > Plotting non-modelled impact results")
   
   # Load previously calculated total coverage file
-  averted_dt = read_rds("non_modelled", "deaths_averted")
+  averted_dt = read_rds("non_modelled", "deaths_averted_disease")
   
   # Summarise results over country and age
   plot_dt = averted_dt %>%

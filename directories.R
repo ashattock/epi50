@@ -35,7 +35,10 @@ prepare_dirs = function(o) {
   pth$tables = file.path(pth_output, "0_tables")
   
   # Path to non-modelled assumptions and results
-  pth$non_modelled = file.path(pth_output, "1_non_modelled")
+  pth$non_modelled   = file.path(pth_output, "1_non_modelled")
+  pth$non_modelled_d = file.path(pth$non_modelled, "disease")
+  pth$non_modelled_v = file.path(pth$non_modelled, "vaccine")
+  pth$non_modelled_w = file.path(pth$non_modelled, "weights")
   
   # Path to imputatation and impact calculation files
   pth$impute = file.path(pth_output, "2_impute")

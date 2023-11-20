@@ -23,9 +23,9 @@ run_impute = function() {
   
   message("* Running country imputation")
   
-  browser()  # TODO: Repeat process for DALYs
+  # TODO: Repeat process for DALYs
   
-  # Load target to fit to: impact per FVP
+  # Load target to fit to (impact per FVP)
   target_dt = get_target()
   
   # ---- Perform imputation ----
@@ -106,7 +106,7 @@ do_impute = function(d_v_a_id, target) {
   data_dt = target_dt %>%
     filter(!is.na(target)) %>%
     # filter(target > 0) %>%
-    select(target, n_years, coverage, sdi, haqi, imr) %>%
+    select(target, n_years, sdi, haqi, imr) %>%
     # Remove target outliers for better normalisation...
     mutate(lower = mean(target) - 3 * sd(target), 
            upper = mean(target) + 3 * sd(target), 
@@ -160,7 +160,7 @@ do_impute = function(d_v_a_id, target) {
   
   # Fit a GLM for impact per FVP using all covariates
   fit_model = glm(
-    formula = target ~ n_years + coverage + sdi + haqi + imr, 
+    formula = target ~ n_years + sdi + haqi + imr, 
     data    = norm_data_dt)
   
   # Use fitted model to predict 
@@ -193,7 +193,7 @@ do_impute = function(d_v_a_id, target) {
 }
 
 # ---------------------------------------------------------
-# Load/calculate target variable: impact per FVP
+# Load/calculate target (impact per FVP) for modelled pathogens
 # ---------------------------------------------------------
 get_target = function() {
   
@@ -209,52 +209,31 @@ get_target = function() {
     group_by(country, d_v_a_id) %>%
     mutate(impact_cum = cumsum(impact_abs)) %>%
     ungroup() %>%
-    # Append d_v_a details...
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
     as.data.table()
   
-  browser() # We want ONLY vimc data here, so remove wiise AND sia
-  
-  # Remove any WIISE coverage for VIMC countries
-  rm_wiise_dt = impact_dt %>%
-    select(country, d_v_a_id) %>%
-    unique() %>%
-    mutate(source = "wiise", 
-           rm = TRUE)
-  
-  # Extract coverage
-  coverage_dt = table("coverage") %>%  # Use coverage_source here!
-    # Append v_a details...
-    left_join(y  = table("v_a"), 
+  # Extract FVPs
+  fvps_dt = table("coverage") %>%
+    # Append d_v_a details...
+    left_join(y  = table("v_a"),
               by = "v_a_id") %>%
-    filter(vaccine %in% unique(impact_dt$vaccine)) %>%
-    left_join(y  = table("d_v_a"), 
+    left_join(y  = table("d_v_a"),
               by = c("vaccine", "activity")) %>%
-    select(country, d_v_a_id, year, coverage, fvps, source) %>%
-    # Remove data that isn't to be used for imputation...
-    filter(year >= min(impact_dt$year)) %>%
-    left_join(y  = rm_wiise_dt, 
-              by = c("country", "d_v_a_id", "source")) %>%
-    filter(is.na(rm)) %>%
-    select(-source, -rm) %>%
+    filter(d_v_a_id %in% unique(impact_dt$d_v_a_id)) %>%
     # Summarise over age...
     group_by(country, d_v_a_id, year) %>%
-    summarise(coverage = mean(coverage), 
-              fvps_abs = sum(fvps)) %>%
+    summarise(fvps = sum(fvps)) %>%
     ungroup() %>%
     # Cumulative sum FVPs...
     arrange(country, d_v_a_id, year) %>%
     group_by(country, d_v_a_id) %>%
-    mutate(fvps_cum = cumsum(fvps_abs)) %>%
+    mutate(fvps_cum = cumsum(fvps)) %>%
     ungroup() %>%
     as.data.table()
   
   # Combine into single datatable
-  target_dt = coverage_dt %>%
+  target_dt = fvps_dt %>%
     left_join(y  = impact_dt, 
               by = c("country", "d_v_a_id", "year")) %>%
-    select(-disease, -vaccine, -activity) %>%
     # Impact per FVP...
     mutate(target = impact_cum / fvps_cum)
   

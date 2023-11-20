@@ -20,11 +20,9 @@ run_non_modelled = function() {
   diseases = table("disease") %>%
     filter(source == "gbd") %>%
     pull(disease)
-  
+
   # Iterate through these diseases
   for (disease in diseases) {
-
-    message(" - ", disease)
 
     # Effective coverage considering waning immunity and boosters
     effective_coverage(disease)
@@ -32,13 +30,12 @@ run_non_modelled = function() {
     # Deaths averted considering effective coverage and GBD disease burden
     deaths_averted(disease)
 
-    # Use deaths averted to calculate DALYs ----
-    # dalys_averted(disease)
+    # Use deaths averted to calculate DALYs
+    # dalys_averted(disease)  # See dalys.R
   }
-  
+
   # Compile all results
-  outputs = qc(effective_coverage, deaths_averted) #, dalys_averted)
-  compile_outputs(outputs, diseases)
+  compile_outputs(diseases)
   
   # ---- Plot results ----
   
@@ -100,7 +97,7 @@ effective_coverage = function(disease) {
   # Iterate through these vaccines
   for (vaccine in vaccines) {
     
-    message("  > ", vaccine)
+    message(" - ", disease, ": ", vaccine)
     
     # Immunity effiacy profile for this vaccine
     profile = profile_dt[[vaccine]]
@@ -135,27 +132,15 @@ effective_coverage = function(disease) {
   # Bind results of each vaccine / schedule
   immunity_dt = rbindlist(immunity_list)
   
-  # ---- Weight between primary & booster ----
-  
-  # Flag for whether vaccine has booster
-  has_booster = "booster" %in% immunity_dt$schedule
-  
-  # If booster, apply primary-booster weighting
-  if (has_booster == TRUE)
-    weighted_dt = weight_booster(immunity_dt)
-  
-  # If no booster, nothing to do here
-  if (has_booster == FALSE) {
-    weighted_dt = immunity_dt %>%
-      select(country, year, age, effective)
-  }
-  
   # ---- Overall effective coverage ----
   
   # TODO: Can we avoid this conversion back to coverage?
   
   # Convert effective FVPs to effective coverage
-  effective_dt = weighted_dt %>%
+  effective_dt = immunity_dt %>%
+    # Weight between primary & booster...
+    weight_booster(disease) %>%
+    # Convert to effective coverage...
     left_join(y  = table("wpp_pop"),
               by = c("country", "year", "age")) %>%
     mutate(coverage = pmin(effective / pop, effective_capped)) %>%
@@ -167,7 +152,7 @@ effective_coverage = function(disease) {
     as.data.table()
   
   # Save this result to file
-  save_rds(effective_dt, "non_modelled", "effective_coverage", disease)
+  save_rds(effective_dt, "non_modelled_d", "effective_coverage", disease)
 }
 
 # ---------------------------------------------------------
@@ -199,31 +184,48 @@ waning_immunity = function(data, profile) {
 # ---------------------------------------------------------
 # Weight between primary & booster for total effective FVPs
 # ---------------------------------------------------------
-weight_booster = function(immunity_dt) {
+weight_booster = function(immunity_dt, disease) {
   
-  # Weighting towards booster efficacy (and away from primary efficacy)
-  weighting_dt = immunity_dt %>%
+  # Flag for whether vaccine has booster
+  has_booster = "booster" %in% immunity_dt$schedule
+  
+  # Number covered by schedule (primary and booster)
+  covered_dt = immunity_dt %>%
     select(country, year, age, covered, schedule) %>%
     pivot_wider(names_from  = schedule, 
                 values_from = covered) %>%
-    # Proportion of primary cases that have booster (capped at 100%)...
+    # Append trivial column if no booster doses...
+    {if (!has_booster) mutate(., booster = 0) else .} %>%
+    as.data.table()
+  
+  # Proportion of primary cases that have booster (capped at 100%)
+  weighting_dt = covered_dt %>%
     mutate(primary = pmax(primary, booster), 
            weight  = pmin(booster / primary, 1)) %>%
     filter(!is.nan(weight)) %>%
     select(country, year, age, weight) %>%
     as.data.table()
   
+  # Save this weighting to file
+  save_rds(weighting_dt, "non_modelled_w", "booster_weight", disease)
+  
+  # TODO: I'm now questioning this, I think it should be:
+  #       effective = primary * (1 - weight) + booster
+  #       The idea is those being boosted should not be double counted
+  
   # Effective number of FVP after booster considerations
   weighted_dt = immunity_dt %>%
     select(country, year, age, effective, schedule) %>%
     pivot_wider(names_from  = schedule, 
                 values_from = effective) %>%
+    # Append trivial column if no booster doses...
+    {if (!has_booster) mutate(., booster = 0) else .} %>%
     # Append booster weighting details...
     left_join(y  = weighting_dt, 
               by = c("country", "year", "age")) %>%
     replace_na(list(weight = 0)) %>%
     # Weight efficacies based on number covered...
-    mutate(effective = primary * (1 - weight) + booster * weight) %>%
+    mutate(effective = primary * (1 - weight) + booster) %>% # * weight) %>%  # ?? See comment above ??
     select(country, year, age, effective) %>%
     as.data.table()
   
@@ -235,44 +237,132 @@ weight_booster = function(immunity_dt) {
 # ---------------------------------------------------------
 deaths_averted = function(disease) {
   
+  # ---- Deaths averted for this disease ----
+  
   # Load effective coverage for this disease from file
-  effective_dt = read_rds("non_modelled", "effective_coverage", disease)
+  effective_dt = read_rds("non_modelled_d", "effective_coverage", disease)
   
   # Load disease deaths, append coverage, and estimate deaths averted
-  averted_dt = effective_dt %>%
+  averted_disease = effective_dt %>%
     inner_join(y  = table("gbd_estimates"),
                by = c("disease", "country", "year", "age")) %>%
-    # Use this to estimate deaths without a vaccine...
+    # Estimate deaths without a vaccine and deaths averted...
     mutate(deaths_without = deaths_disease / (1 - coverage), 
            deaths_averted = deaths_without - deaths_disease) %>%
-    select(country, disease, year, age, deaths_disease, deaths_averted)
+    
+    select(country, disease, year, age, deaths_disease, deaths_averted) %>%
+    as.data.table()
   
   # Save this result to file
-  save_rds(averted_dt, "non_modelled", "deaths_averted", disease)
+  save_rds(averted_disease, "non_modelled_d", "deaths_averted", disease)
+  
+  # ---- Attribute impact to vaccine schedule ----
+  
+  # Booster weights (proportion of effective coverage attributable to boosters)
+  weight_dt = read_rds("non_modelled_w", "booster_weight", disease)
+  
+  # Vaccine schedule dictionary - map primary/booster to vaccine ID
+  schedule_dict = table("d_v_a") %>%
+    filter(disease == !!disease) %>%
+    mutate(schedule = ifelse(
+      test = grepl("_BX$", vaccine), 
+      yes  = "booster", 
+      no   = "primary")) %>%
+    select(d_v_a_id, schedule)
+  
+  # We'll split impact across schedules by previously calculated weighting
+  averted_vaccine = averted_disease %>%
+    # Attribute impact to each shedule...
+    inner_join(y  = weight_dt, 
+               by = c("country", "year", "age")) %>%
+    mutate(primary = deaths_averted * (1 - weight), 
+           booster = deaths_averted * weight) %>%
+    # Summarise over age ...
+    group_by(country, year) %>%
+    summarise(primary = sum(primary), 
+              booster = sum(booster)) %>%
+    ungroup() %>%
+    # Map schedule to d_v_a_id...
+    pivot_longer(cols = c(primary, booster), 
+                 names_to  = "schedule", 
+                 values_to = "impact") %>%
+    inner_join(y  = schedule_dict, 
+               by = "schedule") %>%
+    # Tidy up...
+    select(country, d_v_a_id, year, impact) %>%
+    arrange(country, d_v_a_id, year) %>%
+    as.data.table()
+  
+  # Number of 'FVP' by vaccine - yeah, confusing concept in the context of boosters
+  fvps_dt = table("coverage") %>%
+    left_join(y  = table("v_a"), 
+              by = "v_a_id") %>%
+    left_join(y  = table("d_v_a"), 
+              by = c("vaccine", "activity")) %>%
+    filter(disease == !!disease) %>%
+    # Summarise over age ...
+    group_by(country, d_v_a_id, year) %>%
+    summarise(fvps = sum(fvps)) %>%
+    ungroup() %>%
+    as.data.table
+  
+  # Full vaccine-specific results 
+  result_list = averted_vaccine %>%
+    inner_join(y  = fvps_dt, 
+               by = c("country", "d_v_a_id", "year")) %>%
+    select(country, d_v_a_id, year, fvps, impact) %>%
+    split(.$d_v_a_id)
+  
+  # Function for saving vaccine-specific results
+  save_result_fn = function(x, name)
+    save_rds(x, "non_modelled_v", "deaths_averted", name)
+  
+  # Apply save function to each vaccine
+  napply(result_list, save_result_fn)
 }
 
 # ---------------------------------------------------------
 # Compile and save all non-modelled outputs 
 # ---------------------------------------------------------
-compile_outputs = function(outputs, diseases) {
+compile_outputs = function(diseases) {
   
   message(" - Compiling results")
-
-  # Function to read rds files
-  load_fn = function(file)
-    read_rds("non_modelled", file)
   
-  # Loop through all outputs
-  for (output in outputs) {
+  # IDs targeting these disease
+  d_v_a_id = table("d_v_a") %>% 
+    filter(disease %in% diseases) %>%
+    pull(d_v_a_id)
+  
+  # IDs for loading disease/vaccine results
+  ids = list(
+    disease = diseases,
+    vaccine = d_v_a_id)
+  
+  # All outputs to compile
+  outputs = list(
+    disease = qc(deaths_averted, effective_coverage), #, dalys_averted)
+    vaccine = qc(deaths_averted)) #, dalys_averted)
+  
+  for (group in names(outputs)) {
     
-    # Load all files related to this output
-    output_dt = paste1(output, diseases) %>%
-      lapply(load_fn) %>%
-      rbindlist() %>%
-      arrange(country, disease, year, age)
+    # Sub directory to load disease/vaccine results from
+    load_dir = paste1("non_modelled", str_sub(group, 1, 1))
     
-    # Save compiled results to file
-    save_rds(output_dt, "non_modelled", output)
+    # Function to read rds files
+    load_fn = function(file) 
+      read_rds(load_dir, file)
+    
+    # Loop through all outputs
+    for (output in outputs[[group]]) {
+      
+      # Load all files related to this output
+      output_dt = paste1(output, ids[[group]]) %>%
+        lapply(load_fn) %>%
+        rbindlist()
+      
+      # Save compiled results to file
+      save_rds(output_dt, "non_modelled", output, group)
+    }
   }
 }
 

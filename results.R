@@ -30,15 +30,15 @@ run_results = function() {
     
     # Plot SDI - HAQi relationship
     plot_sdi_haqi()
-    
-    # Plot vaccine efficacy profiles (non-modelled pathogens)
-    plot_vaccine_efficacy()
   }
   
   # ---- Non-modelled plots ----
   
   # Check plotting flag
   if (o$plot_non_modelled) {
+    
+    # Plot vaccine efficacy profiles for non-modelled pathogens
+    plot_vaccine_efficacy()
     
     # Effective coverage with waning immunity for non-modelled pathogens
     plot_effective_coverage()
