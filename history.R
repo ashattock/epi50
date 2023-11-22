@@ -31,8 +31,6 @@ run_history = function() {
     ungroup() %>%
     as.data.table()
   
-  browser()
-  
   eval_dt = table("coverage") %>%
     group_by(country, v_a_id, year) %>%
     summarise(fvps_temporal = sum(fvps)) %>%
@@ -44,8 +42,7 @@ run_history = function() {
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
     left_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity"), 
-              relationship = "many-to-many") %>%
+              by = c("vaccine", "activity")) %>%
     select(country, d_v_a_id, year, pop,
            fvps_temporal, fvps_cum, fvps) %>%
     as.data.table()
@@ -53,7 +50,7 @@ run_history = function() {
   result_dt = evaluate_impact_function(eval_dt) %>%
     # Population weight for population-level impact...
     mutate(impact_cum = impact * pop) %>%
-    # Revere cumsum to derive annual impact...
+    # Reverse cumsum to derive annual impact...
     group_by(country, d_v_a_id) %>%
     mutate(impact_temporal = rev_cumsum(impact_cum)) %>%
     ungroup() %>%

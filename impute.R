@@ -29,7 +29,7 @@ run_impute = function() {
   target_dt = get_target()
   
   # ---- Perform imputation ----
-
+  
   # Impute missing countries for all d-v-a combinations
   impute_dt = table("d_v_a") %>%
     pluck("d_v_a_id") %>%
@@ -42,7 +42,7 @@ run_impute = function() {
       no   = impact_cum)) %>%
     select(country, d_v_a_id, year, 
            fvps = fvps_cum, impact)
-
+  
   # Save imputed results to file
   save_rds(impute_dt, "impute", "impute_result")
   

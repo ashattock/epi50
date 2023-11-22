@@ -22,13 +22,16 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_inputs) {
     
+    # Methodology pathogen-country-scope figure
+    plot_scope()
+    
     # Total number of FVP over time by source
     plot_total_fvps()
 
     # Coverage data density by age
     plot_coverage_age_density()
     
-    # Plot SDI - HAQi relationship
+    # SDI - HAQi relationship
     plot_sdi_haqi()
   }
   

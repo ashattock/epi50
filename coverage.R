@@ -116,6 +116,8 @@ coverage_wiise = function(vimc_countries_dt) {
   
   # ---- Wrangle WIISE data ----
   
+  browser()
+  
   # Parse 'interventions' into EPI50 vaccines
   data_dt = raw_dt %>%
     # Convert to lower case...

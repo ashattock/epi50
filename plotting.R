@@ -6,6 +6,93 @@
 ###########################################################
 
 # ---------------------------------------------------------
+# Plot methodology figure to be used in paper
+# ---------------------------------------------------------
+plot_scope = function() {
+  
+  message("  > Plotting country-disease scope")
+  
+  # Dictionary for full impact source descriptions
+  source_dict = c(
+    vimc  = "Vaccine Impact Modelling Consortium (VIMC)", 
+    other = "Modelling group (external to VIMC)", 
+    gbd   = "Global Burden of Disease (GBD)")
+  
+  # VIMC pathogens: countries and years
+  vimc_dt = table("vimc_estimates") %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    # Min and max years for each pathogen...
+    group_by(disease) %>%
+    mutate(year0 = min(year), 
+           year1 = max(year)) %>%
+    ungroup() %>%
+    select(disease, country, year0, year1) %>%
+    unique() %>%
+    # Number of countries for each pathogen...
+    add_count(disease) %>%
+    select(disease, countries = n, year0, year1) %>%
+    unique() %>%
+    as.data.table() %>%
+    # TEMP for measles...
+    mutate(year0 = ifelse(
+      disease == "Measles", 1980, year0))
+  
+  # Other modelled pathogens: countries and years
+  #
+  # TEMP: Read in polio impact table when ready
+  polio_dt = data.table(
+    disease   = "Polio", 
+    countries = 194, 
+    year0     = 1974, 
+    year1     = 2024)
+  
+  # Non-modelled pathogens: countries and years
+  gbd_dt = table("gbd_estimates") %>%
+    # Min and max years for each pathogen...
+    group_by(disease) %>%
+    mutate(year0 = min(year), 
+           year1 = max(year)) %>%
+    ungroup() %>%
+    select(disease, country, year0, year1) %>%
+    unique() %>%
+    # Number of countries for each pathogen...
+    add_count(disease) %>%
+    select(disease, countries = n, year0, year1) %>%
+    unique() %>%
+    as.data.table()
+  
+  # Concatenate and recode to descreptive names
+  plot_dt = rbind(vimc_dt, polio_dt, gbd_dt) %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    select(-disease) %>%
+    rename(disease = disease_name) %>%
+    replace_na(list(source = "other", 
+                    disease = "Poliomyelitis")) %>%
+    arrange(source, year0, countries, disease) %>%
+    mutate(source  = recode(source, !!!source_dict), 
+           source  = factor(source, source_dict), 
+           disease = fct_inorder(disease))
+  
+  # Create plot
+  g = ggplot(plot_dt) + 
+    aes(y    = disease, 
+        yend = disease,
+        x    = year0, 
+        xend = year1, 
+        colour = countries) + 
+    geom_segment(linewidth = 4, 
+                 lineend   = "butt") + 
+    facet_wrap(~source, 
+               ncol   = 1, 
+               scales = "free_y")
+  
+  # Save to file
+  save_fig(g, "Country-disease scope", dir = "methodology")
+}
+
+# ---------------------------------------------------------
 # Plot total number of FVP over time for each d_v_a
 # ---------------------------------------------------------
 plot_total_fvps = function() {
@@ -377,7 +464,7 @@ plot_target = function() {
 # ---------------------------------------------------------
 plot_sdi_haqi = function() {
   
-  message("  > SDI vs HAQi by country")
+  message("  > Plotting SDI vs HAQi by country")
   
   # Load SDI and HAQi values
   gbd_covariates = table("gbd_covariates")
