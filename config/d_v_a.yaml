@@ -68,13 +68,17 @@ table:
   activity: all
 - d_v_a_id: 16
   disease: Per
-  vaccine: Per3
-  activity: all
+  vaccine: wPer3
+  activity: all 
 - d_v_a_id: 17
   disease: Per
-  vaccine: Per_BX
+  vaccine: aPer3
   activity: all
 - d_v_a_id: 18
+  disease: Per
+  vaccine: aPer_BX
+  activity: all
+- d_v_a_id: 19
   disease: TB
   vaccine: BCG
   activity: all

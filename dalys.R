@@ -44,7 +44,7 @@ explore_dalys = function() {
   countries = loc_table$location_iso3
   
   # Iterate through GBT diseases 
-  for (gbd_disease in gbd_diseases[4]) {
+  for (gbd_disease in gbd_diseases) {
     
     message(" - DALYs averted: ", gbd_disease)
     

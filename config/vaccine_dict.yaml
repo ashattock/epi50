@@ -22,67 +22,67 @@ table:
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
 - intervention: dtaphibhepbipv
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
   - Hib3
   - HepB
 - intervention: dtp
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
 - intervention: dtpcv3
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
 - intervention: dtpcv4
   vaccine:
   - Dip_BX
   - Tet_BX
-  - Per_BX
+  - aPer_BX
 - intervention: dtphepb
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
   - HepB
 - intervention: dtphib
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
   - Hib3
 - intervention: dtphibhepb
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
   - Hib3
   - HepB
 - intervention: dtphibhepb3
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
   - Hib3
   - HepB
 - intervention: dtphibhepbipv
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
   - Hib3
   - HepB
 - intervention: dtwp
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - wPer3
 - intervention: hepb
   vaccine: HepB
 - intervention: hepb_bd
@@ -163,11 +163,11 @@ table:
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
   - Hib3
   - HepB
 - intervention: percv4
-  vaccine: Per_BX
+  vaccine: aPer_BX
 - intervention: pneumo_conj
   vaccine: PCV3
 - intervention: ppv23
@@ -186,7 +186,7 @@ table:
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
 - intervention: tdipv_s
   vaccine:
   - Dip3
@@ -195,7 +195,7 @@ table:
   vaccine:
   - Dip3
   - Tet3
-  - Per3
+  - aPer3
 - intervention: tt
   vaccine: Tet3
 - intervention: tt2plus

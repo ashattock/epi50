@@ -51,10 +51,13 @@ table:
 - vaccine: Tet_BX
   vaccine_name: "Tetanus-containing (booster dose)"
   age: "1:15"
-- vaccine: Per3
-  vaccine_name: "Pertussis-containing (primary schedule)"
+- vaccine: wPer3
+  vaccine_name: "Acellular pertussis-containing"
   age: 0
-- vaccine: Per_BX
+- vaccine: aPer3
+  vaccine_name: "Whole-cell pertussis-containing (primary schedule)"
+  age: 0
+- vaccine: aPer_BX
   vaccine_name: "Pertussis-containing (booster dose)"
   age: "1:15"
 - vaccine: BCG

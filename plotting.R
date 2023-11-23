@@ -120,8 +120,12 @@ plot_total_fvps = function() {
     full_join(y  = table("d_v_a"), 
               by = c("vaccine", "activity"), 
               relationship = "many-to-many") %>%
-    # Tidy up...
     select(d_v_a_id, source, year, fvps, fvps_cum) %>%
+    # Remove any d_v_a with less than 2 data points...
+    add_count(d_v_a_id) %>%
+    filter(n > 1) %>%
+    select(-n) %>%
+    # Tidy up...
     arrange(d_v_a_id, source, year) %>%
     append_d_v_a_name() %>%
     as.data.table()
@@ -145,8 +149,12 @@ plot_total_fvps = function() {
     full_join(y  = table("d_v_a"), 
               by = c("vaccine", "activity"), 
               relationship = "many-to-many") %>%
-    # Tidy up...
     select(d_v_a_id, year, fvps, fvps_cum) %>%
+    # Remove any d_v_a with less than 2 data points...
+    add_count(d_v_a_id) %>%
+    filter(n > 1) %>%
+    select(-n) %>%
+    # Tidy up...
     arrange(d_v_a_id, year) %>%
     append_d_v_a_name() %>%
     as.data.table()
