@@ -63,9 +63,12 @@ effective_coverage = function(disease) {
   # ---- Set up ----
   
   # Vaccines targeting this disease
-  vaccines = table("d_v_a") %>% 
+  vaccine_dt = table("d_v_a") %>% 
     filter(disease == !!disease) %>%
-    pull(vaccine)
+    mutate(type = str_remove(vaccine, "([0-9]+|_BX)$")) %>% 
+    select(vaccine, type)
+  
+  vaccines = vaccine_dt$vaccine
   
   # Vaccine immunity efficacy profiles
   profile_dt = table("vaccine_efficacy_profiles") %>%
@@ -124,7 +127,10 @@ effective_coverage = function(disease) {
       replace_na(list(covered   = 0, 
                       effective = 0)) %>%
       # Append vaccine details...
-      mutate(schedule = schedule) %>%
+      mutate(vaccine  = vaccine, 
+             schedule = schedule) %>%
+      left_join(y  = vaccine_dt, 
+                by = "vaccine") %>%
       arrange(country, year, age) %>%
       as.data.table()
   }
@@ -134,25 +140,52 @@ effective_coverage = function(disease) {
   
   # ---- Overall effective coverage ----
   
+  message(" - Applying booster weighting")
+  
   # TODO: Can we avoid this conversion back to coverage?
   
-  # Convert effective FVPs to effective coverage
-  effective_dt = immunity_dt %>%
-    # Weight between primary & booster...
-    weight_booster(disease) %>%
-    # Convert to effective coverage...
-    left_join(y  = table("wpp_pop"),
-              by = c("country", "year", "age")) %>%
+  effective_list = list()
+  
+  for (vaccine_type in unique(vaccine_dt$type)) {
+    
+    # Convert effective FVPs to effective coverage
+    effective_v_dt = immunity_dt %>%
+      filter(type == vaccine_type) %>%
+      select(-vaccine, -type) %>%
+      # Weight between primary & booster...
+      weight_booster(disease) %>%
+      # Convert to effective coverage...
+      left_join(y  = table("wpp_pop"),
+                by = c("country", "year", "age")) %>%
+      mutate(coverage = pmin(effective / pop, effective_capped)) %>%
+      replace_na(list(coverage = 0)) %>%
+      # Append vaccine and disease details and tidy up...
+      mutate(disease = disease, 
+             type    = vaccine_type) %>%
+      select(country, disease, type, 
+             year, age, effective, pop, coverage) %>%
+      arrange(country, disease, type, year, age) %>%
+      as.data.table()
+    
+    # Store result for this vaccine type in list
+    effective_list[[vaccine_type]] = effective_v_dt
+    
+    # And save the result in it's own right
+    save_rds(effective_v_dt, "non_modelled_t", "effective_coverage", vaccine_type)
+  }
+  
+  # Combine vaccine types (considered additive)
+  effective_d_dt = rbindlist(effective_list) %>%
+    group_by(country, disease, year, age) %>%
+    summarise(effective = sum(effective), 
+              pop       = mean(pop)) %>%
+    ungroup() %>%
     mutate(coverage = pmin(effective / pop, effective_capped)) %>%
-    replace_na(list(coverage = 0)) %>%
-    # Append disease details and tidy up...
-    mutate(disease = disease) %>%
-    select(country, disease, year, age, coverage) %>%
-    arrange(country, disease, year, age) %>%
+    select(-effective, -pop) %>%
     as.data.table()
   
   # Save this result to file
-  save_rds(effective_dt, "non_modelled_d", "effective_coverage", disease)
+  save_rds(effective_d_dt, "non_modelled_d", "effective_coverage", disease)
 }
 
 # ---------------------------------------------------------
@@ -333,15 +366,24 @@ compile_outputs = function(diseases) {
     filter(disease %in% diseases) %>%
     pull(d_v_a_id)
   
+  # Vaccine types targeting these disease
+  vaccine_types = table("d_v_a") %>% 
+    filter(disease %in% diseases) %>%
+    mutate(type = str_remove(vaccine, "([0-9]+|_BX)$")) %>% 
+    pull(type) %>% 
+    unique()
+  
   # IDs for loading disease/vaccine results
   ids = list(
     disease = diseases,
-    vaccine = d_v_a_id)
+    vaccine = d_v_a_id, 
+    type    = vaccine_types)
   
   # All outputs to compile
   outputs = list(
-    disease = qc(deaths_averted, effective_coverage), #, dalys_averted)
-    vaccine = qc(deaths_averted)) #, dalys_averted)
+    disease = qc(deaths_averted, effective_coverage), #, dalys_averted),
+    vaccine = qc(deaths_averted), #, dalys_averted),
+    type    = qc(effective_coverage))
   
   for (group in names(outputs)) {
     

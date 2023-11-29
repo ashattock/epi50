@@ -99,10 +99,14 @@ prepare_vimc_estimates = function() {
   
   # Prepare VIMC vaccine impact estimates
   read_rds("input", "vimc_estimates") %>%
+    # Years and countries of interest...
+    filter(country %in% all_countries(), 
+           year    %in% o$analysis_years) %>%
+    # Disease, vaccines, and activities of interest...
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
-    filter(!is.na(d_v_a_id), 
-           year %in% o$analysis_years) %>%
+    filter(!is.na(d_v_a_id)) %>%
+    # Tidy up...
     select(country, d_v_a_id, year, age, deaths_averted) %>%
     arrange(country, d_v_a_id, age, year) %>%
     save_table("vimc_estimates")

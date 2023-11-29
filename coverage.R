@@ -72,7 +72,8 @@ coverage_vimc = function() {
   vimc_dt = fread(paste0(o$pth$input, "vimc_coverage.csv")) %>%
     select(country, disease, vaccine, activity = activity_type, 
            gender, year, age, fvps_adjusted, cohort_size) %>%
-    filter(year %in% o$analysis_years) %>%
+    filter(country %in% all_countries(), 
+           year    %in% o$analysis_years) %>%
     # Combine gender where necessary...
     mutate(gender = ifelse(gender == "Both", "b", "x")) %>%
     group_by(country, disease, vaccine, activity, gender, year, age) %>%
@@ -224,44 +225,35 @@ wholecell_acellular_switch = function(coverage_dt) {
   id = list(
     wp = table("v_a")[vaccine == "wPer3", v_a_id], 
     ap = table("v_a")[vaccine == "aPer3", v_a_id])
-  
-  browser()
     
-  # Re-map certain pertussis vaccines from acellular to wholecell
-  preswitch_dt = coverage_dt %>%
+  # Only a subset of that defined should be acelluar
+  acellular_dt = coverage_dt %>%
     filter(v_a_id == id$ap) %>%
-    # Countries and years prior to acellular switch...
-    inner_join(y  = switch_dt, 
-               by = "country") %>%
-    filter(year < switch_year) %>%
-    select(-switch_year) %>%
-    # Convert these to wholecell...
-    mutate(v_a_id = id$wp)
+    left_join(y  = switch_dt, 
+              by = "country") %>%
+    replace_na(list(switch_year = Inf)) %>%
+    filter(year > switch_year) %>%
+    select(-switch_year)
   
-  # Combine all wholecell coverage data
-  wholecell_dt = coverage_dt %>%
-    filter(v_a_id == id$wp) %>%
-    rbind(preswitch_dt) %>%
+  # Everything else should be wholecell
+  wholecell_dt = acellular_dt %>%
+    select(country, year, age, source) %>%
+    mutate(remove = TRUE) %>%
+    full_join(y  = coverage_dt, 
+              by = c("country", "year", "age", "source")) %>%
+    filter(v_a_id %in% unlist(id), 
+           is.na(remove)) %>%
+    select(-remove) %>%
+    # Covert to wholecell...
+    mutate(v_a_id = id$wp) %>%
     group_by(country, v_a_id, year, age, source) %>%
     summarise(fvps   = sum(fvps), 
               cohort = mean(cohort)) %>%
     ungroup() %>%
+    # Recalculate coverage...
     mutate(coverage = pmin(fvps / cohort, 1)) %>%
     select(all_of(names(coverage_dt))) %>%
     as.data.table()
-  
-  # Entries to be removed from acellular coverage data
-  acellular_rm = wholecell_dt %>%
-    select(country, year, age, source) %>%
-    mutate(remove = TRUE)
-  
-  # Remove acellular coverage that has been reassigned to wholecell
-  acellular_dt = coverage_dt %>%
-    filter(v_a_id == id$ap) %>%
-    left_join(y  = acellular_rm, 
-              by = c("country", "year", "age", "source")) %>%
-    filter(is.na(remove)) %>%
-    select(-remove)
 
   # Recombine all data
   switched_dt = coverage_dt %>%
