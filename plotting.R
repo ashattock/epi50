@@ -15,6 +15,9 @@ plot_scope = function() {
   # Manually set tidy y axis limit
   y_max = 625  # In millions
   
+  # Linear time interpolation for less pixilated figures
+  smoothness = 10  # Higher value for smoother plot
+  
   # Dictionary for full impact source descriptions
   impact_dict = c(
     polio  = "Modelling group (external to VIMC)",
@@ -24,14 +27,6 @@ plot_scope = function() {
     extrap = "Temporal extrapolation model")
   
   # Associated colours
-  # impact_colours = c(
-    # polio  = "#E06C4E", 
-    # vimc   = "#EC9D5E",
-    # gbd    = "#E2bE67", 
-    # impute = "#29988B", 
-    # extrap = "#254450")
-  
-  # Associated colours
   impact_colours = c(
     polio  = "#EB7D5B",
     vimc   = "#FED23F",
@@ -39,7 +34,7 @@ plot_scope = function() {
     impute = "#6CA2EA",
     extrap = "#442288")
   
-  # ---- Source of impact estimates ----
+  # ---- Number of FVPs by pathogen ----
   
   # Number of FVPs over time
   fvps_dt = table("coverage") %>%
@@ -75,7 +70,7 @@ plot_scope = function() {
     unique() %>%
     mutate(class = "gbd")
 
-  # VIMC impact estimates
+  # VIMC approach
   vimc_dt = table("vimc_estimates") %>%
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_id") %>%
@@ -118,20 +113,34 @@ plot_scope = function() {
     ungroup() %>%
     as.data.table()
   
-  # Fill in trivial years with zero for are plot
+  # Year range of analysis
+  year1 = min(o$analysis_years)
+  year2 = max(o$analysis_years)
+  
+  # Smoothen over non-trivial years
   plot_dt = expand_grid(
     disease = unique(fvps_dt$disease), 
     class   = names(impact_dict), 
-    year    = o$analysis_years) %>%
+    year    = seq(year1, year2, by = 1 / smoothness)) %>%
     # Append results and source of impact...
     left_join(y  = all_dt, 
               by = c("disease", "class", "year")) %>%
-    replace_na(list(fvps = 0)) %>%
+    # Interpolate annual values for smoother plot...
+    mutate(year_int = floor(year)) %>%
+    group_by(disease, class, year_int) %>%
+    mutate(n = sum(fvps, na.rm = TRUE)) %>%
+    ungroup() %>%
+    filter(n > 0) %>%
+    select(-year_int, -n) %>%
+    # Interpolate annual values for smoother plot...
+    group_by(disease, class) %>%
+    mutate(fvps = na_interpolation(fvps)) %>%
+    ungroup() %>%
     # Convert to units of millions...
     mutate(fvps = fvps / 1e6) %>%
     # Use impact source descriptions...
     mutate(class = recode(class, !!!impact_dict), 
-           class = factor(class, impact_dict)) %>%
+           class = factor(class, rev(impact_dict))) %>%
     # Use full disease names...
     left_join(y  = table("disease"), 
               by = "disease") %>%
@@ -148,16 +157,14 @@ plot_scope = function() {
   
   # ---- Construct label datatable ----
   
-  # Year range of analysis
-  year1 = min(o$analysis_years)
-  year2 = max(o$analysis_years)
+  # Label description string
+  label_str = paste0("Total (", year1, "-", year2, "): ")
   
-  label_str = paste0(year1, "-", year2, " total: ")
-  
+  # Construct labels: total FVPs over analysis timeframe
   label_dt = plot_dt %>%
     select(disease, total) %>%
     unique() %>%
-    mutate(total = round(total / 1e3, 1), 
+    mutate(total = round(total / (1e3 * smoothness), 2), 
            label = paste0(label_str, total, " billion")) %>%
     # Set coordinates...
     mutate(year = year1 + 0.01 * (year2 - year1), 
@@ -166,11 +173,14 @@ plot_scope = function() {
   # ---- Produce plot ----
   
   # Plot FVP over time per pathogen and impact source
-  g = ggplot(plot_dt) +
+  g = ggplot(plot_dt) + # [disease == "Poliomyelitis"]
     aes(x = year, 
         y = fvps) +
-    geom_area(
-      mapping = aes(fill = class)) + 
+    geom_bar(
+      mapping  = aes(fill = class), 
+      stat     = "identity", 
+      position = "stack",  
+      width    = 1 / smoothness) +
     # Add total labels...
     geom_text(
       data    = label_dt, 
@@ -189,7 +199,8 @@ plot_scope = function() {
   # Set colours and legend title
   g = g + scale_fill_manual(
     values = unname(impact_colours), 
-    name   = "Source of impact estimates")
+    name   = "Source of impact estimates") +
+    guides(fill = guide_legend(reverse = TRUE))
   
   # Prettiy x axis
   g = g + scale_x_continuous(

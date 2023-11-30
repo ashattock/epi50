@@ -55,6 +55,7 @@ packages = c(
   "matrixStats",    # Matrix row and column operations
   "tgp",            # Latin hypercube sampler
   "splines",        # Spline fitting functions
+  "imputeTS",       # Linear interpolation in dplyr pipes
   # "pspline",        # Spline fitting functions
   # "wpp2022",        # Demographic data
   "countrycode",    # Country name <-> code transformation
