@@ -63,6 +63,7 @@ packages = c(
   "naniar",         # Data formatting functionality
   "ggpubr",         # Plotting functionality
   "scales",         # Plotting functionality
+  "lemon",          # Plotting functionality
   "pals",           # Colour palettes
   "colorspace")     # Colour palettes
 

@@ -12,170 +12,123 @@ plot_scope = function() {
   
   message("  > Plotting country-disease scope")
   
+  # Manually set tidy y axis limit
+  y_max = 625  # In millions
+  
   # Dictionary for full impact source descriptions
   impact_dict = c(
+    polio  = "Modelling group (external to VIMC)",
     vimc   = "Vaccine Impact Modelling Consortium (VIMC)", 
-    polio  = "Modelling group (external to VIMC)", 
     gbd    = "Global Burden of Disease (GBD)", 
     impute = "Geographic imputation model", 
     extrap = "Temporal extrapolation model")
   
   # Associated colours
+  # impact_colours = c(
+    # polio  = "#E06C4E", 
+    # vimc   = "#EC9D5E",
+    # gbd    = "#E2bE67", 
+    # impute = "#29988B", 
+    # extrap = "#254450")
+  
+  # Associated colours
   impact_colours = c(
-    vimc   = "deepskyblue1", 
-    polio  = "royalblue4", 
-    gbd    = "seagreen3", 
-    impute = "grey30", 
-    extrap = "grey60")
+    polio  = "#EB7D5B",
+    vimc   = "#FED23F",
+    gbd    = "#B5D33D",
+    impute = "#6CA2EA",
+    extrap = "#442288")
   
-  # ---- Model start years ----
+  # ---- Source of impact estimates ----
   
-  # VIMC pathogens: countries and years
-  vimc_start_dt = table("vimc_estimates") %>%
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    select(disease, country, year) %>%
-    # Min and max years for each pathogen...
-    group_by(disease, country) %>%
-    slice_min(year, with_ties = FALSE) %>%
-    ungroup() %>%
-    # TEMP for measles...
-    # mutate(year = ifelse(disease == "Measles", 1980, year)) %>%
-    rename(model_start = year) %>%
-    as.data.table()
-  
-  # Non-modelled pathogens: countries and years
-  gbd_start_dt = table("gbd_estimates") %>%
-    select(disease, country, year) %>%
-    # Min and max years for each pathogen...
-    group_by(disease, country) %>%
-    slice_min(year, with_ties = FALSE) %>%
-    ungroup() %>%
-    # xxx....
-    rename(model_start = year) %>%
-    as.data.table()
-  
-  # First year of data - when country imputation can begin
-  impute_start_dt = rbind(vimc_start_dt, gbd_start_dt) %>%
-    select(disease, impute_start = model_start) %>%
-    unique()
-  
-  # Other modelled pathogens: countries and years
-  #
-  # TEMP: Read in polio impact table when ready
-  polio_start = sample(1970 : 1980, 194, replace = TRUE)
-  polio_start_dt = data.table(
-    disease     = "Polio", 
-    country     = all_countries(), 
-    data_start  = pmax(polio_start, 1974), 
-    model_start = pmax(polio_start, 1974))
-  
-  # ---- Vaccine coverage start years ----
-  
-  # First years of data
-  data_start_dt = table("coverage") %>%
+  # Number of FVPs over time
+  fvps_dt = table("coverage") %>%
     filter(coverage > 0) %>%
     # Append disease details...
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
     left_join(y  = table("d_v_a"), 
               by = c("vaccine", "activity")) %>%
+    # Concept here is FVP, so remove birth dose & boosters...
+    filter(!grepl("_BX$", vaccine), 
+           !grepl("_BD$", vaccine)) %>% 
+    # Summarise over age...
+    group_by(disease, country, year) %>%
+    summarise(fvps = sum(fvps)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # TEMP: A placeholder for polio (copy of measles FVP)
+  polio_dt = fvps_dt %>%
+    filter(disease == "Measles") %>%
+    mutate(disease = "Polio", 
+           fvps = fvps * 1.02)
+  
+  # TEMP: Append these polio placeholder values
+  fvps_dt %<>% rbind(polio_dt)
+  
+  # ---- Source of impact estimates ----
+  
+  # GBD approach
+  gbd_dt = table("gbd_estimates") %>%
     select(disease, country, year) %>%
-    # First data point by disease and country...
-    group_by(disease, country) %>%
-    slice_min(year, with_ties = FALSE) %>%
-    ungroup() %>%
-    rename(data_start = year) %>%
-    # TEMP: Assume any non-zero coverage in 1980 also has some non-zero back to 1974
-    mutate(data_start = ifelse(data_start == 1980, 1974, data_start)) %>%
-    as.data.table()
+    unique() %>%
+    mutate(class = "gbd")
 
-  # Join all start points together
-  all_start_dt = data_start_dt %>%
-    left_join(y  = rbind(vimc_start_dt, gbd_start_dt), 
-              by = c("disease", "country")) %>%
-    rbind(polio_start_dt) %>%
-    mutate(model_start = pmax(model_start, data_start)) %>%
-    # Years of geographical imputation...
-    left_join(y  = impute_start_dt, 
-              by = "disease") %>%
-    mutate(impute_start = ifelse(
-      test = is.na(model_start), 
-      yes  = pmax(data_start, impute_start), 
-      no   = NA))
+  # VIMC impact estimates
+  vimc_dt = table("vimc_estimates") %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    select(disease, country, year) %>%
+    unique() %>%
+    mutate(class = "vimc")
   
-  # ---- Vaccine impact by source ----
+  # VIMC country imputation method
+  impute_dt = table("disease") %>%
+    filter(source == "vimc") %>%
+    select(disease) %>%
+    expand_grid(
+      country = all_countries(), 
+      year    = unique(vimc_dt$year)) %>%
+    left_join(y  = vimc_dt, 
+              by = c("disease", "country", "year")) %>%
+    filter(is.na(class)) %>%
+    mutate(class = "impute") %>%
+    as.data.table()
   
-  # Temporal extrapolation model
-  extrap_dt = all_start_dt %>%
-    mutate(any_start = pmax(
-      model_start, impute_start, na.rm = TRUE)) %>%
-    filter(data_start < any_start) %>%
-    select(disease, country, 
-           x0 = data_start,
-           x1 = data_start, 
-           x2 = any_start) %>%
-    mutate(class = "extrap")
+  # Other modelled pathogens
+  #
+  # TEMP: Read in polio impact table when ready
+  polio_dt = fvps_dt %>%
+    filter(disease == "Polio") %>%
+    select(disease, country, year) %>%
+    mutate(class = "polio")
   
-  # Geographical imputation model
-  impute_dt = all_start_dt %>%
-    filter(is.na(model_start)) %>%
-    select(disease, country, 
-           x0 = data_start,
-           x1 = impute_start) %>%
-    mutate(x2 = 2024,  
-           class = "impute")
+  # ---- Construct plotting datatable ----
   
-  # Source of impact: VIMC
-  vimc_dt = all_start_dt %>%
-    inner_join(y  = vimc_start_dt[, .(disease, country)], 
-               by = c("disease", "country")) %>%
-    select(disease, country, 
-           x0 = data_start,
-           x1 = model_start) %>%
-    mutate(x2 = 2024,  
-           class = "vimc")
-  
-  # Source of impact: GBD
-  gbd_dt = all_start_dt %>%
-    inner_join(y  = gbd_start_dt[, .(disease, country)], 
-               by = c("disease", "country")) %>%
-    select(disease, country, 
-           x0 = data_start,
-           x1 = model_start) %>%
-    mutate(x2 = 2024,  
-           class = "gbd")
-  
-  # Source of impact: other modelling group
-  polio_dt = all_start_dt %>%
-    inner_join(y  = polio_start_dt[, .(disease, country)], 
-               by = c("disease", "country")) %>%
-    select(disease, country, 
-           x0 = data_start,
-           x1 = model_start) %>%
-    mutate(x2 = 2024,  
-           class = "polio")
-  
-  # ---- Produce plot ----
-  
-  # Most bars need to sit side by side
-  dodge_dt = rbind(vimc_dt, gbd_dt, polio_dt) %>%
-    rbind(impute_dt) %>% 
-    arrange(disease, class, x0) %>%
-    group_by(disease) %>%
-    mutate(n = 1 : n()) %>%
+  # Combine all impact sources
+  all_dt = rbind(gbd_dt, vimc_dt, impute_dt, polio_dt) %>%
+    # Append FVPs...
+    right_join(y  = fvps_dt, 
+               by = c("disease", "country", "year")) %>%
+    # Anything not yet specified is time-exrapolated...
+    mutate(class = ifelse(is.na(class), "extrap", class)) %>%
+    group_by(disease, class, year) %>%
+    summarise(fvps = sum(fvps)) %>%
     ungroup() %>%
     as.data.table()
   
-  # With the temporal extrapolation on either end
-  append_dt = dodge_dt %>%
-    select(disease, country, n) %>%
-    inner_join(y  = extrap_dt, 
-               by = c("disease", "country")) %>%
-    select(all_of(names(dodge_dt)))
-  
-  # Combine it all together and format
-  plot_dt = rbind(dodge_dt, append_dt) %>%
+  # Fill in trivial years with zero for are plot
+  plot_dt = expand_grid(
+    disease = unique(fvps_dt$disease), 
+    class   = names(impact_dict), 
+    year    = o$analysis_years) %>%
+    # Append results and source of impact...
+    left_join(y  = all_dt, 
+              by = c("disease", "class", "year")) %>%
+    replace_na(list(fvps = 0)) %>%
+    # Convert to units of millions...
+    mutate(fvps = fvps / 1e6) %>%
     # Use impact source descriptions...
     mutate(class = recode(class, !!!impact_dict), 
            class = factor(class, impact_dict)) %>%
@@ -183,49 +136,93 @@ plot_scope = function() {
     left_join(y  = table("disease"), 
               by = "disease") %>%
     replace_na(list(disease_name = "Poliomyelitis")) %>%
-    # Set disease order...
-    select(disease = disease_name, class, n, x1, x2) %>%
-    arrange(desc(disease), class, n) %>%
-    mutate(disease = fct_inorder(disease))
+    # Total number of FVP over time...
+    group_by(disease) %>%
+    mutate(total = sum(fvps)) %>%
+    ungroup() %>%
+    # And use this to set disease order...
+    arrange(desc(total), disease, class, year) %>%
+    select(disease = disease_name, class, year, fvps, total) %>%
+    mutate(disease = fct_inorder(disease)) %>%
+    as.data.table()
   
-  # ---- Produce plot ----
+  # ---- Construct label datatable ----
   
-  # Plot bars, coloured by source of impact
-  g = ggplot(plot_dt) + 
-    aes(xmin  = x1, 
-        xmax  = x2, 
-        y     = disease, 
-        color = class, 
-        group = -n) + 
-    geom_linerange(position = position_dodge(width = 0.8))
-  
-  # Set colours and legend title
-  colours = unname(impact_colours[names(impact_dict)])
-  g = g + scale_color_manual(values = colours, 
-                             name = "Source of impact estimates")
-  
-  # Axes limits
+  # Year range of analysis
   year1 = min(o$analysis_years)
   year2 = max(o$analysis_years)
   
-  # Prettiy axes
+  label_str = paste0(year1, "-", year2, " total: ")
+  
+  label_dt = plot_dt %>%
+    select(disease, total) %>%
+    unique() %>%
+    mutate(total = round(total / 1e3, 1), 
+           label = paste0(label_str, total, " billion")) %>%
+    # Set coordinates...
+    mutate(year = year1 + 0.01 * (year2 - year1), 
+           fvps = y_max * 0.9)
+  
+  # ---- Produce plot ----
+  
+  # Plot FVP over time per pathogen and impact source
+  g = ggplot(plot_dt) +
+    aes(x = year, 
+        y = fvps) +
+    geom_area(
+      mapping = aes(fill = class)) + 
+    # Add total labels...
+    geom_text(
+      data    = label_dt, 
+      mapping = aes(label = label), 
+      size    = 3.5,
+      hjust   = 0, 
+      vjust   = 1) + 
+    # Some intricate faceting...
+    facet_rep_wrap(
+      facets = ~disease, 
+      ncol   = 1, 
+      labeller = label_wrap_gen(width = 20), 
+      strip.position = "right", 
+      repeat.tick.labels = FALSE)
+    
+  # Set colours and legend title
+  g = g + scale_fill_manual(
+    values = unname(impact_colours), 
+    name   = "Source of impact estimates")
+  
+  # Prettiy x axis
   g = g + scale_x_continuous(
     limits = c(year1, year2), 
     expand = expansion(mult = c(0, 0)), 
-    breaks = seq(year1, year2, by = 10))
+    breaks = seq(year1, year2, by = 5))
+  
+  # Prettiy y axis
+  g = g + scale_y_continuous(
+    name   = "Number of people receiving final primary dose (in millions)", 
+    limits = c(0, y_max), 
+    labels = comma,
+    expand = expansion(mult = c(0, 0)))
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.text     = element_text(size = 11),
-          axis.title    = element_blank(),
-          axis.line     = element_blank(),
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-          legend.title  = element_text(size = 13),
+    theme(strip.text    = element_text(size = 14),
+          strip.text.y  = element_text(angle = 0, hjust = 0),
+          strip.background = element_blank(), 
+          axis.title.x  = element_blank(),
+          axis.title.y  = element_text(size = 20, margin = 
+                                          margin(l = 10, r = 20)),
+          axis.text     = element_text(size = 8),
+          axis.ticks    = element_blank(), 
+          axis.line     = element_line(linewidth = 0.25),
+          panel.spacing = unit(-0.6, "lines"), 
+          panel.grid.major.y = element_line(linewidth = 0.25),
+          legend.title  = element_text(size = 14),
           legend.text   = element_text(size = 11),
           legend.key    = element_blank(),
           legend.position = "right", 
-          legend.key.height = unit(1.8, "lines"),
-          legend.key.width  = unit(1.8, "lines"))
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
   
   # Save to file
   save_fig(g, "Country-disease scope", dir = "methodology")
