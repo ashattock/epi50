@@ -36,9 +36,9 @@ run_non_modelled = function() {
 
   # Compile all results
   compile_outputs(diseases)
-  
+
   # ---- Plot results ----
-  
+
   # Effective coverage with waning immunity for non-modelled pathogens
   plot_effective_coverage()
   
@@ -140,12 +140,13 @@ effective_coverage = function(disease) {
   
   # ---- Overall effective coverage ----
   
-  message(" - Applying booster weighting")
+  message(" - Calculating effective coverage")
   
   # TODO: Can we avoid this conversion back to coverage?
   
   effective_list = list()
   
+  # Iterate through vacicne types
   for (vaccine_type in unique(vaccine_dt$type)) {
     
     # Convert effective FVPs to effective coverage
@@ -181,6 +182,7 @@ effective_coverage = function(disease) {
               pop       = mean(pop)) %>%
     ungroup() %>%
     mutate(coverage = pmin(effective / pop, effective_capped)) %>%
+    replace_na(list(coverage = 0)) %>%
     select(-effective, -pop) %>%
     as.data.table()
   
@@ -282,7 +284,6 @@ deaths_averted = function(disease) {
     # Estimate deaths without a vaccine and deaths averted...
     mutate(deaths_without = deaths_disease / (1 - coverage), 
            deaths_averted = deaths_without - deaths_disease) %>%
-    
     select(country, disease, year, age, deaths_disease, deaths_averted) %>%
     as.data.table()
   
@@ -302,6 +303,8 @@ deaths_averted = function(disease) {
       yes  = "booster", 
       no   = "primary")) %>%
     select(d_v_a_id, schedule)
+  
+  # browser() # Issue with Per booster weighting (prob caused by wP/aP)
   
   # We'll split impact across schedules by previously calculated weighting
   averted_vaccine = averted_disease %>%

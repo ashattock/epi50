@@ -5,4 +5,4 @@ core*
 input/wpp/*.csv
 input/sia_coverage.csv
 input/wiise_coverage.csv
-output/
+output*

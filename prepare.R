@@ -19,19 +19,19 @@ run_prepare = function() {
   
   # Convert config yaml files to datatables
   prepare_config_tables()
-  
+
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
-  
+
   # Parse vaccine efficacy profile for non-VIMC pathogens
   prepare_vaccine_efficacy()
 
   # Prepare GBD estimates of deaths for non-VIMC pathogens
   prepare_gbd_estimates()
-  
+
   # Prepare GBD covariates for extrapolating to non-VIMC countries
   prepare_gbd_covariates()
-  
+
   # Prepare demography-related estimates from WPP
   prepare_demography()
   

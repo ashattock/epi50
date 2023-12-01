@@ -22,6 +22,19 @@ set_options = function(do_step = NA) {
 
   # Prepare output directory system
   o = prepare_dirs(o)  # See directories.R
+  
+  # ---- Time settings ----
+  
+  # Years to analyse
+  o$analysis_years = 1974 : 2024  # Vaccine deployed across these dates
+  
+  # Year and age ranges stored in coverage database
+  o$data_years = 1980 : 2024
+  o$data_ages  = 0 : 95
+  
+  # ---- Data settings ----
+  
+  o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
 
   # ---- Non-linear impact assumptions ----
 
@@ -38,16 +51,7 @@ set_options = function(do_step = NA) {
 
   # Metric with which to select best fitting model
   o$model_metric = "r2"  # OPTIONS: "aicc" or "r2"
-
-  # ---- Time settings ----
-
-  # Years to analyse
-  o$analysis_years = 1974 : 2024  # Vaccine deployed across these dates
-
-  # Year and age ranges stored in coverage database
-  o$data_years = 1980 : 2024
-  o$data_ages  = 0 : 95
-
+  
   # ---- Uncertainty settings ----
 
   # Flag for reproducible uncertainty draws (consistent randomly sampled seeds)
