@@ -32,7 +32,12 @@ run_impute = function() {
   
   # Impute missing countries for all d-v-a combinations
   impute_dt = table("d_v_a") %>%
-    pluck("d_v_a_id") %>%
+    # Filter for VIMC pathogens only...
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    # Apply geographical imputation model... 
+    pull("d_v_a_id") %>%
     lapply(do_impute, target = target_dt) %>%
     rbindlist() %>%
     # Merge VIMC estimates with those just imputed...
