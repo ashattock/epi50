@@ -24,7 +24,8 @@ run_impact = function() {
   
   message(" - Preparing FVP-impact data")
   
-  data_dt = load_data()
+  # Prepare impact-FVP data to fit to
+  data_dt = get_impact_data()
   
   # Exploratory plots of data used to fit impact functions
   plot_impact_data()
@@ -149,25 +150,7 @@ run_impact = function() {
 # ---------------------------------------------------------
 # xxxxxxxx
 # ---------------------------------------------------------
-load_data = function() {
-  
-  # Load impact estimates from VIMC (inlcuding imputed)
-  #
-  # NOTE: Result of imputation is already in cumulative form
-  vimc_dt = read_rds("impute", "impute_result")
-  
-  # Load non-modelled impact estimates
-  gbd_dt = read_rds("non_modelled", "deaths_averted_vaccine") %>%
-    # Convert to cumulative FVP and impact...
-    group_by(country, d_v_a_id) %>%
-    mutate(fvps_cum   = cumsum(fvps), 
-           impact_cum = cumsum(impact)) %>%
-    ungroup() %>%
-    # Tidy up...
-    select(country, d_v_a_id, year, 
-           fvps   = fvps_cum, 
-           impact = impact_cum) %>%
-    as.data.table()
+get_impact_data = function() {
   
   # Population size of each country over time
   pop_dt = table("wpp_pop") %>%
@@ -176,14 +159,38 @@ load_data = function() {
     ungroup() %>%
     as.data.table()
   
-  # Impact estimates per capita from all sources
-  data_dt = rbind(vimc_dt, gbd_dt) %>%
+  # Load impact estimates from VIMC (inlcuding imputed)
+  #
+  # NOTE: Result of imputation is already in cumulative form
+  vimc_dt = read_rds("impute", "impute_result") %>%
+    # Scale results to per capita...
+    left_join(y  = pop_dt, 
+              by = c("country", "year")) %>%
+    mutate(fvps   = fvps / pop, 
+           impact = impact / pop) %>%
+    select(-pop)
+  
+  # Load non-modelled impact estimates
+  gbd_dt = read_rds("non_modelled", "deaths_averted_vaccine") %>%
     # Scale results to per capita...
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
     mutate(fvps   = fvps / pop, 
            impact = impact / pop) %>%
     select(-pop) %>%
+    # Convert to cumulative FVP and impact...
+    group_by(country, d_v_a_id) %>%
+    mutate(fvps_cum   = cumsum(fvps), 
+           impact_cum = cumsum(impact)) %>%
+    ungroup() %>%
+    # Tidy up...
+    select(country, d_v_a_id, year,
+           fvps   = fvps_cum,
+           impact = impact_cum) %>%
+    as.data.table()
+  
+  # Impact estimates per capita from all sources
+  data_dt = rbind(vimc_dt, gbd_dt) %>%
     # Impact per FVP...
     mutate(impact_fvp = impact / fvps) %>%
     # Ingore cases with a single data point...
