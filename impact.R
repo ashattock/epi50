@@ -151,9 +151,23 @@ run_impact = function() {
 # ---------------------------------------------------------
 load_data = function() {
   
-  # Load impact estimates from VIMC (incl imputed) and non-modelled
-  vimc_dt = read_rds("impute",       "impute_result")
-  gbd_dt  = read_rds("non_modelled", "deaths_averted_vaccine")
+  # Load impact estimates from VIMC (inlcuding imputed)
+  #
+  # NOTE: Result of imputation is already in cumulative form
+  vimc_dt = read_rds("impute", "impute_result")
+  
+  # Load non-modelled impact estimates
+  gbd_dt = read_rds("non_modelled", "deaths_averted_vaccine") %>%
+    # Convert to cumulative FVP and impact...
+    group_by(country, d_v_a_id) %>%
+    mutate(fvps_cum   = cumsum(fvps), 
+           impact_cum = cumsum(impact)) %>%
+    ungroup() %>%
+    # Tidy up...
+    select(country, d_v_a_id, year, 
+           fvps   = fvps_cum, 
+           impact = impact_cum) %>%
+    as.data.table()
   
   # Population size of each country over time
   pop_dt = table("wpp_pop") %>%

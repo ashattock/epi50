@@ -34,6 +34,9 @@ set_options = function(do_step = NA) {
   
   # ---- Data settings ----
   
+  # Smooth non-modelled coverage to better align with GBD burden estimates
+  #
+  # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
 
   # ---- Non-linear impact assumptions ----

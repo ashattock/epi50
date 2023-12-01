@@ -239,6 +239,12 @@ calculate_fvps = function(coverage_dt) {
 # ---------------------------------------------------------
 smooth_non_modelled_fvps = function(coverage_dt) {
   
+  # If no coverage smoothing required, return out now
+  if (is.null(o$gbd_coverage_smoother))
+    return(coverage_dt)
+  
+  # Otherwise continue...
+  
   # Apply smoothing function to subset of data
   kernal_smooth = function(x, y) {
     
