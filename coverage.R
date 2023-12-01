@@ -24,7 +24,8 @@ prepare_coverage = function() {
     unique()
   
   # For other countries and years, extract coverage from WIISE database
-  wiise_dt = coverage_wiise(vimc_countries_dt)
+  wiise_dt = coverage_wiise(vimc_countries_dt) %>%
+    smooth_non_modelled_fvps()
   
   # Incorporate non-routine SIA data (from WIISE)
   sia_dt = coverage_sia(vimc_countries_dt)  # See sia.R
@@ -200,77 +201,6 @@ coverage_wiise = function(vimc_countries_dt) {
 }
 
 # ---------------------------------------------------------
-# Distribute across pertussis vaccine types by country and year
-# ---------------------------------------------------------
-wholecell_acellular_switch = function(coverage_dt) {
-  
-  # NOTE: A first attempt to defining when countries switched - to be improved
-  
-  # Details of who switched to acellular pertussis and when
-  #
-  # TODO: Do a more thorough job of this
-  switch = list(
-    year    = 1995,
-    economy = c("hic"), 
-    region  = c("EURO", "PAHO", "WPRO"))
-  
-  # Construct datatable of switch details 
-  switch_dt = table("country") %>%
-    filter(economy %in% switch$economy, 
-           region  %in% switch$region) %>%
-    mutate(switch_year = switch$year) %>%
-    select(country, switch_year)
-  
-  # IDs of both wholecell and acellular pertussis vaccines
-  id = list(
-    wp = table("v_a")[vaccine == "wPer3", v_a_id], 
-    ap = table("v_a")[vaccine == "aPer3", v_a_id])
-    
-  # Only a subset of that defined should be acelluar
-  acellular_dt = coverage_dt %>%
-    filter(v_a_id == id$ap) %>%
-    left_join(y  = switch_dt, 
-              by = "country") %>%
-    replace_na(list(switch_year = Inf)) %>%
-    filter(year > switch_year) %>%
-    select(-switch_year)
-  
-  # Everything else should be wholecell
-  wholecell_dt = acellular_dt %>%
-    select(country, year, age, source) %>%
-    mutate(remove = TRUE) %>%
-    full_join(y  = coverage_dt, 
-              by = c("country", "year", "age", "source")) %>%
-    filter(v_a_id %in% unlist(id), 
-           is.na(remove)) %>%
-    select(-remove) %>%
-    # Covert to wholecell...
-    mutate(v_a_id = id$wp) %>%
-    group_by(country, v_a_id, year, age, source) %>%
-    summarise(fvps   = sum(fvps), 
-              cohort = mean(cohort)) %>%
-    ungroup() %>%
-    # Recalculate coverage...
-    mutate(coverage = pmin(fvps / cohort, 1)) %>%
-    select(all_of(names(coverage_dt))) %>%
-    as.data.table()
-
-  # Recombine all data
-  switched_dt = coverage_dt %>%
-    filter(!v_a_id %in% unlist(id)) %>%
-    rbind(wholecell_dt) %>%
-    rbind(acellular_dt) %>%
-    arrange(country, v_a_id, year, age)
-  
-  # Sanity check that we haven't altered total number of FVPs
-  diff = sum(coverage_dt$fvps) - sum(switched_dt$fvps)
-  if (abs(diff) > 1e-6)
-    stop("FVPs have been lost/gained through wholecell-acellular switch")
-    
-  return(switched_dt)
-}
-
-# ---------------------------------------------------------
 # Effect of multiple booster doses for DTP
 # ---------------------------------------------------------
 calculate_fvps = function(coverage_dt) {
@@ -302,5 +232,159 @@ calculate_fvps = function(coverage_dt) {
     mutate(coverage = pmin(fvps / cohort, 1))
   
   return(fvps_dt)
+}
+
+# ---------------------------------------------------------
+# Apply smoother for non-modelled pathogens
+# ---------------------------------------------------------
+smooth_non_modelled_fvps = function(coverage_dt) {
+  
+  # Apply smoothing function to subset of data
+  kernal_smooth = function(x, y) {
+    
+    # Smooth with kernel (stats package)
+    if (o$gbd_coverage_smoother == "kernel")
+      fit = ksmooth(x, y, "normal", bandwidth = 10, x.points = x)
+    
+    # Smooth with splines (stats package)
+    if (o$gbd_coverage_smoother == "spline")
+      fit = smooth.spline(x, y, all.knots = TRUE) 
+    
+    # Extract smoothed values
+    fvps_smooth = fit$y
+    
+    return(fvps_smooth)
+  }
+  
+  # Vaccine IDs to apply to: non-modelled pathogens only
+  apply_id = table("disease") %>%
+    filter(source == "gbd") %>%
+    left_join(y  = table("d_v_a"), 
+              by = "disease") %>%
+    left_join(y  = table("v_a"), 
+              by = c("vaccine", "activity")) %>%
+    pull(v_a_id)
+  
+  # Apply smoothing
+  smooth_dt = coverage_dt %>%
+    select(-cohort, -coverage) %>%
+    filter(v_a_id %in% apply_id) %>%
+    group_by(country, v_a_id, age) %>%
+    mutate(fvps_smooth = kernal_smooth(year, fvps)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  g1 = ggplot(smooth_dt) +
+    aes(x = year, colour = country, alpha = age) +
+    geom_point(aes(y = fvps), 
+               show.legend = FALSE) +
+    geom_line(aes(y = fvps_smooth), 
+              show.legend = FALSE) + 
+    facet_wrap(~v_a_id)
+  
+  diagnostic_dt = smooth_dt %>% 
+    # Summarise for vaccine...
+    group_by(v_a_id) %>% 
+    summarise(fvps = sum(fvps), 
+              fvps_smooth = sum(fvps_smooth)) %>% 
+    ungroup() %>%
+    mutate(diff = fvps - fvps_smooth, 
+           abs  = abs(diff)) %>% # / fvps) %>%
+    arrange(abs) %>%
+    mutate(rank = 1 : n()) %>%
+    as.data.table()
+  
+  g2 = ggplot(diagnostic_dt) +
+    aes(x = rank, y = diff, fill = abs) +
+    geom_col(show.legend = FALSE) +
+    coord_flip()
+  
+  # Insert smoothed avlues into full coverage datatable
+  smoothed_coverage_dt = smooth_dt %>%
+    # Re-append year-age cohort size... 
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    select(country, v_a_id, year, age, 
+           fvps   = fvps_smooth, 
+           cohort = pop) %>%
+    # Recalculate annual coverage...
+    mutate(coverage = pmin(fvps / cohort, 1)) %>%
+    # Append non-smoothed coverage...
+    bind_rows(coverage_dt[!v_a_id %in% apply_id]) %>%
+    fill(source, .direction = "updown") %>%
+    arrange(country, v_a_id, year, age)
+  
+  return(smoothed_coverage_dt)
+}
+
+# ---------------------------------------------------------
+# Distribute across pertussis vaccine types by country and year
+# ---------------------------------------------------------
+wholecell_acellular_switch = function(coverage_dt) {
+  
+  # NOTE: A first attempt to defining when countries switched - to be improved
+  
+  # Details of who switched to acellular pertussis and when
+  #
+  # TODO: Do a more thorough job of this
+  switch = list(
+    year    = 1995,
+    economy = c("hic"), 
+    region  = c("EURO", "PAHO", "WPRO"))
+  
+  # Construct datatable of switch details 
+  switch_dt = table("country") %>%
+    filter(economy %in% switch$economy, 
+           region  %in% switch$region) %>%
+    mutate(switch_year = switch$year) %>%
+    select(country, switch_year)
+  
+  # IDs of both wholecell and acellular pertussis vaccines
+  id = list(
+    wp = table("v_a")[vaccine == "wPer3", v_a_id], 
+    ap = table("v_a")[vaccine == "aPer3", v_a_id])
+  
+  # Only a subset of that defined should be acelluar
+  acellular_dt = coverage_dt %>%
+    filter(v_a_id == id$ap) %>%
+    left_join(y  = switch_dt, 
+              by = "country") %>%
+    replace_na(list(switch_year = Inf)) %>%
+    filter(year > switch_year) %>%
+    select(-switch_year)
+  
+  # Everything else should be wholecell
+  wholecell_dt = acellular_dt %>%
+    select(country, year, age, source) %>%
+    mutate(remove = TRUE) %>%
+    full_join(y  = coverage_dt, 
+              by = c("country", "year", "age", "source")) %>%
+    filter(v_a_id %in% unlist(id), 
+           is.na(remove)) %>%
+    select(-remove) %>%
+    # Covert to wholecell...
+    mutate(v_a_id = id$wp) %>%
+    group_by(country, v_a_id, year, age, source) %>%
+    summarise(fvps   = sum(fvps), 
+              cohort = mean(cohort)) %>%
+    ungroup() %>%
+    # Recalculate coverage...
+    mutate(coverage = pmin(fvps / cohort, 1)) %>%
+    select(all_of(names(coverage_dt))) %>%
+    as.data.table()
+  
+  # Recombine all data
+  switched_dt = coverage_dt %>%
+    filter(!v_a_id %in% unlist(id)) %>%
+    rbind(wholecell_dt) %>%
+    rbind(acellular_dt) %>%
+    arrange(country, v_a_id, year, age)
+  
+  # Sanity check that we haven't altered total number of FVPs
+  diff = sum(coverage_dt$fvps) - sum(switched_dt$fvps)
+  if (abs(diff) > 1e-6)
+    stop("FVPs have been lost/gained through wholecell-acellular switch")
+  
+  return(switched_dt)
 }
 
