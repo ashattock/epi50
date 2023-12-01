@@ -60,6 +60,7 @@ packages = c(
   # "wpp2022",        # Demographic data
   "countrycode",    # Country name <-> code transformation
   "yaml",           # Data loading functionality
+  "parallel",       # Local parallelisation
   "lubridate",      # Data formatting functionality
   "naniar",         # Data formatting functionality
   "ggpubr",         # Plotting functionality

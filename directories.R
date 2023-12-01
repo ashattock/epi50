@@ -26,31 +26,35 @@ prepare_dirs = function(o) {
   pth$input  = file.path(pth$code, "input")
   pth$config = file.path(pth$code, "config")
   
+  # Path to log files
+  pth$log = file.path(pth$code, "log")
+  
   # ---- Output directories ----
   
   # Parent path of all output files
-  pth_output = file.path(pth$code, "output")
+  pth$output = file.path(pth$code, "output")
   
   # Path to cached data tables
-  pth$tables = file.path(pth_output, "0_tables")
+  pth$tables = file.path(pth$output, "0_tables")
   
   # Path to non-modelled assumptions and results
-  pth$non_modelled   = file.path(pth_output, "1_non_modelled")
+  pth$non_modelled   = file.path(pth$output, "1_non_modelled")
   pth$non_modelled_d = file.path(pth$non_modelled, "disease")
   pth$non_modelled_v = file.path(pth$non_modelled, "vaccine")
   pth$non_modelled_t = file.path(pth$non_modelled, "vaccine_type")
   pth$non_modelled_w = file.path(pth$non_modelled, "weights")
   
   # Path to imputatation and impact calculation files
-  pth$impute = file.path(pth_output, "2_impute")
-  pth$impact = file.path(pth_output, "3_impact")
+  pth$impute      = file.path(pth$output, "2_impute")
+  pth$impact      = file.path(pth$output, "3_impact")
+  pth$impact_runs = file.path(pth$impact, "runs")
   
   # Path to relative risk and impact factor files
-  # pth$uncertainty = file.path(pth_output, "3_uncertainty")
+  # pth$uncertainty = file.path(pth$output, "3_uncertainty")
   
   # Path to figures and other output resusts
-  pth$results = file.path(pth_output, "4_results")
-  pth$figures = file.path(pth_output, "5_figures")
+  pth$results = file.path(pth$output, "4_results")
+  pth$figures = file.path(pth$output, "5_figures")
   
   # Append paths to o list
   o = set_dirs(o, pth)

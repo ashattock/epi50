@@ -40,6 +40,11 @@ set_options = function(do_step = NA) {
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
 
   # ---- Non-linear impact assumptions ----
+  
+  # Use multiple cores to speed up impact function fitting
+  #
+  # NOTE: If running in parallel, number of cores autodetected
+  o$parallel_impact = FALSE  # OPTIONS: TRUE or FALSE
 
   # A very good fit is required to go non-linear
   #

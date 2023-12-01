@@ -28,113 +28,55 @@ run_impact = function() {
   data_dt = get_impact_data()
   
   # Exploratory plots of data used to fit impact functions
-  plot_impact_data()
+  # plot_impact_data()
   
-  # ---- Determine best fitting model ----
+  # ---- Model fitting ----
   
   message(" - Evaluating impact functions")
   
+  # Number of cores we'll use (only 1 if o$parallel_impact is off)
+  n_cores = ifelse(o$parallel_impact, detectCores(), 1)
+  
+  message("  > Using ", n_cores, " cores (see parallel_impact option)")
+  
   # Country-disease-vaccine-activity combinations
-  c_d_v_a = data_dt %>%
+  run_dt = data_dt %>%
     select(country, d_v_a_id) %>%
     unique()
   
-  # Number of rows in this table
-  n_row = nrow(c_d_v_a)
-  
-  # Functions we'll attempt to fit with
-  fns = fn_set()
-  
-  # Preallocate lists to store results
-  coef = aic = r2 = vector('list', n_row)
-  
+  # Index of country-d_v_a entries to run
+  run_idx = 1 : 10 # seq_len(nrow(run_dt))
+
   # Initiate progress bar
-  pb = start_progress_bar(n_row)
-  
-  # Iterate through as instances
-  for (i in seq_len(n_row)) {
-    x = c_d_v_a[i, ]
-    
-    # Attempt to fit all fns and determine most suitable
-    result = get_best_model(fns, data_dt, x$country, x$d_v_a_id)
-    
-    # Store results
-    coef[[i]] = result$coef
-    aic[[i]]  = result$aic
-    r2[[i]]   = result$r2
-    
-    # Update progress bar
-    setTxtProgressBar(pb, i)
-  }
-  
+  pb = progress_init(max(run_idx))
+
+  # Load and concatenate into single datatable (in parallel)
+  if (o$parallel_impact == TRUE)
+    result = mclapply(X    = run_idx,
+                      FUN  = get_best_model,
+                      run  = run_dt,
+                      data = data_dt,
+                      pb   = pb,
+                      mc.cores = n_cores)
+
+  # Load and concatenate into single datatable (consecutively)
+  if (o$parallel_impact == FALSE)
+    result = lapply(X    = run_idx,
+                    FUN  = get_best_model,
+                    run  = run_dt,
+                    data = data_dt,
+                    pb   = pb)
+
   # Close progress bar
-  close(pb)
+  progress_close(pb)
   
-  # ---- Store results ----
+  # ---- Model selection ----
   
-  message(" - Selecting best functions")
+  # Compile all results
+  compile_results(run_dt)
   
-  # Collapse all fn coefficients into single datatable
-  coef_dt = rbindlist(coef)
-  
-  # Save to file
-  save_rds(coef_dt, "impact", "coef") 
-  
-  # Collapse suitability metrics into single datatable
-  aic_dt = rbindlist(aic, fill = TRUE)
-  r2_dt  = rbindlist(r2,  fill = TRUE)
-  
-  # Save to file
-  save_rds(aic_dt, "impact", "aic")
-  save_rds(r2_dt,  "impact", "r2")
-  
-  if (o$model_metric == "aicc") {
-    
-    # Extract best fitting function based on key metrics
-    best_dt =
-      # Bind AICc and R-squared results
-      rbind(aic_dt %>% pivot_longer(cols = names(fns)),
-            r2_dt  %>% pivot_longer(cols = names(fns))) %>%
-      pivot_wider(names_from  = c(name, metric),
-                  values_from = value) %>%
-      # If we hit thresholds, trivialise result...
-      # mutate(lin0_aicc = ifelse(lin0_r2 > o$r2_threshold0, -Inf, lin0_aicc),
-      #        log3_aicc = ifelse(log3_r2 < o$r2_threshold1, Inf, log3_aicc)) %>%
-      select(country, d_v_a_id, lin0 = lin0_aicc, log3 = log3_aicc) %>%
-      # Select function with lowest AICc...
-      pivot_longer(cols = names(fns),
-                   names_to = "fn") %>%
-      group_by(country, d_v_a_id) %>%
-      slice_min(value, n = 1, with_ties = FALSE) %>%
-      ungroup() %>%
-      # Tidy up...
-      select(country, d_v_a_id, fn) %>%
-      as.data.table()
-  }
-  
-  if (o$model_metric == "r2") {
-    
-    # Extract best fitting function based on key metrics
-    best_dt = 
-      # Bind AICc and R-squared results
-      rbind(aic_dt %>% pivot_longer(cols = names(fns)), 
-            r2_dt  %>% pivot_longer(cols = names(fns))) %>%
-      pivot_wider(names_from  = c(name, metric), 
-                  values_from = value) %>%
-      select(country, d_v_a_id, lin0 = lin0_r2, log3 = log3_r2) %>%
-      # Select function with highest R-squared...
-      pivot_longer(cols = names(fns), 
-                   names_to = "fn") %>%
-      group_by(country, d_v_a_id) %>%
-      slice_max(value, n = 1, with_ties = FALSE) %>%
-      ungroup() %>%
-      # Tidy up...
-      select(country, d_v_a_id, fn) %>%
-      as.data.table()
-  }
-  
-  # Save to file
-  save_rds(best_dt, "impact", "best_model")
+  # Select best function for each country-d_v_a combination
+  model_selection()
   
   # ---- Plot results ----
   
@@ -148,7 +90,7 @@ run_impact = function() {
 }
 
 # ---------------------------------------------------------
-# xxxxxxxx
+# Prepare impact-FVP data to fit to
 # ---------------------------------------------------------
 get_impact_data = function() {
   
@@ -230,24 +172,30 @@ fn_set = function(dict = FALSE) {
 # ---------------------------------------------------------
 # Parent function to determine best fitting function
 # ---------------------------------------------------------
-get_best_model = function(fns, data_dt, country, d_v_a_id) {
+get_best_model = function(idx, run, data, pb) {
+  
+  # ID for this run - used to save result
+  run_id = paste(run[idx], collapse = "_")
   
   # Reduce data down to what we're interested in
-  c_d_v_a_dt = data_dt %>%
-    filter(country  == !!country, 
-           d_v_a_id == !!d_v_a_id) %>%
+  fit_data_dt = data %>%
+    filter(country  == run[idx, country],
+           d_v_a_id == run[idx, d_v_a_id]) %>%
     select(x = fvps,
            y = impact) %>%
     # Multiply impact for more consistent x-y scales...
     mutate(y = y * o$impact_scaler)
   
   # Do not fit if insufficient data
-  if (nrow(c_d_v_a_dt) <= 3)
+  if (nrow(fit_data_dt) <= 3)
     return()
   
   # Declare x and y values for which we want to determine a relationship
-  x = c_d_v_a_dt$x
-  y = c_d_v_a_dt$y
+  x = fit_data_dt$x
+  y = fit_data_dt$y
+  
+  # Functions we'll attempt to fit with
+  fns = fn_set()
   
   # Use optim algorithm to get good starting point for MLE
   start = credible_start(fns, x, y)
@@ -256,9 +204,10 @@ get_best_model = function(fns, data_dt, country, d_v_a_id) {
   fit = run_mle(fns, start, x, y)
   
   # Determine AICc value for model suitability
-  result = model_quality(fns, fit, country, d_v_a_id, x, y)
+  model_quality(fns, fit, x, y, run_id)
   
-  return(result)
+  # Update progress bar
+  progress_update(pb, idx)
 }
 
 # ---------------------------------------------------------
@@ -420,7 +369,7 @@ run_mle = function(fns, start, x, y, plot = FALSE) {
 # ---------------------------------------------------------
 # Determine model quality - primarily this is via AICc
 # ---------------------------------------------------------
-model_quality = function(fns, fit, country, d_v_a_id, x, y) {
+model_quality = function(fns, fit, x, y, run_id) {
   
   # Return out if no fits succesful 
   if (length(fit) == 0)
@@ -433,20 +382,26 @@ model_quality = function(fns, fit, country, d_v_a_id, x, y) {
   coef = data.table(var   = names(coef), 
                     value = coef) %>%
     separate(var, c("fn", "coef")) %>%
-    mutate(country = country, 
-           d_v_a_id     = d_v_a_id, 
+    mutate(run_id = run_id, 
            .before = 1)
+  
+  # Save to file
+  save_name = paste1(run_id, "coef")
+  save_rds(coef, "impact_runs", save_name) 
   
   # ---- AICc ----
   
   # Calculate AIC - adjusted for sample size
-  aic = sapply(fit, AICc) %>%
+  aicc = sapply(fit, AICc) %>%
     as.list() %>%
     as.data.table() %>%
-    mutate(country = country, 
-           d_v_a_id   = d_v_a_id, 
-           metric  = "aicc", 
+    mutate(run_id = run_id, 
+           metric = "aicc", 
            .before = 1)
+  
+  # Save to file
+  save_name = paste1(run_id, "aicc")
+  save_rds(aicc, "impact_runs", save_name) 
   
   # ---- R squared ----
   
@@ -477,12 +432,13 @@ model_quality = function(fns, fit, country, d_v_a_id, x, y) {
     lapply(function(a) r2_fn(a)) %>%
     setNames(names(fit)) %>%
     as.data.table() %>%
-    mutate(country = country, 
-           d_v_a_id   = d_v_a_id, 
-           metric  = "r2", 
+    mutate(run_id = run_id,
+           metric = "r2", 
            .before = 1)
   
-  return(list(coef = coef, aic = aic, r2 = r2))
+  # Save to file
+  save_name = paste1(run_id, "r2")
+  save_rds(r2, "impact_runs", save_name) 
 }
 
 # ---------------------------------------------------------
@@ -508,5 +464,88 @@ AICc = function(x) {
   aicc = aic_term # + pen_term
   
   return(aicc)
+}
+
+# ---------------------------------------------------------
+# Compile all results into full datatables
+# ---------------------------------------------------------
+compile_results = function(run_dt) {
+  
+  browser()
+  
+  # Store results
+  coef[[i]] = result$coef
+  aic[[i]]  = result$aic
+  r2[[i]]   = result$r2
+  
+  # Collapse all fn coefficients into single datatable
+  coef_dt = rbindlist(coef)
+  
+  # Save to file
+  save_rds(coef_dt, "impact", "coef") 
+  
+  # Collapse suitability metrics into single datatable
+  aic_dt = rbindlist(aic, fill = TRUE)
+  r2_dt  = rbindlist(r2,  fill = TRUE)
+  
+  # Save to file
+  save_rds(aic_dt, "impact", "aic")
+  save_rds(r2_dt,  "impact", "r2")
+}
+
+# ---------------------------------------------------------
+# Select best function considering complexity
+# ---------------------------------------------------------
+model_selection = function() {
+  
+  message(" - Selecting best functions")
+  
+  if (o$model_metric == "aicc") {
+    
+    # Extract best fitting function based on key metrics
+    best_dt =
+      # Bind AICc and R-squared results
+      rbind(aic_dt %>% pivot_longer(cols = names(fns)),
+            r2_dt  %>% pivot_longer(cols = names(fns))) %>%
+      pivot_wider(names_from  = c(name, metric),
+                  values_from = value) %>%
+      # If we hit thresholds, trivialise result...
+      # mutate(lin0_aicc = ifelse(lin0_r2 > o$r2_threshold0, -Inf, lin0_aicc),
+      #        log3_aicc = ifelse(log3_r2 < o$r2_threshold1, Inf, log3_aicc)) %>%
+      select(country, d_v_a_id, lin0 = lin0_aicc, log3 = log3_aicc) %>%
+      # Select function with lowest AICc...
+      pivot_longer(cols = names(fns),
+                   names_to = "fn") %>%
+      group_by(country, d_v_a_id) %>%
+      slice_min(value, n = 1, with_ties = FALSE) %>%
+      ungroup() %>%
+      # Tidy up...
+      select(country, d_v_a_id, fn) %>%
+      as.data.table()
+  }
+  
+  if (o$model_metric == "r2") {
+    
+    # Extract best fitting function based on key metrics
+    best_dt = 
+      # Bind AICc and R-squared results
+      rbind(aic_dt %>% pivot_longer(cols = names(fns)), 
+            r2_dt  %>% pivot_longer(cols = names(fns))) %>%
+      pivot_wider(names_from  = c(name, metric), 
+                  values_from = value) %>%
+      select(country, d_v_a_id, lin0 = lin0_r2, log3 = log3_r2) %>%
+      # Select function with highest R-squared...
+      pivot_longer(cols = names(fns), 
+                   names_to = "fn") %>%
+      group_by(country, d_v_a_id) %>%
+      slice_max(value, n = 1, with_ties = FALSE) %>%
+      ungroup() %>%
+      # Tidy up...
+      select(country, d_v_a_id, fn) %>%
+      as.data.table()
+  }
+  
+  # Save to file
+  save_rds(best_dt, "impact", "best_model")
 }
 

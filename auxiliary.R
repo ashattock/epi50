@@ -109,13 +109,23 @@ colour_scheme = function(map, pal = NULL, n = 1, ...) {
 # Create a log file (see function wait_for_jobs)
 # ---------------------------------------------------------
 create_bash_log = function(pth, log = NULL, err = NULL) {
-  for (this_name in c(log, err)) {
-    this_file = paste0(pth, this_name)
-    if (file.exists(this_file)) file.remove(this_file)
-    Sys.sleep(0.1)
-    file.create(this_file)
-    Sys.sleep(0.1)
+  
+  # Repeat for each file type
+  for (name in c(log, err)) {
+    file = paste0(pth, name)
+    
+    # Remove file is already exists
+    if (file.exists(file)) {
+      file.remove(file)
+      
+      # Allow file system to catch up
+      Sys.sleep(0.1)
+    }
+    
+    # Create new file
+    file.create(file)
   }
+  
   return(paste0(pth, log))
 }
 
@@ -348,6 +358,71 @@ normalise_0to1 = function(x, x_min = NULL, x_max = NULL, direction = "forward") 
 # Equivalent of paste, but with an underscore instead of space
 # ---------------------------------------------------------
 paste1 = function(...) paste(..., sep = "_")
+
+# ---------------------------------------------------------
+# Initiate log file and progress bar
+# ---------------------------------------------------------
+progress_init = function(n) {
+  
+  # Log file we'll write to and read
+  log_file = paste0(o$pth$log, "log.txt")
+  
+  # Remove file is already exists
+  if (file.exists(log_file)) {
+    file.remove(log_file)
+    
+    # Allow file system to catch up
+    Sys.sleep(0.1)
+  }
+  
+  # Create new file
+  file.create(log_file)
+  
+  # Initiate progress bar
+  pb = list(bar = start_progress_bar(n), n = n)
+  
+  return(pb)
+}
+
+# ---------------------------------------------------------
+# Write to log file and update progress bar
+# ---------------------------------------------------------
+progress_update = function(pb, idx) {
+  
+  # ---- Update log file ----
+  
+  # Log file we'll write to and read
+  log_file = paste0(o$pth$log, "log.txt")
+  
+  # Write job ID to log file
+  command = paste("echo", idx, ">>", log_file)
+  
+  # Execute command
+  system(command)
+  
+  # ---- Update progress bar ----
+  
+  # Allow file system to catch up
+  Sys.sleep(0.1)
+  
+  # Number of lines = number of completed jobs
+  k = nrow(fread(log_file))
+  
+  # Update progress bar
+  setTxtProgressBar(pb$bar, k)
+}
+
+# ---------------------------------------------------------
+# Close progress bar connection
+# ---------------------------------------------------------
+progress_close = function(pb) {
+  
+  # Report 100% complete (if not already)
+  setTxtProgressBar(pb$bar, pb$n)
+  
+  # Close the connection
+  close(pb$bar)
+}
 
 # ---------------------------------------------------------
 # Sub a directory name within a file path string
