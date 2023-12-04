@@ -54,22 +54,22 @@ run_impact = function() {
   # Initiate progress bar
   pb = progress_init(nrow(run_dt))
   
-  # # Load and concatenate into single datatable (in parallel)
-  # if (n_cores > 1)
-  #   mclapply(X    = run_dt$run_id,
-  #            FUN  = get_best_model,
-  #            run  = run_dt,
-  #            data = data_dt,
-  #            pb   = pb,
-  #            mc.cores = n_cores)
-  # 
-  # # Load and concatenate into single datatable (consecutively)
-  # if (n_cores == 1)
-  #   lapply(X    = run_dt$run_id,
-  #          FUN  = get_best_model,
-  #          run  = run_dt,
-  #          data = data_dt,
-  #          pb   = pb)
+  # Load and concatenate into single datatable (in parallel)
+  if (n_cores > 1)
+    mclapply(X    = run_dt$run_id,
+             FUN  = get_best_model,
+             run  = run_dt,
+             data = data_dt,
+             pb   = pb,
+             mc.cores = n_cores)
+
+  # Load and concatenate into single datatable (consecutively)
+  if (n_cores == 1)
+    lapply(X    = run_dt$run_id,
+           FUN  = get_best_model,
+           run  = run_dt,
+           data = data_dt,
+           pb   = pb)
   
   # Close progress bar
   progress_close(pb)

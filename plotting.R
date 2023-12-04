@@ -537,11 +537,13 @@ plot_non_modelled = function() {
   
   message("  > Plotting non-modelled impact results")
   
+  # ---- Plot by disease ----
+  
   # Load previously calculated total coverage file
   averted_dt = read_rds("non_modelled", "deaths_averted_disease")
   
   # Summarise results over country and age
-  plot_dt = averted_dt %>%
+  disease_dt = averted_dt %>%
     pivot_longer(cols = starts_with("deaths"), 
                  names_to = "metric") %>%
     group_by(disease, year, metric) %>%
@@ -551,7 +553,7 @@ plot_non_modelled = function() {
     as.data.table()
   
   # Plot deaths and deaths averted by disease
-  g = ggplot(plot_dt) + 
+  g = ggplot(disease_dt) + 
     aes(x = year, 
         y = value, 
         colour   = disease, 
@@ -564,6 +566,35 @@ plot_non_modelled = function() {
   
   # Save figure to file
   save_fig(g, "Deaths averted by disease", dir = "non_modelled")
+  
+  # ---- Plot by vaccine ----
+  
+  # Load previously calculated total coverage file
+  averted_dt = read_rds("non_modelled", "deaths_averted_vaccine")
+  
+  # Summarise results over country
+  vaccine_dt = averted_dt %>%
+    append_d_v_a_name() %>%
+    group_by(d_v_a_name, year) %>%
+    summarise(deaths_averted = sum(impact)) %>%
+    ungroup() %>%
+    arrange(d_v_a_name, year) %>%
+    as.data.table()
+  
+  # Plot deaths and deaths averted by disease
+  g = ggplot(vaccine_dt) + 
+    aes(x = year, 
+        y = deaths_averted, 
+        colour = d_v_a_name) + 
+    geom_line(show.legend = FALSE) + 
+    facet_wrap(~d_v_a_name,
+               scales = "free_y")
+  
+  # Set axis lower bound
+  g = g + ylim(0, NA)
+  
+  # Save figure to file
+  save_fig(g, "Deaths averted by vaccine", dir = "non_modelled")
 }
 
 # ---------------------------------------------------------

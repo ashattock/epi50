@@ -20,25 +20,25 @@ run_non_modelled = function() {
   diseases = table("disease") %>%
     filter(source == "gbd") %>%
     pull(disease)
-
+  
   # Iterate through these diseases
   for (disease in diseases) {
-
+    
     # Effective coverage considering waning immunity and boosters
     effective_coverage(disease)
-
+    
     # Deaths averted considering effective coverage and GBD disease burden
     deaths_averted(disease)
-
+    
     # Use deaths averted to calculate DALYs
     # dalys_averted(disease)  # See dalys.R
   }
-
+  
   # Compile all results
   compile_outputs(diseases)
-
+  
   # ---- Plot results ----
-
+  
   # Effective coverage with waning immunity for non-modelled pathogens
   plot_effective_coverage()
   
@@ -64,6 +64,7 @@ effective_coverage = function(disease) {
     mutate(type = str_remove(vaccine, "([0-9]+|_BX)$")) %>% 
     select(vaccine, type)
   
+  # Shorthand for vaccines for this disease
   vaccines = vaccine_dt$vaccine
   
   # Vaccine immunity efficacy profiles
@@ -134,12 +135,16 @@ effective_coverage = function(disease) {
   # Bind results of each vaccine / schedule
   immunity_dt = rbindlist(immunity_list)
   
+  # And save the result in it's own right
+  save_rds(immunity_dt, "non_modelled_d", "immunity", disease)
+  
   # ---- Overall effective coverage ----
   
   message(" - Calculating effective coverage")
   
   # TODO: Can we avoid this conversion back to coverage?
   
+  # Inititate list for effective coverage
   effective_list = list()
   
   # Iterate through vacicne types
@@ -150,7 +155,7 @@ effective_coverage = function(disease) {
       filter(type == vaccine_type) %>%
       select(-vaccine, -type) %>%
       # Weight between primary & booster...
-      weight_booster(disease) %>%
+      weight_booster(vaccine_type) %>%
       # Convert to effective coverage...
       left_join(y  = table("wpp_pop"),
                 by = c("country", "year", "age")) %>%
@@ -215,7 +220,7 @@ waning_immunity = function(data, profile) {
 # ---------------------------------------------------------
 # Weight between primary & booster for total effective FVPs
 # ---------------------------------------------------------
-weight_booster = function(immunity_dt, disease) {
+weight_booster = function(immunity_dt, type) {
   
   # Flag for whether vaccine has booster
   has_booster = "booster" %in% immunity_dt$schedule
@@ -238,7 +243,7 @@ weight_booster = function(immunity_dt, disease) {
     as.data.table()
   
   # Save this weighting to file
-  save_rds(weighting_dt, "non_modelled_w", "booster_weight", disease)
+  save_rds(weighting_dt, "non_modelled_w", "booster_weight", type)
   
   # TODO: I'm now questioning this, I think it should be:
   #       effective = primary * (1 - weight) + booster
@@ -288,38 +293,27 @@ deaths_averted = function(disease) {
   
   # ---- Attribute impact to vaccine schedule ----
   
-  # Booster weights (proportion of effective coverage attributable to boosters)
-  weight_dt = read_rds("non_modelled_w", "booster_weight", disease)
-  
-  # Vaccine schedule dictionary - map primary/booster to vaccine ID
-  schedule_dict = table("d_v_a") %>%
-    filter(disease == !!disease) %>%
-    mutate(schedule = ifelse(
-      test = grepl("_BX$", vaccine), 
-      yes  = "booster", 
-      no   = "primary")) %>%
-    select(d_v_a_id, schedule)
-  
-  # browser() # Issue with Per booster weighting (prob caused by wP/aP)
+  # Relative weighting of effective coverage for each vaccine
+  weight_dt = read_rds("non_modelled_d", "immunity", disease) %>%
+    left_join(y  = table("d_v_a"),
+              by = "vaccine") %>%
+    group_by(country, year, age) %>%
+    mutate(weight = effective / sum(effective)) %>%
+    ungroup() %>%
+    filter(!is.nan(weight)) %>%
+    select(d_v_a_id, vaccine, country, year, age, weight) %>%
+    as.data.table()
   
   # We'll split impact across schedules by previously calculated weighting
   averted_vaccine = averted_disease %>%
     # Attribute impact to each shedule...
     inner_join(y  = weight_dt, 
                by = c("country", "year", "age")) %>%
-    mutate(primary = deaths_averted * (1 - weight), 
-           booster = deaths_averted * weight) %>%
+    # mutate(deaths_averted = deaths_averted * weight) %>%
     # Summarise over age ...
-    group_by(country, year) %>%
-    summarise(primary = sum(primary), 
-              booster = sum(booster)) %>%
+    group_by(country, d_v_a_id, year) %>%
+    summarise(impact = sum(deaths_averted * weight)) %>%
     ungroup() %>%
-    # Map schedule to d_v_a_id...
-    pivot_longer(cols = c(primary, booster), 
-                 names_to  = "schedule", 
-                 values_to = "impact") %>%
-    inner_join(y  = schedule_dict, 
-               by = "schedule") %>%
     # Tidy up...
     select(country, d_v_a_id, year, impact) %>%
     arrange(country, d_v_a_id, year) %>%
