@@ -758,7 +758,10 @@ plot_covariates = function() {
   
   # Load imputation data for all d-v-a
   data_dt = table("d_v_a") %>%
-    pluck("d_v_a_id") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id) %>%
     lapply(load_data_fn) %>%
     rbindlist()
   
@@ -797,7 +800,10 @@ plot_impute_fit = function() {
   
   # Load imputation results for all d-v-a
   results_dt = table("d_v_a") %>%
-    pluck("d_v_a_id") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id) %>%
     lapply(load_results_fn) %>%
     rbindlist()
   
@@ -861,7 +867,10 @@ plot_impute_countries = function() {
   
   # Load imputation results for all d-v-a
   results_dt = table("d_v_a") %>%
-    pluck("d_v_a_id") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id) %>%
     lapply(load_results_fn) %>%
     rbindlist() %>%
     append_d_v_a_name()

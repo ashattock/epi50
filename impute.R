@@ -27,27 +27,27 @@ run_impute = function() {
   
   # Load target to fit to (impact per FVP)
   target_dt = get_target()
-  
+
   # ---- Perform imputation ----
-  
+
   # Impute missing countries for all d-v-a combinations
   impute_dt = table("d_v_a") %>%
     # Filter for VIMC pathogens only...
-    left_join(y  = table("disease"), 
+    left_join(y  = table("disease"),
               by = "disease") %>%
     filter(source == "vimc") %>%
-    # Apply geographical imputation model... 
+    # Apply geographical imputation model...
     pull("d_v_a_id") %>%
     lapply(do_impute, target = target_dt) %>%
     rbindlist() %>%
     # Merge VIMC estimates with those just imputed...
     mutate(impact = ifelse(
-      test = is.na(target), 
-      yes  = impact_impute, 
+      test = is.na(target),
+      yes  = impact_impute,
       no   = impact_cum)) %>%
-    select(country, d_v_a_id, year, 
+    select(country, d_v_a_id, year,
            fvps = fvps_cum, impact)
-  
+
   # Save imputed results to file
   save_rds(impute_dt, "impute", "impute_result")
   
