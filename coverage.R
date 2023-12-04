@@ -58,6 +58,9 @@ prepare_coverage = function() {
   # Plot total number of FVP over time
   plot_total_fvps()
   
+  # Plot coverage density by disease
+  plot_coverage()
+  
   # Coverage data density by age
   plot_coverage_age_density()
 }
@@ -122,7 +125,7 @@ coverage_wiise = function(vimc_countries_dt) {
   # ---- Wrangle WIISE data ----
   
   # Parse 'interventions' into EPI50 vaccines
-  data_dt = raw_dt %>%
+  intervention_dt = raw_dt %>%
     # Convert to lower case...
     setnames(names(.), tolower(names(.))) %>% 
     mutate_if(is.character, tolower) %>%
@@ -147,20 +150,27 @@ coverage_wiise = function(vimc_countries_dt) {
     # Salvage coverage from non-WUENIC sources...
     mutate(wuenic = ifelse(is.nan(wuenic), other, wuenic)) %>%
     select(country, intervention, year, coverage = wuenic) %>%
+    # Bound all non-trivial coverage values...
+    mutate(coverage = pmin(coverage, o$max_coverage)) %>%
     filter(coverage > 0) %>%
     # Interpret 'intervention'...
     left_join(y  = table("vaccine_dict"), 
               by = "intervention", 
               relationship = "many-to-many") %>%
     filter(!is.na(vaccine)) %>%
-    # Remove countries and years already covered by VIMC...
-    left_join(y  = vimc_countries_dt, 
-              by = c("country", "vaccine", "year")) %>%
-    filter(is.na(source)) %>%
     # Tidy up...
-    select(country, vaccine, year, coverage) %>%
-    arrange(country, vaccine, year) %>%
+    select(vaccine, intervention, country, year, coverage) %>%
+    arrange(vaccine, intervention, country, year) %>%
     as.data.table()
+  
+  # Plot coverage value density by intervention ID
+  # g = ggplot(intervention_dt) + 
+  #   aes(x = coverage, 
+  #       y = after_stat(count), 
+  #       colour = intervention,
+  #       fill   = intervention) + 
+  #   geom_density(alpha = 0.2) + 
+  #   facet_wrap(~vaccine)
   
   # Function for parsing and expanding to single age bins
   expand_age_fn = function(x)
@@ -178,7 +188,12 @@ coverage_wiise = function(vimc_countries_dt) {
     filter(activity %in% c("routine", "all"))
   
   # Append age and calculate FVPs
-  wiise_dt = data_dt %>%
+  wiise_dt = intervention_dt %>%
+    # Remove countries and years already covered by VIMC...
+    left_join(y  = vimc_countries_dt, 
+              by = c("country", "vaccine", "year")) %>%
+    filter(is.na(source)) %>%
+    select(-intervention, -source) %>%
     # Apply v_a ID...
     left_join(y  = v_a_dt, 
               by = c("vaccine")) %>%
@@ -190,7 +205,7 @@ coverage_wiise = function(vimc_countries_dt) {
     # Calculate fully vaccinated people...
     left_join(y  = table("wpp_pop"), 
               by = c("country", "year", "age")) %>%
-    mutate(doses = coverage * pop) %>%
+    mutate(sheduled_doses = coverage * pop) %>%
     calculate_fvps() %>%
     # Tidy up...
     arrange(country, v_a_id, year, age) %>%
@@ -207,13 +222,13 @@ calculate_fvps = function(coverage_dt) {
   
   # NOTES: 
   #  - Using mean for pop as all values should all equal
-  #  - Coverage bounded by 100%, but retain true FVPs
+  #  - Coverage bounded by o$max_coverage
   
   # For primary schedule, assume all new FVPs
   primary_dt = coverage_dt %>% 
     filter(!grepl("_BX$", vaccine)) %>%
     group_by(country, v_a_id, year, age) %>%
-    summarise(fvps   = sum(doses),  # Using sum
+    summarise(fvps   = sum(sheduled_doses),  # Using sum
               cohort = mean(pop)) %>%
     ungroup() %>%
     as.data.table()
@@ -222,14 +237,15 @@ calculate_fvps = function(coverage_dt) {
   booster_dt = coverage_dt %>% 
     filter(grepl("_BX$", vaccine)) %>%
     group_by(country, v_a_id, year, age) %>%
-    summarise(fvps   = max(doses),  # Using max
+    summarise(fvps   = max(sheduled_doses),  # Using max
               cohort = mean(pop)) %>%
     ungroup() %>%
     as.data.table()
   
   # Re-bind everything together and calculate coverage
   fvps_dt = rbind(primary_dt, booster_dt) %>%
-    mutate(coverage = pmin(fvps / cohort, 1))
+    mutate(fvps = pmin(fvps, cohort * o$max_coverage),
+           coverage = fvps / cohort)
   
   return(fvps_dt)
 }
@@ -280,30 +296,30 @@ smooth_non_modelled_fvps = function(coverage_dt) {
     ungroup() %>%
     as.data.table()
   
-  g1 = ggplot(smooth_dt) +
-    aes(x = year, colour = country, alpha = age) +
-    geom_point(aes(y = fvps), 
-               show.legend = FALSE) +
-    geom_line(aes(y = fvps_smooth), 
-              show.legend = FALSE) + 
-    facet_wrap(~v_a_id)
-  
-  diagnostic_dt = smooth_dt %>% 
-    # Summarise for vaccine...
-    group_by(v_a_id) %>% 
-    summarise(fvps = sum(fvps), 
-              fvps_smooth = sum(fvps_smooth)) %>% 
-    ungroup() %>%
-    mutate(diff = fvps - fvps_smooth, 
-           abs  = abs(diff)) %>% # / fvps) %>%
-    arrange(abs) %>%
-    mutate(rank = 1 : n()) %>%
-    as.data.table()
-  
-  g2 = ggplot(diagnostic_dt) +
-    aes(x = rank, y = diff, fill = abs) +
-    geom_col(show.legend = FALSE) +
-    coord_flip()
+  # g1 = ggplot(smooth_dt) +
+  #   aes(x = year, colour = country, alpha = age) +
+  #   geom_point(aes(y = fvps), 
+  #              show.legend = FALSE) +
+  #   geom_line(aes(y = fvps_smooth), 
+  #             show.legend = FALSE) + 
+  #   facet_wrap(~v_a_id)
+  # 
+  # diagnostic_dt = smooth_dt %>% 
+  #   # Summarise for vaccine...
+  #   group_by(v_a_id) %>% 
+  #   summarise(fvps = sum(fvps), 
+  #             fvps_smooth = sum(fvps_smooth)) %>% 
+  #   ungroup() %>%
+  #   mutate(diff = fvps - fvps_smooth, 
+  #          abs  = abs(diff)) %>% # / fvps) %>%
+  #   arrange(abs) %>%
+  #   mutate(rank = 1 : n()) %>%
+  #   as.data.table()
+  # 
+  # g2 = ggplot(diagnostic_dt) +
+  #   aes(x = rank, y = diff, fill = abs) +
+  #   geom_col(show.legend = FALSE) +
+  #   coord_flip()
   
   # Insert smoothed avlues into full coverage datatable
   smoothed_coverage_dt = smooth_dt %>%

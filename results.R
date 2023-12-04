@@ -27,6 +27,9 @@ run_results = function() {
     
     # Total number of FVP over time by source
     plot_total_fvps()
+    
+    # Plot coverage density by disease
+    plot_coverage()
 
     # Coverage data density by age
     plot_coverage_age_density()

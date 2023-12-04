@@ -14,10 +14,6 @@ table:
   disease: Hib
   vaccine: Hib3
   activity: routine
-# - d_v_a_id: 4
-#   disease: HPV
-#   vaccine: HPV
-#   activity: routine
 - d_v_a_id: 4
   disease: Measles
   vaccine: MCV1

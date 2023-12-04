@@ -69,7 +69,7 @@ plot_scope = function() {
     select(disease, country, year) %>%
     unique() %>%
     mutate(class = "gbd")
-
+  
   # VIMC approach
   vimc_dt = table("vimc_estimates") %>%
     left_join(y  = table("d_v_a"), 
@@ -195,7 +195,7 @@ plot_scope = function() {
       labeller = label_wrap_gen(width = 20), 
       strip.position = "right", 
       repeat.tick.labels = FALSE)
-    
+  
   # Set colours and legend title
   g = g + scale_fill_manual(
     values = unname(impact_colours), 
@@ -222,7 +222,7 @@ plot_scope = function() {
           strip.background = element_blank(), 
           axis.title.x  = element_blank(),
           axis.title.y  = element_text(size = 20, margin = 
-                                          margin(l = 10, r = 20)),
+                                         margin(l = 10, r = 20)),
           axis.text     = element_text(size = 8),
           axis.ticks    = element_blank(), 
           axis.line     = element_line(linewidth = 0.25),
@@ -347,6 +347,49 @@ plot_total_fvps = function() {
     
     # Save to file
     save_fig(g, paste0("FVPs by ", d_v), dir = save_dir)
+  }
+}
+
+# ---------------------------------------------------------
+# Plot coverage density by disease
+# ---------------------------------------------------------
+plot_coverage = function() {
+  
+  # All coverage values by disease, vaccine, and age class
+  all_coverage_dt = table("coverage") %>%
+    # Classify by age group...
+    mutate(age_group = ifelse(age == 0, "infant", "other")) %>%
+    # Classify by disease...
+    left_join(y  = table("v_a"), 
+              by = "v_a_id") %>%
+    left_join(y  = table("d_v_a"), 
+              by = c("vaccine", "activity")) %>%
+    # Tidy up...
+    select(disease, vaccine, age_group, coverage) %>%
+    arrange(disease, vaccine, age_group)
+  
+  # Details for file destination
+  save_name = "Coverage value density"
+  save_dir  = "data_visualisation"
+  
+  # Produce plot for both disease and vaccine
+  for (d_v in c("disease", "vaccine")) {
+    
+    # Select appropriate column: disease or vaccine
+    plot_dt = all_coverage_dt %>%
+      select(d_v = !!d_v, age_group, coverage)
+    
+    # Plot coverage value density
+    g = ggplot(plot_dt) + 
+      aes(x = coverage, 
+          y = after_stat(count), 
+          colour = age_group,
+          fill   = age_group) + 
+      geom_density(alpha = 0.2) + 
+      facet_wrap(~d_v)
+    
+    # Save to file
+    save_fig(g, save_name, d_v, dir = save_dir)
   }
 }
 

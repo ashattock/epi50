@@ -15,9 +15,6 @@ table:
 - vaccine: Hib3
   vaccine_name: "Haemophilus influenzae type b"
   age: 0
-# - vaccine: HPV
-#   vaccine_name: "Human papillomavirus"
-#   age: "8:13"
 - vaccine: MCV1
   vaccine_name: "Measles-containing (first dose)"
   age: 1

@@ -56,10 +56,6 @@ effective_coverage = function(disease) {
   # 2) Number of people covered with different vaccine / schedules
   # 3) Weight immunity by primary & booster dosing
   
-  # TODO: Why are so many values hitting this cap?...
-  
-  effective_capped = 0.95
-  
   # ---- Set up ----
   
   # Vaccines targeting this disease
@@ -158,7 +154,7 @@ effective_coverage = function(disease) {
       # Convert to effective coverage...
       left_join(y  = table("wpp_pop"),
                 by = c("country", "year", "age")) %>%
-      mutate(coverage = pmin(effective / pop, effective_capped)) %>%
+      mutate(coverage = pmin(effective / pop, o$max_coverage)) %>%
       replace_na(list(coverage = 0)) %>%
       # Append vaccine and disease details and tidy up...
       mutate(disease = disease, 
@@ -181,7 +177,7 @@ effective_coverage = function(disease) {
     summarise(effective = sum(effective), 
               pop       = mean(pop)) %>%
     ungroup() %>%
-    mutate(coverage = pmin(effective / pop, effective_capped)) %>%
+    mutate(coverage = pmin(effective / pop, o$max_coverage)) %>%
     replace_na(list(coverage = 0)) %>%
     select(-effective, -pop) %>%
     as.data.table()

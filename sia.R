@@ -29,10 +29,13 @@ coverage_sia = function(vimc_countries_dt) {
   
   # Data dictionary for converting to v_a
   data_dict = table("vaccine_dict") %>%
-    filter(!is.na(vaccine)) %>%
     left_join(y  = v_a_dt, 
               by = "vaccine") %>%
-    select(intervention, vaccine, v_a_id)
+    left_join(y  = table("sia_schedule"), 
+              by = "vaccine") %>%
+    filter(!is.na(v_a_id)) %>%
+    select(v_a_id, vaccine, intervention, schedule) %>%
+    arrange(v_a_id, intervention)
   
   # ---- Load and wrangle data ----
   
@@ -70,6 +73,21 @@ coverage_sia = function(vimc_countries_dt) {
     # Parse age groups...
     parse_age_groups()
   
+  # plot_dt = data_dt %>%
+  #   left_join(y  = data_dict, 
+  #             by = "intervention", 
+  #             relationship = "many-to-many") %>%
+  #   mutate(raw_coverage = doses / (schedule * pop)) %>%
+  #   select(raw_coverage, intervention, vaccine)
+  # 
+  # g = ggplot(plot_dt) +
+  #   aes(x = raw_coverage,
+  #       y = after_stat(count),
+  #       colour = intervention,
+  #       fill   = intervention) +
+  #   geom_density(alpha = 0.2) + 
+  #   facet_wrap(~vaccine, scales = "free")
+  
   # Interpret 'interventions'
   sia_dt = data_dt %>%
     # Convert to v_a...
@@ -83,6 +101,7 @@ coverage_sia = function(vimc_countries_dt) {
     filter(is.na(source)) %>%
     select(-source) %>%
     # Calculate FVPs...
+    mutate(sheduled_doses = doses / schedule) %>%
     calculate_fvps() %>%
     # Tidy up...
     arrange(country, v_a_id, year, age) %>%
