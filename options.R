@@ -38,27 +38,21 @@ set_options = function(do_step = NA) {
   #
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
+  
+  # Bound coverage values below x%
+  o$max_coverage = 0.99
 
   # ---- Non-linear impact assumptions ----
   
   # Use multiple cores to speed up impact function fitting
   #
-  # NOTE: If running in parallel, number of cores autodetected
-  o$parallel_impact = FALSE  # OPTIONS: TRUE or FALSE
-
-  # A very good fit is required to go non-linear
-  #
-  # NOTE: We also require a better AICc than the simple linear model
-  o$r2_threshold0 = 0.98  # Above this guarentees a linear model
-  o$r2_threshold1 = 0.95  # Non-linear models must be above this
-
+  # NOTE: Set to 1 to turn off (and fit sequentially)
+  o$n_cores = 1 # 28  # Set to NA to autodetect cores
+  
   # Multiply impact when fitting for more consistent FVP-impact scales
   o$impact_scaler = 1000
 
   o$eval_x_scale = 2
-
-  # Metric with which to select best fitting model
-  o$model_metric = "r2"  # OPTIONS: "aicc" or "r2"
   
   # ---- Uncertainty settings ----
 
