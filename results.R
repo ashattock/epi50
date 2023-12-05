@@ -33,15 +33,15 @@ run_results = function() {
 
     # Coverage data density by age
     plot_coverage_age_density()
-    
-    # SDI - HAQi relationship
-    plot_sdi_haqi()
   }
   
   # ---- Non-modelled plots ----
   
   # Check plotting flag
   if (o$plot_non_modelled) {
+    
+    # SDI - HAQi relationship
+    plot_sdi_haqi()
     
     # Plot vaccine efficacy profiles for non-modelled pathogens
     plot_vaccine_efficacy()

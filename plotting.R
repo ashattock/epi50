@@ -707,7 +707,7 @@ plot_sdi_haqi = function() {
     select(country) %>%
     unique() %>%
     mutate(source = "vimc") %>%
-    full_join(tibble(country = all_countries()), 
+    full_join(y  = all_countries(as_dt = TRUE), 
               by = "country") %>%
     replace_na(list(source = "non_vimc")) %>%
     arrange(country)
@@ -725,8 +725,7 @@ plot_sdi_haqi = function() {
     geom_line(aes(group = country))
   
   # Save figure to file
-  save_fig(g, "SDI vs HAQi by country", 
-           dir = "data_visualisation")
+  save_fig(g, "SDI vs HAQi by country", dir = "imputation")
 }
 
 # ---------------------------------------------------------

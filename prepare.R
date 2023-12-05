@@ -19,19 +19,22 @@ run_prepare = function() {
   
   # Convert config yaml files to datatables
   prepare_config_tables()
-
+  
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
-
+  
   # Parse vaccine efficacy profile for non-VIMC pathogens
   prepare_vaccine_efficacy()
-
+  
   # Prepare GBD estimates of deaths for non-VIMC pathogens
   prepare_gbd_estimates()
-
+  
   # Prepare GBD covariates for extrapolating to non-VIMC countries
   prepare_gbd_covariates()
-
+  
+  # Prepare country income status classification over time
+  prepare_income_status()
+  
   # Prepare demography-related estimates from WPP
   prepare_demography()
   
@@ -69,7 +72,7 @@ prepare_config_tables = function() {
     save_table(config_dt, file)
   }
   
-  # Other config-related tables...
+  # ---- Other config-related tables ----
   
   # Disease-vaccine table
   table("d_v_a") %>%
@@ -256,7 +259,7 @@ prepare_gbd_covariates = function() {
     select(country, year = year_id, haqi = val) %>%
     mutate(haqi = haqi / 100) %>%
     arrange(country, year)
-
+  
   # Function to load each SDI file
   load_sdi = function(name) {
     
@@ -274,11 +277,19 @@ prepare_gbd_covariates = function() {
     return(sdi_dt)
   }
   
+  # GBD country names
+  gbd_name_dt = table("country") %>%
+    mutate(gbd_alt_name = ifelse(
+      test = is.na(gbd_alt_name), 
+      yes  = country_name, 
+      no   = gbd_alt_name)) %>%
+    select(country, gbd_alt_name)
+  
   # Prepare GBD 2019 SDI for use as a covariate
   sdi_dt = rbind(load_sdi("gbd19_sdi_1970"), 
                  load_sdi("gbd19_sdi_1990")) %>%
     # Countries of interest...
-    inner_join(y  = table("country"),
+    inner_join(y  = gbd_name_dt,
                by = "gbd_alt_name") %>%
     select(country, year, sdi) %>%
     # Years of interest...
@@ -300,6 +311,56 @@ prepare_gbd_covariates = function() {
   
   # Plot SDI - HAQi relationship
   plot_sdi_haqi()
+}
+
+# ---------------------------------------------------------
+# Prepare country income status classification over time
+# ---------------------------------------------------------
+prepare_income_status = function() {
+  
+  message(" - Income status")
+  
+  # Path to data file
+  #
+  # SOURCE: https://datacatalogfiles.worldbank.org/ddh-published/0037712/
+  #         DR0090755/CLASS.xlsx?versionId=2023-11-16T18:35:30.5758473Z
+  #
+  # Alternatively, download 'Historical classification by income' Excel file from: 
+  # datacatalog.worldbank.org/search/dataset/0037712/World-Development-Indicators
+  file = paste0(o$pth$input, "worldbank_income_status.csv")
+  
+  # Full country-year combination
+  full_dt = expand_grid(
+    country = all_countries(), 
+    year    = o$analysis_years) %>%
+    as.data.table()
+  
+  # Load and format country income status over time
+  income_dt = fread(file, header = TRUE) %>%
+    # Countries of interest...
+    filter(country %in% all_countries()) %>%
+    select(-country_name) %>%
+    # Convert to tidy format...
+    pivot_longer(cols = -country, 
+                 names_to  = "year", 
+                 values_to = "income") %>%
+    # Country with all full country-year combo...
+    mutate(year = as.integer(year)) %>%
+    full_join(y  = full_dt, 
+              by = c("country", "year")) %>%
+    arrange(country, year) %>%
+    # Fill missing data with pro/preceding value...
+    mutate(income = ifelse(income == "", NA, income)) %>%
+    group_by(country) %>%
+    fill(income, .direction = "downup") %>%
+    ungroup() %>%
+    # Niue and Cook Islands missing, both are HIC...
+    replace_na(list(income = "H")) %>%
+    mutate(income = paste0(tolower(income), "ic")) %>%
+    as.data.table()
+    
+  # Save in tables cache
+  save_table(income_dt, "income_status")
 }
 
 # ---------------------------------------------------------
@@ -372,10 +433,14 @@ prepare_demography = function() {
 # ---------------------------------------------------------
 # Simple wrapper to load all countries
 # ---------------------------------------------------------
-all_countries = function() {
+all_countries = function(as_dt = FALSE) {
   
   # Pull all countries defined in config file
   countries = table("country")$country
+  
+  # Convert to simple datatable if desired
+  if (as_dt == TRUE)
+    countries = data.table(country = countries)
   
   return(countries)
 }
