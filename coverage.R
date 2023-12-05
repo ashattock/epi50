@@ -25,6 +25,9 @@ prepare_coverage = function() {
   
   # For other countries and years, extract coverage from WIISE database
   wiise_dt = coverage_wiise(vimc_countries_dt) %>%
+    # Assume linear 1974-1980 scale up...
+    linear_coverage_scaleup() %>%
+    # Smooth estimates to produce sensible impact estimates...
     smooth_non_modelled_fvps()
   
   # Incorporate non-routine SIA data (from WIISE)
@@ -54,6 +57,11 @@ prepare_coverage = function() {
   save_table(coverage_dt, "coverage")
   
   # ---- Data visualisation plots ----
+  
+  # Methodology pathogen-country-scope figure
+  plot_scope()
+  
+  browser()
   
   # Plot total number of FVP over time
   plot_total_fvps()
@@ -251,6 +259,28 @@ calculate_fvps = function(coverage_dt) {
 }
 
 # ---------------------------------------------------------
+# Assume a linear scale up prior to data start
+# ---------------------------------------------------------
+linear_coverage_scaleup = function(coverage_dt) {
+  
+  browser()
+  
+  economy_dt = table("country") %>%
+    select(country, economy)
+  
+  constant_dt = coverage_dt %>%
+    left_join(y  = economy_dt, 
+              by = "country") %>%
+    filter(year    == min(year), 
+           economy == "hic") %>%
+  
+  scaleup_dt = coverage_dt %>%
+    filter(year == min(year))
+  
+  return(scaleup_dt)
+}
+
+# ---------------------------------------------------------
 # Apply smoother for non-modelled pathogens
 # ---------------------------------------------------------
 smooth_non_modelled_fvps = function(coverage_dt) {
@@ -345,6 +375,8 @@ smooth_non_modelled_fvps = function(coverage_dt) {
 wholecell_acellular_switch = function(coverage_dt) {
   
   # NOTE: A first attempt to defining when countries switched - to be improved
+  
+  browser()
   
   # Details of who switched to acellular pertussis and when
   #
