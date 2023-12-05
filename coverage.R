@@ -28,7 +28,9 @@ prepare_coverage = function() {
     # Smooth estimates to produce sensible impact estimates...
     smooth_non_modelled_fvps() %>%
     # Assume linear 1974-1980 scale up...
-    linear_coverage_scaleup()
+    linear_coverage_scaleup() %>%
+    # Assume constant over most recent (post-COVID) years...
+    constant_coverage_extapolation()
   
   # Incorporate non-routine SIA data (from WIISE)
   sia_dt = coverage_sia(vimc_countries_dt)  # See sia.R
@@ -329,6 +331,41 @@ linear_coverage_scaleup = function(coverage_dt) {
   coverage_dt %<>%
     rbind(scaleup_dt) %>%
     rbind(constant_dt) %>%
+    arrange(country, v_a_id, year, age)
+  
+  return(coverage_dt)
+}
+
+# ---------------------------------------------------------
+# Assume constant coverage over most recent years...
+# ---------------------------------------------------------
+constant_coverage_extapolation = function(coverage_dt) {
+  
+  # Years we will extrapolate for
+  data_years   = unique(coverage_dt$year)
+  extrap_years = setdiff(o$analysis_years, data_years)
+  
+  # Extrapolate coverage data from most recent year
+  extrap_dt = coverage_dt %>%
+    # Remove reference to FVPs, we'll recalculate...
+    select(-fvps, -cohort) %>%
+    filter(year == max(year)) %>%
+    # KEY ASSUMPTION: Repeat coverage for most recent years...
+    select(-year) %>%
+    expand_grid(year = extrap_years) %>%
+    # Append cohort size and calculate FVPs...
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    rename(cohort = pop) %>%
+    mutate(fvps = cohort * coverage) %>%
+    # Tidy up...
+    select(all_of(names(coverage_dt))) %>%
+    arrange(country, v_a_id, year, age) %>%
+    as.data.table()
+  
+  # Bind these two datatables into coverage
+  coverage_dt %<>%
+    rbind(extrap_dt) %>%
     arrange(country, v_a_id, year, age)
   
   return(coverage_dt)

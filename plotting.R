@@ -62,8 +62,6 @@ plot_scope = function() {
   # TEMP: Append these polio placeholder values
   fvps_dt %<>% rbind(polio_dt)
   
-  browser()
-  
   # ---- Source of impact estimates ----
   
   # GBD approach
@@ -140,6 +138,7 @@ plot_scope = function() {
     ungroup() %>%
     # Convert to units of millions...
     mutate(fvps = fvps / 1e6) %>%
+    # filter(fvps > 0) %>%
     # Use impact source descriptions...
     mutate(class = recode(class, !!!impact_dict), 
            class = factor(class, rev(impact_dict))) %>%
@@ -175,7 +174,7 @@ plot_scope = function() {
   # ---- Produce plot ----
   
   # Plot FVP over time per pathogen and impact source
-  g = ggplot(plot_dt) + # [disease == "Poliomyelitis"]
+  g = ggplot(plot_dt) +
     aes(x = year, 
         y = fvps) +
     geom_bar(
@@ -206,7 +205,8 @@ plot_scope = function() {
   
   # Prettiy x axis
   g = g + scale_x_continuous(
-    limits = c(year1, year2), 
+    limits = c(year1 - 1 / smoothness , 
+               year2 + 1 / smoothness), 
     expand = expansion(mult = c(0, 0)), 
     breaks = seq(year1, year2, by = 5))
   
