@@ -47,7 +47,7 @@ set_options = function(do_step = NA) {
   # Use multiple cores to speed up impact function fitting
   #
   # NOTE: Set to 1 to turn off (and fit sequentially)
-  o$n_cores = 1 # 28  # Set to NA to autodetect cores
+  o$n_cores = 1  # Set to NA to autodetect cores
   
   # Multiply impact when fitting for more consistent FVP-impact scales
   o$impact_scaler = 1000

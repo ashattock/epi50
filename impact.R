@@ -41,7 +41,7 @@ run_impact = function() {
   # ... or use user-specified (ensuring viable value)
   n_cores = max(min(o$n_cores, detectCores()), 1)
   
-  message("  > Using ", n_cores, " core(s)")
+  message("  > Using ", n_cores, " cores")
   
   # Country-disease-vaccine-activity combinations
   run_dt = data_dt %>%
@@ -62,7 +62,7 @@ run_impact = function() {
              data = data_dt,
              pb   = pb,
              mc.cores = n_cores)
-
+  
   # Load and concatenate into single datatable (consecutively)
   if (n_cores == 1)
     lapply(X    = run_dt$run_id,
@@ -108,13 +108,7 @@ get_impact_data = function() {
   # Load impact estimates from VIMC (inlcuding imputed)
   #
   # NOTE: Result of imputation is already in cumulative form
-  vimc_dt = read_rds("impute", "impute_result") %>%
-    # Scale results to per capita...
-    left_join(y  = pop_dt, 
-              by = c("country", "year")) %>%
-    mutate(fvps   = fvps / pop, 
-           impact = impact / pop) %>%
-    select(-pop)
+  vimc_dt = read_rds("impute", "impute_result")
   
   # Load non-modelled impact estimates
   gbd_dt = read_rds("non_modelled", "deaths_averted_vaccine") %>%
@@ -126,13 +120,9 @@ get_impact_data = function() {
     select(-pop) %>%
     # Convert to cumulative FVP and impact...
     group_by(country, d_v_a_id) %>%
-    mutate(fvps_cum   = cumsum(fvps), 
-           impact_cum = cumsum(impact)) %>%
+    mutate(fvps   = cumsum(fvps), 
+           impact = cumsum(impact)) %>%
     ungroup() %>%
-    # Tidy up...
-    select(country, d_v_a_id, year,
-           fvps   = fvps_cum,
-           impact = impact_cum) %>%
     as.data.table()
   
   # Impact estimates per capita from all sources

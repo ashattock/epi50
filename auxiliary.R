@@ -403,7 +403,7 @@ progress_update = function(pb, idx) {
   # ---- Update progress bar ----
   
   # Allow file system to catch up
-  Sys.sleep(0.1)
+  # Sys.sleep(0.1)
   
   # Number of lines = number of completed jobs
   k = nrow(fread(log_file))
