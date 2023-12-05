@@ -25,10 +25,10 @@ prepare_coverage = function() {
   
   # For other countries and years, extract coverage from WIISE database
   wiise_dt = coverage_wiise(vimc_countries_dt) %>%
-    # Assume linear 1974-1980 scale up...
-    linear_coverage_scaleup() %>%
     # Smooth estimates to produce sensible impact estimates...
-    smooth_non_modelled_fvps()
+    smooth_non_modelled_fvps() %>%
+    # Assume linear 1974-1980 scale up...
+    linear_coverage_scaleup()
   
   # Incorporate non-routine SIA data (from WIISE)
   sia_dt = coverage_sia(vimc_countries_dt)  # See sia.R
@@ -60,8 +60,6 @@ prepare_coverage = function() {
   
   # Methodology pathogen-country-scope figure
   plot_scope()
-  
-  browser()
   
   # Plot total number of FVP over time
   plot_total_fvps()
@@ -263,21 +261,77 @@ calculate_fvps = function(coverage_dt) {
 # ---------------------------------------------------------
 linear_coverage_scaleup = function(coverage_dt) {
   
-  browser()
+  # Years we will scale up over
+  scaleup_years = setdiff(o$analysis_years, o$data_years)
   
-  economy_dt = table("country") %>%
-    select(country, economy)
-  
-  constant_dt = coverage_dt %>%
-    left_join(y  = economy_dt, 
-              by = "country") %>%
-    filter(year    == min(year), 
-           economy == "hic") %>%
-  
-  scaleup_dt = coverage_dt %>%
+  # Income status in first year of data
+  income_dt = coverage_dt %>%
+    # Remove reference to FVPs, we'll recalculate...
+    select(-fvps, -cohort) %>%
+    # Append income status over time...
+    left_join(y  = table("income_status"), 
+              by = c("country", "year")) %>%
+    # Non-trivial values from first year of data...
     filter(year == min(year))
   
-  return(scaleup_dt)
+  # Function to repeat trivialised coverage datatable for given year
+  rep_fn = function(rep_year)
+    income_dt %>% mutate(year = rep_year, coverage = NA)
+  
+  # For non-high-income countries, assume scale up from zero
+  scaleup_dt = scaleup_years %>%
+    # Repeat trivialised coverage datatable for each year
+    lapply(rep_fn) %>%
+    rbindlist() %>%
+    rbind(income_dt) %>%
+    arrange(v_a_id, country, age, year) %>%
+    # Only interested in non-HIC...
+    filter(income != "hic") %>%
+    # KEY ASSUMPTION: Set 1974 coverage to zero...
+    mutate(coverage = ifelse(
+      test = year == min(scaleup_years), 
+      yes  = 0, 
+      no   = coverage)) %>%
+    # Linearly interpolate from zero to 1980 coverage...
+    group_by(v_a_id, country, age) %>%
+    mutate(coverage = na_interpolation(coverage)) %>%
+    ungroup() %>%
+    # Remove 1980 value to avoid repetition...
+    filter(year %in% scaleup_years, 
+           coverage > 0) %>%
+    # Append cohort size and calculate FVPs...
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    rename(cohort = pop) %>%
+    mutate(fvps = cohort * coverage) %>%
+    # Tidy up...
+    select(all_of(names(coverage_dt))) %>%
+    arrange(country, v_a_id, year, age) %>%
+    as.data.table()
+  
+  # For high-income countries, assume constant over this period
+  constant_dt = income_dt %>%
+    filter(income == "hic") %>%
+    # KEY ASSUMPTION: Repeat coverage for early years...
+    select(-year) %>%
+    expand_grid(year = scaleup_years) %>%
+    # Append cohort size and calculate FVPs...
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    rename(cohort = pop) %>%
+    mutate(fvps = cohort * coverage) %>%
+    # Tidy up...
+    select(all_of(names(coverage_dt))) %>%
+    arrange(country, v_a_id, year, age) %>%
+    as.data.table()
+  
+  # Bind these two datatables into coverage
+  coverage_dt %<>%
+    rbind(scaleup_dt) %>%
+    rbind(constant_dt) %>%
+    arrange(country, v_a_id, year, age)
+  
+  return(coverage_dt)
 }
 
 # ---------------------------------------------------------
@@ -376,22 +430,14 @@ wholecell_acellular_switch = function(coverage_dt) {
   
   # NOTE: A first attempt to defining when countries switched - to be improved
   
-  browser()
-  
   # Details of who switched to acellular pertussis and when
   #
   # TODO: Do a more thorough job of this
-  switch = list(
-    year    = 1995,
-    economy = c("hic"), 
-    region  = c("EURO", "PAHO", "WPRO"))
-  
-  # Construct datatable of switch details 
-  switch_dt = table("country") %>%
-    filter(economy %in% switch$economy, 
-           region  %in% switch$region) %>%
-    mutate(switch_year = switch$year) %>%
-    select(country, switch_year)
+  switch_dt = table("income_status") %>%
+    filter(year   == o$wholecell_acellular_switch, 
+           income == "hic") %>%
+    mutate(year = as.numeric(year)) %>%
+    select(country, switch_year = year)
   
   # IDs of both wholecell and acellular pertussis vaccines
   id = list(

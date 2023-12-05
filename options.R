@@ -34,13 +34,16 @@ set_options = function(do_step = NA) {
   
   # ---- Data settings ----
   
+  # Bound coverage values below x%
+  o$max_coverage = 0.99
+  
+  # Year that high-income countries switch to acellular pertussis vaccine
+  o$wholecell_acellular_switch = 1995
+  
   # Smooth non-modelled coverage to better align with GBD burden estimates
   #
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
-  
-  # Bound coverage values below x%
-  o$max_coverage = 0.99
 
   # ---- Non-linear impact assumptions ----
   

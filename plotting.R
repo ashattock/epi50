@@ -20,9 +20,9 @@ plot_scope = function() {
   
   # Dictionary for full impact source descriptions
   impact_dict = c(
-    polio  = "Modelling group (external to VIMC)",
-    vimc   = "Vaccine Impact Modelling Consortium (VIMC)", 
-    gbd    = "Global Burden of Disease (GBD)", 
+    polio  = "Dynamic modelling (external to VIMC)",
+    vimc   = "Dynamic modelling (contributing to VIMC)", 
+    gbd    = "Static modelling", 
     impute = "Geographic imputation model", 
     extrap = "Temporal extrapolation model")
   
@@ -61,6 +61,8 @@ plot_scope = function() {
   
   # TEMP: Append these polio placeholder values
   fvps_dt %<>% rbind(polio_dt)
+  
+  browser()
   
   # ---- Source of impact estimates ----
   
@@ -236,7 +238,7 @@ plot_scope = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save to file
-  save_fig(g, "Country-disease scope", dir = "methodology")
+  save_fig(g, "Analysis scope", dir = "data_visualisation")
 }
 
 # ---------------------------------------------------------
