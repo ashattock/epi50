@@ -3,1166 +3,607 @@
 # Creates datatable: country_table
 table:
 - country: AFG
-  country_code: 1
   country_name: Afghanistan
-  gbd_alt_name: Afghanistan
   region: EMRO
-  economy: lic
 - country: AGO
-  country_code: 5
   country_name: Angola
-  gbd_alt_name: Angola
   region: AFRO
-  economy: lmic
 - country: ALB
-  country_code: 2
   country_name: Albania
-  gbd_alt_name: Albania
   region: EURO
-  economy: umic
 - country: AND
-  country_code: 4
   country_name: Andorra
-  gbd_alt_name: Andorra
   region: EURO
-  economy: hic
 - country: ARE
-  country_code: 183
   country_name: United Arab Emirates
-  gbd_alt_name: United Arab Emirates
   region: EMRO
-  economy: hic
 - country: ARG
-  country_code: 7
   country_name: Argentina
-  gbd_alt_name: Argentina
   region: PAHO
-  economy: umic
 - country: ARM
-  country_code: 8
   country_name: Armenia
-  gbd_alt_name: Armenia
   region: EURO
-  economy: umic
 - country: ATG
-  country_code: 6
   country_name: Antigua and Barbuda
-  gbd_alt_name: Antigua and Barbuda
   region: PAHO
-  economy: hic
 - country: AUS
-  country_code: 9
   country_name: Australia
-  gbd_alt_name: Australia
   region: WPRO
-  economy: hic
 - country: AUT
-  country_code: 10
   country_name: Austria
-  gbd_alt_name: Austria
   region: EURO
-  economy: hic
 - country: AZE
-  country_code: 11
   country_name: Azerbaijan
-  gbd_alt_name: Azerbaijan
   region: EURO
-  economy: umic
 - country: BDI
-  country_code: 28
   country_name: Burundi
-  gbd_alt_name: Burundi
   region: AFRO
-  economy: lic
 - country: BEL
-  country_code: 17
   country_name: Belgium
-  gbd_alt_name: Belgium
   region: EURO
-  economy: hic
 - country: BEN
-  country_code: 19
   country_name: Benin
-  gbd_alt_name: Benin
   region: AFRO
-  economy: lmic
 - country: BFA
-  country_code: 27
   country_name: Burkina Faso
-  gbd_alt_name: Burkina Faso
   region: AFRO
-  economy: lic
 - country: BGD
-  country_code: 14
   country_name: Bangladesh
-  gbd_alt_name: Bangladesh
   region: SEARO
-  economy: lmic
 - country: BGR
-  country_code: 26
   country_name: Bulgaria
-  gbd_alt_name: Bulgaria
   region: EURO
-  economy: umic
 - country: BHR
-  country_code: 13
   country_name: Bahrain
-  gbd_alt_name: Bahrain
   region: EMRO
-  economy: hic
 - country: BHS
-  country_code: 12
   country_name: Bahamas
   gbd_alt_name: The Bahamas
   region: PAHO
-  economy: hic
 - country: BIH
-  country_code: 22
   country_name: Bosnia and Herzegovina
-  gbd_alt_name: Bosnia and Herzegovina
   region: EURO
-  economy: umic
 - country: BLR
-  country_code: 16
   country_name: Belarus
-  gbd_alt_name: Belarus
   region: EURO
-  economy: umic
 - country: BLZ
-  country_code: 18
   country_name: Belize
-  gbd_alt_name: Belize
   region: PAHO
-  economy: umic
 - country: BOL
-  country_code: 21
   country_name: Bolivia (Plurinational State of)
   gbd_alt_name: Bolivia
   region: PAHO
-  economy: lmic
 - country: BRA
-  country_code: 24
   country_name: Brazil
-  gbd_alt_name: Brazil
   region: PAHO
-  economy: umic
 - country: BRB
-  country_code: 15
   country_name: Barbados
-  gbd_alt_name: Barbados
   region: PAHO
-  economy: hic
 - country: BRN
-  country_code: 25
   country_name: Brunei Darussalam
   gbd_alt_name: Brunei
   region: WPRO
-  economy: hic
 - country: BTN
-  country_code: 20
   country_name: Bhutan
-  gbd_alt_name: Bhutan
   region: SEARO
-  economy: lmic
 - country: BWA
-  country_code: 23
   country_name: Botswana
-  gbd_alt_name: Botswana
   region: AFRO
-  economy: umic
 - country: CAF
-  country_code: 33
   country_name: Central African Republic
-  gbd_alt_name: Central African Republic
   region: AFRO
-  economy: lic
 - country: CAN
-  country_code: 32
   country_name: Canada
-  gbd_alt_name: Canada
   region: PAHO
-  economy: hic
 - country: CHE
-  country_code: 169
   country_name: Switzerland
-  gbd_alt_name: Switzerland
   region: EURO
-  economy: hic
 - country: CHL
-  country_code: 35
   country_name: Chile
-  gbd_alt_name: Chile
   region: PAHO
-  economy: hic
 - country: CHN
-  country_code: 36
   country_name: China
-  gbd_alt_name: China
   region: WPRO
-  economy: umic
 - country: CIV
-  country_code: 46
   country_name: Côte d'Ivoire
-  gbd_alt_name: Côte d'Ivoire
   region: AFRO
-  economy: lmic
 - country: CMR
-  country_code: 31
   country_name: Cameroon
-  gbd_alt_name: Cameroon
   region: AFRO
-  economy: lmic
 - country: COD
-  country_code: 48
   country_name: Democratic Republic of the Congo
   gbd_alt_name: DR Congo
   region: AFRO
-  economy: lic
 - country: COG
-  country_code: 39
   country_name: Congo
   gbd_alt_name: Congo (Brazzaville)
   region: AFRO
-  economy: lmic
 - country: COK
-  country_code: 40
   country_name: Cook Islands
-  gbd_alt_name: Cook Islands
   region: WPRO
-  economy: umic
 - country: COL
-  country_code: 37
   country_name: Colombia
-  gbd_alt_name: Colombia
   region: PAHO
-  economy: umic
 - country: COM
-  country_code: 38
   country_name: Comoros
-  gbd_alt_name: Comoros
   region: AFRO
-  economy: lmic
 - country: CPV
-  country_code: 29
   country_name: Cabo Verde
   gbd_alt_name: Cape Verde
   region: AFRO
-  economy: lmic
 - country: CRI
-  country_code: 41
   country_name: Costa Rica
-  gbd_alt_name: Costa Rica
   region: PAHO
-  economy: umic
 - country: CUB
-  country_code: 43
   country_name: Cuba
-  gbd_alt_name: Cuba
   region: PAHO
-  economy: umic
 - country: CYP
-  country_code: 44
   country_name: Cyprus
-  gbd_alt_name: Cyprus
   region: EURO
-  economy: hic
 - country: CZE
-  country_code: 45
   country_name: Czechia
   gbd_alt_name: Czech Republic
   region: EURO
-  economy: hic
 - country: DEU
-  country_code: 67
   country_name: Germany
-  gbd_alt_name: Germany
   region: EURO
-  economy: hic
 - country: DJI
-  country_code: 50
   country_name: Djibouti
-  gbd_alt_name: Djibouti
   region: EMRO
-  economy: lmic
 - country: DMA
-  country_code: 51
   country_name: Dominica
-  gbd_alt_name: Dominica
   region: PAHO
-  economy: umic
 - country: DNK
-  country_code: 49
   country_name: Denmark
-  gbd_alt_name: Denmark
   region: EURO
-  economy: hic
 - country: DOM
-  country_code: 52
   country_name: Dominican Republic
-  gbd_alt_name: Dominican Republic
   region: PAHO
-  economy: umic
 - country: DZA
-  country_code: 3
   country_name: Algeria
-  gbd_alt_name: Algeria
   region: AFRO
-  economy: lmic
 - country: ECU
-  country_code: 53
   country_name: Ecuador
-  gbd_alt_name: Ecuador
   region: PAHO
-  economy: umic
 - country: EGY
-  country_code: 54
   country_name: Egypt
-  gbd_alt_name: Egypt
   region: EMRO
-  economy: lmic
 - country: ERI
-  country_code: 57
   country_name: Eritrea
-  gbd_alt_name: Eritrea
   region: AFRO
-  economy: lic
 - country: ESP
-  country_code: 164
   country_name: Spain
-  gbd_alt_name: Spain
   region: EURO
-  economy: hic
 - country: EST
-  country_code: 58
   country_name: Estonia
-  gbd_alt_name: Estonia
   region: EURO
-  economy: hic
 - country: ETH
-  country_code: 60
   country_name: Ethiopia
-  gbd_alt_name: Ethiopia
   region: AFRO
-  economy: lic
 - country: FIN
-  country_code: 62
   country_name: Finland
-  gbd_alt_name: Finland
   region: EURO
-  economy: hic
 - country: FJI
-  country_code: 61
   country_name: Fiji
-  gbd_alt_name: Fiji
   region: WPRO
-  economy: umic
 - country: FRA
-  country_code: 63
   country_name: France
-  gbd_alt_name: France
   region: EURO
-  economy: hic
 - country: FSM
-  country_code: 112
   country_name: Micronesia (Federated States of)
   gbd_alt_name: Federated States of Micronesia
   region: WPRO
-  economy: lmic
 - country: GAB
-  country_code: 64
   country_name: Gabon
-  gbd_alt_name: Gabon
   region: AFRO
-  economy: umic
 - country: GBR
-  country_code: 184
   country_name: United Kingdom
   gbd_alt_name: UK
   region: EURO
-  economy: hic
 - country: GEO
-  country_code: 66
   country_name: Georgia
-  gbd_alt_name: Georgia
   region: EURO
-  economy: umic
 - country: GHA
-  country_code: 68
   country_name: Ghana
-  gbd_alt_name: Ghana
   region: AFRO
-  economy: lmic
 - country: GIN
-  country_code: 72
   country_name: Guinea
-  gbd_alt_name: Guinea
   region: AFRO
-  economy: lic
 - country: GMB
-  country_code: 65
   country_name: Gambia
   gbd_alt_name: The Gambia
   region: AFRO
-  economy: lic
 - country: GNB
-  country_code: 73
   country_name: Guinea-Bissau
-  gbd_alt_name: Guinea-Bissau
   region: AFRO
-  economy: lic
 - country: GNQ
-  country_code: 56
   country_name: Equatorial Guinea
-  gbd_alt_name: Equatorial Guinea
   region: AFRO
-  economy: umic
 - country: GRC
-  country_code: 69
   country_name: Greece
-  gbd_alt_name: Greece
   region: EURO
-  economy: hic
 - country: GRD
-  country_code: 70
   country_name: Grenada
-  gbd_alt_name: Grenada
   region: PAHO
-  economy: umic
 - country: GTM
-  country_code: 71
   country_name: Guatemala
-  gbd_alt_name: Guatemala
   region: PAHO
-  economy: umic
 - country: GUY
-  country_code: 74
   country_name: Guyana
-  gbd_alt_name: Guyana
   region: PAHO
-  economy: umic
 - country: HND
-  country_code: 76
   country_name: Honduras
-  gbd_alt_name: Honduras
   region: PAHO
-  economy: lmic
 - country: HRV
-  country_code: 42
   country_name: Croatia
-  gbd_alt_name: Croatia
   region: EURO
-  economy: hic
 - country: HTI
-  country_code: 75
   country_name: Haiti
-  gbd_alt_name: Haiti
   region: PAHO
-  economy: lic
 - country: HUN
-  country_code: 77
   country_name: Hungary
-  gbd_alt_name: Hungary
   region: EURO
-  economy: hic
 - country: IDN
-  country_code: 80
   country_name: Indonesia
-  gbd_alt_name: Indonesia
   region: SEARO
-  economy: umic
 - country: IND
-  country_code: 79
   country_name: India
-  gbd_alt_name: India
   region: SEARO
-  economy: lmic
 - country: IRL
-  country_code: 83
   country_name: Ireland
-  gbd_alt_name: Ireland
   region: EURO
-  economy: hic
 - country: IRN
-  country_code: 81
   country_name: Iran (Islamic Republic of)
   gbd_alt_name: Iran
   region: EMRO
-  economy: umic
 - country: IRQ
-  country_code: 82
   country_name: Iraq
-  gbd_alt_name: Iraq
   region: EMRO
-  economy: umic
 - country: ISL
-  country_code: 78
   country_name: Iceland
-  gbd_alt_name: Iceland
   region: EURO
-  economy: hic
 - country: ISR
-  country_code: 84
   country_name: Israel
-  gbd_alt_name: Israel
   region: EURO
-  economy: hic
 - country: ITA
-  country_code: 85
   country_name: Italy
-  gbd_alt_name: Italy
   region: EURO
-  economy: hic
 - country: JAM
-  country_code: 86
   country_name: Jamaica
-  gbd_alt_name: Jamaica
   region: PAHO
-  economy: umic
 - country: JOR
-  country_code: 88
   country_name: Jordan
-  gbd_alt_name: Jordan
   region: EMRO
-  economy: umic
 - country: JPN
-  country_code: 87
   country_name: Japan
-  gbd_alt_name: Japan
   region: WPRO
-  economy: hic
 - country: KAZ
-  country_code: 89
   country_name: Kazakhstan
-  gbd_alt_name: Kazakhstan
   region: EURO
-  economy: umic
 - country: KEN
-  country_code: 90
   country_name: Kenya
-  gbd_alt_name: Kenya
   region: AFRO
-  economy: lmic
 - country: KGZ
-  country_code: 93
   country_name: Kyrgyzstan
-  gbd_alt_name: Kyrgyzstan
   region: EURO
-  economy: lmic
 - country: KHM
-  country_code: 30
   country_name: Cambodia
-  gbd_alt_name: Cambodia
   region: WPRO
-  economy: lmic
 - country: KIR
-  country_code: 91
   country_name: Kiribati
-  gbd_alt_name: Kiribati
   region: WPRO
-  economy: lmic
 - country: KNA
-  country_code: 146
   country_name: Saint Kitts and Nevis
-  gbd_alt_name: Saint Kitts and Nevis
   region: PAHO
-  economy: hic
 - country: KOR
-  country_code: 141
   country_name: Republic of Korea
   gbd_alt_name: South Korea
   region: WPRO
-  economy: hic
 - country: KWT
-  country_code: 92
   country_name: Kuwait
-  gbd_alt_name: Kuwait
   region: EMRO
-  economy: hic
 - country: LAO
-  country_code: 94
   country_name: Lao People's Democratic Republic
   gbd_alt_name: Laos
   region: WPRO
-  economy: lmic
 - country: LBN
-  country_code: 96
   country_name: Lebanon
-  gbd_alt_name: Lebanon
   region: EMRO
-  economy: umic
 - country: LBR
-  country_code: 98
   country_name: Liberia
-  gbd_alt_name: Liberia
   region: AFRO
-  economy: lic
 - country: LBY
-  country_code: 99
   country_name: Libya
-  gbd_alt_name: Libya
   region: EMRO
-  economy: umic
 - country: LCA
-  country_code: 147
   country_name: Saint Lucia
-  gbd_alt_name: Saint Lucia
   region: PAHO
-  economy: umic
 - country: LKA
-  country_code: 165
   country_name: Sri Lanka
-  gbd_alt_name: Sri Lanka
   region: SEARO
-  economy: lmic
 - country: LSO
-  country_code: 97
   country_name: Lesotho
-  gbd_alt_name: Lesotho
   region: AFRO
-  economy: lmic
 - country: LTU
-  country_code: 100
   country_name: Lithuania
-  gbd_alt_name: Lithuania
   region: EURO
-  economy: hic
 - country: LUX
-  country_code: 101
   country_name: Luxembourg
-  gbd_alt_name: Luxembourg
   region: EURO
-  economy: hic
 - country: LVA
-  country_code: 95
   country_name: Latvia
-  gbd_alt_name: Latvia
   region: EURO
-  economy: hic
 - country: MAR
-  country_code: 116
   country_name: Morocco
-  gbd_alt_name: Morocco
   region: EMRO
-  economy: lmic
 - country: MCO
-  country_code: 113
   country_name: Monaco
-  gbd_alt_name: Monaco
   region: EURO
-  economy: hic
 - country: MDA
-  country_code: 142
   country_name: Republic of Moldova
   gbd_alt_name: Moldova
   region: EURO
-  economy: lmic
 - country: MDG
-  country_code: 102
   country_name: Madagascar
-  gbd_alt_name: Madagascar
   region: AFRO
-  economy: lic
 - country: MDV
-  country_code: 105
   country_name: Maldives
-  gbd_alt_name: Maldives
   region: SEARO
-  economy: umic
 - country: MEX
-  country_code: 111
   country_name: Mexico
-  gbd_alt_name: Mexico
   region: PAHO
-  economy: umic
 - country: MHL
-  country_code: 108
   country_name: Marshall Islands
-  gbd_alt_name: Marshall Islands
   region: WPRO
-  economy: umic
 - country: MKD
-  country_code: 128
   country_name: North Macedonia
-  gbd_alt_name: North Macedonia
   region: EURO
-  economy: umic
 - country: MLI
-  country_code: 106
   country_name: Mali
-  gbd_alt_name: Mali
   region: AFRO
-  economy: lic
 - country: MLT
-  country_code: 107
   country_name: Malta
-  gbd_alt_name: Malta
   region: EURO
-  economy: hic
 - country: MMR
-  country_code: 118
   country_name: Myanmar
-  gbd_alt_name: Myanmar
   region: SEARO
-  economy: lmic
 - country: MNE
-  country_code: 115
   country_name: Montenegro
-  gbd_alt_name: Montenegro
   region: EURO
-  economy: umic
 - country: MNG
-  country_code: 114
   country_name: Mongolia
-  gbd_alt_name: Mongolia
   region: WPRO
-  economy: lmic
 - country: MOZ
-  country_code: 117
   country_name: Mozambique
-  gbd_alt_name: Mozambique
   region: AFRO
-  economy: lic
 - country: MRT
-  country_code: 109
   country_name: Mauritania
-  gbd_alt_name: Mauritania
   region: AFRO
-  economy: lmic
 - country: MUS
-  country_code: 110
   country_name: Mauritius
-  gbd_alt_name: Mauritius
   region: AFRO
-  economy: hic
 - country: MWI
-  country_code: 103
   country_name: Malawi
-  gbd_alt_name: Malawi
   region: AFRO
-  economy: lic
 - country: MYS
-  country_code: 104
   country_name: Malaysia
-  gbd_alt_name: Malaysia
   region: WPRO
-  economy: umic
 - country: NAM
-  country_code: 119
   country_name: Namibia
-  gbd_alt_name: Namibia
   region: AFRO
-  economy: umic
 - country: NER
-  country_code: 125
   country_name: Niger
-  gbd_alt_name: Niger
   region: AFRO
-  economy: lic
 - country: NGA
-  country_code: 126
   country_name: Nigeria
-  gbd_alt_name: Nigeria
   region: AFRO
-  economy: lmic
 - country: NIC
-  country_code: 124
   country_name: Nicaragua
-  gbd_alt_name: Nicaragua
   region: PAHO
-  economy: lmic
 - country: NIU
-  country_code: 127
   country_name: Niue
-  gbd_alt_name: Niue
   region: WPRO
-  economy: umic
 - country: NLD
-  country_code: 122
   country_name: Netherlands
-  gbd_alt_name: Netherlands
   region: EURO
-  economy: hic
 - country: NOR
-  country_code: 129
   country_name: Norway
-  gbd_alt_name: Norway
   region: EURO
-  economy: hic
 - country: NPL
-  country_code: 121
   country_name: Nepal
-  gbd_alt_name: Nepal
   region: SEARO
-  economy: lmic
 - country: NRU
-  country_code: 120
   country_name: Nauru
-  gbd_alt_name: Nauru
   region: WPRO
-  economy: hic
 - country: NZL
-  country_code: 123
   country_name: New Zealand
-  gbd_alt_name: New Zealand
   region: WPRO
-  economy: hic
 - country: OMN
-  country_code: 130
   country_name: Oman
-  gbd_alt_name: Oman
   region: EMRO
-  economy: hic
 - country: PAK
-  country_code: 131
   country_name: Pakistan
-  gbd_alt_name: Pakistan
   region: EMRO
-  economy: lmic
 - country: PAN
-  country_code: 133
   country_name: Panama
-  gbd_alt_name: Panama
   region: PAHO
-  economy: hic
 - country: PER
-  country_code: 136
   country_name: Peru
-  gbd_alt_name: Peru
   region: PAHO
-  economy: umic
 - country: PHL
-  country_code: 137
   country_name: Philippines
-  gbd_alt_name: Philippines
   region: WPRO
-  economy: lmic
 - country: PLW
-  country_code: 132
   country_name: Palau
-  gbd_alt_name: Palau
   region: WPRO
-  economy: hic
 - country: PNG
-  country_code: 134
   country_name: Papua New Guinea
-  gbd_alt_name: Papua New Guinea
   region: WPRO
-  economy: lmic
 - country: POL
-  country_code: 138
   country_name: Poland
-  gbd_alt_name: Poland
   region: EURO
-  economy: hic
 - country: PRK
-  country_code: 47
   country_name: Democratic People's Republic of Korea
   gbd_alt_name: North Korea
   region: SEARO
-  economy: lic
 - country: PRT
-  country_code: 139
   country_name: Portugal
-  gbd_alt_name: Portugal
   region: EURO
-  economy: hic
 - country: PRY
-  country_code: 135
   country_name: Paraguay
-  gbd_alt_name: Paraguay
   region: PAHO
-  economy: umic
 - country: QAT
-  country_code: 140
   country_name: Qatar
-  gbd_alt_name: Qatar
   region: EMRO
-  economy: hic
 - country: ROU
-  country_code: 143
   country_name: Romania
-  gbd_alt_name: Romania
   region: EURO
-  economy: hic
 - country: RUS
-  country_code: 144
   country_name: Russian Federation
   gbd_alt_name: Russia
   region: EURO
-  economy: umic
 - country: RWA
-  country_code: 145
   country_name: Rwanda
-  gbd_alt_name: Rwanda
   region: AFRO
-  economy: lic
 - country: SAU
-  country_code: 152
   country_name: Saudi Arabia
-  gbd_alt_name: Saudi Arabia
   region: EMRO
-  economy: hic
 - country: SDN
-  country_code: 166
   country_name: Sudan
-  gbd_alt_name: Sudan
   region: EMRO
-  economy: lic
 - country: SEN
-  country_code: 153
   country_name: Senegal
-  gbd_alt_name: Senegal
   region: AFRO
-  economy: lmic
 - country: SGP
-  country_code: 157
   country_name: Singapore
-  gbd_alt_name: Singapore
   region: WPRO
-  economy: hic
 - country: SLB
-  country_code: 160
   country_name: Solomon Islands
-  gbd_alt_name: Solomon Islands
   region: WPRO
-  economy: lmic
 - country: SLE
-  country_code: 156
   country_name: Sierra Leone
-  gbd_alt_name: Sierra Leone
   region: AFRO
-  economy: lic
 - country: SLV
-  country_code: 55
   country_name: El Salvador
-  gbd_alt_name: El Salvador
   region: PAHO
-  economy: lmic
 - country: SMR
-  country_code: 150
   country_name: San Marino
-  gbd_alt_name: San Marino
   region: EURO
-  economy: hic
 - country: SOM
-  country_code: 161
   country_name: Somalia
-  gbd_alt_name: Somalia
   region: EMRO
-  economy: lic
 - country: SRB
-  country_code: 154
   country_name: Serbia
-  gbd_alt_name: Serbia
   region: EURO
-  economy: umic
 - country: SSD
-  country_code: 163
   country_name: South Sudan
-  gbd_alt_name: South Sudan
   region: EMRO
-  economy: lic
 - country: STP
-  country_code: 151
   country_name: Sao Tome and Principe
   gbd_alt_name: São Tomé and PrÍncipe
   region: AFRO
-  economy: lmic
 - country: SUR
-  country_code: 167
   country_name: Suriname
-  gbd_alt_name: Suriname
   region: PAHO
-  economy: umic
 - country: SVK
-  country_code: 158
   country_name: Slovakia
-  gbd_alt_name: Slovakia
   region: EURO
-  economy: hic
 - country: SVN
-  country_code: 159
   country_name: Slovenia
-  gbd_alt_name: Slovenia
   region: EURO
-  economy: hic
 - country: SWE
-  country_code: 168
   country_name: Sweden
-  gbd_alt_name: Sweden
   region: EURO
-  economy: hic
 - country: SWZ
-  country_code: 59
   country_name: Eswatini
   gbd_alt_name: eSwatini
   region: AFRO
-  economy: lmic
 - country: SYC
-  country_code: 155
   country_name: Seychelles
-  gbd_alt_name: Seychelles
   region: AFRO
-  economy: hic
 - country: SYR
-  country_code: 170
   country_name: Syrian Arab Republic
   gbd_alt_name: Syria
   region: EMRO
-  economy: lic
 - country: TCD
-  country_code: 34
   country_name: Chad
-  gbd_alt_name: Chad
   region: AFRO
-  economy: lic
 - country: TGO
-  country_code: 174
   country_name: Togo
-  gbd_alt_name: Togo
   region: AFRO
-  economy: lic
 - country: THA
-  country_code: 172
   country_name: Thailand
-  gbd_alt_name: Thailand
   region: SEARO
-  economy: umic
 - country: TJK
-  country_code: 171
   country_name: Tajikistan
-  gbd_alt_name: Tajikistan
   region: EURO
-  economy: lic
 - country: TKM
-  country_code: 179
   country_name: Turkmenistan
-  gbd_alt_name: Turkmenistan
   region: EURO
-  economy: umic
 - country: TLS
-  country_code: 173
   country_name: Timor-Leste
-  gbd_alt_name: Timor-Leste
   region: SEARO
-  economy: lmic
 - country: TON
-  country_code: 175
   country_name: Tonga
-  gbd_alt_name: Tonga
   region: WPRO
-  economy: umic
 - country: TTO
-  country_code: 176
   country_name: Trinidad and Tobago
-  gbd_alt_name: Trinidad and Tobago
   region: PAHO
-  economy: hic
 - country: TUN
-  country_code: 177
   country_name: Tunisia
-  gbd_alt_name: Tunisia
   region: EMRO
-  economy: lmic
 - country: TUR
-  country_code: 178
   country_name: Turkey
-  gbd_alt_name: Turkey
   region: EURO
-  economy: umic
 - country: TUV
-  country_code: 180
   country_name: Tuvalu
-  gbd_alt_name: Tuvalu
   region: WPRO
-  economy: umic
 - country: TZA
-  country_code: 185
   country_name: United Republic of Tanzania
   gbd_alt_name: Tanzania
   region: AFRO
-  economy: lmic
 - country: UGA
-  country_code: 181
   country_name: Uganda
-  gbd_alt_name: Uganda
   region: AFRO
-  economy: lic
 - country: UKR
-  country_code: 182
   country_name: Ukraine
-  gbd_alt_name: Ukraine
   region: EURO
-  economy: lmic
 - country: URY
-  country_code: 187
   country_name: Uruguay
-  gbd_alt_name: Uruguay
   region: PAHO
-  economy: hic
 - country: USA
-  country_code: 186
   country_name: United States of America
   gbd_alt_name: USA
   region: PAHO
-  economy: hic
 - country: UZB
-  country_code: 188
   country_name: Uzbekistan
-  gbd_alt_name: Uzbekistan
   region: EURO
-  economy: lmic
 - country: VCT
-  country_code: 148
   country_name: Saint Vincent and the Grenadines
-  gbd_alt_name: Saint Vincent and the Grenadines
   region: PAHO
-  economy: umic
 - country: VEN
-  country_code: 190
   country_name: Venezuela (Bolivarian Republic of)
   gbd_alt_name: Venezuela
   region: PAHO
-  economy: umic
 - country: VNM
-  country_code: 191
   country_name: Viet Nam
   gbd_alt_name: Vietnam
   region: WPRO
-  economy: lmic
 - country: VUT
-  country_code: 189
   country_name: Vanuatu
-  gbd_alt_name: Vanuatu
   region: WPRO
-  economy: lmic
 - country: WSM
-  country_code: 149
   country_name: Samoa
-  gbd_alt_name: Samoa
   region: WPRO
-  economy: umic
 - country: YEM
-  country_code: 192
   country_name: Yemen
-  gbd_alt_name: Yemen
   region: EMRO
-  economy: lic
 - country: ZAF
-  country_code: 162
   country_name: South Africa
-  gbd_alt_name: South Africa
   region: AFRO
-  economy: umic
 - country: ZMB
-  country_code: 193
   country_name: Zambia
-  gbd_alt_name: Zambia
   region: AFRO
-  economy: lmic
 - country: ZWE
-  country_code: 194
   country_name: Zimbabwe
-  gbd_alt_name: Zimbabwe
   region: AFRO
-  economy: lmic
