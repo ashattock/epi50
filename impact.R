@@ -28,43 +28,42 @@ run_impact = function() {
   data_dt = get_impact_data()
   
   # Exploratory plots of data used to fit impact functions
-  plot_impact_data()
+  # plot_impact_data()
   
   # ---- Model fitting ----
   
   message(" - Evaluating impact functions")
   
-  # Either autodetect cores (if o$n_cores is NA)...
-  if (is.na(o$n_cores))
-    o$n_cores = detectCores()
+  # Detect cores to use (only 1 if not running in parallel)
+  n_cores = ifelse(o$parallel, detectCores(), 1)
   
-  # ... or use user-specified (ensuring viable value)
-  n_cores = max(min(o$n_cores, detectCores()), 1)
-  
-  message("  > Using ", n_cores, " cores")
+  message("  > Running with ", n_cores, " cores")
   
   # Country-disease-vaccine-activity combinations
   run_dt = data_dt %>%
     select(country, d_v_a_id) %>%
     unique() %>%
+    expand_grid(fn = names(fn_set())) %>%
     mutate(d_v_a_str = str_pad(d_v_a_id, 2, pad = "0"),
-           run_id    = paste1(country, d_v_a_str)) %>%
-    select(-d_v_a_str)
+           run_id    = paste1(country, d_v_a_str, fn)) %>%
+    select(-d_v_a_str) %>%
+    as.data.table()
   
   # Initiate progress bar
   pb = progress_init(nrow(run_dt))
   
-  # Load and concatenate into single datatable (in parallel)
-  if (n_cores > 1)
+  # xxx (in parallel)
+  if (o$parallel)
     mclapply(X    = run_dt$run_id,
              FUN  = get_best_model,
              run  = run_dt,
              data = data_dt,
              pb   = pb,
-             mc.cores = n_cores)
+             mc.cores = n_cores, 
+             mc.preschedule = FALSE)
   
-  # Load and concatenate into single datatable (consecutively)
-  if (n_cores == 1)
+  # xxx (consecutively)
+  if (!o$parallel)
     lapply(X    = run_dt$run_id,
            FUN  = get_best_model,
            run  = run_dt,
@@ -188,20 +187,21 @@ get_best_model = function(idx, run, data, pb) {
     y = fit_data_dt$y
     
     # Functions we'll attempt to fit with
-    fns = fn_set()
+    fn = fn_set()[this_run$fn]
     
     # Use optim algorithm to get good starting point for MLE
-    start = credible_start(fns, x, y)
+    start = credible_start(fn, x, y)
     
     # Run MLE from this starting point
-    fit = run_mle(fns, start, x, y)
+    fit = run_mle(fn, start, x, y)
     
-    # Determine AICc value for model suitability
-    model_quality(fns, fit, x, y, this_run$run_id)
+    # # Determine AICc value for model suitability
+    model_quality(fn, fit, x, y, idx)
   }
   
   # Update progress bar
-  progress_update(pb, idx)
+  progress_idx = which(run$run_id == idx)
+  progress_update(pb, progress_idx)
 }
 
 # ---------------------------------------------------------
@@ -288,7 +288,7 @@ credible_start = function(fns, x, y, plot = FALSE) {
 }
 
 # ---------------------------------------------------------
-# Fit MLE for each fn using prevriously determined start point
+# Fit MLE for each fn using previously determined start point
 # ---------------------------------------------------------
 run_mle = function(fns, start, x, y, plot = FALSE) {
   
@@ -315,16 +315,32 @@ run_mle = function(fns, start, x, y, plot = FALSE) {
     n_pars = length(start[[fn]]) - 1  # Zero for function coefficients
     l_bnds = c(1e-1, rep(0, n_pars))  # Small but non-zero for sigma
     
-    # Attempt to fit MLE model using prevriously determined start point
-    fit_result = tryCatch(
-      expr  = mle(minuslogl = model[[fn]], 
-                  start = start[[fn]], 
-                  lower = l_bnds,
-                  nobs  = length(y)),
+    # Catch errors when running in parallel
+    if (!o$parallel) {
       
-      # Return trivial if MLE failed
-      error   = function(e) NULL,
-      warning = function(w) NULL)
+      # Attempt to fit MLE model using prevriously determined start point
+      fit_result = tryCatch(
+        expr = mle(
+          minuslogl = model[[fn]],
+          start     = start[[fn]],
+          lower     = l_bnds,
+          nobs      = length(y)),
+        
+        # Return trivial if MLE failed
+        error   = function(e) return(NULL),
+        warning = function(w) return(NULL))
+    }
+    
+    # Do not catch errors when running in parallel
+    if (o$parallel) {
+      
+      # Attempt to fit MLE model using prevriously determined start point
+      fit_result = mle(
+        minuslogl = model[[fn]], 
+        start     = start[[fn]], 
+        lower     = l_bnds,
+        nobs      = length(y))
+    }
     
     # Store results if we've had success
     if (!is.null(fit_result)) {
@@ -374,20 +390,17 @@ model_quality = function(fns, fit, x, y, run_id) {
   coef = data.table(var   = names(coef), 
                     value = coef) %>%
     separate(var, c("fn", "coef")) %>%
-    mutate(run_id = run_id, 
-           .before = 1)
+    mutate(run_id = run_id) %>%
+    select(run_id, coef, value)
   
   # Save to file
   save_name = paste1(run_id, "coef")
   save_rds(coef, "impact_runs", save_name) 
   
   # Calculate AIC - adjusted for sample size
-  aicc = sapply(fit, AICc) %>%
-    as.list() %>%
-    as.data.table() %>%
-    mutate(run_id = run_id, 
-           metric = "aicc", 
-           .before = 1)
+  aicc = data.table(
+    run_id = run_id, 
+    aicc   = sapply(fit, AICc))
   
   # Save to file
   save_name = paste1(run_id, "aicc")
@@ -426,11 +439,13 @@ compile_results = function(run_dt) {
   
   message(" - Compiling all results")
   
+  browser()
+  
   # Repeat for each type of output
   for (type in c("coef", "aicc")) {
     
     # All file names for this type of result
-    names = paste1(run_dt$run_id , type)
+    names = paste1(run_dt$run_id, type)
     files = paste0(o$pth$impact_runs, names, ".rds")
     
     # Files that exist 

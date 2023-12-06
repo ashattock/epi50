@@ -389,24 +389,28 @@ progress_init = function(n) {
 # ---------------------------------------------------------
 progress_update = function(pb, idx) {
   
-  # ---- Update log file ----
+  # If running in parallel, write to log file
+  if (o$parallel) {
+    
+    # Log file we'll write to and read
+    log_file = paste0(o$pth$log, "log.txt")
+    
+    # Write job ID to log file
+    command = paste("echo", idx, ">>", log_file)
+    
+    # Execute command
+    system(command)
+    
+    # Allow file system to catch up
+    Sys.sleep(0.1)
+    
+    # Number of lines = number of completed jobs
+    k = nrow(fread(log_file))
+  }
   
-  # Log file we'll write to and read
-  log_file = paste0(o$pth$log, "log.txt")
-  
-  # Write job ID to log file
-  command = paste("echo", idx, ">>", log_file)
-  
-  # Execute command
-  system(command)
-  
-  # ---- Update progress bar ----
-  
-  # Allow file system to catch up
-  # Sys.sleep(0.1)
-  
-  # Number of lines = number of completed jobs
-  k = nrow(fread(log_file))
+  # If running sequentially, simply use index
+  if (!o$parallel)
+    k = idx
   
   # Update progress bar
   setTxtProgressBar(pb$bar, k)
