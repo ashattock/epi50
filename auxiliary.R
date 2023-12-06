@@ -364,19 +364,23 @@ paste1 = function(...) paste(..., sep = "_")
 # ---------------------------------------------------------
 progress_init = function(n) {
   
-  # Log file we'll write to and read
-  log_file = paste0(o$pth$log, "log.txt")
-  
-  # Remove file is already exists
-  if (file.exists(log_file)) {
-    file.remove(log_file)
+  # If running in parallel, create a log file
+  if (o$parallel) {
     
-    # Allow file system to catch up
-    Sys.sleep(0.1)
+    # Log file we'll write to and read
+    log_file = paste0(o$pth$log, "log.txt")
+    
+    # Remove file is already exists
+    if (file.exists(log_file)) {
+      file.remove(log_file)
+      
+      # Allow file system to catch up
+      Sys.sleep(0.1)
+    }
+    
+    # Create new file
+    file.create(log_file)
   }
-  
-  # Create new file
-  file.create(log_file)
   
   # Initiate progress bar
   pb = list(bar = start_progress_bar(n), n = n)

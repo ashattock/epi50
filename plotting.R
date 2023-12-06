@@ -114,8 +114,8 @@ plot_scope = function() {
     as.data.table()
   
   # Year range of analysis
-  year1 = min(o$analysis_years)
-  year2 = max(o$analysis_years)
+  year1 = min(o$years)
+  year2 = max(o$years)
   
   # Smoothen over non-trivial years
   plot_dt = expand_grid(
@@ -1085,6 +1085,8 @@ plot_model_fits = function() {
   # Evaluate selected impact function
   best_fit = evaluate_impact_function() %>%
     append_d_v_a_name()
+  
+  browser()
   
   # Apply max_data so we only plot up to data (or just past)
   plot_dt = best_fit %>%

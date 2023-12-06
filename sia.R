@@ -152,8 +152,8 @@ format_sia_dates = function(sia_dt) {
   }
   
   # First and last dates we are interested in
-  data_from = paste(min(o$analysis_years),     1, 1, sep = ".")
-  data_to   = paste(max(o$analysis_years + 1), 1, 1, sep = ".")
+  data_from = paste(min(o$years),     1, 1, sep = ".")
+  data_to   = paste(max(o$years + 1), 1, 1, sep = ".")
   
   # Create single start and end columns
   date_dt = sia_dt %>%
@@ -326,7 +326,7 @@ parse_age_groups = function(sia_dt) {
            y2 = ifelse(u2 == "@", a2 / 12, a2)) %>%
     # Deal with missing and infeasible values...
     mutate(y1 = ifelse(y1 > 1e3, NA, y1), 
-           y1 = pmin(y1, max(o$data_ages)), 
+           y1 = pmin(y1, max(o$ages)), 
            y2 = ifelse(is.na(y2), y1, y2)) %>%
     replace_na(list(y1 = 0, y2 = 0)) %>%
     # Ensure correct order and round...
@@ -334,7 +334,7 @@ parse_age_groups = function(sia_dt) {
            age_max = round(pmax(y1, y2))) %>%
     # Expand out for single age bins...
     select(age_group = group, age_min, age_max) %>%
-    expand_grid(age = o$data_ages) %>%
+    expand_grid(age = o$ages) %>%
     filter(age >= age_min, 
            age <= age_max) %>%
     # Tidy up...

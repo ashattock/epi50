@@ -21,24 +21,24 @@ run_impact = function() {
   message("* Fitting impact functions")
   
   # ---- FVPs and impact estimates ----
-  
+
   message(" - Preparing FVP-impact data")
-  
+
   # Prepare impact-FVP data to fit to
   data_dt = get_impact_data()
-  
+
   # Exploratory plots of data used to fit impact functions
-  plot_impact_data()
-  
+  # plot_impact_data()
+
   # ---- Model fitting ----
-  
+
   message(" - Evaluating impact functions")
-  
+
   # Detect cores to use (only 1 if not running in parallel)
   n_cores = ifelse(o$parallel, detectCores(), 1)
-  
+
   message("  > Using ", n_cores, " cores")
-  
+
   # Country-disease-vaccine-activity combinations
   run_dt = data_dt %>%
     select(country, d_v_a_id) %>%
@@ -46,10 +46,10 @@ run_impact = function() {
     mutate(d_v_a_str = str_pad(d_v_a_id, 2, pad = "0"),
            run_id    = paste1(country, d_v_a_str)) %>%
     select(-d_v_a_str)
-  
+
   # Initiate progress bar
   pb = progress_init(nrow(run_dt))
-  
+
   # Run get_best_model in parallel
   if (o$parallel)
     mclapply(X    = run_dt$run_id,
@@ -57,9 +57,9 @@ run_impact = function() {
              run  = run_dt,
              data = data_dt,
              pb   = pb,
-             mc.cores = n_cores, 
+             mc.cores = n_cores,
              mc.preschedule = FALSE)
-  
+
   # Run get_best_model consecutively
   if (!o$parallel)
     lapply(X    = run_dt$run_id,
@@ -67,22 +67,22 @@ run_impact = function() {
            run  = run_dt,
            data = data_dt,
            pb   = pb)
-  
+
   # Close progress bar
   progress_close(pb)
-  
+
   # ---- Model selection ----
-  
+
   # Compile all results
   compile_results(run_dt)
-  
+
   # Select best function for each country-d_v_a combination
   model_selection()
-  
+
   # ---- Plot results ----
-  
+
   # NOTE: All plotting functionality lives in plotting.R
-  
+
   # Plot function selection statistics
   plot_model_selection()
   
@@ -144,18 +144,16 @@ fn_set = function(dict = FALSE) {
   
   # Set of statistical models / functions we want to test
   out = list(
-    lin0 = function(x, a)       y = a*x,
-    # lin  = function(x, a, b)    y = a*x + b,
-    # quad = function(x, a, b, c) y = a*x^2 + b*x + c,
-    log3 = function(x, a, b, c) y = logistic(x, a, b, upper = c))
+    linear1   = function(x, a)       y = a * x,
+    logistic2 = function(x, a, b)    y = a / (1 + exp(-b * (x - a/2))), 
+    logistic3 = function(x, a, b, c) y = logistic(x, a, b, upper = c))
   
   # Alternative functionality - return dictionary
   if (dict == TRUE)
     out = c(
-      lin0 = "Gradiant", 
-      # lin  = "Linear", 
-      # quad = "Quadratic", 
-      log3 = "Logistic")
+      linear1   = "Gradiant (1 parameter)", 
+      logistic2 = "Logistic (2 parameters)",
+      logistic3 = "Sigmodal (3 parameters)")
   
   return(out)
 }
@@ -176,6 +174,8 @@ get_best_model = function(id, run, data, pb) {
            y = impact) %>%
     # Multiply impact for more consistent x-y scales...
     mutate(y = y * o$impact_scaler)
+  
+  browser()
   
   # Do not fit if insufficient data
   if (nrow(fit_data_dt) > 3) {
@@ -212,9 +212,9 @@ credible_start = function(fns, x, y, plot = FALSE) {
   
   # Let's start with any old points
   start = list(
-    lin0 = list(s = s0, a = 1),
-    # lin  = list(s = s0, a = 1, b = 1),
-    log3 = list(s = s0, a = 1, b = 1, c = 1))
+    linear1   = list(s = s0, a = 1),
+    logistic2 = list(s = s0, a = 1, b = 1), 
+    logistic3 = list(s = s0, a = 1, b = 1, c = 1))
   
   # Define an objective function to minimise - sum of squares
   obj_fn = function(fn, ...) {
@@ -230,9 +230,9 @@ credible_start = function(fns, x, y, plot = FALSE) {
   
   # Define model-specific calls to objective function
   asd_fn = list(
-    lin0 = function(p, args) obj_fn("lin0", a = p[1]),
-    # lin  = function(p, args) obj_fn("lin",  a = p[1], b = p[2]),
-    log3 = function(p, args) obj_fn("log3", a = p[1], b = p[2], c = p[3]))
+    linear1   = function(p, args) obj_fn("linear1",   a = p[1]),
+    logistic2 = function(p, args) obj_fn("logistic2", a = p[1], b = p[2]),
+    logistic3 = function(p, args) obj_fn("logistic3", a = p[1], b = p[2], c = p[3]))
   
   # Initiate list for storing plotting datatables
   plot_list = list()
@@ -296,9 +296,9 @@ run_mle = function(fns, start, x, y, plot = FALSE) {
   
   # Annoyingly we need to name likelihood inputs, hence wrapper functions
   model = list(
-    lin0 = function(s, a)       likelihood(s, fns$lin0(x, a)),
-    # lin  = function(s, a, b)    likelihood(s, fns$lin(x, a, b)),
-    log3 = function(s, a, b, c) likelihood(s, fns$log3(x, a, b, c)))
+    linear1   = function(s, a)       likelihood(s, fns$linear1(x, a)),
+    logistic2 = function(s, a, b)    likelihood(s, fns$logistic2(x, a, b)), 
+    logistic3 = function(s, a, b, c) likelihood(s, fns$logistic3(x, a, b, c)))
   
   # Initiate list for storing plotting datatables
   fit = plot_list = list()

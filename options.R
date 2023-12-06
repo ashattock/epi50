@@ -26,11 +26,10 @@ set_options = function(do_step = NA) {
   # ---- Time settings ----
   
   # Years to analyse
-  o$analysis_years = 1974 : 2024  # Vaccine deployed across these dates
+  o$years = 1974 : 2024
   
-  # Year and age ranges stored in coverage database
-  o$data_years = 1980 : 2024
-  o$data_ages  = 0 : 95
+  # Ages modelled
+  o$ages = 0 : 95
   
   # ---- Data settings ----
   
@@ -48,9 +47,7 @@ set_options = function(do_step = NA) {
   # ---- Non-linear impact assumptions ----
   
   # Use multiple cores to speed up impact function fitting
-  #
-  # NOTE: Set to 1 to turn off (and fit sequentially)
-  o$n_cores = 1  # Set to NA to autodetect cores
+  o$parallel = FALSE
   
   # Multiply impact when fitting for more consistent FVP-impact scales
   o$impact_scaler = 1000

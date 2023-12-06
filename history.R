@@ -76,8 +76,8 @@ evaluate_impact_function = function(eval_dt = NULL) {
   coef_dt = read_rds("impact", "coef")
   
   # Best coefficients
-  best_coef = best_dt %>%
-    inner_join(y  = coef_dt, 
+  best_coef = coef_dt %>%
+    inner_join(y  = best_dt, 
                by = c("country", "d_v_a_id", "fn")) %>%
     mutate(par = as.list(setNames(value, coef))) %>% 
     group_by(country, d_v_a_id, fn) %>% 

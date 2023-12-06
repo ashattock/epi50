@@ -85,7 +85,7 @@ coverage_vimc = function() {
     select(country, disease, vaccine, activity = activity_type, 
            gender, year, age, fvps_adjusted, cohort_size) %>%
     filter(country %in% all_countries(), 
-           year    %in% o$analysis_years) %>%
+           year    %in% o$years) %>%
     # Combine gender where necessary...
     mutate(gender = ifelse(gender == "Both", "b", "x")) %>%
     group_by(country, disease, vaccine, activity, gender, year, age) %>%
@@ -143,7 +143,7 @@ coverage_wiise = function(vimc_countries_dt) {
     # Remove any unknown countries...
     mutate(country = toupper(country)) %>%
     filter(country %in% all_countries(), 
-           year    %in% o$analysis_years) %>%
+           year    %in% o$years) %>%
     # Convert coverage to proportion...
     mutate(coverage = coverage / 100) %>%
     filter(coverage > 0) %>%
@@ -264,7 +264,7 @@ calculate_fvps = function(coverage_dt) {
 linear_coverage_scaleup = function(coverage_dt) {
   
   # Years we will scale up over
-  scaleup_years = setdiff(o$analysis_years, o$data_years)
+  scaleup_years = min(o$years) : (min(coverage_dt$year) - 1)
   
   # Income status in first year of data
   income_dt = coverage_dt %>%
@@ -343,7 +343,7 @@ constant_coverage_extapolation = function(coverage_dt) {
   
   # Years we will extrapolate for
   data_years   = unique(coverage_dt$year)
-  extrap_years = setdiff(o$analysis_years, data_years)
+  extrap_years = setdiff(o$years, data_years)
   
   # Extrapolate coverage data from most recent year
   extrap_dt = coverage_dt %>%

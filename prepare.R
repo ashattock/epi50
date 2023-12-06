@@ -104,7 +104,7 @@ prepare_vimc_estimates = function() {
   read_rds("input", "vimc_estimates") %>%
     # Years and countries of interest...
     filter(country %in% all_countries(), 
-           year    %in% o$analysis_years) %>%
+           year    %in% o$years) %>%
     # Disease, vaccines, and activities of interest...
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
@@ -143,7 +143,7 @@ prepare_vaccine_efficacy = function() {
   # Points at which to evaluate exponential function
   #
   # NOTE: These represent immunity in the years following vaccination
-  x_eval = seq_along(o$analysis_years) - 1
+  x_eval = seq_along(o$years) - 1
   
   # Iterate through diseases
   for (i in seq_row(pars_dt)) {
@@ -205,7 +205,7 @@ prepare_gbd_estimates = function() {
     "Tuberculosis"   = "TB")
   
   # Load GBD estimates of deaths for relevant diseases
-  gbd_dt = fread(paste0(o$pth$input, "gbd19_deaths.csv")) %>%
+  deaths_dt = fread(paste0(o$pth$input, "gbd19_deaths.csv")) %>%
     # Parse disease and countries...
     mutate(disease = recode(cause, !!!disease_dict), 
            country = countrycode(
@@ -221,9 +221,38 @@ prepare_gbd_estimates = function() {
     select(country, disease, year, age_bin, val) %>%
     arrange(country, disease, year, age_bin)
   
+  # age_groups = c(
+  #   "Under 5"   = 5, 
+  #   "5-14"      = 15, 
+  #   "15-49"     = 50, 
+  #   "50-69"     = 70, 
+  #   "70+ years" = max(o$ages))
+  # 
+  # age_group_dt = data.table(age = o$ages) %>%
+  #   mutate(group_idx = match(age, age_groups), 
+  #          group = names(age_groups[group_idx])) %>%
+  #   fill(group, .direction = "up") %>%
+  #   filter(age %in% unique(deaths_dt$age_bin)) %>%
+  #   select(age_bin = age, age_group = group) %>%
+  #   as.data.table()
+  # 
+  # plot_dt = deaths_dt %>%
+  #   left_join(y  = age_group_dt, 
+  #             by = "age_bin") %>%
+  #   group_by(disease, year, age_group) %>%
+  #   summarise(deaths = sum(val)) %>%
+  #   ungroup() %>%
+  #   mutate(age_group = factor(age_group, names(age_groups))) %>%
+  #   as.data.table()
+  # 
+  # g = ggplot(plot_dt) +
+  #   aes(x = year, y = deaths, fill = age_group) +
+  #   geom_bar(stat = "identity") +
+  #   facet_wrap(~disease, scales = "free_y")
+  
   # Construct age datatable to expand age bins to single years
-  age_bins = sort(unique(gbd_dt$age_bin))
-  age_dt   = data.table(age = o$data_ages) %>%
+  age_bins = sort(unique(deaths_dt$age_bin))
+  age_dt   = data.table(age = o$ages) %>%
     mutate(age_bin = ifelse(age %in% age_bins, age, NA)) %>%
     fill(age_bin, .direction = "down") %>%
     group_by(age_bin) %>%
@@ -231,15 +260,29 @@ prepare_gbd_estimates = function() {
     ungroup() %>%
     as.data.table()
   
-  # Expand to all ages and store
-  gbd_dt %>%
+  # Expand to all ages
+  gbd_dt = deaths_dt %>%
     full_join(y  = age_dt, 
               by = "age_bin", 
               relationship = "many-to-many") %>%
     arrange(country, disease, year, age) %>%
     mutate(deaths_disease = val / n) %>%
-    select(country, disease, year, age, deaths_disease) %>%
-    save_table("gbd_estimates")
+    select(country, disease, year, age, deaths_disease)
+  
+  save_table(gbd_dt, "gbd_estimates")
+  
+  # plot_dt = gbd_dt %>%
+  #   left_join(y  = table("income_status"), 
+  #             by = c("country", "year")) %>%
+  #   group_by(disease, income, age) %>%
+  #   summarise(deaths = sum(deaths_disease)) %>%
+  #   ungroup() %>%
+  #   as.data.table()
+  # 
+  # g1 = ggplot(plot_dt) + 
+  #   aes(x = age, y = deaths, fill = income) + 
+  #   geom_bar(stat = "identity") + 
+  #   facet_wrap(~disease)
 }
 
 # ---------------------------------------------------------
@@ -294,7 +337,7 @@ prepare_gbd_covariates = function() {
     select(country, year, sdi) %>%
     # Years of interest...
     mutate(year = as.integer(year)) %>%
-    filter(year %in% o$analysis_years) %>%
+    filter(year %in% o$years) %>%
     # Tidy up...
     arrange(country, year) %>%
     as.data.table()
@@ -332,7 +375,7 @@ prepare_income_status = function() {
   # Full country-year combination
   full_dt = expand_grid(
     country = all_countries(), 
-    year    = o$analysis_years) %>%
+    year    = o$years) %>%
     as.data.table()
   
   # Load and format country income status over time
@@ -418,7 +461,7 @@ prepare_demography = function() {
         rename_with(~type, metric) %>%
         # Only countries and years of interest...
         filter(country %in% all_countries(),
-               year    %in% o$analysis_years) %>%
+               year    %in% o$years) %>%
         mutate(age = ifelse(age == "100+", 100, age),
                age = as.integer(age))
     }

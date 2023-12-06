@@ -85,8 +85,8 @@ effective_coverage = function(disease) {
   # Full factorial country-year-age grid (we join results to this)
   full_dt = expand_grid(
     country = all_countries(),
-    year    = o$data_years, 
-    age     = o$data_ages) %>%
+    year    = o$years, 
+    age     = o$ages) %>%
     as.data.table()
   
   # ---- Waning immunity per vaccine / shedule ----
@@ -197,8 +197,8 @@ effective_coverage = function(disease) {
 waning_immunity = function(data, profile) {
   
   # Indicies for years and ages
-  year_idx = match(data$year, o$data_years) : length(o$data_years)
-  age_idx  = match(data$age,  o$data_ages)  : length(o$data_ages)
+  year_idx = match(data$year, o$years) : length(o$years)
+  age_idx  = match(data$age,  o$ages)  : length(o$ages)
   
   # Index upto only the smallest of these two vectors
   vec_idx = 1 : min(length(year_idx), length(age_idx))
@@ -209,8 +209,8 @@ waning_immunity = function(data, profile) {
   # These form the only non-trivial entries
   waning_immunity_dt = data.table(
     country   = data$country, 
-    year      = o$data_years[year_idx[vec_idx]],
-    age       = o$data_ages[age_idx[vec_idx]], 
+    year      = o$years[year_idx[vec_idx]],
+    age       = o$ages[age_idx[vec_idx]], 
     covered   = data$fvps, 
     effective = effective_fvps[vec_idx])
   
