@@ -28,7 +28,7 @@ run_impact = function() {
   data_dt = get_impact_data()
   
   # Exploratory plots of data used to fit impact functions
-  # plot_impact_data()
+  plot_impact_data()
   
   # ---- Model fitting ----
   
@@ -37,22 +37,20 @@ run_impact = function() {
   # Detect cores to use (only 1 if not running in parallel)
   n_cores = ifelse(o$parallel, detectCores(), 1)
   
-  message("  > Running with ", n_cores, " cores")
+  message("  > Using ", n_cores, " cores")
   
   # Country-disease-vaccine-activity combinations
   run_dt = data_dt %>%
     select(country, d_v_a_id) %>%
     unique() %>%
-    expand_grid(fn = names(fn_set())) %>%
     mutate(d_v_a_str = str_pad(d_v_a_id, 2, pad = "0"),
-           run_id    = paste1(country, d_v_a_str, fn)) %>%
-    select(-d_v_a_str) %>%
-    as.data.table()
+           run_id    = paste1(country, d_v_a_str)) %>%
+    select(-d_v_a_str)
   
   # Initiate progress bar
   pb = progress_init(nrow(run_dt))
   
-  # xxx (in parallel)
+  # Run get_best_model in parallel
   if (o$parallel)
     mclapply(X    = run_dt$run_id,
              FUN  = get_best_model,
@@ -62,7 +60,7 @@ run_impact = function() {
              mc.cores = n_cores, 
              mc.preschedule = FALSE)
   
-  # xxx (consecutively)
+  # Run get_best_model consecutively
   if (!o$parallel)
     lapply(X    = run_dt$run_id,
            FUN  = get_best_model,
@@ -165,10 +163,10 @@ fn_set = function(dict = FALSE) {
 # ---------------------------------------------------------
 # Parent function to determine best fitting function
 # ---------------------------------------------------------
-get_best_model = function(idx, run, data, pb) {
+get_best_model = function(id, run, data, pb) {
   
   # Details of this run
-  this_run = run[run_id == idx]
+  this_run = run[run_id == id]
   
   # Reduce data down to what we're interested in
   fit_data_dt = data %>%
@@ -187,20 +185,20 @@ get_best_model = function(idx, run, data, pb) {
     y = fit_data_dt$y
     
     # Functions we'll attempt to fit with
-    fn = fn_set()[this_run$fn]
+    fns = fn_set()
     
     # Use optim algorithm to get good starting point for MLE
-    start = credible_start(fn, x, y)
+    start = credible_start(fns, x, y)
     
     # Run MLE from this starting point
-    fit = run_mle(fn, start, x, y)
+    fit = run_mle(fns, start, x, y)
     
     # # Determine AICc value for model suitability
-    model_quality(fn, fit, x, y, idx)
+    model_quality(fns, fit, x, y, id)
   }
   
   # Update progress bar
-  progress_idx = which(run$run_id == idx)
+  progress_idx = which(run$run_id == id)
   progress_update(pb, progress_idx)
 }
 
@@ -390,17 +388,22 @@ model_quality = function(fns, fit, x, y, run_id) {
   coef = data.table(var   = names(coef), 
                     value = coef) %>%
     separate(var, c("fn", "coef")) %>%
-    mutate(run_id = run_id) %>%
-    select(run_id, coef, value)
+    mutate(run_id = run_id, 
+           .before = 1)
   
   # Save to file
   save_name = paste1(run_id, "coef")
   save_rds(coef, "impact_runs", save_name) 
   
   # Calculate AIC - adjusted for sample size
-  aicc = data.table(
-    run_id = run_id, 
-    aicc   = sapply(fit, AICc))
+  aicc = sapply(fit, AICc) %>%
+    as.list() %>%
+    as.data.table() %>%
+    mutate(run_id = run_id) %>%
+    pivot_longer(cols = -run_id, 
+                 names_to  = "fn", 
+                 values_to = "aicc") %>%
+    as.data.table()
   
   # Save to file
   save_name = paste1(run_id, "aicc")
@@ -439,8 +442,6 @@ compile_results = function(run_dt) {
   
   message(" - Compiling all results")
   
-  browser()
-  
   # Repeat for each type of output
   for (type in c("coef", "aicc")) {
     
@@ -465,7 +466,7 @@ compile_results = function(run_dt) {
       select(-run_id)
     
     # Save to file
-    save_rds(compiled_dt, "impact", type) 
+    save_rds(compiled_dt, "impact", type)
   }
 }
 
@@ -476,16 +477,11 @@ model_selection = function() {
   
   message(" - Selecting best functions")
   
-  # Functions we've fitted with
-  fns = fn_set()
-  
   # Extract best fitting function based on AICc
   best_dt = read_rds("impact", "aicc") %>%
-    pivot_longer(cols = names(fns), 
-                 names_to = "fn") %>%
     # Select function with lowest AICc...
     group_by(country, d_v_a_id) %>%
-    slice_min(value, n = 1, with_ties = FALSE) %>%
+    slice_min(aicc, n = 1, with_ties = FALSE) %>%
     ungroup() %>%
     # Tidy up...
     select(country, d_v_a_id, fn) %>%
