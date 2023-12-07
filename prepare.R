@@ -355,6 +355,8 @@ prepare_gbd_covariates = function() {
   
   
   # TEMP: Until we do a proper projection of GBD covariates
+  #
+  # NOTE: We only really need a forward projection here
   gbd_covariates = 
     expand_grid(country = all_countries(), 
                 year    = o$years) %>%

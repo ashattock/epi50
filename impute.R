@@ -26,7 +26,7 @@ run_impute = function() {
   # TODO: Repeat process for DALYs
   
   # Load target to fit to (impact per FVP)
-  target_dt = get_target()
+  target_dt = get_impute_data()
   
   # ---- Perform imputation ----
   
@@ -37,8 +37,8 @@ run_impute = function() {
               by = "disease") %>%
     filter(source == "vimc") %>%
     # Apply geographical imputation model...
-    pull("d_v_a_id") %>%
-    lapply(do_impute, target = target_dt) %>%
+    pull(d_v_a_id) %>%
+    lapply(perform_impute, target = target_dt) %>%
     rbindlist() %>%
     # Merge VIMC estimates with those just imputed...
     mutate(impact = ifelse(
@@ -67,7 +67,7 @@ run_impute = function() {
 # ---------------------------------------------------------
 # Perform imputation
 # ---------------------------------------------------------
-do_impute = function(d_v_a_id, target) {
+perform_impute = function(d_v_a_id, target) {
   
   # Details of this d_v_a
   d_v_a_name = data.table(d_v_a_id = d_v_a_id) %>%
@@ -92,10 +92,10 @@ do_impute = function(d_v_a_id, target) {
   target_dt = target %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
     # Append GBD indices and infant mortality...
-    inner_join(y  = table("gbd_covariates"),
-               by = c("country", "year")) %>%
-    inner_join(y  = infant_mortality_dt,
-               by = c("country", "year")) %>%
+    left_join(y  = table("gbd_covariates"),
+              by = c("country", "year")) %>%
+    left_join(y  = infant_mortality_dt,
+              by = c("country", "year")) %>%
     # Calculate n years of estimates...
     mutate(n_years = 1) %>%
     group_by(country) %>%
@@ -116,6 +116,10 @@ do_impute = function(d_v_a_id, target) {
            outlier = target < lower | target > upper) %>%
     filter(outlier == FALSE) %>%
     select(-outlier, -lower, -upper)
+  
+  # Sanity check that we have no NAs here
+  if (any(is.na(data_dt)))
+    stop("NA values identified in predictors")
   
   # Values to predict for (including data used for fitting)
   pred_dt = target_dt %>%
@@ -172,7 +176,7 @@ do_impute = function(d_v_a_id, target) {
     # Predict impact per FVP...
     cbind(norm_pred_dt) %>%
     mutate(predict = predict(fit_model, .), 
-           predict = pmax(predict, 0)) %>%  # Do not predict negative
+           predict = pmax(predict, 0)) %>%
     # Remove predictors...
     select(country, d_v_a_id, year, fvps_cum, impact_cum, 
            target, predict) %>%
@@ -182,6 +186,10 @@ do_impute = function(d_v_a_id, target) {
     # Multiply through to obtain cumulative impact over time...
     mutate(impact_impute = fvps_cum * predict, 
            .after = impact_cum)
+  
+  # Sanity check that all predicted values are legitimate
+  if (any(is.na(result_dt$predict)))
+    stop("NA values identified in predicted impact")
   
   # Store the fitted model, the data used, and the result
   fit = list(
@@ -198,7 +206,7 @@ do_impute = function(d_v_a_id, target) {
 # ---------------------------------------------------------
 # Load/calculate target (impact per FVP) for modelled pathogens
 # ---------------------------------------------------------
-get_target = function() {
+get_impute_data = function() {
   
   # Population size of each country over time
   pop_dt = table("wpp_pop") %>%
