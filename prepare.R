@@ -290,6 +290,9 @@ prepare_gbd_estimates = function() {
 # ---------------------------------------------------------
 prepare_gbd_covariates = function() {
   
+  # TODO: We need to project these estimates to avoid losing impact
+  #       estimates in geo-imputation model
+  
   message(" - GBD covariates")
   
   # Prepare GBD 2019 HAQI for use as a covariate
@@ -348,6 +351,21 @@ prepare_gbd_covariates = function() {
               y  = haqi_dt, 
               by = c("country", "year")) %>%
     arrange(country, year)
+  
+  
+  
+  # TEMP: Until we do a proper projection of GBD covariates
+  gbd_covariates = 
+    expand_grid(country = all_countries(), 
+                year    = o$years) %>%
+    left_join(y  = gbd_covariates, 
+              by = c("country", "year")) %>%
+    group_by(country) %>%
+    fill(sdi, haqi, .direction = "downup") %>%
+    ungroup() %>%
+    as.data.table()
+  
+  
   
   # Save in tables cache
   save_table(gbd_covariates, "gbd_covariates")
