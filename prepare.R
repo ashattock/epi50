@@ -218,8 +218,33 @@ prepare_gbd_estimates = function() {
            age_bin = str_extract(age, "^[0-9]+"), 
            age_bin = as.numeric(age_bin)) %>%
     # Tidy up...
-    select(country, disease, year, age_bin, val) %>%
+    select(country, disease, year, age_bin, value = val) %>%
     arrange(country, disease, year, age_bin)
+  
+  
+  
+  
+  
+  
+  # TEMP: Until we do a proper future projection of GBD estimates
+  deaths_dt = 
+    expand_grid(country = all_countries(), 
+                disease = unique(deaths_dt$disease),
+                age_bin = unique(deaths_dt$age_bin), 
+                year    = o$years) %>%
+    left_join(y  = deaths_dt, 
+              by = names(.)) %>%
+    group_by(country, disease, age_bin) %>%
+    fill(value, .direction = "down") %>%
+    ungroup() %>%
+    filter(!is.na(value)) %>%
+    as.data.table()
+  
+  
+  
+  
+  
+  
   
   # age_groups = c(
   #   "Under 5"   = 5, 
@@ -240,7 +265,7 @@ prepare_gbd_estimates = function() {
   #   left_join(y  = age_group_dt, 
   #             by = "age_bin") %>%
   #   group_by(disease, year, age_group) %>%
-  #   summarise(deaths = sum(val)) %>%
+  #   summarise(deaths = sum(value)) %>%
   #   ungroup() %>%
   #   mutate(age_group = factor(age_group, names(age_groups))) %>%
   #   as.data.table()
@@ -266,7 +291,7 @@ prepare_gbd_estimates = function() {
               by = "age_bin", 
               relationship = "many-to-many") %>%
     arrange(country, disease, year, age) %>%
-    mutate(deaths_disease = val / n) %>%
+    mutate(deaths_disease = value / n) %>%
     select(country, disease, year, age, deaths_disease)
   
   save_table(gbd_dt, "gbd_estimates")
@@ -354,6 +379,8 @@ prepare_gbd_covariates = function() {
   
   
   
+  
+  
   # TEMP: Until we do a proper projection of GBD covariates
   #
   # NOTE: We only really need a forward projection here
@@ -366,6 +393,8 @@ prepare_gbd_covariates = function() {
     fill(sdi, haqi, .direction = "downup") %>%
     ungroup() %>%
     as.data.table()
+  
+  
   
   
   
