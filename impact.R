@@ -28,7 +28,7 @@ run_impact = function() {
   data_dt = get_impact_data()
 
   # Exploratory plots of data used to fit impact functions
-  # plot_impact_data()
+  plot_impact_data()
 
   # ---- Model fitting ----
 
@@ -124,12 +124,7 @@ get_impact_data = function() {
   
   # Impact estimates per capita from all sources
   data_dt = rbind(vimc_dt, gbd_dt) %>%
-    # Impact per FVP...
-    mutate(impact_fvp = impact / fvps) %>%
-    # Ingore cases with a single data point...
-    add_count(country, d_v_a_id) %>%
-    filter(n > 1) %>%
-    select(-n)
+    mutate(impact_fvp = impact / fvps)
   
   # Save to file
   save_rds(data_dt, "impact", "data") 
@@ -175,10 +170,12 @@ get_best_model = function(id, run, data, pb) {
     # Multiply impact for more consistent x-y scales...
     mutate(y = y * o$impact_scaler)
   
-  browser()
+  # Append the origin (zero vaccine, zero impact)
+  fit_data_dt = data.table(x = 1e-12, y = 0) %>%
+    rbind(fit_data_dt)
   
   # Do not fit if insufficient data
-  if (nrow(fit_data_dt) > 3) {
+  if (nrow(fit_data_dt) > 1) {
     
     # Declare x and y values for which we want to determine a relationship
     x = fit_data_dt$x
@@ -250,8 +247,8 @@ credible_start = function(fns, x, y, plot = FALSE) {
     optim = asd(
       fn   = asd_fn[[fn]],
       x0   = rep(1, n_pars),
-      lb   = rep(0, n_pars), 
-      ub   = rep(Inf, n_pars),
+      lb   = rep(1e-10, n_pars),
+      ub   = rep(Inf,   n_pars),
       max_iters = 10000)
     
     # Overwrite starting point with optimal parameters
