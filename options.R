@@ -31,7 +31,7 @@ set_options = function(do_step = NA) {
   # Ages modelled
   o$ages = 0 : 95
   
-  # ---- Data settings ----
+  # ---- Coverage settings ----
   
   # Bound coverage values below x%
   o$max_coverage = 0.99
@@ -44,7 +44,7 @@ set_options = function(do_step = NA) {
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
 
-  # ---- Non-linear impact assumptions ----
+  # ---- Impact function settings ----
   
   # Use multiple cores to speed up impact function fitting
   o$parallel = FALSE
@@ -52,7 +52,11 @@ set_options = function(do_step = NA) {
   # Multiply impact when fitting for more consistent FVP-impact scales
   o$impact_scaler = 1000
 
-  o$eval_x_scale = 2
+  # Defalt x scale for evaluating impact functions
+  o$eval_x_scale = 2  # Not a critical value - often overwritten with actual FVPs
+  
+  # Number of initial years to average over for back-projecting impact ratio
+  o$init_impact_years = 1 # 3
   
   # ---- Uncertainty settings ----
 
@@ -79,32 +83,20 @@ set_options = function(do_step = NA) {
   # ---- Plotting flags ----
 
   # Turn figures on or off
-  o$plot_inputs       = TRUE
-  o$plot_non_modelled = TRUE
-  o$plot_imputation   = TRUE
-  o$plot_impact       = TRUE
+  o$plot_inputs       = FALSE
+  o$plot_non_modelled = FALSE
+  o$plot_imputation   = FALSE
+  o$plot_impact       = FALSE
   o$plot_uncertainty  = FALSE
   o$plot_history      = TRUE  # Primary result
 
   # ---- Plotting settings ----
-
-  # Colour palette for SIA data exploration plots
-  o$palette_sia = "pals::kovesi.rainbow"
-
+  
   # Colour packages and palettes (see colour_scheme in auxiliary.R)
-  o$palette_disease = "pals::kovesi.rainbow"  # ~15 values needed
-  o$palette_country = "pals::kovesi.rainbow"  # ~190 values needed
-  o$palette_region  = "brewer::paired"  # 6 values
-  o$palette_economy = "brewer::dark2"  # 4 values
-  o$palette_gavi    = "brewer::greys"  # 2 values (yes or no)
-
-  # # Define some nice properties for baseline metric plots
-  # o$baseline_name   = "Baseline scenario"
-  # o$baseline_colour = "grey50"  # Light grey
-  #
-  # # Grey colour for current date dashed line
-  # o$data_colour = "#555555"  # Dark grey
-  # o$dash_colour = "#808080"  # Even darker grey
+  o$palette = list(
+    disease = "pals::kovesi.rainbow",  # 11 values needed
+    region  = "brewer::paired",        # 6 values needed
+    income  = "brewer::dark2")         # 4 values needed
 
   # Font sizes: title, axis, tick, strip, legend, key
   o$font_size = c(34, 28, 16, 24, 20, 18)

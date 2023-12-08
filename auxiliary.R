@@ -504,8 +504,17 @@ read_url_xls = function(url, sheet = 1) {
 # ---------------------------------------------------------
 # Inverse of cumsum - use to extract the vector which created a cumsum
 # ---------------------------------------------------------
-rev_cumsum = function(x)
+rev_cumsum = function(x) {
+  
+  # Return input if single value
+  if (length(x) == 1)
+    return(x)
+  
+  # Take difference of x with a lag of one
   y = x - c(0, x[1 : (length(x) - 1)])
+  
+  return(y)
+}
 
 # ---------------------------------------------------------
 # Wrapper for consistent behaviour of base::sample when length(x) is one
