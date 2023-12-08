@@ -1086,8 +1086,6 @@ plot_model_fits = function() {
   best_fit = evaluate_impact_function() %>%
     append_d_v_a_name()
   
-  browser()
-  
   # Apply max_data so we only plot up to data (or just past)
   plot_dt = best_fit %>%
     left_join(y  = max_data,
@@ -1115,8 +1113,17 @@ plot_model_fits = function() {
 # ---------------------------------------------------------
 plot_history = function() {
   
-  # Wrangle final results
-  plot_dt = read_rds("results", "results") %>%
+  message("  > Plotting historical impact")
+  
+  # Dictionary for temporal and cumulative subplots
+  impact_dict = c(
+    impact_cum = "Cumuative deaths averted (in millions)", 
+    impact     = "Deaths averted per year (in millions)")
+  
+  # ---- Construct plotting data ----
+  
+  # Prepare final results
+  results_dt = read_rds("results", "results") %>%
     # Append full disease names...
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_id") %>%
@@ -1124,28 +1131,83 @@ plot_history = function() {
               by = "disease") %>%
     # Cumulative results for each disease...
     group_by(disease_name, year) %>%
-    summarise(impact = sum(impact)) %>%
+    summarise(impact = sum(impact) / 1e6) %>%
     mutate(impact_cum = cumsum(impact)) %>%
     ungroup() %>%
+    rename(disease = disease_name) %>%
+    # Tidy format for single plot...
+    pivot_longer(cols = c(impact, impact_cum), 
+                 names_to = "metric") %>%
+    mutate(metric = recode(metric, !!!impact_dict), 
+           metric = factor(metric, impact_dict)) %>%
+    arrange(metric, disease, year) %>%
     as.data.table()
   
-  # Stacked area plot: temporal results
-  g1 = ggplot(plot_dt) +
-    aes(x = year, 
-        y = impact, 
-        fill = disease_name) + 
-    geom_area()
+  # Construct labels: total FVPs over analysis timeframe
+  label_dt = results_dt %>%
+    filter(metric == impact_dict[["impact_cum"]]) %>%
+    group_by(disease) %>%
+    summarise(total = round(max(value), 1)) %>%
+    ungroup() %>%
+    mutate(total = paste0("Total: ", total, " million"), 
+           label = paste0(disease, "\n", total)) %>%
+    select(disease, disease_label = label) %>%
+    as.data.table()
   
-  # Stacked area plot: cumulative results
-  g2 = ggplot(plot_dt) +
+  # Append total labels to plotting data
+  plot_dt = results_dt %>%
+    left_join(y  = label_dt, 
+              by = "disease") %>%
+    select(disease_label, year, metric, value)
+  
+  # ---- Produce plot ----
+  
+  # Stacked yearly bar plot
+  g = ggplot(plot_dt) +
     aes(x = year, 
-        y = impact_cum, 
-        fill = disease_name) + 
-    geom_area()
+        y = value, 
+        fill = disease_label) + 
+    geom_col() +
+    # Facet by temporal-cumulative metric...
+    facet_wrap(~metric, scales = "free_y") +
+    # Set colours...
+    scale_fill_manual(
+      values = get_palette("disease")) + 
+    # Prettify y axis...
+    scale_y_continuous(
+      labels = comma, 
+      breaks = pretty_breaks(),
+      expand = expansion(mult = c(0, 0.05))) +
+    # Prettiy x axis...
+    scale_x_continuous(
+      limits = c(min(o$years) - 1, 
+                 max(o$years) + 1), 
+      expand = expansion(mult = c(0, 0)), 
+      breaks = seq(min(o$years), max(o$years), by = 5)) +
+    # Prettify legend (needed for y spacing to take effect)...
+    guides(fill = guide_legend(byrow = TRUE))
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title    = element_blank(),
+          axis.text.y   = element_text(size = 11),
+          axis.text.x   = element_text(size = 11, hjust = 1, angle = 50), 
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 14),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 0.5, fill = NA),
+          panel.spacing = unit(1, "lines"),
+          panel.grid.major.y = element_line(linewidth = 0.25),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 11),
+          legend.key    = element_blank(),
+          legend.position = "right", 
+          legend.spacing.y  = unit(1, "lines"),
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
   
   # Save these figures to file
-  save_fig(g1, "Historical impact - temporal", dir = "history")
-  save_fig(g2, "Historical impact - cumulative", dir = "history")
+  save_fig(g, "Historical impact", dir = "history")
 }
 
 # ---------------------------------------------------------
@@ -1590,6 +1652,28 @@ prettify2 = function(g, save = NULL) {
     save_fig(g, save)
   
   return(g)
+}
+
+# ---------------------------------------------------------
+# Get vector of colours for a given variable
+# ---------------------------------------------------------
+get_palette = function(variable) {
+  
+  n_colours = list(
+    disease = n_unique(table("disease")$disease), 
+    region  = n_unique(table("country")$region), 
+    income  = n_unique(table("income_status")$income))
+  
+  if (!variable %in% names(o$palette))
+    stop("Input '", variable, "' must be one of: ", 
+         paste(names(o$palette), collapse = ", "))
+  
+  p = o$palette[[variable]]
+  n = n_colours[[variable]]
+  
+  colours = colour_scheme(p, n = n)
+  
+  return(colours)
 }
 
 # ---------------------------------------------------------
