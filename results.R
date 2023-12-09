@@ -40,9 +40,6 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_non_modelled) {
     
-    # SDI - HAQi relationship
-    plot_sdi_haqi()
-    
     # Plot vaccine efficacy profiles for non-modelled pathogens
     plot_vaccine_efficacy()
     
@@ -57,6 +54,8 @@ run_results = function() {
   
   # Check plotting flag
   if (o$plot_imputation) {
+    
+    browser()
     
     # Plot predictor and response relationships
     # plot_target()

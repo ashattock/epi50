@@ -1,0 +1,14 @@
+---
+
+# Creates datatable: vaccine_type_table
+table:
+- vaccine_type: Dip
+  vaccine_type_name: "Diphtheria-containing vaccine"
+- vaccine_type: Tet
+  vaccine_type_name: "Tetanus-containing vaccine"
+- vaccine_type: wPer
+  vaccine_type_name: "Whole-cell pertussis-containing vaccine"
+- vaccine_type: aPer
+  vaccine_type_name: "Acellular pertussis-containing vaccine"
+- vaccine_type: BCG
+  vaccine_type_name: "Bacille Calmette-Guerin"

@@ -400,9 +400,6 @@ prepare_gbd_covariates = function() {
   
   # Save in tables cache
   save_table(gbd_covariates, "gbd_covariates")
-  
-  # Plot SDI - HAQi relationship
-  plot_sdi_haqi()
 }
 
 # ---------------------------------------------------------

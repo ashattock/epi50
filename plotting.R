@@ -195,27 +195,24 @@ plot_scope = function() {
       ncol   = 1, 
       labeller = label_wrap_gen(width = 20), 
       strip.position = "right", 
-      repeat.tick.labels = FALSE)
-  
-  # Set colours and legend title
-  g = g + scale_fill_manual(
-    values = unname(impact_colours), 
-    name   = "Source of impact estimates") +
-    guides(fill = guide_legend(reverse = TRUE))
-  
-  # Prettiy x axis
-  g = g + scale_x_continuous(
-    limits = c(year1 - 1 / smoothness , 
-               year2 + 1 / smoothness), 
-    expand = expansion(mult = c(0, 0)), 
-    breaks = seq(year1, year2, by = 5))
-  
-  # Prettiy y axis
-  g = g + scale_y_continuous(
-    name   = "Number of people receiving final primary dose (in millions)", 
-    limits = c(0, y_max), 
-    labels = comma,
-    expand = expansion(mult = c(0, 0)))
+      repeat.tick.labels = FALSE) + 
+    # Set colours and legend title...
+    scale_fill_manual(
+      values = unname(impact_colours), 
+      name   = "Source of impact estimates") +
+    guides(fill = guide_legend(reverse = TRUE)) +
+    # Prettify x axis...
+    scale_x_continuous(
+      limits = c(year1 - 1 / smoothness, 
+                 year2 + 1 / smoothness), 
+      expand = expansion(mult = c(0, 0)), 
+      breaks = seq(year1, year2, by = 5)) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Number of people receiving final primary dose (in millions)", 
+      limits = c(0, y_max), 
+      labels = comma,
+      expand = expansion(mult = c(0, 0)))
   
   # Prettify theme
   g = g + theme_classic() + 
@@ -239,6 +236,7 @@ plot_scope = function() {
   
   # Save to file
   save_fig(g, "Analysis scope", dir = "data_visualisation")
+  save_fig(g, "Figure 1", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -257,7 +255,7 @@ plot_total_fvps = function() {
   source_dt = table("coverage_source") %>%
     # Summarise over countries and age...
     group_by(v_a_id, source, year) %>%
-    summarise(fvps = sum(fvps)) %>%
+    summarise(fvps = sum(fvps) / 1e9) %>%
     ungroup() %>%
     # Cumulative FVPs...
     group_by(v_a_id, source) %>%
@@ -270,10 +268,6 @@ plot_total_fvps = function() {
               by = c("vaccine", "activity"), 
               relationship = "many-to-many") %>%
     select(d_v_a_id, source, year, fvps, fvps_cum) %>%
-    # Remove any d_v_a with less than 2 data points...
-    add_count(d_v_a_id) %>%
-    filter(n > 1) %>%
-    select(-n) %>%
     # Tidy up...
     arrange(d_v_a_id, source, year) %>%
     append_d_v_a_name() %>%
@@ -286,7 +280,7 @@ plot_total_fvps = function() {
   total_dt = table("coverage") %>%
     # Summarise over countries and age...
     group_by(v_a_id, year) %>%
-    summarise(fvps = sum(fvps)) %>%
+    summarise(fvps = sum(fvps) / 1e9) %>%
     ungroup() %>%
     # Cumulative FVPs...
     group_by(v_a_id) %>%
@@ -299,10 +293,6 @@ plot_total_fvps = function() {
               by = c("vaccine", "activity"), 
               relationship = "many-to-many") %>%
     select(d_v_a_id, year, fvps, fvps_cum) %>%
-    # Remove any d_v_a with less than 2 data points...
-    add_count(d_v_a_id) %>%
-    filter(n > 1) %>%
-    select(-n) %>%
     # Tidy up...
     arrange(d_v_a_id, year) %>%
     append_d_v_a_name() %>%
@@ -318,7 +308,36 @@ plot_total_fvps = function() {
     geom_line(data = total_dt, 
               linetype = "dashed",
               colour   = "black") + 
-    facet_wrap(~d_v_a_name)
+    facet_wrap(~d_v_a_name) +
+    # Prettify x axis...
+    scale_x_continuous(
+      limits = c(min(o$years), max(o$years)), 
+      expand = expansion(mult = c(0, 0)), 
+      breaks = seq(min(o$years), max(o$years), by = 10)) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Total receiving final primary dose (in billions)", 
+      labels = comma,
+      expand = expansion(mult = c(0, NA)))
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+          axis.text     = element_text(size = 10),
+          axis.text.x   = element_text(hjust = 1, angle = 50), 
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 12),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+          panel.spacing = unit(1, "lines"),
+          panel.grid.major.y = element_line(linewidth = 0.5),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 14),
+          legend.key    = element_blank(),
+          legend.position = "right", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
   
   # Save to file
   save_dir = "data_visualisation"
@@ -330,12 +349,29 @@ plot_total_fvps = function() {
   for (d_v in c("disease", "vaccine")) {
     
     # Sum FVPs for each disease or vaccine
-    plot_dt = source_dt %>%
+    d_v_dt = source_dt %>%
       left_join(y  = table("d_v_a"), 
                 by = "d_v_a_id") %>%
-      select(d_v = !!d_v, activity, year, fvps_cum) %>%
+      select(d_v = !!d_v, activity, year, fvps) %>%
       group_by(d_v, activity, year) %>%
-      summarise(fvps_cum = sum(fvps_cum)) %>%
+      summarise(fvps = sum(fvps)) %>%
+      ungroup() %>%
+      group_by(d_v, activity) %>%
+      mutate(fvps_cum = cumsum(fvps)) %>%
+      ungroup() %>%
+      as.data.table()
+    
+    # Extend back/forth for attractive plotting
+    plot_dt = 
+      expand_grid(
+        d_v      = unique(d_v_dt$d_v), 
+        activity = unique(d_v_dt$activity), 
+        year     = o$years) %>%
+      left_join(y  = d_v_dt, 
+                by = c("d_v", "activity", "year")) %>%
+      group_by(d_v, activity) %>%
+      fill(fvps_cum, .direction = "down")  %>%
+      replace_na(list(fvps_cum = 0)) %>%
       ungroup() %>%
       as.data.table()
     
@@ -345,7 +381,36 @@ plot_total_fvps = function() {
           y = !!sym(y), 
           fill = activity) + 
       geom_area() + 
-      facet_wrap(~d_v)
+      facet_wrap(~d_v) + 
+      # Prettify x axis...
+      scale_x_continuous(
+        limits = c(min(o$years), max(o$years)), 
+        expand = expansion(mult = c(0, 0)), 
+        breaks = seq(min(o$years), max(o$years), by = 10)) +  
+      # Prettify y axis...
+      scale_y_continuous(
+        name   = "Total receiving full primary or booster schedule (in millions)", 
+        labels = comma,
+        expand = expansion(mult = c(0, NA)))
+    
+    # Prettify theme
+    g = g + theme_classic() + 
+      theme(axis.title.x  = element_blank(),
+            axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+            axis.text     = element_text(size = 10),
+            axis.text.x   = element_text(hjust = 1, angle = 50), 
+            axis.line     = element_blank(),
+            strip.text    = element_text(size = 14),
+            strip.background = element_blank(), 
+            panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+            panel.spacing = unit(1, "lines"),
+            panel.grid.major.y = element_line(linewidth = 0.5),
+            legend.title  = element_blank(),
+            legend.text   = element_text(size = 14),
+            legend.key    = element_blank(),
+            legend.position = "right", 
+            legend.key.height = unit(2, "lines"),
+            legend.key.width  = unit(2, "lines"))
     
     # Save to file
     save_fig(g, paste0("FVPs by ", d_v), dir = save_dir)
@@ -384,11 +449,41 @@ plot_coverage = function() {
     # Plot coverage value density
     g = ggplot(plot_dt) + 
       aes(x = coverage, 
-          y = after_stat(count), 
+          y = after_stat(scaled), 
           colour = age_group,
           fill   = age_group) + 
       geom_density(alpha = 0.2) + 
-      facet_wrap(~d_v)
+      facet_wrap(~d_v) + 
+      # Prettify x axis...
+      scale_x_continuous(
+        name   = "Coverage",
+        labels = percent,
+        limits = c(0, 1), 
+        expand = expansion(mult = c(0, 0)), 
+        breaks = pretty_breaks()) +  
+      # Prettify y axis...
+      scale_y_continuous(
+        name   = "Density", 
+        limits = c(0, 1), 
+        expand = expansion(mult = c(0, 0.1)), 
+        breaks = pretty_breaks())
+    
+    # Prettify theme
+    g = g + theme_classic() + 
+      theme(axis.title.x  = element_text(size = 20, margin = margin(b = 10, t = 20)),
+            axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+            axis.text     = element_text(size = 10),
+            axis.line     = element_blank(),
+            strip.text    = element_text(size = 14),
+            strip.background = element_blank(), 
+            panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+            panel.spacing = unit(1, "lines"),
+            legend.title  = element_blank(),
+            legend.text   = element_text(size = 14),
+            legend.key    = element_blank(),
+            legend.position = "right", 
+            legend.key.height = unit(2, "lines"),
+            legend.key.width  = unit(2, "lines"))
     
     # Save to file
     save_fig(g, save_name, d_v, dir = save_dir)
@@ -414,12 +509,37 @@ plot_coverage_age_density = function() {
         colour = source,
         fill   = source) +
     geom_density(alpha = 0.2) +
-    facet_wrap(~v_a_name)
+    facet_wrap(~v_a_name) +
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Age (log2 scale)",
+      trans  = "log2", 
+      limits = c(1, 2^7), 
+      expand = c(0, 0), 
+      breaks = 2^(0:7)) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Density", 
+      limits = c(0, 1), 
+      expand = expansion(mult = c(0, 0.1)), 
+      breaks = pretty_breaks())
   
-  # Apply meaningful scale
-  g = g + scale_x_continuous(
-    trans  = "log2", 
-    limits = c(1, 2^7))
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_text(size = 20, margin = margin(b = 10, t = 20)),
+          axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+          axis.text     = element_text(size = 10),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 14),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+          panel.spacing = unit(1, "lines"),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 14),
+          legend.key    = element_blank(),
+          legend.position = "right", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
   
   # Save to file
   save_fig(g, "Coverage density by age", dir = "data_visualisation")
@@ -474,9 +594,43 @@ plot_vaccine_efficacy = function() {
   # Plot vaccine efficacy with waning immunity (if any)
   g = ggplot(plot_dt) + 
     aes(x = time, y = profile, colour = d_v) + 
-    geom_line() + 
-    geom_point(data = data_dt) + 
-    facet_grid(~schedule)
+    geom_line(linewidth = 2) + 
+    geom_point(data = data_dt, 
+               size = 5) + 
+    facet_grid(~schedule) +
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Years after completion of full schedule",
+      expand = expansion(mult = c(0.05, 0.05)), 
+      breaks = pretty_breaks()) +
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Vaccine efficacy (death reduction)", 
+      labels = percent,
+      limits = c(0, 1), 
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks()) + 
+    # Prettify legend (needed for y spacing to take effect)...
+    guides(fill = guide_legend(byrow = TRUE))
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_text(size = 20, margin = margin(b = 10, t = 20)),
+          axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+          axis.text     = element_text(size = 11),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 16),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 0.5, fill = NA),
+          panel.spacing = unit(1, "lines"),
+          panel.grid.major.y = element_line(linewidth = 0.25),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 11),
+          legend.key    = element_blank(),
+          legend.position = "right", 
+          legend.spacing.y  = unit(1, "lines"),
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
   
   # Save figure to file
   save_fig(g, "Vaccine efficacy profiles", 
@@ -493,6 +647,10 @@ plot_effective_coverage = function() {
   # Plot only up to a certain age
   age_max = 50
   
+  # Manually define appropriate number of colours 
+  colours = colour_scheme("pals::brewer.blues", n = 8)
+  
+  # Repeat for disease and vaccine type
   for (by in c("disease", "type")) {
     
     # Load previously calculated total coverage file
@@ -500,6 +658,7 @@ plot_effective_coverage = function() {
     
     # Population weight over all countries
     plot_dt = effective_dt %>%
+      append_d_v_t_name() %>%
       select(country, by = !!by, year, age, coverage) %>%
       filter(age <= age_max) %>%
       # Append population size...
@@ -516,15 +675,41 @@ plot_effective_coverage = function() {
     g = ggplot(plot_dt) + 
       aes(x = year, y = age, fill = effective_coverage) + 
       geom_tile() +
-      facet_wrap(~by)
+      facet_wrap(~by) + 
+      # Set continuous colour bar...
+      scale_fill_gradientn(
+        colours = colours, 
+        limits  = c(0, 1), 
+        breaks  = pretty_breaks(), 
+        label   = percent,
+        guide   = guide_colourbar(
+          title = "Effective coverage")) + 
+      # Prettify x axis...
+      scale_x_continuous(
+        expand = c(0, 0), 
+        breaks = seq(min(o$years), max(o$years), by = 5)) +
+      # Prettify y axis...
+      scale_y_continuous(
+        name   = "Vaccine efficacy (death reduction)", 
+        expand = c(0, 0), 
+        breaks = pretty_breaks())
     
-    # Manually define appropriate number of colours 
-    colours = colour_scheme("pals::brewer.blues", n = 8)
-    
-    # Set continuous colour bar
-    g = g + scale_fill_gradientn(
-      colours = colours, 
-      limits  = c(0, 1))
+    # Prettify theme
+    g = g + theme_classic() + 
+      theme(axis.title.x  = element_blank(),
+            axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+            axis.text     = element_text(size = 10),
+            axis.text.x   = element_text(hjust = 1, angle = 50), 
+            axis.line     = element_blank(),
+            strip.text    = element_text(size = 14),
+            strip.background = element_blank(), 
+            panel.border  = element_rect(linewidth = 0.5, fill = NA),
+            panel.spacing = unit(1, "lines"),
+            legend.position    = "top", 
+            legend.title  = element_text(size = 14, margin = margin(r = 20)),
+            legend.text   = element_text(size = 10),
+            legend.key.height = unit(1.5, "lines"),
+            legend.key.width  = unit(6,   "lines"))
     
     # Save figure to file
     save_name = "Effective coverage by year and age"
@@ -539,6 +724,14 @@ plot_non_modelled = function() {
   
   message("  > Plotting non-modelled impact results")
   
+  # Deaths disease/averted dictionary
+  metric_dict = c(
+    deaths_disease = "Estimated disease-specific deaths (GBD 2019)", 
+    deaths_averted = "Estimated deaths averted deaths from static model")
+  
+  # Associated colours
+  metric_colours = c("darkred", "navyblue")
+  
   # ---- Plot by disease ----
   
   # Load previously calculated total coverage file
@@ -548,23 +741,57 @@ plot_non_modelled = function() {
   disease_dt = averted_dt %>%
     pivot_longer(cols = starts_with("deaths"), 
                  names_to = "metric") %>%
+    # Summarise over countries...
     group_by(disease, year, metric) %>%
-    summarise(value = sum(value)) %>%
+    summarise(value = sum(value) / 1e6) %>%
     ungroup() %>%
     arrange(metric, disease, year) %>%
+    # Recode deaths disease/averted...
+    append_d_v_t_name() %>%
+    mutate(metric = recode(metric, !!!metric_dict), 
+           metric = factor(metric, metric_dict)) %>%
     as.data.table()
   
   # Plot deaths and deaths averted by disease
   g = ggplot(disease_dt) + 
     aes(x = year, 
         y = value, 
-        colour   = disease, 
-        linetype = metric) + 
-    geom_line() + 
-    facet_wrap(~disease)
+        colour = metric) + 
+    geom_line(linewidth = 2) + 
+    facet_wrap(~disease) + 
+    # Set colours and prettify legend...
+    scale_colour_manual(values = metric_colours) + 
+    guides(color = guide_legend(
+      byrow = TRUE, ncol = 1)) +
+    # Prettify x axis...
+    scale_x_continuous(
+      # limits = c(min(o$years), max(o$years)), 
+      expand = expansion(mult = c(0, 0)), 
+      breaks = pretty_breaks()) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Number of people (in millions)", 
+      labels = comma,
+      expand = expansion(mult = c(0, 0.05)))
   
-  # Set axis lower bound
-  g = g + ylim(0, NA)
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+          axis.text     = element_text(size = 10),
+          axis.text.x   = element_text(hjust = 1, angle = 50), 
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 14),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+          panel.spacing = unit(1, "lines"),
+          panel.grid.major.y = element_line(linewidth = 0.5),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 14),
+          legend.key    = element_blank(),
+          legend.position = "bottom", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(3, "lines"))
   
   # Save figure to file
   save_fig(g, "Deaths averted by disease", dir = "non_modelled")
@@ -576,24 +803,51 @@ plot_non_modelled = function() {
   
   # Summarise results over country
   vaccine_dt = averted_dt %>%
-    append_d_v_a_name() %>%
-    group_by(d_v_a_name, year) %>%
+    # Convert from d_v_a to v_a...
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    left_join(y  = table("vaccine"), 
+              by = "vaccine") %>%
+    # Summarise over countries...
+    group_by(vaccine_name, year) %>%
     summarise(deaths_averted = sum(impact)) %>%
     ungroup() %>%
-    arrange(d_v_a_name, year) %>%
+    arrange(vaccine_name, year) %>%
     as.data.table()
   
   # Plot deaths and deaths averted by disease
   g = ggplot(vaccine_dt) + 
     aes(x = year, 
         y = deaths_averted, 
-        colour = d_v_a_name) + 
-    geom_line(show.legend = FALSE) + 
-    facet_wrap(~d_v_a_name,
-               scales = "free_y")
+        colour = vaccine_name) + 
+    geom_line(linewidth   = 2, 
+              show.legend = FALSE) + 
+    facet_wrap(~vaccine_name,
+               scales = "free_y") + 
+    # Prettify x axis...
+    scale_x_continuous(
+      # limits = c(min(o$years), max(o$years)), 
+      expand = expansion(mult = c(0, 0)), 
+      breaks = pretty_breaks()) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Deaths averted by vaccine", 
+      labels = comma,
+      limits = c(0, NA), 
+      expand = expansion(mult = c(0, 0.05)))
   
-  # Set axis lower bound
-  g = g + ylim(0, NA)
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(size = 18, margin = margin(l = 10, r = 20)),
+          axis.text     = element_text(size = 9),
+          axis.text.x   = element_text(hjust = 1, angle = 50), 
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 12),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+          panel.spacing = unit(1, "lines"),
+          panel.grid.major.y = element_line(linewidth = 0.5))
   
   # Save figure to file
   save_fig(g, "Deaths averted by vaccine", dir = "non_modelled")
@@ -692,42 +946,6 @@ plot_target = function() {
     save_fig(g1, "VIMC impact-FVP timing", d_v_a, dir = dir)
     save_fig(g2, "VIMC impact-FVP ratio",  d_v_a, dir = dir)
   }
-}
-
-# ---------------------------------------------------------
-# Plot relationship bewteen SDI and HAQi
-# ---------------------------------------------------------
-plot_sdi_haqi = function() {
-  
-  message("  > Plotting SDI vs HAQi by country")
-  
-  # Load SDI and HAQi values
-  gbd_covariates = table("gbd_covariates")
-  
-  # Whether country is covered by VIMC
-  source_dt = table("vimc_estimates") %>%
-    select(country) %>%
-    unique() %>%
-    mutate(source = "vimc") %>%
-    full_join(y  = all_countries(as_dt = TRUE), 
-              by = "country") %>%
-    replace_na(list(source = "non_vimc")) %>%
-    arrange(country)
-  
-  # Join metrics with country source
-  plot_dt = gbd_covariates %>%
-    filter(!is.na(sdi), 
-           !is.na(haqi)) %>%
-    left_join(y  = source_dt, 
-              by = "country")
-  
-  # Plot SDI vs HAQi by country and source
-  g = ggplot(plot_dt) + 
-    aes(x = sdi, y = haqi, colour = source) + 
-    geom_line(aes(group = country))
-  
-  # Save figure to file
-  save_fig(g, "SDI vs HAQi by country", dir = "imputation")
 }
 
 # ---------------------------------------------------------
@@ -1190,8 +1408,8 @@ plot_history = function() {
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title    = element_blank(),
-          axis.text.y   = element_text(size = 11),
-          axis.text.x   = element_text(size = 11, hjust = 1, angle = 50), 
+          axis.text     = element_text(size = 11),
+          axis.text.x   = element_text(hjust = 1, angle = 50), 
           axis.line     = element_blank(),
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
@@ -1208,57 +1426,7 @@ plot_history = function() {
   
   # Save these figures to file
   save_fig(g, "Historical impact", dir = "history")
-}
-
-# ---------------------------------------------------------
-# Plot annual totals - diagnostic figure to check alignment of means
-# ---------------------------------------------------------
-plot_annual_total = function() {
-  
-  message("  > Plotting annual totals")
-  
-  browser() # Needs updating for EPI50 pipeline...
-  
-  # Load modelled total deaths per year
-  scenario_total = try_load(o$pth$impact_factors, "scenario_total")
-  
-  # Load uncertainty draws - we want to see the means of these the same as above
-  draws_dt = try_load(o$pth$uncertainty, "draws")
-  
-  # Uncertainty per year (all diseases and countries) across draws
-  annual_dt = draws_dt %>%
-    # Melt to long format...
-    pivot_longer(cols = starts_with("draw"), 
-                 names_to = "draw") %>%
-    # Total deaths averted per year (per draw)...
-    group_by(year, draw) %>%
-    summarise(value = sum(value)) %>%
-    ungroup() %>%
-    # Mean and bounds across draws...
-    group_by(year) %>%
-    summarise(mean =  mean(value), 
-              lower = quantile(value, 0.05), 
-              upper = quantile(value, 0.95)) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  # Plot mean and bounds from draws, and overlay modelled mean
-  g = ggplot(annual_dt, aes(x = year)) +
-    geom_ribbon(aes(ymin = lower, ymax = upper),
-                colour = "red", fill = "red", alpha = 0.5) +
-    geom_line(aes(y = mean), colour = "red", linewidth = 2) +
-    geom_point(data    = scenario_total,
-               mapping = aes(y = deaths_averted),
-               colour  = "black")
-  
-  # Prettify plot
-  g %<>% ggpretty(
-    x_lab = "Year", 
-    y_lab = "Deaths averted")
-  
-  # Save figure to file
-  save_name = "Uncertainty bounds - Annual total"
-  save_fig(g, save_name, dir = "uncertainty")
+  save_fig(g, "Figure 2", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -1519,139 +1687,111 @@ plot_gbd_uncertainty_fit = function() {
 }
 
 # ---------------------------------------------------------
-# Convert d_v_a_id into human-readable sting
-# ---------------------------------------------------------
-append_d_v_a_name = function(id_dt) {
-  
-  # Append d_v_a description
-  name_dt = id_dt %>%
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    mutate(d_v_a_name = paste0(disease, " (", 
-                               vaccine, "): ", 
-                               activity), 
-           .after = d_v_a_id) %>%
-    select(-disease, -vaccine, -activity)
-  
-  return(name_dt)
-}
-
-# ---------------------------------------------------------
 # Convert v_a_id into human-readable sting
 # ---------------------------------------------------------
 append_v_a_name = function(id_dt) {
+  
+  # Vaccine descriptive names
+  vaccine_dt = table("vaccine") %>%
+    select(vaccine, .v = vaccine_name)
   
   # Append v_a description
   name_dt = id_dt %>%
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
-    mutate(v_a_name = paste0(vaccine, ": ", 
-                             activity), 
+    rename(.a = activity) %>%
+    # Append descriptive names...
+    left_join(y  = vaccine_dt, 
+              by = "vaccine") %>%
+    select(-vaccine) %>%
+    # Construct full names...
+    mutate(v_a_name = paste0(.v, ": ", .a), 
            .after = v_a_id) %>%
-    select(-vaccine, -activity)
+    # Set plotting order...
+    mutate(v_a_name = fct_inorder(v_a_name)) %>%
+    select(-.v, -.a)
   
   return(name_dt)
 }
 
 # ---------------------------------------------------------
-# Apply colour scheme and tidy up axes - impact plots
+# Convert d_v_a_id into human-readable sting
 # ---------------------------------------------------------
-prettify1 = function(g, save = NULL) {
+append_d_v_a_name = function(id_dt) {
   
-  # Colour map to sample from
-  map = "pals::kovesi.rainbow"
+  # Disease descriptive names
+  disease_dt = table("disease") %>%
+    select(disease, .x = disease_name)
   
-  # Axes label dictionary
-  lab_dict = c(
-    coverage    = "Coverage of target population",
-    year        = "Year",
-    fvps        = "Fully vaccinated persons (FVPs) in one year",
-    fvps_100k   = "Fully vaccinated persons (FVPs) per 100k people",
-    fvps_cum    = "Cumulative fully vaccinated persons (FVPs)",
-    fvps_rel    = "Cumulative fully vaccinated persons (FVPs) per population-person",
-    impact      = "Deaths averted",
-    impact_100k = "Deaths averted per 100k population",
-    impact_cum  = "Cumulative deaths averted", 
-    impact_rel  = "Cumulative deaths averted per population-person", 
-    impact_fvp  = "Deaths averted per fully vaccinated person (FVP)")
+  # Vaccine descriptive names
+  vaccine_dt = table("vaccine") %>%
+    select(vaccine, .v = vaccine_name)
   
-  # Extract info from the plot
-  g_info = ggplot_build(g)
-  
-  # Number of colours to generates - one per country
-  plot_country = unique(g_info$plot$data$country)
-  
-  # Construct colours from map
-  all_cols  = colour_scheme(map, n = length(all_countries())) 
-  plot_cols = all_cols[all_countries() %in% plot_country]
-  
-  # Apply the colours
-  g = g + scale_colour_manual(values = plot_cols)
-  
-  # Prettyify axes
-  g = g + 
-    scale_x_continuous(
-      name   = lab_dict[g_info$plot$labels$x], 
-      expand = expansion(mult = c(0, 0.05)),  
-      labels = comma) +
-    scale_y_continuous(
-      name   = lab_dict[g_info$plot$labels$y], 
-      expand = expansion(mult = c(0, 0.05)),
-      labels = comma)
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(strip.text    = element_text(size = 18), #10),
-          axis.title    = element_text(size = 22), #15),
-          axis.text     = element_text(size = 12, angle = 30, hjust = 1),
-          # axis.text     = element_text(size = 7, angle = 30, hjust = 1),
-          axis.line     = element_blank(),
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-          panel.spacing = unit(0.5, "lines"),
-          strip.background = element_blank()) 
-  
-  # Save plots to file
-  if (!is.null(save))
-    save_fig(g, save)
-  
-  return(g)
+  # Append d_v_a description
+  name_dt = id_dt %>%
+    # Append d_v_a details...
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    rename(.a = activity) %>%
+    # Append descriptive names...
+    left_join(disease_dt, by = "disease") %>%
+    left_join(vaccine_dt, by = "vaccine") %>%
+    select(-disease, -vaccine) %>%
+    # Construct full names...
+    mutate(d_v_a_name = ifelse(
+      test = .x == .v,
+      yes  = paste0(.x, ": ", .a), 
+      no   = paste0(.x, " (", .v, "): ", .a)), 
+      .after = d_v_a_id) %>%
+    # Set plotting order...
+    mutate(d_v_a_name = fct_inorder(d_v_a_name)) %>%
+    select(-.x, -.v, -.a)
+
+  return(name_dt)
 }
 
 # ---------------------------------------------------------
-# Apply colour scheme and tidy up axes - count plots
+# Full descriptive names for disease, vaccine, or vaccine type
 # ---------------------------------------------------------
-prettify2 = function(g, save = NULL) {
+append_d_v_t_name = function(name_dt) {
   
-  # Construct manual colour scheme
-  cols = c("grey60", "dodgerblue1")
+  # All columns to update
+  d_v_t = intersect(
+    x = names(name_dt), 
+    y = qc(disease, vaccine, type))
   
-  # Apply the colours
-  g = g + scale_fill_manual(name = "Best model", values = cols)
+  # Convert column name type -> vaccine_type
+  if ("type" %in% d_v_t)
+    name_dt %<>% rename(vaccine_type = type)
   
-  # Prettyify axes
-  g = g + scale_y_continuous(expand = expansion(mult = c(0, 0.05)),
-                             breaks = pretty_breaks(), 
-                             name   = "Count")
+  # Iterate through columns to update
+  for (x in d_v_t) {
+    
+    # Vaccine type is a special case
+    if (x == "type")
+      x = "vaccine_type"
+    
+    # Column name of full description
+    x_name = paste1(x, "name")
+    
+    # Plotting order
+    x_ord = table(x)[[x_name]]
+    
+    # Append full name description
+    name_dt %<>%
+      left_join(table(x), by = x) %>%
+      select(-all_of(x)) %>%
+      rename(.x := all_of(x_name)) %>%
+      mutate(.x = factor(.x, x_ord)) %>%
+      rename(!!x := .x) %>%
+      select(all_of(names(name_dt)))
+  }
   
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(axis.title.y  = element_blank(),
-          axis.title.x  = element_text(size = 18),
-          axis.text     = element_text(size = 10),
-          axis.line     = element_blank(),
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
-          panel.spacing = unit(0.5, "lines"),
-          legend.title  = element_text(size = 14),
-          legend.text   = element_text(size = 12),
-          legend.key    = element_blank(),
-          legend.key.height = unit(2, "lines"),
-          legend.key.width  = unit(2, "lines")) 
+  # Convert back vaccine_type -> type
+  if ("type" %in% d_v_t)
+    name_dt %<>% rename(type = vaccine_type)
   
-  # Save plots to file
-  if (!is.null(save))
-    save_fig(g, save)
-  
-  return(g)
+  return(name_dt)
 }
 
 # ---------------------------------------------------------
