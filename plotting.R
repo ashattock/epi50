@@ -946,14 +946,12 @@ plot_covariates = function() {
   
   # Save figure to file
   save_fig(g, "Covariate relationships", dir = "imputation")
-  
-  browser()
 }
 
 # ---------------------------------------------------------
 # Plot truth vs predicted for imputation training data
 # ---------------------------------------------------------
-plot_impute_fit = function() {
+plot_impute_quality = function() {
   
   message("  > Plotting imputation quality of fit")
   
@@ -1004,13 +1002,48 @@ plot_impute_fit = function() {
   
   # Single plot with multiple facets
   g = ggplot(plot_dt) +
-    aes(x = target, y = predict, color = d_v_a_name) +
-    geom_point(alpha = 0.5, shape = 16, show.legend = FALSE) +
-    geom_blank(data = blank_dt) +    # For square axes
-    geom_abline(colour = "black") +  # To see quality of predict vs target
-    facet_wrap(~d_v_a_name, scales = "free")
+    aes(x = target, 
+        y = predict, 
+        color = d_v_a_name) +
+    # Plot truth vs predicted...
+    geom_point(alpha = 0.35, 
+               shape = 16, 
+               show.legend = FALSE) +
+    # For square axes...
+    geom_blank(data = blank_dt) +
+    # To see quality of predict vs target...
+    geom_abline(colour = "black") + 
+    # Simple faceting with wrap labelling...
+    facet_wrap(
+      facets   = vars(d_v_a_name), 
+      labeller = label_wrap_gen(width = 30), 
+      scales   = "free") + 
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Imputation target", 
+      labels = scientific,
+      limits = c(0, NA), 
+      expand = c(0, 0), 
+      breaks = pretty_breaks()) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Imputation prediction", 
+      labels = scientific,
+      limits = c(0, NA),
+      expand = c(0, 0), 
+      breaks = pretty_breaks())
   
-  browser()
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_text(size = 18, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(size = 18, margin = margin(b = 10, t = 20)),
+          axis.text     = element_text(size = 8),
+          axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 12),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 0.5, colour = "black", fill = NA),
+          panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
   save_fig(g, "Imputation fit", dir = "imputation")
@@ -1066,8 +1099,6 @@ plot_impute_countries = function() {
   # Remove legend
   g = g + theme(legend.position = "none")
   
-  browser()
-  
   # Save figure to file
   save_fig(g, "Imputation error annual", dir = "imputation")
   
@@ -1103,8 +1134,6 @@ plot_impute_countries = function() {
     geom_blank(data = blank_dt) +    # For square axes
     geom_point(aes(colour = source)) + 
     facet_wrap(~d_v_a_name, scales = "free")
-  
-  browser()
   
   # Save figure to file
   save_fig(g, "Imputation error total", dir = "imputation")

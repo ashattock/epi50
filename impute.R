@@ -58,8 +58,10 @@ run_impute = function() {
   # Plot predictor-response relationships
   plot_covariates()
   
-  # Plot imputation outcomes
-  plot_impute_fit()
+  # Plot imputation quality of fit
+  plot_impute_quality()
+  
+  # Plot train-predict countries
   plot_impute_countries()
 }
 
