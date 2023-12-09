@@ -85,7 +85,7 @@ set_options = function(do_step = NA) {
   # Turn figures on or off
   o$plot_inputs       = FALSE
   o$plot_non_modelled = FALSE
-  o$plot_imputation   = TRUE
+  o$plot_imputation   = FALSE
   o$plot_impact       = TRUE
   o$plot_uncertainty  = FALSE
   o$plot_history      = TRUE  # Primary result

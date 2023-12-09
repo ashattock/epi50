@@ -1150,26 +1150,97 @@ plot_impact_data = function() {
   data_dt = read_rds("impact", "data") %>%
     append_d_v_a_name()
   
+  # ---- Plot 1: impact per FVP over time ----
+  
   # Impact per FVP over time
   g1 = ggplot(data_dt) +
-    aes(x = year, y = impact_fvp, colour = country) +
+    aes(x = year, 
+        y = impact_fvp, 
+        colour = country) +
     geom_line(show.legend = FALSE) +
-    facet_wrap(~d_v_a_name, scales = "free_y")
-  # prettify1(save = c("Year", "impact", "FVP"))
+    # Faceting with wrap labelling...
+    facet_wrap(
+      facets   = vars(d_v_a_name), 
+      labeller = label_wrap_gen(width = 30), 
+      scales   = "free_y") + 
+    # Set colour scheme...
+    scale_colour_manual(
+      values = colour_scheme(
+        map = "viridis::viridis", 
+        n   = n_unique(all_countries()))) +
+    # Prettify x axis...
+    scale_x_continuous(
+      expand = c(0, 0), 
+      breaks = pretty_breaks()) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Impact per fully vaccinated", 
+      labels = scientific,
+      limits = c(0, NA),
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks())
+  
+  # Prettify theme
+  g1 = g1 + theme_classic() + 
+    theme(axis.title.x  = element_text(size = 16, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(size = 16, margin = margin(b = 10, t = 20)),
+          axis.text     = element_text(size = 8),
+          axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 10),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 0.5, colour = "black", fill = NA),
+          panel.spacing = unit(0.5, "lines"))
+  
+  # Save figure to file
+  save_fig(g1, "Data - impact ratio", dir = "impact_functions")
+
+  # ---- Plot 2: cumulative impact vs cumulative FVP ----
   
   # Cumulative FVPs vs cumulative deaths averted
   g2 = ggplot(data_dt) + 
-    aes(x = fvps, y = impact, colour = country) +
+    aes(x = fvps, 
+        y = impact, 
+        colour = country) +
     geom_line(show.legend = FALSE) +
-    facet_wrap(~d_v_a_name, scales = "free")
-  # prettify1(save = c("FVP", "impact"))
+    # Faceting with wrap labelling...
+    facet_wrap(
+      facets   = vars(d_v_a_name), 
+      labeller = label_wrap_gen(width = 30), 
+      scales   = "free") + 
+    # Set colour scheme...
+    scale_colour_manual(
+      values = colour_scheme(
+        map = "viridis::viridis", 
+        n   = n_unique(all_countries()))) +
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Cumulative FVPs per capita (including new birth cohorts)", 
+      limits = c(0, NA),
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks()) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Cumulative impact per capita (including new birth cohorts)", 
+      labels = scientific,
+      limits = c(0, NA),
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks())
   
-  # Figure sub-directory to save to
-  dir = "impact_functions"
+  # Prettify theme
+  g2 = g2 + theme_classic() + 
+    theme(axis.title.x  = element_text(size = 16, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(size = 16, margin = margin(b = 10, t = 20)),
+          axis.text     = element_text(size = 8),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 10),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 0.5, colour = "black", fill = NA),
+          panel.spacing = unit(0.5, "lines"))
   
-  # Save figures to file
-  save_fig(g1, "Data - impact ratio", dir = dir)
-  save_fig(g2, "Data - cumulative FVP vs impact", dir = dir)
+  # Save figure to file
+  save_fig(g2, "Data - cumulative FVP vs impact", 
+           dir = "impact_functions")
 }
 
 # ---------------------------------------------------------
@@ -1177,7 +1248,7 @@ plot_impact_data = function() {
 # ---------------------------------------------------------
 plot_model_selection = function() {
   
-  message("  > Plotting impact function counts")
+  message("  > Plotting impact model selection")
   
   # Load stuff: best fit functions and associtaed coefficients
   best_dt = read_rds("impact", "best_model") %>%
@@ -1186,7 +1257,7 @@ plot_model_selection = function() {
   # ---- Plot function count ----
   
   # Simple plotting function with a few features
-  plot_selection = function(var, type = "count", stat = "n") {
+  plot_selection = function(var, type = "count", stat = "number") {
     
     # Determine order - with 'focus' function first
     fn_dict = fn_set(dict = TRUE)
@@ -1195,11 +1266,11 @@ plot_model_selection = function() {
     selection_dt = best_dt %>% 
       rename(var = !!var) %>% 
       # Number and proportion of each fn...
-      count(var, fn) %>%
+      count(var, fn, name = "number") %>%
       group_by(var) %>%
-      mutate(total = sum(n)) %>%
+      mutate(total = sum(number)) %>%
       ungroup() %>%
-      mutate(p = n / total) %>%
+      mutate(proportion = number / total) %>%
       # Set appropriate plotting order...
       rename(val = !!stat) %>%
       select(var, fn, val) %>%
@@ -1220,11 +1291,31 @@ plot_model_selection = function() {
     if (type == "count") {
       
       # Number of occurances
-      g = ggplot(selection_dt[val > 0]) + 
-        aes(x = var, y = val, fill = fn) + 
+      g = ggplot(selection_dt) + 
+        aes(x    = var, 
+            y    = val, 
+            fill = fn) + 
         geom_col() + 
-        coord_flip()
-      # prettify2(save = c("Count", focus, var, stat))
+        coord_flip() + 
+        # Prettify x axis (noting coord_flip)...
+        scale_y_continuous(
+          name   = paste(first_cap(stat), "of countries"), 
+          expand = expansion(mult = c(0, 0.05)), 
+          breaks = pretty_breaks())
+      
+      # Prettify theme
+      g = g + theme_classic() + 
+        theme(axis.title.x  = element_text(size = 20, margin = margin(b = 10, t = 20)),
+              axis.title.y  = element_blank(),
+              axis.text     = element_text(size = 12),
+              axis.line     = element_blank(),
+              panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+              legend.title  = element_blank(),
+              legend.text   = element_text(size = 12),
+              legend.key    = element_blank(),
+              legend.position = "right", 
+              legend.key.height = unit(2, "lines"),
+              legend.key.width  = unit(2, "lines"))
     }
     
     # Check figure type flag
@@ -1232,8 +1323,32 @@ plot_model_selection = function() {
       
       # Density of occurances
       g = ggplot(selection_dt) + 
-        aes(x = val, fill = fn) +
-        geom_bar()
+        aes(x    = val, 
+            fill = fn) +
+        geom_bar() + 
+        # Prettify x axis...
+        scale_x_continuous(
+          name   = "Number of model selections for a country", 
+          breaks = pretty_breaks()) +  
+        # Prettify y axis...
+        scale_y_continuous(
+          name   = paste(first_cap(stat), "of countries"), 
+          expand = expansion(mult = c(0, 0.05)), 
+          breaks = pretty_breaks())
+      
+      # Prettify theme
+      g = g + theme_classic() + 
+        theme(axis.title.x  = element_text(size = 20, margin = margin(b = 10, t = 20)),
+              axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+              axis.text     = element_text(size = 12),
+              axis.line     = element_blank(),
+              panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+              legend.title  = element_blank(),
+              legend.text   = element_text(size = 12),
+              legend.key    = element_blank(),
+              legend.position = "right", 
+              legend.key.height = unit(2, "lines"),
+              legend.key.width  = unit(2, "lines"))
     }
     
     return(g)
@@ -1245,19 +1360,17 @@ plot_model_selection = function() {
   save_dir = "impact_functions"
   
   # Plot by disease-vaccine-activity
-  g1 = plot_selection("d_v_a_name", stat = "n")
-  g2 = plot_selection("d_v_a_name", stat = "p")
+  g1 = plot_selection("d_v_a_name", stat = "number")
+  g2 = plot_selection("d_v_a_name", stat = "proportion")
   
-  save_fig(g1, "Selection", "pathogen", "number",     dir = save_dir)
-  save_fig(g2, "Selection", "pathogen", "proportion", dir = save_dir)
+  save_fig(g1, "Selection by pathogen", "number",     dir = save_dir)
+  save_fig(g2, "Selection by pathogen", "proportion", dir = save_dir)
   
   # Plot by country
-  g3 = plot_selection("country", type = "count")
-  g4 = plot_selection("country", type = "density")
+  g3 = plot_selection("country", type = "density")
   
   # Save the last figure
-  save_fig(g3, "Selection", "country", dir = save_dir)
-  save_fig(g4, "Density",   "country", dir = save_dir)
+  save_fig(g3, "Selection density by country", dir = save_dir)
 }
 
 # ---------------------------------------------------------
@@ -1295,14 +1408,51 @@ plot_model_fits = function() {
   
   # Plot function evaluation against the data
   g = ggplot(plot_dt) +
-    aes(x = fvps, y = impact, colour = country) +
-    geom_point(data = data_dt,
-               size = 0.75,
-               alpha = 0.5,
-               show.legend = FALSE) +
+    aes(x = fvps, 
+        y = impact, 
+        colour = country) +
+    # Plot data, then fit on top...
+    geom_point(
+      data = data_dt,
+      size = 0.75,
+      alpha = 0.5,
+      show.legend = FALSE) +
     geom_line(show.legend = FALSE) +
-    facet_wrap(~d_v_a_name, scales = "free")
-  # prettify1(save = c("Fit data", focus, name))
+    # Faceting with wrap labelling...
+    facet_wrap(
+      facets   = vars(d_v_a_name), 
+      labeller = label_wrap_gen(width = 30), 
+      scales   = "free") + 
+    # Set colour scheme...
+    scale_colour_manual(
+      values = colour_scheme(
+        map = "viridis::viridis", 
+        n   = n_unique(all_countries()))) +
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Cumulative FVPs per capita (including new birth cohorts)", 
+      limits = c(0, NA),
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks()) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Cumulative impact per capita (including new birth cohorts)", 
+      labels = scientific,
+      limits = c(0, NA),
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks())
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_text(size = 16, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(size = 16, margin = margin(b = 10, t = 20)),
+          axis.text     = element_text(size = 8),
+          axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 10),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 0.5, colour = "black", fill = NA),
+          panel.spacing = unit(0.5, "lines"))
   
   save_fig(g, "Impact function evaluation", dir = "impact_functions")
 }

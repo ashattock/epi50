@@ -10,16 +10,16 @@ table:
   vaccine_name: "Hepatitis B"
   age: 0
 - vaccine: HepB_BD
-  vaccine_name: "Hepatitis B (birth dose)"
+  vaccine_name: "Hep B birth dose"
   age: 0
 - vaccine: Hib3
   vaccine_name: "Haemophilus influenzae type b"
   age: 0
 - vaccine: MCV1
-  vaccine_name: "Measles-containing (first dose)"
+  vaccine_name: "Measles first dose"
   age: 1
 - vaccine: MCV2
-  vaccine_name: "Measles-containing (second dose)"
+  vaccine_name: "Measles second dose"
   age: "4:6"
 - vaccine: Measles
   vaccine_name: "Measles"
@@ -37,25 +37,25 @@ table:
   vaccine_name: "Rubella"
   age: 0
 - vaccine: Dip3
-  vaccine_name: "Diphtheria-containing (primary schedule)"
+  vaccine_name: "Diphtheria primary"
   age: 0
 - vaccine: Dip_BX
-  vaccine_name: "Diphtheria-containing (booster dose)"
+  vaccine_name: "Diphtheria booster"
   age: "1:15"
 - vaccine: Tet3
-  vaccine_name: "Tetanus-containing (primary schedule)"
+  vaccine_name: "Tetanus primary"
   age: 0
 - vaccine: Tet_BX
-  vaccine_name: "Tetanus-containing (booster dose)"
+  vaccine_name: "Tetanus booster"
   age: "1:15"
 - vaccine: wPer3
-  vaccine_name: "Acellular pertussis-containing"
+  vaccine_name: "Whole-cell pertussis"
   age: 0
 - vaccine: aPer3
-  vaccine_name: "Whole-cell pertussis-containing (primary schedule)"
+  vaccine_name: "Acellular pertussis primary"
   age: 0
 - vaccine: aPer_BX
-  vaccine_name: "Pertussis-containing (booster dose)"
+  vaccine_name: "Acellular pertussis booster"
   age: "1:15"
 - vaccine: BCG
   vaccine_name: "Bacille Calmette-Guerin"
