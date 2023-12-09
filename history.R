@@ -163,7 +163,7 @@ run_history = function() {
   # ---- Plot results ----
   
   # Plot historical impact over time
-  plot_history()
+  plot_historical_impact()
 }
 
 # ---------------------------------------------------------

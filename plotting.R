@@ -901,12 +901,53 @@ plot_covariates = function() {
   
   # Plot covariates vs imputation target
   g = ggplot(plot_dt) +
-    aes(x = target, y = value, colour = covariate) +
-    geom_point(alpha = 0.2, shape = 16, show.legend = FALSE) +
-    facet_grid(covariate~d_v_a_name, scales = "free")
+    aes(x = target, 
+        y = value, 
+        colour = covariate) +
+    geom_point(
+      alpha = 0.2, 
+      shape = 16, 
+      show.legend = FALSE) +
+    # Facet in 2 dims with label wrapping...
+    facet_grid(
+      rows     = vars(covariate), 
+      cols     = vars(d_v_a_name),
+      labeller = label_wrap_gen(width = 20), 
+      scales   = "free") + 
+    # Set colour scheme...
+    scale_colour_manual(
+      values = colour_scheme(
+        map = "pals::kovesi.rainbow", 
+        n   = n_unique(plot_dt$covariate))) +
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Normalised predictor", 
+      limits = c(0, 1), 
+      expand = c(0, 0), 
+      breaks = pretty_breaks()) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Normalised response (impact per FVP)", 
+      limits = c(0, 1), 
+      expand = c(0, 0), 
+      breaks = pretty_breaks())
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_text(size = 16, margin = margin(l = 4, r = 8)),
+          axis.title.y  = element_text(size = 16, margin = margin(b = 4, t = 8)),
+          axis.text     = element_text(size = 6),
+          axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 8),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(linewidth = 0.5, colour = "black", fill = NA),
+          panel.spacing = unit(0.4, "lines"))
   
   # Save figure to file
   save_fig(g, "Covariate relationships", dir = "imputation")
+  
+  browser()
 }
 
 # ---------------------------------------------------------
@@ -969,6 +1010,8 @@ plot_impute_fit = function() {
     geom_abline(colour = "black") +  # To see quality of predict vs target
     facet_wrap(~d_v_a_name, scales = "free")
   
+  browser()
+  
   # Save figure to file
   save_fig(g, "Imputation fit", dir = "imputation")
 }
@@ -1023,6 +1066,8 @@ plot_impute_countries = function() {
   # Remove legend
   g = g + theme(legend.position = "none")
   
+  browser()
+  
   # Save figure to file
   save_fig(g, "Imputation error annual", dir = "imputation")
   
@@ -1058,6 +1103,8 @@ plot_impute_countries = function() {
     geom_blank(data = blank_dt) +    # For square axes
     geom_point(aes(colour = source)) + 
     facet_wrap(~d_v_a_name, scales = "free")
+  
+  browser()
   
   # Save figure to file
   save_fig(g, "Imputation error total", dir = "imputation")
@@ -1232,9 +1279,9 @@ plot_model_fits = function() {
 }
 
 # ---------------------------------------------------------
-# Main results plot - impact over time
+# Main results plot - historical impact over time
 # ---------------------------------------------------------
-plot_history = function() {
+plot_historical_impact = function() {
   
   message("  > Plotting historical impact")
   
@@ -1394,7 +1441,7 @@ append_d_v_a_name = function(id_dt) {
     # Set plotting order...
     mutate(d_v_a_name = fct_inorder(d_v_a_name)) %>%
     select(-.x, -.v, -.a)
-
+  
   return(name_dt)
 }
 

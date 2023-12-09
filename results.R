@@ -83,8 +83,8 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_history) {
     
-    # Main results plot - impact over time
-    plot_history()
+    # Main results plot - historical impact over time
+    plot_historical_impact()
   }
   
   # ---- Uncertainty plots ----
