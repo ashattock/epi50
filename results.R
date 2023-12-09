@@ -55,10 +55,7 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_imputation) {
     
-    browser()
-    
     # Plot predictor and response relationships
-    # plot_target()
     plot_covariates()
 
     # Plot imputation outcomes

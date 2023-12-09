@@ -55,8 +55,7 @@ run_impute = function() {
   
   # NOTE: All plotting functionality lives in plotting.R
   
-  # Plot predictor and response relationships
-  plot_target()
+  # Plot predictor-response relationships
   plot_covariates()
   
   # Plot imputation outcomes
