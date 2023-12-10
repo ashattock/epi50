@@ -422,6 +422,118 @@ plot_total_fvps = function() {
 }
 
 # ---------------------------------------------------------
+# Plot smoothed FVP for non-modelled pathogens
+# ---------------------------------------------------------
+plot_smooth_fvps = function() {
+  
+  message("  > Plotting smoothed FVPs (non-modelled)")
+  
+  # ---- Plot 1: data vs smoothing ----
+  
+  # Smoothing data - group by country and age
+  smooth_dt = table("smoothed_fvps") %>%
+    mutate(country_age = paste1(country, age), 
+           fvps_smooth = fvps_smooth / 1e6, 
+           fvps        = fvps / 1e6) %>%
+    append_v_a_name() %>%
+    select(v_a_name, country, country_age, 
+           year, fvps, fvps_smooth)
+  
+  # Plot the data with associated smoothing
+  g1 = ggplot(smooth_dt) +
+    aes(x = year, 
+        colour = country, 
+        group  = country_age) +
+    # Plot data...
+    geom_point(
+      mapping = aes(y = fvps),
+      show.legend = FALSE) +
+    # Plot smoothing...
+    geom_line(
+      mapping = aes(y = fvps_smooth),
+      show.legend = FALSE) +
+    # Simple faceting...
+    facet_wrap(~v_a_name) + 
+    # Prettify x axis...
+    scale_x_continuous(
+      expand = expansion(mult = c(0, 0)), 
+      breaks = pretty_breaks()) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Fully vaccinated people (in millions)", 
+      labels = comma,
+      limits = c(0, NA),
+      expand = expansion(mult = c(0, 0.05)))
+  
+  # Prettify theme
+  g1 = g1 + theme_classic() + 
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(
+            size = 20, margin = margin(l = 10, r = 20)),
+          axis.text     = element_text(size = 10),
+          # axis.text.x   = element_text(hjust = 1, angle = 50), 
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 14),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 1, fill = NA),
+          panel.spacing = unit(1, "lines"))
+  
+  # ---- Plot 2: smoothing error ----
+  
+  # Total error for each vaccine
+  diagnostic_dt = smooth_dt %>%
+    # Summarise for each vaccine...
+    group_by(v_a_name) %>%
+    summarise(fvps = sum(fvps),
+              fvps_smooth = sum(fvps_smooth)) %>%
+    ungroup() %>%
+    # Take the absolute difference...
+    mutate(diff = fvps - fvps_smooth,
+           abs  = abs(diff)) %>%
+    # Calculate total error...
+    mutate(err = round(100 * abs / fvps, 2), 
+           err = paste0("Error: ", err, "%")) %>%
+    # Append error to vaccine description...
+    mutate(v_a_name = paste0(v_a_name, "\n", err)) %>%
+    # Set plotting order by abs diff...
+    arrange(abs) %>%
+    mutate(v_a_name = fct_inorder(v_a_name)) %>%
+    as.data.table()
+  
+  # Plot total smoothing errors
+  g2 = ggplot(diagnostic_dt) +
+    aes(x = v_a_name, 
+        y = diff, 
+        fill = abs) +
+    geom_col(show.legend = FALSE) +
+    coord_flip() + 
+    # Prettify x axis (noting coord_flip)...
+    scale_y_continuous(
+      name   = "Total difference in FVPs after smoothing (in millions)", 
+      labels = comma)
+  
+  # Prettify theme
+  g2 = g2 + theme_classic() + 
+    theme(axis.text     = element_text(size = 12),
+          axis.title.x  = element_text(
+            size = 20, margin = margin(b = 10, t = 20)),
+          axis.title.y  = element_blank(),
+          axis.line     = element_blank(),
+          panel.border  = element_rect(
+            linewidth = 1, fill = NA))
+  
+  # ---- Save diagnostic plots ----
+  
+  # Directory to save to
+  save_dir = "data_visualisation"
+
+  # Save figures to file
+  save_fig(g1, "Data smoothing outcomes",   dir = save_dir)
+  save_fig(g2, "Data smoothing difference", dir = save_dir)
+}
+
+# ---------------------------------------------------------
 # Plot coverage density by disease
 # ---------------------------------------------------------
 plot_coverage = function() {

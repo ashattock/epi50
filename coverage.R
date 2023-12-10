@@ -376,6 +376,8 @@ constant_coverage_extapolation = function(coverage_dt) {
 # ---------------------------------------------------------
 smooth_non_modelled_fvps = function(coverage_dt) {
   
+  # TODO: Experiment reducing kernel smoothing bandwidth...
+  
   # If no coverage smoothing required, return out now
   if (is.null(o$gbd_coverage_smoother))
     return(coverage_dt)
@@ -417,31 +419,6 @@ smooth_non_modelled_fvps = function(coverage_dt) {
     ungroup() %>%
     as.data.table()
   
-  # g1 = ggplot(smooth_dt) +
-  #   aes(x = year, colour = country, alpha = age) +
-  #   geom_point(aes(y = fvps), 
-  #              show.legend = FALSE) +
-  #   geom_line(aes(y = fvps_smooth), 
-  #             show.legend = FALSE) + 
-  #   facet_wrap(~v_a_id)
-  # 
-  # diagnostic_dt = smooth_dt %>% 
-  #   # Summarise for vaccine...
-  #   group_by(v_a_id) %>% 
-  #   summarise(fvps = sum(fvps), 
-  #             fvps_smooth = sum(fvps_smooth)) %>% 
-  #   ungroup() %>%
-  #   mutate(diff = fvps - fvps_smooth, 
-  #          abs  = abs(diff)) %>% # / fvps) %>%
-  #   arrange(abs) %>%
-  #   mutate(rank = 1 : n()) %>%
-  #   as.data.table()
-  # 
-  # g2 = ggplot(diagnostic_dt) +
-  #   aes(x = rank, y = diff, fill = abs) +
-  #   geom_col(show.legend = FALSE) +
-  #   coord_flip()
-  
   # Insert smoothed avlues into full coverage datatable
   smoothed_coverage_dt = smooth_dt %>%
     # Re-append year-age cohort size... 
@@ -456,6 +433,14 @@ smooth_non_modelled_fvps = function(coverage_dt) {
     bind_rows(coverage_dt[!v_a_id %in% apply_id]) %>%
     fill(source, .direction = "updown") %>%
     arrange(country, v_a_id, year, age)
+  
+  # ---- Diagnostic plots ----
+  
+  # Save table for diagnostic plots
+  save_table(smooth_dt, "smoothed_fvps")
+  
+  # Diagnostic plots for FVPs smoothing
+  plot_smooth_fvps()
   
   return(smoothed_coverage_dt)
 }

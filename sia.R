@@ -73,14 +73,14 @@ coverage_sia = function(vimc_countries_dt) {
     # Parse age groups...
     parse_age_groups()
   
-  # plot_dt = data_dt %>%
+  # intervention_dt = data_dt %>%
   #   left_join(y  = data_dict, 
   #             by = "intervention", 
   #             relationship = "many-to-many") %>%
   #   mutate(raw_coverage = doses / (schedule * pop)) %>%
   #   select(raw_coverage, intervention, vaccine)
   # 
-  # g = ggplot(plot_dt) +
+  # g = ggplot(intervention_dt) +
   #   aes(x = raw_coverage,
   #       y = after_stat(count),
   #       colour = intervention,
