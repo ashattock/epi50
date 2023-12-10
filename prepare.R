@@ -39,7 +39,7 @@ run_prepare = function() {
   prepare_demography()
   
   # Prepare historical vaccine coverage
-  prepare_coverage()  # See coverage.R for coverage-related functions
+  prepare_coverage()  # See coverage.R
 }
 
 # ---------------------------------------------------------
@@ -221,10 +221,7 @@ prepare_gbd_estimates = function() {
     select(country, disease, year, age_bin, value = val) %>%
     arrange(country, disease, year, age_bin)
   
-  
-  
-  
-  
+  warning("Improvements to GBD death extrapolations required...")
   
   # TEMP: Until we do a proper future projection of GBD estimates
   deaths_dt = 
@@ -240,41 +237,6 @@ prepare_gbd_estimates = function() {
     filter(!is.na(value)) %>%
     as.data.table()
   
-  
-  
-  
-  
-  
-  
-  # age_groups = c(
-  #   "Under 5"   = 5, 
-  #   "5-14"      = 15, 
-  #   "15-49"     = 50, 
-  #   "50-69"     = 70, 
-  #   "70+ years" = max(o$ages))
-  # 
-  # age_group_dt = data.table(age = o$ages) %>%
-  #   mutate(group_idx = match(age, age_groups), 
-  #          group = names(age_groups[group_idx])) %>%
-  #   fill(group, .direction = "up") %>%
-  #   filter(age %in% unique(deaths_dt$age_bin)) %>%
-  #   select(age_bin = age, age_group = group) %>%
-  #   as.data.table()
-  # 
-  # plot_dt = deaths_dt %>%
-  #   left_join(y  = age_group_dt, 
-  #             by = "age_bin") %>%
-  #   group_by(disease, year, age_group) %>%
-  #   summarise(deaths = sum(value)) %>%
-  #   ungroup() %>%
-  #   mutate(age_group = factor(age_group, names(age_groups))) %>%
-  #   as.data.table()
-  # 
-  # g = ggplot(plot_dt) +
-  #   aes(x = year, y = deaths, fill = age_group) +
-  #   geom_bar(stat = "identity") +
-  #   facet_wrap(~disease, scales = "free_y")
-  
   # Construct age datatable to expand age bins to single years
   age_bins = sort(unique(deaths_dt$age_bin))
   age_dt   = data.table(age = o$ages) %>%
@@ -286,28 +248,17 @@ prepare_gbd_estimates = function() {
     as.data.table()
   
   # Expand to all ages
-  gbd_dt = deaths_dt %>%
+  deaths_dt %>%
     full_join(y  = age_dt, 
               by = "age_bin", 
               relationship = "many-to-many") %>%
     arrange(country, disease, year, age) %>%
     mutate(deaths_disease = value / n) %>%
-    select(country, disease, year, age, deaths_disease)
+    select(country, disease, year, age, deaths_disease) %>%
+    save_table("gbd_estimates")
   
-  save_table(gbd_dt, "gbd_estimates")
-  
-  # plot_dt = gbd_dt %>%
-  #   left_join(y  = table("income_status"), 
-  #             by = c("country", "year")) %>%
-  #   group_by(disease, income, age) %>%
-  #   summarise(deaths = sum(deaths_disease)) %>%
-  #   ungroup() %>%
-  #   as.data.table()
-  # 
-  # g1 = ggplot(plot_dt) + 
-  #   aes(x = age, y = deaths, fill = income) + 
-  #   geom_bar(stat = "identity") + 
-  #   facet_wrap(~disease)
+  # Plot GBD death estimates by age
+  plot_gbd_estimates()
 }
 
 # ---------------------------------------------------------
@@ -377,9 +328,7 @@ prepare_gbd_covariates = function() {
               by = c("country", "year")) %>%
     arrange(country, year)
   
-  
-  
-  
+  warning("Improvements to GBD covariate extrapolations required...")
   
   # TEMP: Until we do a proper projection of GBD covariates
   #
@@ -393,10 +342,6 @@ prepare_gbd_covariates = function() {
     fill(sdi, haqi, .direction = "downup") %>%
     ungroup() %>%
     as.data.table()
-  
-  
-  
-  
   
   # Save in tables cache
   save_table(gbd_covariates, "gbd_covariates")

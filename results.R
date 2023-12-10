@@ -33,6 +33,9 @@ run_results = function() {
 
     # Coverage data density by age
     plot_coverage_age_density()
+    
+    # GBD death estimates
+    plot_gbd_estimates()
   }
   
   # ---- Non-modelled plots ----

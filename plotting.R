@@ -220,8 +220,8 @@ plot_scope = function() {
           strip.text.y  = element_text(angle = 0, hjust = 0),
           strip.background = element_blank(), 
           axis.title.x  = element_blank(),
-          axis.title.y  = element_text(size = 20, margin = 
-                                         margin(l = 10, r = 20)),
+          axis.title.y  = element_text(
+            size = 20, margin = margin(l = 10, r = 20)),
           axis.text     = element_text(size = 8),
           axis.ticks    = element_blank(), 
           axis.line     = element_line(linewidth = 0.25),
@@ -323,13 +323,15 @@ plot_total_fvps = function() {
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title.x  = element_blank(),
-          axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(
+            size = 20, margin = margin(l = 10, r = 20)),
           axis.text     = element_text(size = 10),
           axis.text.x   = element_text(hjust = 1, angle = 50), 
           axis.line     = element_blank(),
           strip.text    = element_text(size = 12),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+          panel.border  = element_rect(
+            linewidth = 1, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.5),
           legend.title  = element_blank(),
@@ -396,13 +398,15 @@ plot_total_fvps = function() {
     # Prettify theme
     g = g + theme_classic() + 
       theme(axis.title.x  = element_blank(),
-            axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+            axis.title.y  = element_text(
+              size = 20, margin = margin(l = 10, r = 20)),
             axis.text     = element_text(size = 10),
             axis.text.x   = element_text(hjust = 1, angle = 50), 
             axis.line     = element_blank(),
             strip.text    = element_text(size = 14),
             strip.background = element_blank(), 
-            panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+            panel.border  = element_rect(
+              linewidth = 1, fill = NA),
             panel.spacing = unit(1, "lines"),
             panel.grid.major.y = element_line(linewidth = 0.5),
             legend.title  = element_blank(),
@@ -470,13 +474,16 @@ plot_coverage = function() {
     
     # Prettify theme
     g = g + theme_classic() + 
-      theme(axis.title.x  = element_text(size = 20, margin = margin(b = 10, t = 20)),
-            axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
-            axis.text     = element_text(size = 10),
+      theme(axis.text     = element_text(size = 10),
+            axis.title.x  = element_text(
+              size = 20, margin = margin(b = 10, t = 20)),
+            axis.title.y  = element_text(
+              size = 20, margin = margin(l = 10, r = 20)),
             axis.line     = element_blank(),
             strip.text    = element_text(size = 14),
             strip.background = element_blank(), 
-            panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+            panel.border  = element_rect(
+              linewidth = 1, fill = NA),
             panel.spacing = unit(1, "lines"),
             legend.title  = element_blank(),
             legend.text   = element_text(size = 14),
@@ -526,13 +533,16 @@ plot_coverage_age_density = function() {
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.title.x  = element_text(size = 20, margin = margin(b = 10, t = 20)),
-          axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
-          axis.text     = element_text(size = 10),
+    theme(axis.text     = element_text(size = 10),
+          axis.title.x  = element_text(
+            size = 20, margin = margin(b = 10, t = 20)),
+          axis.title.y  = element_text(
+            size = 20, margin = margin(l = 10, r = 20)),
           axis.line     = element_blank(),
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+          panel.border  = element_rect(
+            linewidth = 1, fill = NA),
           panel.spacing = unit(1, "lines"),
           legend.title  = element_blank(),
           legend.text   = element_text(size = 14),
@@ -543,6 +553,86 @@ plot_coverage_age_density = function() {
   
   # Save to file
   save_fig(g, "Coverage density by age", dir = "data_visualisation")
+}
+
+# ---------------------------------------------------------
+# Plot Global Burden of Disease death estimates by age
+# ---------------------------------------------------------
+plot_gbd_estimates = function() {
+  
+  message("  > Plotting GBD death estimates by age")
+  
+  # Define age groups and associated upper bounds
+  age_groups = c(
+    "Infants"   = 1,
+    "1-4 years" = 5,
+    "5-14"      = 15,
+    "15-49"     = 50,
+    "50-69"     = 70,
+    "70+ years" = max(o$ages))
+
+  # Map each age bin to respective age group
+  age_group_dt = data.table(age = o$ages) %>%
+    mutate(group_idx = match(age, age_groups),
+           group = names(age_groups[group_idx])) %>%
+    fill(group, .direction = "up") %>%
+    select(age, age_group = group)
+
+  # Load GBD estimates and categorise into age groups
+  plot_dt = table("gbd_estimates") %>%
+    append_d_v_t_name() %>%
+    left_join(y  = age_group_dt,
+              by = "age") %>%
+    # Summarise for broad age groups...
+    group_by(disease, year, age_group) %>%
+    summarise(deaths = sum(deaths_disease)) %>%
+    ungroup() %>%
+    # Set factors for meaningful plotting order...
+    mutate(age_group = factor(age_group, names(age_groups))) %>%
+    as.data.table()
+
+  # Plot deaths over time by age group
+  g = ggplot(plot_dt) +
+    aes(x = year, 
+        y = deaths, 
+        fill = age_group) +
+    geom_bar(stat = "identity") +
+    facet_wrap(~disease, scales = "free_y") + 
+    # Set colour scheme...
+    scale_fill_manual(
+      values = colour_scheme(
+        map = "brewer::paired", 
+        n   = length(age_groups))) +
+    # Prettify legend...
+    guides(fill = guide_legend(title = "Age group")) +
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "GBD-estimated number of deaths", 
+      labels = comma,
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks())
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(
+            size = 20, margin = margin(l = 10, r = 20)),
+          axis.text     = element_text(size = 10),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 14),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 1, fill = NA),
+          panel.spacing = unit(1, "lines"),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 14),
+          legend.key    = element_blank(),
+          legend.position = "right", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
+  
+  # Save to file
+  save_fig(g, "GBD deaths by age group", dir = "data_visualisation")
 }
 
 # ---------------------------------------------------------
@@ -615,13 +705,16 @@ plot_vaccine_efficacy = function() {
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.title.x  = element_text(size = 20, margin = margin(b = 10, t = 20)),
-          axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
-          axis.text     = element_text(size = 11),
+    theme(axis.text     = element_text(size = 11),
+          axis.title.x  = element_text(
+            size = 20, margin = margin(b = 10, t = 20)),
+          axis.title.y  = element_text(
+            size = 20, margin = margin(l = 10, r = 20)),
           axis.line     = element_blank(),
           strip.text    = element_text(size = 16),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 0.5, fill = NA),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.25),
           legend.title  = element_blank(),
@@ -697,16 +790,19 @@ plot_effective_coverage = function() {
     # Prettify theme
     g = g + theme_classic() + 
       theme(axis.title.x  = element_blank(),
-            axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+            axis.title.y  = element_text(
+              size = 20, margin = margin(l = 10, r = 20)),
             axis.text     = element_text(size = 10),
             axis.text.x   = element_text(hjust = 1, angle = 50), 
             axis.line     = element_blank(),
             strip.text    = element_text(size = 14),
             strip.background = element_blank(), 
-            panel.border  = element_rect(linewidth = 0.5, fill = NA),
+            panel.border  = element_rect(
+              linewidth = 0.5, fill = NA),
             panel.spacing = unit(1, "lines"),
             legend.position    = "top", 
-            legend.title  = element_text(size = 14, margin = margin(r = 20)),
+            legend.title  = element_text(
+              size = 14, margin = margin(r = 20)),
             legend.text   = element_text(size = 10),
             legend.key.height = unit(1.5, "lines"),
             legend.key.width  = unit(6,   "lines"))
@@ -777,13 +873,15 @@ plot_non_modelled = function() {
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title.x  = element_blank(),
-          axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(
+            size = 20, margin = margin(l = 10, r = 20)),
           axis.text     = element_text(size = 10),
           axis.text.x   = element_text(hjust = 1, angle = 50), 
           axis.line     = element_blank(),
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+          panel.border  = element_rect(
+            linewidth = 1, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.5),
           legend.title  = element_blank(),
@@ -839,13 +937,15 @@ plot_non_modelled = function() {
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title.x  = element_blank(),
-          axis.title.y  = element_text(size = 18, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(
+            size = 18, margin = margin(l = 10, r = 20)),
           axis.text     = element_text(size = 9),
           axis.text.x   = element_text(hjust = 1, angle = 50), 
           axis.line     = element_blank(),
           strip.text    = element_text(size = 12),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+          panel.border  = element_rect(
+            linewidth = 1, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.5))
   
@@ -934,14 +1034,17 @@ plot_covariates = function() {
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.title.x  = element_text(size = 16, margin = margin(l = 4, r = 8)),
-          axis.title.y  = element_text(size = 16, margin = margin(b = 4, t = 8)),
-          axis.text     = element_text(size = 6),
+    theme(axis.text     = element_text(size = 6),
           axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.title.x  = element_text(
+            size = 16, margin = margin(l = 4, r = 8)),
+          axis.title.y  = element_text(
+            size = 16, margin = margin(b = 4, t = 8)),
           axis.line     = element_blank(),
           strip.text    = element_text(size = 8),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 0.5, colour = "black", fill = NA),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(0.4, "lines"))
   
   # Save figure to file
@@ -1035,14 +1138,17 @@ plot_impute_quality = function() {
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.title.x  = element_text(size = 18, margin = margin(l = 10, r = 20)),
-          axis.title.y  = element_text(size = 18, margin = margin(b = 10, t = 20)),
-          axis.text     = element_text(size = 8),
+    theme(axis.text     = element_text(size = 8),
           axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.title.x  = element_text(
+            size = 18, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(
+            size = 18, margin = margin(b = 10, t = 20)),
           axis.line     = element_blank(),
           strip.text    = element_text(size = 12),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 0.5, colour = "black", fill = NA),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
@@ -1182,14 +1288,17 @@ plot_impact_data = function() {
   
   # Prettify theme
   g1 = g1 + theme_classic() + 
-    theme(axis.title.x  = element_text(size = 16, margin = margin(l = 10, r = 20)),
-          axis.title.y  = element_text(size = 16, margin = margin(b = 10, t = 20)),
-          axis.text     = element_text(size = 8),
+    theme(axis.text     = element_text(size = 8),
           axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.title.x  = element_text(
+            size = 16, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(
+            size = 16, margin = margin(b = 10, t = 20)),
           axis.line     = element_blank(),
           strip.text    = element_text(size = 10),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 0.5, colour = "black", fill = NA),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
@@ -1229,13 +1338,15 @@ plot_impact_data = function() {
   
   # Prettify theme
   g2 = g2 + theme_classic() + 
-    theme(axis.title.x  = element_text(size = 16, margin = margin(l = 10, r = 20)),
-          axis.title.y  = element_text(size = 16, margin = margin(b = 10, t = 20)),
-          axis.text     = element_text(size = 8),
+    theme(axis.text     = element_text(size = 8),
+          axis.title.x  = element_text(
+            size = 16, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(
+            size = 16, margin = margin(b = 10, t = 20)),
           axis.line     = element_blank(),
           strip.text    = element_text(size = 10),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 0.5, colour = "black", fill = NA),
+          panel.border  = element_rect(linewidth = 0.5, fill = NA),
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
@@ -1305,11 +1416,13 @@ plot_model_selection = function() {
       
       # Prettify theme
       g = g + theme_classic() + 
-        theme(axis.title.x  = element_text(size = 20, margin = margin(b = 10, t = 20)),
+        theme(axis.text     = element_text(size = 12),
+              axis.title.x  = element_text(
+                size = 20, margin = margin(b = 10, t = 20)),
               axis.title.y  = element_blank(),
-              axis.text     = element_text(size = 12),
               axis.line     = element_blank(),
-              panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+              panel.border  = element_rect(
+                linewidth = 1, fill = NA),
               legend.title  = element_blank(),
               legend.text   = element_text(size = 12),
               legend.key    = element_blank(),
@@ -1338,11 +1451,14 @@ plot_model_selection = function() {
       
       # Prettify theme
       g = g + theme_classic() + 
-        theme(axis.title.x  = element_text(size = 20, margin = margin(b = 10, t = 20)),
-              axis.title.y  = element_text(size = 20, margin = margin(l = 10, r = 20)),
-              axis.text     = element_text(size = 12),
+        theme(axis.text     = element_text(size = 12),
+              axis.title.x  = element_text(
+                size = 20, margin = margin(b = 10, t = 20)),
+              axis.title.y  = element_text(
+                size = 20, margin = margin(l = 10, r = 20)),
               axis.line     = element_blank(),
-              panel.border  = element_rect(linewidth = 1, colour = "black", fill = NA),
+              panel.border  = element_rect(
+                linewidth = 1, fill = NA),
               legend.title  = element_blank(),
               legend.text   = element_text(size = 12),
               legend.key    = element_blank(),
@@ -1444,14 +1560,17 @@ plot_model_fits = function() {
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.title.x  = element_text(size = 16, margin = margin(l = 10, r = 20)),
-          axis.title.y  = element_text(size = 16, margin = margin(b = 10, t = 20)),
-          axis.text     = element_text(size = 8),
+    theme(axis.text     = element_text(size = 8),
           axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.title.x  = element_text(
+            size = 16, margin = margin(b = 10, t = 20)),
+          axis.title.y  = element_text(
+            size = 16, margin = margin(l = 10, r = 20)),
           axis.line     = element_blank(),
           strip.text    = element_text(size = 10),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 0.5, colour = "black", fill = NA),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(0.5, "lines"))
   
   save_fig(g, "Impact function evaluation", dir = "impact_functions")

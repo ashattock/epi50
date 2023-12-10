@@ -8,9 +8,6 @@ table:
 - disease: Hib
   disease_name: "Haemophilus influenzae type b"
   source: vimc
-# - disease: HPV
-#   disease_name: "Human papillomavirus"
-#   source: vimc
 - disease: Measles
   disease_name: "Measles"
   source: vimc
