@@ -58,8 +58,7 @@ prepare_dynamice = function() {
     # Group by all but age to find age bounds per campaign...
     group_by(vaccine, country, year, coverage) %>%
     mutate(age_first = min(age), 
-           age_last  = max(age), 
-           .after = age) %>%
+           age_last  = max(age)) %>%
     ungroup() %>%
     # Reduce down to individual campaigns...
     select(-age) %>%
@@ -67,43 +66,33 @@ prepare_dynamice = function() {
     # Convert coverage back to numeric...
     mutate(coverage = as.numeric(coverage)) %>%
     # Append any other additional variables needed...
-    mutate(mid_day = 180,                   # NOTE: An assumption
-           .before = coverage) %>%
+    mutate(mid_day = 180) %>%             # NOTE: A placeholder assumption
     # Assume trivial subntaional coverage...
-    mutate(coverage_subnat = coverage) %>%  # NOTE: An assumption
+    mutate(coverage_subnat = coverage,    # NOTE: A placeholder assumption
+           .after = coverage) %>%  
     as.data.table()
   
   # ---- Save input files to DynaMICE repo ----
   
-  # Construct list of all coverage data
-  coverage_data = list(
-    # All vaccine scenario...
-    mcv1_mcv2_sia = list(
-      routine = routine_dt, 
-      sia     = sia_dt), 
-    # No vaccine scenario...
-    nomcv = list(
-      routine = routine_dt[coverage == 0], 
-      sia     = sia_dt[coverage == 0]))
+  # Concatenate routine and non-routine coverage data
+  data_dt = bind_rows(routine_dt, sia_dt) %>%
+    arrange(vaccine, country, year, 
+            age_first, age_last)
+  
+  # Inputs for 'all vaccine' and 'no vaccine' scenarios
+  data_list = list(
+    mcv1_mcv2_sia = data_dt, 
+    nomcv         = data_dt[coverage == 0])
   
   # Iterate through scenarios
-  for (scenario in names(coverage_data)) {
+  for (scenario in names(data_list)) {
     
-    # Iterate through activity types
-    for (activity in names(coverage_data[[scenario]])) {
-      
-      # Extract the relevant data
-      save_data = coverage_data %>%
-        pluck(scenario) %>%
-        pluck(activity)
-      
-      # Construct file path to save to (in DynaMICE repo)
-      save_path = file.path(repo_path, "input", "coverage", activity)
-      save_file = paste0(paste1(save_path, scenario), ".csv")
-      
-      # Save data as a csv
-      fwrite(save_data, file = save_file)
-    }
+    # Construct file path to save to (in DynaMICE repo)
+    save_path = file.path(repo_path, "input", "coverage", "coverage")
+    save_file = paste0(paste1(save_path, scenario), ".csv")
+    
+    # Save data as a csv
+    fwrite(data_list[[scenario]], file = save_file)
   }
 }
 
@@ -112,13 +101,17 @@ prepare_dynamice = function() {
 # ---------------------------------------------------------
 repo_exists = function(repo) {
   
+  # Path the parent directory on this EPI50 repository
   parent_path = str_remove(o$pth$code, "[a-z,A-Z,0-9]+/$")
   
+  # Path to the repo in question
   repo_path = paste0(parent_path, repo)
   
+  # If repo exists, return path
   if (dir.exists(repo_path))
     return(repo_path)
   
+  # If it doesn't exist, return trivial
   if (!dir.exists(repo_path))
     return(NULL)
 }

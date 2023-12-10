@@ -122,6 +122,9 @@ prepare_vimc_estimates = function() {
   # Simply store VIMC in it's current form
   read_rds("input", "vimc_uncertainty") %>%
     save_table("vimc_uncertainty")
+  
+  # Plot these GBD death estimates
+  plot_gbd_estimates()
 }
 
 # ---------------------------------------------------------
