@@ -570,14 +570,14 @@ plot_gbd_estimates = function() {
     "15-49"     = 50,
     "50-69"     = 70,
     "70+ years" = max(o$ages))
-
+  
   # Map each age bin to respective age group
   age_group_dt = data.table(age = o$ages) %>%
     mutate(group_idx = match(age, age_groups),
            group = names(age_groups[group_idx])) %>%
     fill(group, .direction = "up") %>%
     select(age, age_group = group)
-
+  
   # Load GBD estimates and categorise into age groups
   plot_dt = table("gbd_estimates") %>%
     append_d_v_t_name() %>%
@@ -590,7 +590,7 @@ plot_gbd_estimates = function() {
     # Set factors for meaningful plotting order...
     mutate(age_group = factor(age_group, names(age_groups))) %>%
     as.data.table()
-
+  
   # Plot deaths over time by age group
   g = ggplot(plot_dt) +
     aes(x = year, 
@@ -1303,7 +1303,7 @@ plot_impact_data = function() {
   
   # Save figure to file
   save_fig(g1, "Data - impact ratio", dir = "impact_functions")
-
+  
   # ---- Plot 2: cumulative impact vs cumulative FVP ----
   
   # Cumulative FVPs vs cumulative deaths averted
@@ -1584,9 +1584,11 @@ plot_model_fits = function() {
 # ---------------------------------------------------------
 # Plot impact ratios - either all or initial only
 # ---------------------------------------------------------
-plot_impact_fvps = function(scope = "all_time") {
+plot_impact_fvps = function(scope) {
   
-  # ---- Scope: all time impact per FVP ----
+  annual_means = seq(1990, 2020, by = 10)
+  
+  # ---- Load data based on scope ----
   
   # All time plot
   if (scope == "all_time") {
@@ -1595,10 +1597,10 @@ plot_impact_fvps = function(scope = "all_time") {
     
     # Load initial ratio data
     data_dt = read_rds("impact", "data") %>%
-      select(d_v_a_id, impact_fvp)
+      select(d_v_a_id, year, impact_fvp)
     
-    # Set a descriptive x-axis title
-    x_lab = "Impact per fully vaccinated person (all countries, all time)"
+    # Set a descriptive y-axis title
+    y_lab = "Impact per fully vaccinated person (log10 scale)"
   }
   
   # Initial year plot
@@ -1610,14 +1612,21 @@ plot_impact_fvps = function(scope = "all_time") {
     data_dt = read_rds("impact", "initial_ratio") %>%
       select(d_v_a_id, impact_fvp = initial_ratio)
     
-    # Set a descriptive x-axis title
-    x_lab = "Initial impact per FVP used for back projection"
+    # Set a descriptive y-axis title
+    y_lab = "Initial impact per FVP used for back projection (log10 scale)"
   }
+  
+  # ---- Construct primary plot datatable ----
   
   # Remove trivial zeros
   plot_dt = data_dt %>%
     append_d_v_a_name() %>%
-    filter(impact_fvp > 0)
+    filter(impact_fvp > 0) %>%
+    # Set plotting order from highest to lowest...
+    arrange(-impact_fvp) %>%
+    mutate(d_v_a_name = fct_inorder(d_v_a_name))
+  
+  # ---- Extract bounds ----
   
   # Values transformed to log 10...
   trans = log10(plot_dt$impact_fvp)
@@ -1626,44 +1635,77 @@ plot_impact_fvps = function(scope = "all_time") {
   lb = floor(min(trans))
   ub = ceiling(max(trans))
   
+  # ---- Produce primary plot ----
+  
   # Plot initial impact ratio used for back projection
   g = ggplot(plot_dt) +
-    aes(x = impact_fvp,
-        y = after_stat(scaled),
-        colour = d_v_a_name,
-        fill   = d_v_a_name) +
-    geom_density(alpha = 0.2, 
-                 show.legend = FALSE) +
-    # Faceting with wrap labelling...
-    facet_wrap(
-      facets   = vars(d_v_a_name), 
-      labeller = label_wrap_gen(width = 30)) + 
-    # Prettify x axis...
-    scale_x_continuous(
-      name   = x_lab, 
+    aes(x = d_v_a_name,
+        y = impact_fvp) +
+    # Plot total density density
+    geom_violin(
+      colour = "grey40", 
+      fill   = "grey40",
+      alpha  = 0.3) +
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = y_lab, 
       trans  = "log10",
       labels = scientific, 
       limits = c(10 ^ lb, 10 ^ ub),
       expand = c(0, 0), 
-      breaks = 10 ^ rev(ub : lb)) +
-    # Prettify y axis...
-    scale_y_continuous(
-      name   = "Normalised density", 
-      expand = expansion(mult = c(0, 0.05)), 
-      breaks = pretty_breaks())
+      breaks = 10 ^ rev(ub : lb))
+  
+  # ---- Plot annual means (all time plot only) ----
+  
+  # All time plot
+  if (scope == "all_time") {
+    
+    # Function for computing annual means
+    annual_mean_fn = function(year) {
+      
+      # Filter for this year and summarise
+      mean_dt = plot_dt %>%
+        filter(year == !!year) %>%
+        group_by(d_v_a_name, year) %>%
+        summarise(impact_fvp = mean(impact_fvp)) %>%
+        ungroup() %>%
+        as.data.table()
+      
+      return(mean_dt)
+    }
+    
+    # Annual global mean over each year
+    annual_mean_dt = annual_means %>%
+      lapply(annual_mean_fn) %>%
+      rbindlist() %>%
+      arrange(d_v_a_name, year) %>%
+      mutate(year = factor(year, annual_means))
+    
+    # Add annual means to the plot
+    g = g + 
+      geom_point(
+        data    = annual_mean_dt, 
+        mapping = aes(colour = year), 
+        size    = 2) + 
+      # Set colours and legend title...
+      scale_colour_manual(
+        name   = "Global mean by year", 
+        values = colour_scheme(
+          map = "brewer::greens", 
+          n   = length(annual_means))) 
+  }
+  
+  # ---- Prettify and save ----
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.text     = element_text(size = 8),
+    theme(axis.text     = element_text(size = 10),
           axis.text.x   = element_text(hjust = 1, angle = 50),
-          axis.title.x  = element_text(
-            size = 16, margin = margin(b = 10, t = 20)),
+          axis.title.x  = element_blank(),
           axis.title.y  = element_text(
             size = 16, margin = margin(l = 10, r = 20)),
           axis.line     = element_blank(),
-          strip.text    = element_text(size = 10),
-          strip.background = element_blank(), 
-          panel.grid.major.x = element_line(linewidth = 0.25),
+          panel.grid.major.y = element_line(linewidth = 0.25),
           panel.border  = element_rect(
             linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"))
@@ -1674,6 +1716,10 @@ plot_impact_fvps = function(scope = "all_time") {
   
   # Save these figures to file
   save_fig(g, save_stem, save_scope, dir = "impact_functions")
+  
+  # Save all time plot as key manuscript figure
+  if (scope == "all_time")
+    save_fig(g, "Figure 3", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -1775,7 +1821,7 @@ plot_historical_impact = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save these figures to file
-  save_fig(g, "Historical impact", dir = "history")
+  save_fig(g, "Historical impact", dir = "historical_impact")
   save_fig(g, "Figure 2", dir = "manuscript")
 }
 
