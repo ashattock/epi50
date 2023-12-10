@@ -1479,14 +1479,19 @@ plot_model_selection = function() {
   g1 = plot_selection("d_v_a_name", stat = "number")
   g2 = plot_selection("d_v_a_name", stat = "proportion")
   
-  save_fig(g1, "Selection by pathogen", "number",     dir = save_dir)
-  save_fig(g2, "Selection by pathogen", "proportion", dir = save_dir)
+  # Filename stem
+  save_name = "Selection by pathogen"
+  
+  # Save both figures
+  save_fig(g1, save_name, "number",     dir = save_dir)
+  save_fig(g2, save_name, "proportion", dir = save_dir)
   
   # Plot by country
   g3 = plot_selection("country", type = "density")
   
   # Save the last figure
-  save_fig(g3, "Selection density by country", dir = save_dir)
+  save_name = "Selection density by country"
+  save_fig(g3, save_name, dir = save_dir)
 }
 
 # ---------------------------------------------------------
@@ -1577,6 +1582,101 @@ plot_model_fits = function() {
 }
 
 # ---------------------------------------------------------
+# Plot impact ratios - either all or initial only
+# ---------------------------------------------------------
+plot_impact_fvps = function(scope = "all_time") {
+  
+  # ---- Scope: all time impact per FVP ----
+  
+  # All time plot
+  if (scope == "all_time") {
+    
+    message("  > Plotting all-time impact per FVP")
+    
+    # Load initial ratio data
+    data_dt = read_rds("impact", "data") %>%
+      select(d_v_a_id, impact_fvp)
+    
+    # Set a descriptive x-axis title
+    x_lab = "Impact per fully vaccinated person (all countries, all time)"
+  }
+  
+  # Initial year plot
+  if (scope == "initial") {
+    
+    message("  > Plotting initial impact per FVP")
+    
+    # Load initial ratio data
+    data_dt = read_rds("impact", "initial_ratio") %>%
+      select(d_v_a_id, impact_fvp = initial_ratio)
+    
+    # Set a descriptive x-axis title
+    x_lab = "Initial impact per FVP used for back projection"
+  }
+  
+  # Remove trivial zeros
+  plot_dt = data_dt %>%
+    append_d_v_a_name() %>%
+    filter(impact_fvp > 0)
+  
+  # Values transformed to log 10...
+  trans = log10(plot_dt$impact_fvp)
+  
+  # ... used to extract bounds
+  lb = floor(min(trans))
+  ub = ceiling(max(trans))
+  
+  # Plot initial impact ratio used for back projection
+  g = ggplot(plot_dt) +
+    aes(x = impact_fvp,
+        y = after_stat(scaled),
+        colour = d_v_a_name,
+        fill   = d_v_a_name) +
+    geom_density(alpha = 0.2, 
+                 show.legend = FALSE) +
+    # Faceting with wrap labelling...
+    facet_wrap(
+      facets   = vars(d_v_a_name), 
+      labeller = label_wrap_gen(width = 30)) + 
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = x_lab, 
+      trans  = "log10",
+      labels = scientific, 
+      limits = c(10 ^ lb, 10 ^ ub),
+      expand = c(0, 0), 
+      breaks = 10 ^ rev(ub : lb)) +
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Normalised density", 
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks())
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.text     = element_text(size = 8),
+          axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.title.x  = element_text(
+            size = 16, margin = margin(b = 10, t = 20)),
+          axis.title.y  = element_text(
+            size = 16, margin = margin(l = 10, r = 20)),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 10),
+          strip.background = element_blank(), 
+          panel.grid.major.x = element_line(linewidth = 0.25),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(1, "lines"))
+  
+  # Filename to save to depending on scope
+  save_stem  = "Density of impact per FVP"
+  save_scope = str_replace(scope, "_", " ")
+  
+  # Save these figures to file
+  save_fig(g, save_stem, save_scope, dir = "impact_functions")
+}
+
+# ---------------------------------------------------------
 # Main results plot - historical impact over time
 # ---------------------------------------------------------
 plot_historical_impact = function() {
@@ -1591,7 +1691,7 @@ plot_historical_impact = function() {
   # ---- Construct plotting data ----
   
   # Prepare final results
-  results_dt = read_rds("results", "results") %>%
+  results_dt = read_rds("results", "deaths_averted") %>%
     # Append full disease names...
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_id") %>%

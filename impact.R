@@ -29,6 +29,9 @@ run_impact = function() {
 
   # Exploratory plots of data used to fit impact functions
   plot_impact_data()
+  
+  # Plot all-time impact per FVPs
+  plot_impact_fvps(scope = "all_time")
 
   # ---- Model fitting ----
 
@@ -80,8 +83,6 @@ run_impact = function() {
   model_selection()
 
   # ---- Plot results ----
-
-  # NOTE: All plotting functionality lives in plotting.R
 
   # Plot function selection statistics
   plot_model_selection()

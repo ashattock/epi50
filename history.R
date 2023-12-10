@@ -80,7 +80,7 @@ run_history = function() {
     ungroup() %>%
     as.data.table()
   
-  # ---- Evaluate impact and back-project -----
+  # ---- Evaluate impact functions -----
   
   message(" - Evaluating impact functions")
   
@@ -100,11 +100,15 @@ run_history = function() {
     mutate(impact_abs = impact_rel * pop) %>%
     as.data.table()
   
+  # ---- Back project using initial impact ratios -----
+  
+  message(" - Back projecting")
+  
   # Initial impact per FVPs - used to back project
   #
   # NOTE: Idea behind init_impact_years is to smooth out any 
   #       initially extreme or jumpy impact ratios
-  init_ratio_dt = result_fit_dt %>%
+  initial_ratio_dt = result_fit_dt %>%
     group_by(country, d_v_a_id) %>%
     # Take the first init_impact_years years...
     slice_min(order_by  = year, 
@@ -115,28 +119,14 @@ run_history = function() {
               fvps_mean   = mean(fvps_abs)) %>%
     ungroup() %>%
     # Calculate the mean initial ratio...
-    mutate(init_ratio = impact_mean / fvps_mean) %>%
-    select(country, d_v_a_id, init_ratio) %>%
+    mutate(initial_ratio = impact_mean / fvps_mean) %>%
+    select(country, d_v_a_id, initial_ratio) %>%
     as.data.table()
   
-  # init_ratio_dt %>%
-  #   slice_max(init_ratio, n = 10)
-  # 
-  # plot_dt = init_ratio_dt %>%
-  #   append_d_v_a_name() %>%
-  #   filter(init_ratio > 0)
-  # 
-  # g = ggplot(plot_dt) + 
-  #   aes(x = init_ratio, 
-  #       y = after_stat(scaled), 
-  #       colour = d_v_a_name, 
-  #       fill   = d_v_a_name) + 
-  #   geom_density(alpha = 0.2) + 
-  #   facet_wrap(~d_v_a_name) +
-  #   scale_x_continuous(trans  = "log10", 
-  #                      labels = scientific)
+  # Save initial ratio to file for diagnostic plotting
+  save_rds(initial_ratio_dt, "impact", "initial_ratio") 
   
-  # Apply the 
+  # Back project by applying initial ratio 
   result_dt = result_fit_dt %>%
     select(country, d_v_a_id, year, impact_abs) %>%
     # Join with full FVPs data...
@@ -147,22 +137,25 @@ run_history = function() {
            impact = impact_abs) %>%
     arrange(country, d_v_a_id, year) %>%
     # Append impact ratio...
-    left_join(y  = init_ratio_dt, 
+    left_join(y  = initial_ratio_dt, 
               by = c("country", "d_v_a_id")) %>%
-    replace_na(list(init_ratio = 0)) %>%
+    replace_na(list(initial_ratio = 0)) %>%
     # Ratio of past impact assumed consistent with initial years...
     mutate(impact = ifelse(
       test = is.na(impact), 
-      yes  = fvps * init_ratio, 
+      yes  = fvps * initial_ratio, 
       no   = impact)) %>%
-    select(-init_ratio)
+    select(-initial_ratio)
   
   # Save results to file
-  save_rds(result_dt, "results", "results") 
+  save_rds(result_dt, "results", "deaths_averted") 
   
   # ---- Plot results ----
   
-  # Plot historical impact over time
+  # Plot inital impact ratios used to back project
+  plot_impact_fvps(scope = "initial")
+  
+  # Plot primary results figure: historical impact over time
   plot_historical_impact()
 }
 

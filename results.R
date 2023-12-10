@@ -73,14 +73,17 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_impact) {
     
-    # # Exploratory plots of data used to fit impact functions
-    plot_impact_data()
-
+    # Exploratory plots of data used to fit impact functions
+    # plot_impact_data()
+    
+    # Plot all-time impact per FVPs
+    plot_impact_fvps(scope = "all_time")
+    
     # Plot function selection statistics
-    plot_model_selection()
+    # plot_model_selection()
     
     # Plot impact function evaluation
-    plot_model_fits()
+    # plot_model_fits()
   }
   
   # ---- Historical results ----
@@ -88,8 +91,11 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_history) {
     
+    # Plot inital impact ratios used to back project
+    plot_impact_fvps(scope = "initial")
+    
     # Main results plot - historical impact over time
-    plot_historical_impact()
+    # plot_historical_impact()
   }
   
   # ---- Uncertainty plots ----
