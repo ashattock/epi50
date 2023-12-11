@@ -21,7 +21,7 @@ prepare_dynamice = function() {
   if (is.null(repo_path))
     return()
   
-  # ---- Dynamice inputs ----
+  # ---- Dynamice coverage inputs ----
   
   message(" - Preparing inputs for DynaMICE measles model")
   
@@ -45,7 +45,7 @@ prepare_dynamice = function() {
     select(vaccine, country, year, coverage) %>%
     # Summarise over age groups (noting that coverage the same)...
     group_by(vaccine, country, year) %>%
-    mutate(coverage = mean(coverage)) %>%
+    summarise(coverage = mean(coverage)) %>%
     ungroup() %>%
     as.data.table()
   
@@ -94,6 +94,20 @@ prepare_dynamice = function() {
     # Save data as a csv
     fwrite(data_list[[scenario]], file = save_file)
   }
+  
+  # ---- Other config files ----
+  
+  # Save full EPI50 country list
+  country_dt   = data.table(country = all_countries())
+  country_file = file.path(repo_path, "config", "countries.csv")
+  
+  # Also save associated regions
+  region_dt   = table("country")[, .(country, region)]
+  region_file = file.path(repo_path, "config", "regions.csv")
+  
+  # Write to config folder
+  fwrite(country_dt, file = country_file)
+  fwrite(region_dt,  file = region_file)
 }
 
 # ---------------------------------------------------------

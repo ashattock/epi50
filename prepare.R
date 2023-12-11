@@ -400,7 +400,7 @@ prepare_income_status = function() {
     replace_na(list(income = "H")) %>%
     mutate(income = paste0(tolower(income), "ic")) %>%
     as.data.table()
-    
+  
   # Save in tables cache
   save_table(income_dt, "income_status")
 }
