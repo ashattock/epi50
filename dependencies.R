@@ -67,7 +67,10 @@ packages = c(
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
   "pals",           # Colour palettes
-  "colorspace")     # Colour palettes
+  "colorspace",     # Colour palettes
+  "fpp",            # Time series forecasting
+  "GGally",         # Plotting correlation
+  "Hmisc")          # Correlation functions
 
 # ---- Install and/or load R packages with pacman ----
 

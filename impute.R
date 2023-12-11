@@ -79,45 +79,76 @@ perform_impute = function(d_v_a_id, target) {
   message(" - ", d_v_a_name)
   
   # ---- Append covariates ----
+  # Summarise vaccination coverage by country, by year
+  coverage_dt = table("coverage") %>%
+                as.data.frame() %>%
+                  select(-coverage) %>% # This is coverage by age group. We recalculate for whole population
+                  group_by(country, v_a_id, year) %>%
+                  mutate(total_fvps = sum(fvps),
+                         total_pop = sum(cohort)) %>%
+                  summarise(total_fvps = first(total_fvps),
+                            total_pop = first(total_pop)) %>%
+                  mutate(coverage = total_fvps / total_pop) %>%
+                  ungroup() %>%
+                  select(-c(total_fvps, total_pop))
   
-  # All-cause death rate by country, year, and age
-  infant_mortality_dt = table("wpp_pop") %>%
-    filter(age == 0) %>%  # TODO: Instead filter by table("wiise_vaccine") age group
-    inner_join(y  = table("wpp_death"),
-               by = c("country", "year", "age")) %>%
-    # Calculate infant mortality rate...
-    mutate(imr = death / pop) %>%
-    select(country, year, imr)
   
-  # Append covariates to target
+    # Append covariates to target
   target_dt = target %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
-    # Append GBD indices and infant mortality...
-    left_join(y  = table("gbd_covariates"),
+    # Append vaccination coverage, GBD covariates and Gapminder covariates
+        full_join(y = coverage_dt,  
               by = c("country", "year")) %>%
-    left_join(y  = infant_mortality_dt,
+        full_join(y  = table("gbd_covariates"),
               by = c("country", "year")) %>%
-    # Calculate n years of estimates...
-    mutate(n_years = 1) %>%
-    group_by(country) %>%
-    mutate(n_years = cumsum(n_years)) %>%
-    ungroup() %>%
-    as.data.table()
+        inner_join(y  = table("gapminder_covariates"),    #TODO: multiple entries for COD(Congo, Kinshasa)
+              by = c("country", "year"), relationship = "many-to-many") %>%
+    arrange(country, year) %>%
+    
+    # Summarise to single row for each d_v_a_id per country per year (accounting for new v_a_id functionality)
+    group_by(country, d_v_a_id, year) %>%
+    filter(row_number() == 1) %>%
+    select(-v_a_id) %>% 
+    ungroup () %>%
+    
+    # Create dummy variables for historic coverage (assume 0 prior to our data)
+    mutate(coverage_minus_1 = lag(coverage, 1),
+           coverage_minus_2 = lag(coverage, 2),
+           coverage_minus_3 = lag(coverage, 3),
+           coverage_minus_4 = lag(coverage, 4),
+           coverage_minus_5 = lag(coverage, 5),
+           coverage_minus_6 = lag(coverage, 6),
+           coverage_minus_7 = lag(coverage, 7),
+           coverage_minus_8 = lag(coverage, 8),
+           coverage_minus_9 = lag(coverage, 9)) %>%
   
-  # TODO: We can either include or exclude zero here - arguably with zero is better...
+    # Create dummy variables for historic health_spending (assume 0 prior to our data)
+    mutate(health_spending_minus_1 = lag(health_spending, 1),
+           health_spending_minus_2 = lag(health_spending, 2),
+           health_spending_minus_3 = lag(health_spending, 3),
+           health_spending_minus_4 = lag(health_spending, 4),
+           health_spending_minus_5 = lag(health_spending, 5),
+           health_spending_minus_6 = lag(health_spending, 6),
+           health_spending_minus_7 = lag(health_spending, 7),
+           health_spending_minus_8 = lag(health_spending, 8),
+           health_spending_minus_9 = lag(health_spending, 9)) %>%
+    
+      as.data.table()
+#browser()  
+   # Manually explore correlations
+   data_dt = target_dt %>%
+    filter(!is.na(target) &
+           year > 2000 & year <= 2020 &
+           region_short == "WPR") %>%
+    select(target, gini, health_spending, coverage, coverage_minus_1,coverage_minus_2,coverage_minus_3,sdi) 
+   
+  # data_dt %>%   ggpairs(upper = list(continuous = wrap("cor", method = "spearman")))
   
-  # Data used to fit statistical model
-  data_dt = target_dt %>%
-    filter(!is.na(target)) %>%
-    # filter(target > 0) %>%
-    select(target, n_years, sdi, haqi, imr) %>%
-    # Remove target outliers for better normalisation...
-    mutate(lower = mean(target) - 3 * sd(target), 
-           upper = mean(target) + 3 * sd(target), 
-           outlier = target < lower | target > upper) %>%
-    filter(outlier == FALSE) %>%
-    select(-outlier, -lower, -upper)
-  
+   # Reset data used to fit statistical model
+   data_dt = target_dt %>%
+     filter(!is.na(target)) %>%
+     select(target, coverage, sdi)
+            
   # Sanity check that we have no NAs here
   if (any(is.na(data_dt)))
     stop("NA values identified in predictors")
@@ -168,7 +199,7 @@ perform_impute = function(d_v_a_id, target) {
   
   # Fit a GLM for impact per FVP using all covariates
   fit_model = glm(
-    formula = target ~ n_years + sdi + haqi + imr, 
+    formula = target ~ coverage + sdi, 
     data    = norm_data_dt)
   
   # Use fitted model to predict 
@@ -189,8 +220,8 @@ perform_impute = function(d_v_a_id, target) {
            .after = impact_cum)
   
   # Sanity check that all predicted values are legitimate
-  if (any(is.na(result_dt$predict)))
-    stop("NA values identified in predicted impact")
+ # if (any(is.na(result_dt$predict)))
+#    stop("NA values identified in predicted impact")
   
   # Store the fitted model, the data used, and the result
   fit = list(

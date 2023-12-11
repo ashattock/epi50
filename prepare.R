@@ -421,7 +421,7 @@ prepare_gapminder = function() {
                   select(-country) %>%
                   rename(country = country_code) %>%
                   arrange(country, year) %>%
-                  filter(year >= 1964 & year <= 2024)  %>%# include ten years before EPI to allow for historical effect of covariates
+                  filter(year >= 1974 & year <= 2024)  %>%
                   as.data.table()              
     
   # TODO Check list of countries
@@ -430,6 +430,9 @@ prepare_gapminder = function() {
   gapminder_dt %>% filter(is.na(region_short)) %>%
                     select(country, region_short) %>%
                     unique()
+  
+  gapminder_dt = gapminder_dt %>%
+                      filter(!is.na(region_short))
   
   
   # Save in tables cache
