@@ -304,11 +304,19 @@ plot_total_fvps = function() {
   # Plot FVPs over time for each d_v_a
   g = ggplot(source_dt) + 
     aes(x = year, y = !!sym(y)) + 
-    geom_line(aes(colour = source)) + 
-    geom_line(data = total_dt, 
-              linetype = "dashed",
-              colour   = "black") + 
-    facet_wrap(~d_v_a_name) +
+    geom_line(
+      mapping   = aes(colour = source), 
+      linewidth = 1.5) + 
+    geom_line(
+      data      = total_dt, 
+      linetype  = "dashed",
+      colour    = "black", 
+      linewidth = 1.5) + 
+    # Facet with strip text wrapping...
+    facet_wrap(
+      facets   = vars(d_v_a_name), 
+      labeller = label_wrap_gen(width = 24), 
+      scales   = "free_y") + 
     # Prettify x axis...
     scale_x_continuous(
       limits = c(min(o$years), max(o$years)), 
@@ -316,7 +324,7 @@ plot_total_fvps = function() {
       breaks = seq(min(o$years), max(o$years), by = 10)) +  
     # Prettify y axis...
     scale_y_continuous(
-      name   = "Total receiving final primary dose (in billions)", 
+      name   = "Total receiving full schedule (in billions)", 
       labels = comma,
       expand = expansion(mult = c(0, NA)))
   
@@ -331,7 +339,7 @@ plot_total_fvps = function() {
           strip.text    = element_text(size = 12),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 1, fill = NA),
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.5),
           legend.title  = element_blank(),
@@ -400,17 +408,17 @@ plot_total_fvps = function() {
       theme(axis.title.x  = element_blank(),
             axis.title.y  = element_text(
               size = 20, margin = margin(l = 10, r = 20)),
-            axis.text     = element_text(size = 10),
+            axis.text     = element_text(size = 9),
             axis.text.x   = element_text(hjust = 1, angle = 50), 
             axis.line     = element_blank(),
-            strip.text    = element_text(size = 14),
+            strip.text    = element_text(size = 12),
             strip.background = element_blank(), 
             panel.border  = element_rect(
-              linewidth = 1, fill = NA),
+              linewidth = 0.5, fill = NA),
             panel.spacing = unit(1, "lines"),
             panel.grid.major.y = element_line(linewidth = 0.5),
             legend.title  = element_blank(),
-            legend.text   = element_text(size = 14),
+            legend.text   = element_text(size = 12),
             legend.key    = element_blank(),
             legend.position = "right", 
             legend.key.height = unit(2, "lines"),
@@ -476,7 +484,7 @@ plot_smooth_fvps = function() {
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 1, fill = NA),
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"))
   
   # ---- Plot 2: smoothing error ----
@@ -521,7 +529,7 @@ plot_smooth_fvps = function() {
           axis.title.y  = element_blank(),
           axis.line     = element_blank(),
           panel.border  = element_rect(
-            linewidth = 1, fill = NA))
+            linewidth = 0.5, fill = NA))
   
   # ---- Save diagnostic plots ----
   
@@ -595,7 +603,7 @@ plot_coverage = function() {
             strip.text    = element_text(size = 14),
             strip.background = element_blank(), 
             panel.border  = element_rect(
-              linewidth = 1, fill = NA),
+              linewidth = 0.5, fill = NA),
             panel.spacing = unit(1, "lines"),
             legend.title  = element_blank(),
             legend.text   = element_text(size = 14),
@@ -628,7 +636,10 @@ plot_coverage_age_density = function() {
         colour = source,
         fill   = source) +
     geom_density(alpha = 0.2) +
-    facet_wrap(~v_a_name) +
+    # Facet with strip text wrapping...
+    facet_wrap(
+      facets   = vars(v_a_name), 
+      labeller = label_wrap_gen(width = 24)) + 
     # Prettify x axis...
     scale_x_continuous(
       name   = "Age (log2 scale)",
@@ -651,13 +662,13 @@ plot_coverage_age_density = function() {
           axis.title.y  = element_text(
             size = 20, margin = margin(l = 10, r = 20)),
           axis.line     = element_blank(),
-          strip.text    = element_text(size = 14),
+          strip.text    = element_text(size = 12),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 1, fill = NA),
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
           legend.title  = element_blank(),
-          legend.text   = element_text(size = 14),
+          legend.text   = element_text(size = 12),
           legend.key    = element_blank(),
           legend.position = "right", 
           legend.key.height = unit(2, "lines"),
@@ -734,7 +745,7 @@ plot_gbd_estimates = function() {
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 1, fill = NA),
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
           legend.title  = element_blank(),
           legend.text   = element_text(size = 14),
@@ -993,7 +1004,7 @@ plot_non_modelled = function() {
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 1, fill = NA),
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.5),
           legend.title  = element_blank(),
@@ -1057,7 +1068,7 @@ plot_non_modelled = function() {
           strip.text    = element_text(size = 12),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 1, fill = NA),
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.5))
   
@@ -1458,7 +1469,8 @@ plot_impact_data = function() {
           axis.line     = element_blank(),
           strip.text    = element_text(size = 10),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 0.5, fill = NA),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
@@ -1534,7 +1546,7 @@ plot_model_selection = function() {
               axis.title.y  = element_blank(),
               axis.line     = element_blank(),
               panel.border  = element_rect(
-                linewidth = 1, fill = NA),
+                linewidth = 0.5, fill = NA),
               legend.title  = element_blank(),
               legend.text   = element_text(size = 12),
               legend.key    = element_blank(),
@@ -1570,7 +1582,7 @@ plot_model_selection = function() {
                 size = 20, margin = margin(l = 10, r = 20)),
               axis.line     = element_blank(),
               panel.border  = element_rect(
-                linewidth = 1, fill = NA),
+                linewidth = 0.5, fill = NA),
               legend.title  = element_blank(),
               legend.text   = element_text(size = 12),
               legend.key    = element_blank(),
@@ -1921,7 +1933,8 @@ plot_historical_impact = function() {
           axis.line     = element_blank(),
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
-          panel.border  = element_rect(linewidth = 0.5, fill = NA),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.25),
           legend.title  = element_blank(),
