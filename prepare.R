@@ -7,6 +7,8 @@
 #
 ###########################################################
 
+# TODO: Convenience function for converting from v_a_id to d_v_a_id (va2dva)
+
 # ---------------------------------------------------------
 # Parent function for preparing model inputs from various data sources
 # ---------------------------------------------------------
@@ -19,16 +21,16 @@ run_prepare = function() {
   
   # Convert config yaml files to datatables
   prepare_config_tables()
-  
+
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
-  
+
   # Parse vaccine efficacy profile for non-VIMC pathogens
   prepare_vaccine_efficacy()
-  
+
   # Prepare GBD estimates of deaths for non-VIMC pathogens
   prepare_gbd_estimates()
-  
+
   # Prepare GBD covariates for extrapolating to non-VIMC countries
   prepare_gbd_covariates()
   
@@ -37,12 +39,15 @@ run_prepare = function() {
   
   # Prepare country income status classification over time
   prepare_income_status()
-  
+
   # Prepare demography-related estimates from WPP
   prepare_demography()
-  
+
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
+  
+  # Prepare inputs and outputs for DynaMICE model
+  prepare_dynamice()  # See interface.R
 }
 
 # ---------------------------------------------------------
@@ -120,6 +125,9 @@ prepare_vimc_estimates = function() {
   # Simply store VIMC in it's current form
   read_rds("input", "vimc_uncertainty") %>%
     save_table("vimc_uncertainty")
+  
+  # Plot these GBD death estimates
+  plot_gbd_estimates()
 }
 
 # ---------------------------------------------------------
