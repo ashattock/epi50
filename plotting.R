@@ -20,19 +20,14 @@ plot_scope = function() {
   
   # Dictionary for full impact source descriptions
   impact_dict = c(
-    polio  = "Dynamic modelling (external to VIMC)",
+    extern = "Dynamic modelling (external to VIMC)",
     vimc   = "Dynamic modelling (contributing to VIMC)", 
     gbd    = "Static modelling", 
     impute = "Geographic imputation model", 
     extrap = "Temporal extrapolation model")
   
   # Associated colours
-  impact_colours = c(
-    polio  = "#EB7D5B",
-    vimc   = "#FED23F",
-    gbd    = "#B5D33D",
-    impute = "#6CA2EA",
-    extrap = "#442288")
+  impact_colours = c("#EB7D5B", "#FED23F", "#B5D33D", "#6CA2EA", "#442288")
   
   # ---- Number of FVPs by pathogen ----
   
@@ -94,15 +89,15 @@ plot_scope = function() {
   # Other modelled pathogens
   #
   # TEMP: Read in polio impact table when ready
-  polio_dt = fvps_dt %>%
+  extern_dt = fvps_dt %>%
     filter(disease == "Polio") %>%
     select(disease, country, year) %>%
-    mutate(class = "polio")
+    mutate(class = "extern")
   
   # ---- Construct plotting datatable ----
   
   # Combine all impact sources
-  all_dt = rbind(gbd_dt, vimc_dt, impute_dt, polio_dt) %>%
+  all_dt = rbind(gbd_dt, vimc_dt, impute_dt, extern_dt) %>%
     # Append FVPs...
     right_join(y  = fvps_dt, 
                by = c("disease", "country", "year")) %>%
@@ -198,7 +193,7 @@ plot_scope = function() {
       repeat.tick.labels = FALSE) + 
     # Set colours and legend title...
     scale_fill_manual(
-      values = unname(impact_colours), 
+      values = impact_colours, 
       name   = "Source of impact estimates") +
     guides(fill = guide_legend(reverse = TRUE)) +
     # Prettify x axis...
@@ -1710,8 +1705,6 @@ plot_model_fits = function() {
 # ---------------------------------------------------------
 plot_impact_fvps = function(scope) {
   
-  annual_means = seq(1990, 2020, by = 10)
-  
   # ---- Load data based on scope ----
   
   # All time plot
@@ -1736,19 +1729,31 @@ plot_impact_fvps = function(scope) {
     data_dt = read_rds("impact", "initial_ratio") %>%
       select(d_v_a_id, impact_fvp = initial_ratio)
     
+    browser() # Some thought needed about year here
+    
     # Set a descriptive y-axis title
     y_lab = "Initial impact per FVP used for back projection (log10 scale)"
   }
   
   # ---- Construct primary plot datatable ----
   
-  # Remove trivial zeros
+  # Contruct plotting datatable
   plot_dt = data_dt %>%
-    append_d_v_a_name() %>%
     filter(impact_fvp > 0) %>%
+    append_d_v_a_name() %>%
+    # Group into decades...
+    mutate(decade = floor(year / 10) * 10, 
+           decade = paste0(decade, "s")) %>%
+    # Set plotting order from highest to lowest median impact...
+    group_by(d_v_a_name) %>%
+    mutate(median = median(impact_fvp)) %>%
+    ungroup() %>%
+    arrange(desc(median)) %>%
+    mutate(d_v_a_name = fct_inorder(d_v_a_name)) %>%
     # Set plotting order from highest to lowest...
-    arrange(-impact_fvp) %>%
-    mutate(d_v_a_name = fct_inorder(d_v_a_name))
+    select(d_v_a_name, decade, impact_fvp) %>%
+    arrange(d_v_a_name, decade) %>%
+    as.data.table()
   
   # ---- Extract bounds ----
   
@@ -1761,15 +1766,16 @@ plot_impact_fvps = function(scope) {
   
   # ---- Produce primary plot ----
   
-  # Plot initial impact ratio used for back projection
+  # Plot impact per FVP
   g = ggplot(plot_dt) +
     aes(x = d_v_a_name,
-        y = impact_fvp) +
-    # Plot total density density
-    geom_violin(
-      colour = "grey40", 
-      fill   = "grey40",
-      alpha  = 0.3) +
+        y = impact_fvp, 
+        colour = decade, 
+        fill   = decade) +
+    # Experimenting with geom...
+    geom_boxplot(
+      alpha = 0.3, 
+      outlier.alpha = 0.1) +
     # Prettify y axis...
     scale_y_continuous(
       name   = y_lab, 
@@ -1778,46 +1784,6 @@ plot_impact_fvps = function(scope) {
       limits = c(10 ^ lb, 10 ^ ub),
       expand = c(0, 0), 
       breaks = 10 ^ rev(ub : lb))
-  
-  # ---- Plot annual means (all time plot only) ----
-  
-  # All time plot
-  if (scope == "all_time") {
-    
-    # Function for computing annual means
-    annual_mean_fn = function(year) {
-      
-      # Filter for this year and summarise
-      mean_dt = plot_dt %>%
-        filter(year == !!year) %>%
-        group_by(d_v_a_name, year) %>%
-        summarise(impact_fvp = mean(impact_fvp)) %>%
-        ungroup() %>%
-        as.data.table()
-      
-      return(mean_dt)
-    }
-    
-    # Annual global mean over each year
-    annual_mean_dt = annual_means %>%
-      lapply(annual_mean_fn) %>%
-      rbindlist() %>%
-      arrange(d_v_a_name, year) %>%
-      mutate(year = factor(year, annual_means))
-    
-    # Add annual means to the plot
-    g = g + 
-      geom_point(
-        data    = annual_mean_dt, 
-        mapping = aes(colour = year), 
-        size    = 2) + 
-      # Set colours and legend title...
-      scale_colour_manual(
-        name   = "Global mean by year", 
-        values = colour_scheme(
-          map = "brewer::greens", 
-          n   = length(annual_means))) 
-  }
   
   # ---- Prettify and save ----
   
