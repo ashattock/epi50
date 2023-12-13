@@ -31,6 +31,8 @@ plot_scope = function() {
   
   # ---- Number of FVPs by pathogen ----
   
+  browser() # Check d_v_a table
+  
   # Number of FVPs over time
   fvps_dt = table("coverage") %>%
     filter(coverage > 0) %>%
@@ -1705,6 +1707,11 @@ plot_model_fits = function() {
 # ---------------------------------------------------------
 plot_impact_fvps = function(scope) {
   
+  width = 0.3
+  
+  # Function for averaging (mean or median)
+  avg_fn = get("mean")
+  
   # ---- Load data based on scope ----
   
   # All time plot
@@ -1713,8 +1720,7 @@ plot_impact_fvps = function(scope) {
     message("  > Plotting all-time impact per FVP")
     
     # Load initial ratio data
-    data_dt = read_rds("impact", "data") %>%
-      select(d_v_a_id, year, impact_fvp)
+    impact_dt = read_rds("impact", "data")
     
     # Set a descriptive y-axis title
     y_lab = "Impact per fully vaccinated person (log10 scale)"
@@ -1726,63 +1732,135 @@ plot_impact_fvps = function(scope) {
     message("  > Plotting initial impact per FVP")
     
     # Load initial ratio data
-    data_dt = read_rds("impact", "initial_ratio") %>%
-      select(d_v_a_id, impact_fvp = initial_ratio)
-    
-    browser() # Some thought needed about year here
+    impact_dt = read_rds("impact", "initial_ratio") %>%
+      rename(impact_fvp = initial_ratio)
     
     # Set a descriptive y-axis title
     y_lab = "Initial impact per FVP used for back projection (log10 scale)"
   }
   
-  # ---- Construct primary plot datatable ----
+  # ---- Classify by income status ----
   
-  # Contruct plotting datatable
-  plot_dt = data_dt %>%
+  # Load income status dictionary
+  income_dict = table("income_dict")
+  
+  # Load income status of each country
+  income_dt = table("income_status") %>%
+    filter(year == max(year)) %>%
+    left_join(y  = income_dict, 
+              by = "income") %>%
+    select(country, income = income_name)
+  
+  # Classify by income group
+  data_dt = impact_dt %>%
     filter(impact_fvp > 0) %>%
+    # Append d_v_a description...
     append_d_v_a_name() %>%
-    # Group into decades...
-    mutate(decade = floor(year / 10) * 10, 
-           decade = paste0(decade, "s")) %>%
-    # Set plotting order from highest to lowest median impact...
-    group_by(d_v_a_name) %>%
-    mutate(median = median(impact_fvp)) %>%
+    # Append income status description...
+    left_join(y  = income_dt, 
+              by = "country") %>%
+    mutate(income = factor(
+      x      = income, 
+      levels = rev(income_dict$income_name))) %>%
+    select(d_v_a = d_v_a_name, income, impact_fvp) %>%
+    unique()
+  
+  # ---- Plotting coordinates ----
+  
+  # Set x values for each d_v_a
+  x_major = data_dt %>%
+    group_by(d_v_a) %>%
+    summarise(order = avg_fn(impact_fvp)) %>%
     ungroup() %>%
-    arrange(desc(median)) %>%
-    mutate(d_v_a_name = fct_inorder(d_v_a_name)) %>%
-    # Set plotting order from highest to lowest...
-    select(d_v_a_name, decade, impact_fvp) %>%
-    arrange(d_v_a_name, decade) %>%
+    arrange(desc(order)) %>%
+    mutate(x_major = 1 : n()) %>%
+    select(-order) %>%
     as.data.table()
+    
+  # Offset each income group
+  x_minor = data_dt %>%
+    select(income) %>%
+    unique() %>%
+    arrange(income) %>%
+    mutate(x_minor = seq(
+      from = -width / 2, 
+      to   = width / 2, 
+      length.out = n()))
   
-  # ---- Extract bounds ----
+  # Width of offset of points within income group
+  x_spray = width / (nrow(income_dict) * 2)
   
-  # Values transformed to log 10...
-  trans = log10(plot_dt$impact_fvp)
+  # Bring all x and y values together
+  plot_dt = data_dt %>%
+    left_join(y  = x_major, 
+              by = "d_v_a") %>%
+    left_join(y  = x_minor, 
+              by = "income") %>%
+    mutate(x = x_major + x_minor) %>%
+    select(d_v_a, income, x, y = impact_fvp) %>%
+    arrange(x)
   
-  # ... used to extract bounds
-  lb = floor(min(trans))
-  ub = ceiling(max(trans))
+  # Extract bounds (after transformation)
+  lb = floor(min(log10(data_dt$impact_fvp)))
+  ub = ceiling(max(log10(data_dt$impact_fvp)))
+  
+  # ---- Vaccine and income status averages ----
+  
+  income_average_dt = plot_dt %>%
+    group_by(income, x) %>%
+    summarise(y = avg_fn(y)) %>%
+    ungroup() %>%
+    arrange(x) %>%
+    as.data.table()
+    
+  vaccine_average_dt = data_dt %>%
+    group_by(d_v_a) %>%
+    summarise(y = avg_fn(impact_fvp)) %>%
+    ungroup() %>%
+    left_join(y  = x_major,
+              by = "d_v_a") %>%
+    select(d_v_a, x = x_major, y) %>%
+    arrange(x) %>%
+    as.data.table()
   
   # ---- Produce primary plot ----
   
   # Plot impact per FVP
   g = ggplot(plot_dt) +
-    aes(x = d_v_a_name,
-        y = impact_fvp, 
-        colour = decade, 
-        fill   = decade) +
-    # Experimenting with geom...
-    geom_boxplot(
-      alpha = 0.3, 
-      outlier.alpha = 0.1) +
+    aes(x = x, y = y) +
+    # Plot all points by vaccine and income...
+    geom_point(
+      mapping  = aes(colour = income),
+      alpha    = 0.1,
+      shape    = 16,
+      stroke   = 0,
+      position = position_jitter(
+        width = x_spray,
+        seed  = 1)) + 
+    # Average of each vaccine...
+    geom_point(
+      data   = vaccine_average_dt,
+      colour = "black",
+      shape = 95, # Horizontal lines
+      size  = 20) +
+    # Average of each income group...
+    geom_point(
+      data    = income_average_dt, 
+      mapping = aes(fill = income), 
+      color   = "black", 
+      shape   = 23, 
+      size    = 3) + 
+    # Prettify x axis...
+    scale_x_continuous(
+      breaks = x_major$x_major, 
+      labels = x_major$d_v_a) +
     # Prettify y axis...
     scale_y_continuous(
-      name   = y_lab, 
+      name   = y_lab,
       trans  = "log10",
       labels = scientific, 
       limits = c(10 ^ lb, 10 ^ ub),
-      expand = c(0, 0), 
+      expand = c(0, 0),
       breaks = 10 ^ rev(ub : lb))
   
   # ---- Prettify and save ----
@@ -1962,19 +2040,21 @@ append_d_v_a_name = function(id_dt) {
     # Append d_v_a details...
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_id") %>%
-    rename(.a = activity) %>%
-    # Append descriptive names...
+    # Append disease and vaccine names...
     left_join(disease_dt, by = "disease") %>%
     left_join(vaccine_dt, by = "vaccine") %>%
+    mutate(.v = str_remove(.v, .x), 
+           .v = ifelse(.v == "", "", paste0(" (", .v, ")"))) %>%
     select(-disease, -vaccine) %>%
+    # Construct activity name...
+    mutate(.a = ifelse(
+      test = activity != "all", 
+      yes  = paste0(": ", activity), 
+      no   = "")) %>%
+    select(-activity) %>%
     # Construct full names...
-    mutate(d_v_a_name = ifelse(
-      test = .x == .v,
-      yes  = paste0(.x, ": ", .a), 
-      no   = paste0(.x, " (", .v, "): ", .a)), 
-      .after = d_v_a_id) %>%
-    # Set plotting order...
-    mutate(d_v_a_name = fct_inorder(d_v_a_name)) %>%
+    mutate(d_v_a_name = paste0(.x, .v, .a), 
+           d_v_a_name = fct_inorder(d_v_a_name)) %>%
     select(-.x, -.v, -.a)
   
   return(name_dt)
