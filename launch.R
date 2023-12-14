@@ -11,7 +11,6 @@
 
 # Set working directory to sourced file
 if (interactive()) setwd(getSrcDirectory(function() {}))
-setwd("C:\\Users\\helen\\Documents\\GitHub\\epi50-vaccine-impact")
 
 # Load all required packages and functions
 source("dependencies.R")

@@ -58,6 +58,8 @@ effective_coverage = function(disease) {
   
   # ---- Set up ----
   
+  browser() # Check d_v_a table
+  
   # Vaccines targeting this disease
   vaccine_dt = table("d_v_a") %>% 
     filter(disease == !!disease) %>%
@@ -293,6 +295,8 @@ deaths_averted = function(disease) {
   
   # ---- Attribute impact to vaccine schedule ----
   
+  browser() # Check d_v_a table
+  
   # Relative weighting of effective coverage for each vaccine
   weight_dt = read_rds("non_modelled_d", "immunity", disease) %>%
     left_join(y  = table("d_v_a"),
@@ -318,6 +322,8 @@ deaths_averted = function(disease) {
     select(country, d_v_a_id, year, impact) %>%
     arrange(country, d_v_a_id, year) %>%
     as.data.table()
+  
+  browser() # Check d_v_a table
   
   # Number of 'FVP' by vaccine - yeah, confusing concept in the context of boosters
   fvps_dt = table("coverage") %>%

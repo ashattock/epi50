@@ -20,19 +20,14 @@ plot_scope = function() {
   
   # Dictionary for full impact source descriptions
   impact_dict = c(
-    polio  = "Dynamic modelling (external to VIMC)",
+    extern = "Dynamic modelling (external to VIMC)",
     vimc   = "Dynamic modelling (contributing to VIMC)", 
     gbd    = "Static modelling", 
     impute = "Geographic imputation model", 
     extrap = "Temporal extrapolation model")
   
   # Associated colours
-  impact_colours = c(
-    polio  = "#EB7D5B",
-    vimc   = "#FED23F",
-    gbd    = "#B5D33D",
-    impute = "#6CA2EA",
-    extrap = "#442288")
+  impact_colours = c("#EB7D5B", "#FED23F", "#B5D33D", "#6CA2EA", "#442288")
   
   # ---- Number of FVPs by pathogen ----
   
@@ -94,15 +89,15 @@ plot_scope = function() {
   # Other modelled pathogens
   #
   # TEMP: Read in polio impact table when ready
-  polio_dt = fvps_dt %>%
+  extern_dt = fvps_dt %>%
     filter(disease == "Polio") %>%
     select(disease, country, year) %>%
-    mutate(class = "polio")
+    mutate(class = "extern")
   
   # ---- Construct plotting datatable ----
   
   # Combine all impact sources
-  all_dt = rbind(gbd_dt, vimc_dt, impute_dt, polio_dt) %>%
+  all_dt = rbind(gbd_dt, vimc_dt, impute_dt, extern_dt) %>%
     # Append FVPs...
     right_join(y  = fvps_dt, 
                by = c("disease", "country", "year")) %>%
@@ -198,7 +193,7 @@ plot_scope = function() {
       repeat.tick.labels = FALSE) + 
     # Set colours and legend title...
     scale_fill_manual(
-      values = unname(impact_colours), 
+      values = impact_colours, 
       name   = "Source of impact estimates") +
     guides(fill = guide_legend(reverse = TRUE)) +
     # Prettify x axis...
@@ -265,12 +260,11 @@ plot_total_fvps = function() {
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
     full_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity"), 
-              relationship = "many-to-many") %>%
-    select(d_v_a_id, source, year, fvps, fvps_cum) %>%
+              by = c("vaccine", "activity")) %>%
+    select(d_v_a_name, source, year, fvps, fvps_cum) %>%
     # Tidy up...
-    arrange(d_v_a_id, source, year) %>%
-    append_d_v_a_name() %>%
+    format_d_v_a_name() %>%
+    arrange(d_v_a_name, source, year) %>%
     as.data.table()
   
   # Total FVPs (sum of all sources)
@@ -290,12 +284,11 @@ plot_total_fvps = function() {
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
     full_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity"), 
-              relationship = "many-to-many") %>%
+              by = c("vaccine", "activity")) %>%
     select(d_v_a_id, year, fvps, fvps_cum) %>%
     # Tidy up...
+    format_d_v_a_name() %>%
     arrange(d_v_a_id, year) %>%
-    append_d_v_a_name() %>%
     as.data.table()
   
   # Metric to use for y axis
@@ -361,7 +354,7 @@ plot_total_fvps = function() {
     # Sum FVPs for each disease or vaccine
     d_v_dt = source_dt %>%
       left_join(y  = table("d_v_a"), 
-                by = "d_v_a_id") %>%
+                by = "d_v_a_name") %>%
       select(d_v = !!d_v, activity, year, fvps) %>%
       group_by(d_v, activity, year) %>%
       summarise(fvps = sum(fvps)) %>%
@@ -1710,7 +1703,10 @@ plot_model_fits = function() {
 # ---------------------------------------------------------
 plot_impact_fvps = function(scope) {
   
-  annual_means = seq(1990, 2020, by = 10)
+  width = 0.3
+  
+  # Function for averaging (mean or median)
+  avg_fn = get("mean")
   
   # ---- Load data based on scope ----
   
@@ -1720,8 +1716,7 @@ plot_impact_fvps = function(scope) {
     message("  > Plotting all-time impact per FVP")
     
     # Load initial ratio data
-    data_dt = read_rds("impact", "data") %>%
-      select(d_v_a_id, year, impact_fvp)
+    impact_dt = read_rds("impact", "data")
     
     # Set a descriptive y-axis title
     y_lab = "Impact per fully vaccinated person (log10 scale)"
@@ -1733,91 +1728,331 @@ plot_impact_fvps = function(scope) {
     message("  > Plotting initial impact per FVP")
     
     # Load initial ratio data
-    data_dt = read_rds("impact", "initial_ratio") %>%
-      select(d_v_a_id, impact_fvp = initial_ratio)
+    impact_dt = read_rds("impact", "initial_ratio") %>%
+      rename(impact_fvp = initial_ratio)
     
     # Set a descriptive y-axis title
     y_lab = "Initial impact per FVP used for back projection (log10 scale)"
   }
   
-  # ---- Construct primary plot datatable ----
+  # ---- Classify by income status ----
   
-  # Remove trivial zeros
-  plot_dt = data_dt %>%
-    append_d_v_a_name() %>%
+  # Load income status dictionary
+  income_dict = table("income_dict")
+  
+  # Load income status of each country
+  income_dt = table("income_status") %>%
+    filter(year == max(year)) %>%
+    left_join(y  = income_dict, 
+              by = "income") %>%
+    select(country, income = income_name)
+  
+  # Classify by income group
+  data_dt = impact_dt %>%
     filter(impact_fvp > 0) %>%
-    # Set plotting order from highest to lowest...
-    arrange(-impact_fvp) %>%
-    mutate(d_v_a_name = fct_inorder(d_v_a_name))
+    # Append d_v_a description...
+    append_d_v_a_name() %>%
+    # Append income status description...
+    left_join(y  = income_dt, 
+              by = "country") %>%
+    mutate(income = factor(
+      x      = income, 
+      levels = rev(income_dict$income_name))) %>%
+    select(d_v_a = d_v_a_name, income, impact_fvp) %>%
+    unique()
   
-  # ---- Extract bounds ----
+  # ---- Plotting coordinates ----
   
-  # Values transformed to log 10...
-  trans = log10(plot_dt$impact_fvp)
+  # Set x values for each d_v_a
+  x_major = data_dt %>%
+    group_by(d_v_a) %>%
+    summarise(order = avg_fn(impact_fvp)) %>%
+    ungroup() %>%
+    arrange(desc(order)) %>%
+    mutate(x_major = 1 : n()) %>%
+    select(-order) %>%
+    as.data.table()
+    
+  # Offset each income group
+  x_minor = data_dt %>%
+    select(income) %>%
+    unique() %>%
+    arrange(income) %>%
+    mutate(x_minor = seq(
+      from = -width / 2, 
+      to   = width / 2, 
+      length.out = n()))
   
-  # ... used to extract bounds
-  lb = floor(min(trans))
-  ub = ceiling(max(trans))
+  # Width of offset of points within income group
+  x_spray = width / (nrow(income_dict) * 2)
+  
+  # Bring all x and y values together
+  plot_dt = data_dt %>%
+    left_join(y  = x_major, 
+              by = "d_v_a") %>%
+    left_join(y  = x_minor, 
+              by = "income") %>%
+    mutate(x = x_major + x_minor) %>%
+    select(d_v_a, income, x, y = impact_fvp) %>%
+    arrange(x)
+  
+  # Extract bounds (after transformation)
+  lb = floor(min(log10(data_dt$impact_fvp)))
+  ub = ceiling(max(log10(data_dt$impact_fvp)))
+  
+  # ---- Vaccine and income status averages ----
+  
+  # Average by vaccine and income group
+  income_average_dt = plot_dt %>%
+    group_by(income, x) %>%
+    summarise(y = avg_fn(y)) %>%
+    ungroup() %>%
+    arrange(x) %>%
+    as.data.table()
+    
+  # Average by vaccine (over all income groups)
+  vaccine_average_dt = data_dt %>%
+    group_by(d_v_a) %>%
+    summarise(y = avg_fn(impact_fvp)) %>%
+    ungroup() %>%
+    left_join(y  = x_major,
+              by = "d_v_a") %>%
+    select(d_v_a, x = x_major, y) %>%
+    arrange(x) %>%
+    as.data.table()
   
   # ---- Produce primary plot ----
   
-  # Plot initial impact ratio used for back projection
+  # Plot impact per FVP
   g = ggplot(plot_dt) +
-    aes(x = d_v_a_name,
-        y = impact_fvp) +
-    # Plot total density density
-    geom_violin(
-      colour = "grey40", 
-      fill   = "grey40",
-      alpha  = 0.3) +
+    aes(x = x, y = y) +
+    # Plot all points by vaccine and income...
+    geom_point(
+      mapping  = aes(colour = income),
+      alpha    = 0.1,
+      shape    = 16,
+      stroke   = 0,
+      position = position_jitter(
+        width = x_spray,
+        seed  = 1)) + 
+    # Average of each vaccine...
+    geom_point(
+      data   = vaccine_average_dt,
+      colour = "black",
+      shape = 95, # Horizontal lines
+      size  = 20) +
+    # Average of each income group...
+    geom_point(
+      data    = income_average_dt, 
+      mapping = aes(fill = income), 
+      color   = "black", 
+      shape   = 23, 
+      size    = 3) + 
+    # Prettify x axis...
+    scale_x_continuous(
+      breaks = x_major$x_major, 
+      labels = x_major$d_v_a) +
     # Prettify y axis...
     scale_y_continuous(
-      name   = y_lab, 
+      name   = y_lab,
       trans  = "log10",
       labels = scientific, 
       limits = c(10 ^ lb, 10 ^ ub),
-      expand = c(0, 0), 
+      expand = c(0, 0),
       breaks = 10 ^ rev(ub : lb))
   
-  # ---- Plot annual means (all time plot only) ----
+  # ---- Prettify and save ----
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.text     = element_text(size = 10),
+          axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.title.x  = element_blank(),
+          axis.title.y  = element_text(
+            size = 16, margin = margin(l = 10, r = 20)),
+          axis.line     = element_blank(),
+          panel.grid.major.y = element_line(linewidth = 0.25),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(1, "lines"))
+  
+  # Filename to save to depending on scope
+  save_stem  = "Density of impact per FVP"
+  save_scope = str_replace(scope, "_", " ")
+  
+  # Save these figures to file
+  save_fig(g, save_stem, save_scope, dir = "impact_functions")
+  
+  # Save all time plot as key manuscript figure
+  if (scope == "all_time")
+    save_fig(g, "Figure 3", dir = "manuscript")
+}
+
+# ---------------------------------------------------------
+# Plot impact vs coverage by vaccine, income, and decade 
+# ---------------------------------------------------------
+plot_impact_coverage = function(scope) {
+  
+  message("  > Plotting impact against coverage")
+  
+  browser()
+  
+  
+  width = 0.3
+  
+  # Function for averaging (mean or median)
+  avg_fn = get("mean")
+  
+  # ---- Load data based on scope ----
   
   # All time plot
   if (scope == "all_time") {
     
-    # Function for computing annual means
-    annual_mean_fn = function(year) {
-      
-      # Filter for this year and summarise
-      mean_dt = plot_dt %>%
-        filter(year == !!year) %>%
-        group_by(d_v_a_name, year) %>%
-        summarise(impact_fvp = mean(impact_fvp)) %>%
-        ungroup() %>%
-        as.data.table()
-      
-      return(mean_dt)
-    }
+    message("  > Plotting all-time impact per FVP")
     
-    # Annual global mean over each year
-    annual_mean_dt = annual_means %>%
-      lapply(annual_mean_fn) %>%
-      rbindlist() %>%
-      arrange(d_v_a_name, year) %>%
-      mutate(year = factor(year, annual_means))
+    # Load initial ratio data
+    impact_dt = read_rds("impact", "data")
     
-    # Add annual means to the plot
-    g = g + 
-      geom_point(
-        data    = annual_mean_dt, 
-        mapping = aes(colour = year), 
-        size    = 2) + 
-      # Set colours and legend title...
-      scale_colour_manual(
-        name   = "Global mean by year", 
-        values = colour_scheme(
-          map = "brewer::greens", 
-          n   = length(annual_means))) 
+    # Set a descriptive y-axis title
+    y_lab = "Impact per fully vaccinated person (log10 scale)"
   }
+  
+  # Initial year plot
+  if (scope == "initial") {
+    
+    message("  > Plotting initial impact per FVP")
+    
+    # Load initial ratio data
+    impact_dt = read_rds("impact", "initial_ratio") %>%
+      rename(impact_fvp = initial_ratio)
+    
+    # Set a descriptive y-axis title
+    y_lab = "Initial impact per FVP used for back projection (log10 scale)"
+  }
+  
+  # ---- Classify by income status ----
+  
+  # Load income status dictionary
+  income_dict = table("income_dict")
+  
+  # Load income status of each country
+  income_dt = table("income_status") %>%
+    filter(year == max(year)) %>%
+    left_join(y  = income_dict, 
+              by = "income") %>%
+    select(country, income = income_name)
+  
+  # Classify by income group
+  data_dt = impact_dt %>%
+    filter(impact_fvp > 0) %>%
+    # Append d_v_a description...
+    append_d_v_a_name() %>%
+    # Append income status description...
+    left_join(y  = income_dt, 
+              by = "country") %>%
+    mutate(income = factor(
+      x      = income, 
+      levels = rev(income_dict$income_name))) %>%
+    select(d_v_a = d_v_a_name, income, impact_fvp) %>%
+    unique()
+  
+  # ---- Plotting coordinates ----
+  
+  # Set x values for each d_v_a
+  x_major = data_dt %>%
+    group_by(d_v_a) %>%
+    summarise(order = avg_fn(impact_fvp)) %>%
+    ungroup() %>%
+    arrange(desc(order)) %>%
+    mutate(x_major = 1 : n()) %>%
+    select(-order) %>%
+    as.data.table()
+  
+  # Offset each income group
+  x_minor = data_dt %>%
+    select(income) %>%
+    unique() %>%
+    arrange(income) %>%
+    mutate(x_minor = seq(
+      from = -width / 2, 
+      to   = width / 2, 
+      length.out = n()))
+  
+  # Width of offset of points within income group
+  x_spray = width / (nrow(income_dict) * 2)
+  
+  # Bring all x and y values together
+  plot_dt = data_dt %>%
+    left_join(y  = x_major, 
+              by = "d_v_a") %>%
+    left_join(y  = x_minor, 
+              by = "income") %>%
+    mutate(x = x_major + x_minor) %>%
+    select(d_v_a, income, x, y = impact_fvp) %>%
+    arrange(x)
+  
+  # Extract bounds (after transformation)
+  lb = floor(min(log10(data_dt$impact_fvp)))
+  ub = ceiling(max(log10(data_dt$impact_fvp)))
+  
+  # ---- Vaccine and income status averages ----
+  
+  income_average_dt = plot_dt %>%
+    group_by(income, x) %>%
+    summarise(y = avg_fn(y)) %>%
+    ungroup() %>%
+    arrange(x) %>%
+    as.data.table()
+  
+  vaccine_average_dt = data_dt %>%
+    group_by(d_v_a) %>%
+    summarise(y = avg_fn(impact_fvp)) %>%
+    ungroup() %>%
+    left_join(y  = x_major,
+              by = "d_v_a") %>%
+    select(d_v_a, x = x_major, y) %>%
+    arrange(x) %>%
+    as.data.table()
+  
+  # ---- Produce primary plot ----
+  
+  # Plot impact per FVP
+  g = ggplot(plot_dt) +
+    aes(x = x, y = y) +
+    # Plot all points by vaccine and income...
+    geom_point(
+      mapping  = aes(colour = income),
+      alpha    = 0.1,
+      shape    = 16,
+      stroke   = 0,
+      position = position_jitter(
+        width = x_spray,
+        seed  = 1)) + 
+    # Average of each vaccine...
+    geom_point(
+      data   = vaccine_average_dt,
+      colour = "black",
+      shape = 95, # Horizontal lines
+      size  = 20) +
+    # Average of each income group...
+    geom_point(
+      data    = income_average_dt, 
+      mapping = aes(fill = income), 
+      color   = "black", 
+      shape   = 23, 
+      size    = 3) + 
+    # Prettify x axis...
+    scale_x_continuous(
+      breaks = x_major$x_major, 
+      labels = x_major$d_v_a) +
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = y_lab,
+      trans  = "log10",
+      labels = scientific, 
+      limits = c(10 ^ lb, 10 ^ ub),
+      expand = c(0, 0),
+      breaks = 10 ^ rev(ub : lb))
   
   # ---- Prettify and save ----
   
@@ -1979,42 +2214,6 @@ append_v_a_name = function(id_dt) {
 }
 
 # ---------------------------------------------------------
-# Convert d_v_a_id into human-readable sting
-# ---------------------------------------------------------
-append_d_v_a_name = function(id_dt) {
-  
-  # Disease descriptive names
-  disease_dt = table("disease") %>%
-    select(disease, .x = disease_name)
-  
-  # Vaccine descriptive names
-  vaccine_dt = table("vaccine") %>%
-    select(vaccine, .v = vaccine_name)
-  
-  # Append d_v_a description
-  name_dt = id_dt %>%
-    # Append d_v_a details...
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    rename(.a = activity) %>%
-    # Append descriptive names...
-    left_join(disease_dt, by = "disease") %>%
-    left_join(vaccine_dt, by = "vaccine") %>%
-    select(-disease, -vaccine) %>%
-    # Construct full names...
-    mutate(d_v_a_name = ifelse(
-      test = .x == .v,
-      yes  = paste0(.x, ": ", .a), 
-      no   = paste0(.x, " (", .v, "): ", .a)), 
-      .after = d_v_a_id) %>%
-    # Set plotting order...
-    mutate(d_v_a_name = fct_inorder(d_v_a_name)) %>%
-    select(-.x, -.v, -.a)
-  
-  return(name_dt)
-}
-
-# ---------------------------------------------------------
 # Full descriptive names for disease, vaccine, or vaccine type
 # ---------------------------------------------------------
 append_d_v_t_name = function(name_dt) {
@@ -2056,6 +2255,74 @@ append_d_v_t_name = function(name_dt) {
     name_dt %<>% rename(type = vaccine_type)
   
   return(name_dt)
+}
+
+# ---------------------------------------------------------
+# NOW REDUNDANT
+# ---------------------------------------------------------
+append_d_v_a_name = function(id_dt) {
+  
+  browser()
+  
+  # Disease descriptive names
+  disease_dt = table("disease") %>%
+    select(disease, .x = disease_name)
+  
+  # Vaccine descriptive names
+  vaccine_dt = table("vaccine") %>%
+    select(vaccine, .v = vaccine_name)
+  
+  # Append d_v_a description
+  name_dt = id_dt %>%
+    # Append d_v_a details...
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    # Append disease and vaccine names...
+    left_join(disease_dt, by = "disease") %>%
+    left_join(vaccine_dt, by = "vaccine") %>%
+    mutate(.v = str_remove(.v, .x), 
+           .v = ifelse(.v == "", "", paste0(" (", .v, ")"))) %>%
+    select(-disease, -vaccine) %>%
+    # Construct activity name...
+    mutate(.a = ifelse(
+      test = activity != "all", 
+      yes  = paste0(": ", activity), 
+      no   = "")) %>%
+    select(-activity) %>%
+    # Construct full names...
+    mutate(d_v_a_name = paste0(.x, .v, .a), 
+           d_v_a_name = fct_inorder(d_v_a_name)) %>%
+    select(-.x, -.v, -.a)
+  
+  return(name_dt)
+}
+
+# ---------------------------------------------------------
+# Set natural order of d_v_a names - appending if necessary
+# ---------------------------------------------------------
+format_d_v_a_name = function(name_dt) {
+  
+  # Natural order of d_v_a_name (not necessarily alphabetical)
+  d_v_a_dt = table("d_v_a") %>%
+    select(d_v_a_id, d_v_a_name)
+  
+  # Check if d_v_a_name is already defined
+  if (!"d_v_a_name" %in% names(name_dt)) {
+    
+    # Append name if it's not already in the data
+    name_dt %<>%
+      left_join(y  = d_v_a_dt, 
+                by = "d_v_a_id")
+    }
+  
+  # Set order using factors according to d_v_a_dt
+  order_dt = name_dt %>%
+    mutate(d_v_a_name = factor(
+      x      = d_v_a_name, 
+      levels = d_v_a_dt$d_v_a_name)) %>%
+    arrange(d_v_a_name)
+  
+  return(order_dt)
 }
 
 # ---------------------------------------------------------

@@ -30,6 +30,8 @@ run_impute = function() {
   
   # ---- Perform imputation ----
   
+  browser() # Check d_v_a table
+  
   # Impute missing countries for all d-v-a combinations
   impute_dt = table("d_v_a") %>%
     # Filter for VIMC pathogens only...
@@ -265,6 +267,8 @@ get_impute_data = function() {
     mutate(impact_cum = cumsum(impact_rel)) %>%
     ungroup() %>%
     as.data.table()
+  
+  browser() # Check d_v_a table
   
   # Extract FVPs
   fvps_dt = table("coverage") %>%
