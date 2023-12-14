@@ -10,8 +10,6 @@
 # ---------------------------------------------------------
 prepare_coverage = function() {
   
-  message(" - Coverage data")
-  
   # Extract coverage for VIMC pathogens
   vimc_dt = coverage_vimc()
   
@@ -78,7 +76,7 @@ prepare_coverage = function() {
 # ---------------------------------------------------------
 coverage_vimc = function() {
   
-  message("  > VIMC coverage")
+  message(" - Coverage data: VIMC")
   
   # Extract VIMC vaccine coverage data
   vimc_dt = fread(paste0(o$pth$input, "vimc_coverage.csv")) %>%
@@ -109,7 +107,7 @@ coverage_vimc = function() {
 # ---------------------------------------------------------
 coverage_wiise = function(vimc_countries_dt) {
   
-  message("  > WIISE coverage")
+  message(" - Coverage data: WIISE")
   
   # ---- Load data ----
   
@@ -389,7 +387,7 @@ smooth_non_modelled_fvps = function(coverage_dt) {
     
     # Smooth with kernel (stats package)
     if (o$gbd_coverage_smoother == "kernel")
-      fit = ksmooth(x, y, "normal", bandwidth = 10, x.points = x)
+      fit = ksmooth(x, y, "normal", bandwidth = 5, x.points = x)
     
     # Smooth with splines (stats package)
     if (o$gbd_coverage_smoother == "spline")
