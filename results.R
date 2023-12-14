@@ -79,6 +79,9 @@ run_results = function() {
     # Plot all-time impact per FVPs
     plot_impact_fvps(scope = "all_time")
     
+    # Plot impact vs coverage by vaccine, income, and decade 
+    plot_impact_coverage()
+    
     # Plot function selection statistics
     plot_model_selection()
     

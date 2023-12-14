@@ -28,6 +28,8 @@ run_history = function() {
     ungroup() %>%
     as.data.table()
   
+  browser() # Check d_v_a table
+  
   # Extract FVPs over time
   #
   # NOTE: We do not need cumulative FVPs yet, these are only for evaluating
