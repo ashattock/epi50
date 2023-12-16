@@ -1112,7 +1112,8 @@ plot_covariates = function() {
     pivot_longer(cols = -c(d_v_a_id, target), 
                  names_to = "covariate") %>%
     arrange(d_v_a_id, covariate, target) %>%
-    append_d_v_a_name() %>%
+    format_d_v_a_name() %>%
+    select(d_v_a_name, target, covariate, value) %>%
     as.data.table()
   
   # Plot covariates vs imputation target
@@ -1195,7 +1196,7 @@ plot_impute_quality = function() {
   plot_dt = results_dt %>%
     filter(!is.na(target)) %>%
     select(-country) %>%
-    append_d_v_a_name() %>%
+    format_d_v_a_name() %>%
     # Remove target outliers for better normalisation...
     group_by(d_v_a_name) %>%
     mutate(lower = mean(target) - 3 * sd(target), 
@@ -1203,7 +1204,7 @@ plot_impute_quality = function() {
            outlier = target < lower | target > upper) %>%
     ungroup() %>%
     filter(outlier == FALSE) %>%
-    select(-outlier, -lower, -upper) %>%
+    select(-outlier, -lower, -upper, -d_v_a_id) %>%
     as.data.table()
   
   # Maximum value in each facet (target or predict)
@@ -1292,13 +1293,13 @@ plot_impute_countries = function() {
     pull(d_v_a_id) %>%
     lapply(load_results_fn) %>%
     rbindlist() %>%
-    append_d_v_a_name()
+    format_d_v_a_name()
   
   # ---- Plot 1: annual error by country ----
   
   # Truth vs predicted over time for training data
   annual_dt = results_dt %>%
-    select(country, d_v_a_name, year, 
+    select(d_v_a_name, country, year, 
            vimc   = impact_cum, 
            impute = impact_impute) %>%
     filter(!is.na(vimc)) %>%
@@ -1311,15 +1312,16 @@ plot_impute_countries = function() {
                     ymax = upper, 
                     fill = country),
                 alpha = 0.3) +
+    # Country truth...
     geom_line(aes(y = vimc, colour = country), 
               linewidth = 0.5) +
+    # Country predicted...
     geom_line(aes(y = impute, colour = country), 
               linewidth = 0.5, 
               linetype  = "dashed") +
-    facet_wrap(~d_v_a_name, scales = "free_y")
-  
-  # Remove legend
-  g = g + theme(legend.position = "none")
+    facet_wrap(~d_v_a_name, scales = "free_y") + 
+    # Remove legend...
+    theme(legend.position = "none")
   
   # Save figure to file
   save_fig(g, "Imputation error annual", dir = "imputation")
@@ -1329,7 +1331,7 @@ plot_impute_countries = function() {
   # Where imputed countries lie in terms of magnitude
   total_dt = results_dt %>%
     # Take cumulative values for each country...
-    group_by(country, d_v_a_name) %>%
+    group_by(d_v_a_name, country) %>%
     summarise(truth   = max(impact_cum), 
               predict = max(impact_impute)) %>%
     ungroup() %>%
@@ -1370,7 +1372,7 @@ plot_impact_data = function() {
   
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "data") %>%
-    append_d_v_a_name()
+    format_d_v_a_name()
   
   # ---- Plot 1: impact per FVP over time ----
   
@@ -1480,7 +1482,7 @@ plot_model_selection = function() {
   
   # Load stuff: best fit functions and associtaed coefficients
   best_dt = read_rds("impact", "best_model") %>%
-    append_d_v_a_name()
+    format_d_v_a_name()
   
   # ---- Plot function count ----
   
@@ -1620,29 +1622,29 @@ plot_model_fits = function() {
   
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "data") %>%
-    append_d_v_a_name()
+    format_d_v_a_name()
   
   # Evaluate only as far as we have data
   max_data = data_dt %>%
-    group_by(country, d_v_a_name) %>%
+    group_by(d_v_a_name, country) %>%
     slice_max(fvps, n = 1, with_ties = FALSE) %>%
     ungroup() %>%
-    select(country, d_v_a_name, x_max = fvps) %>%
+    select(d_v_a_name, country, x_max = fvps) %>%
     # Increment up one so we plot slightly past the data
     mutate(x_max = x_max + o$eval_x_scale / 100) %>%
     as.data.table()
   
   # Evaluate selected impact function
   best_fit = evaluate_impact_function() %>%
-    append_d_v_a_name()
+    format_d_v_a_name()
   
   # Apply max_data so we only plot up to data (or just past)
   plot_dt = best_fit %>%
     left_join(y  = max_data,
-              by = c("country", "d_v_a_name")) %>%
+              by = c("d_v_a_name", "country")) %>%
     filter(fvps < x_max) %>%
-    append_d_v_a_name() %>%
-    select(country, d_v_a_name, fvps, impact)
+    format_d_v_a_name() %>%
+    select(d_v_a_name, country, fvps, impact)
   
   # Plot function evaluation against the data
   g = ggplot(plot_dt) +
@@ -1751,7 +1753,7 @@ plot_impact_fvps = function(scope) {
   data_dt = impact_dt %>%
     filter(impact_fvp > 0) %>%
     # Append d_v_a description...
-    append_d_v_a_name() %>%
+    format_d_v_a_name() %>%
     # Append income status description...
     left_join(y  = income_dt, 
               by = "country") %>%
@@ -1891,46 +1893,19 @@ plot_impact_fvps = function(scope) {
 # ---------------------------------------------------------
 # Plot impact vs coverage by vaccine, income, and decade 
 # ---------------------------------------------------------
-plot_impact_coverage = function(scope) {
+plot_impact_coverage = function() {
   
   message("  > Plotting impact against coverage")
   
   browser()
   
-  
-  width = 0.3
-  
   # Function for averaging (mean or median)
   avg_fn = get("mean")
   
-  # ---- Load data based on scope ----
-  
-  # All time plot
-  if (scope == "all_time") {
-    
-    message("  > Plotting all-time impact per FVP")
-    
-    # Load initial ratio data
-    impact_dt = read_rds("impact", "data")
-    
-    # Set a descriptive y-axis title
-    y_lab = "Impact per fully vaccinated person (log10 scale)"
-  }
-  
-  # Initial year plot
-  if (scope == "initial") {
-    
-    message("  > Plotting initial impact per FVP")
-    
-    # Load initial ratio data
-    impact_dt = read_rds("impact", "initial_ratio") %>%
-      rename(impact_fvp = initial_ratio)
-    
-    # Set a descriptive y-axis title
-    y_lab = "Initial impact per FVP used for back projection (log10 scale)"
-  }
-  
   # ---- Classify by income status ----
+  
+  # Load initial ratio data
+  impact_dt = read_rds("impact", "data")
   
   # Load income status dictionary
   income_dict = table("income_dict")
@@ -1942,11 +1917,11 @@ plot_impact_coverage = function(scope) {
               by = "income") %>%
     select(country, income = income_name)
   
+  browser()
+  
   # Classify by income group
   data_dt = impact_dt %>%
     filter(impact_fvp > 0) %>%
-    # Append d_v_a description...
-    append_d_v_a_name() %>%
     # Append income status description...
     left_join(y  = income_dt, 
               by = "country") %>%
@@ -2047,7 +2022,7 @@ plot_impact_coverage = function(scope) {
       labels = x_major$d_v_a) +
     # Prettify y axis...
     scale_y_continuous(
-      name   = y_lab,
+      name   = "Impact per fully vaccinated person (log10 scale)",
       trans  = "log10",
       labels = scientific, 
       limits = c(10 ^ lb, 10 ^ ub),
@@ -2070,15 +2045,15 @@ plot_impact_coverage = function(scope) {
           panel.spacing = unit(1, "lines"))
   
   # Filename to save to depending on scope
-  save_stem  = "Density of impact per FVP"
+  save_stem  = "Impact - coverage by income and decade"
   save_scope = str_replace(scope, "_", " ")
   
   # Save these figures to file
   save_fig(g, save_stem, save_scope, dir = "impact_functions")
   
   # Save all time plot as key manuscript figure
-  if (scope == "all_time")
-    save_fig(g, "Figure 3", dir = "manuscript")
+  # if (scope == "all_time")
+  #   save_fig(g, "Figure 3", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -2253,46 +2228,6 @@ append_d_v_t_name = function(name_dt) {
   # Convert back vaccine_type -> type
   if ("type" %in% d_v_t)
     name_dt %<>% rename(type = vaccine_type)
-  
-  return(name_dt)
-}
-
-# ---------------------------------------------------------
-# NOW REDUNDANT
-# ---------------------------------------------------------
-append_d_v_a_name = function(id_dt) {
-  
-  browser()
-  
-  # Disease descriptive names
-  disease_dt = table("disease") %>%
-    select(disease, .x = disease_name)
-  
-  # Vaccine descriptive names
-  vaccine_dt = table("vaccine") %>%
-    select(vaccine, .v = vaccine_name)
-  
-  # Append d_v_a description
-  name_dt = id_dt %>%
-    # Append d_v_a details...
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    # Append disease and vaccine names...
-    left_join(disease_dt, by = "disease") %>%
-    left_join(vaccine_dt, by = "vaccine") %>%
-    mutate(.v = str_remove(.v, .x), 
-           .v = ifelse(.v == "", "", paste0(" (", .v, ")"))) %>%
-    select(-disease, -vaccine) %>%
-    # Construct activity name...
-    mutate(.a = ifelse(
-      test = activity != "all", 
-      yes  = paste0(": ", activity), 
-      no   = "")) %>%
-    select(-activity) %>%
-    # Construct full names...
-    mutate(d_v_a_name = paste0(.x, .v, .a), 
-           d_v_a_name = fct_inorder(d_v_a_name)) %>%
-    select(-.x, -.v, -.a)
   
   return(name_dt)
 }

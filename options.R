@@ -53,10 +53,10 @@ set_options = function(do_step = NA) {
   o$impact_scaler = 1000
 
   # Defalt x scale for evaluating impact functions
-  o$eval_x_scale = 2  # Not a critical value - often overwritten with actual FVPs
+  o$eval_x_scale = 3  # Not a critical value - often overwritten with actual FVPs
   
   # Number of initial years to average over for back-projecting impact ratio
-  o$init_impact_years = 1 # 3
+  o$init_impact_years = 3
   
   # ---- Uncertainty settings ----
 

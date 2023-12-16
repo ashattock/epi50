@@ -30,8 +30,6 @@ run_impute = function() {
   
   # ---- Perform imputation ----
   
-  browser() # Check d_v_a table
-  
   # Impute missing countries for all d-v-a combinations
   impute_dt = table("d_v_a") %>%
     # Filter for VIMC pathogens only...
@@ -72,15 +70,10 @@ run_impute = function() {
 # ---------------------------------------------------------
 perform_impute = function(d_v_a_id, target) {
   
-  # Details of this d_v_a
-  d_v_a_name = data.table(d_v_a_id = d_v_a_id) %>%
-    append_d_v_a_name() %>%
-    pull(d_v_a_name)
-  
-  # Display progress message to user
-  message(" - ", d_v_a_name)
+  message(" - ", table("d_v_a")[d_v_a_id, d_v_a_name])
   
   # ---- Append covariates ----
+  
   # Summarise vaccination coverage by country, by year
   coverage_dt = table("coverage") %>%
                 as.data.frame() %>%
@@ -225,6 +218,10 @@ perform_impute = function(d_v_a_id, target) {
  # if (any(is.na(result_dt$predict)))
 #    stop("NA values identified in predicted impact")
   
+  # TEMP: Just to get everything running through rest of pipeline
+  result_dt %<>% 
+    filter(!is.na(target))
+  
   # Store the fitted model, the data used, and the result
   fit = list(
     model   = fit_model, 
@@ -267,8 +264,6 @@ get_impute_data = function() {
     mutate(impact_cum = cumsum(impact_rel)) %>%
     ungroup() %>%
     as.data.table()
-  
-  browser() # Check d_v_a table
   
   # Extract FVPs
   fvps_dt = table("coverage") %>%

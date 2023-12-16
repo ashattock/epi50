@@ -87,6 +87,9 @@ run_impact = function() {
   # Plot function selection statistics
   plot_model_selection()
   
+  # Plot impact vs coverage by vaccine, income, and decade 
+  # plot_impact_coverage()
+  
   # Plot impact function evaluation
   plot_model_fits()
 }
