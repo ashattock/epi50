@@ -134,10 +134,71 @@ perform_impute = function(d_v_a_id, target) {
            health_spending_minus_9 = lag(health_spending, 9)) %>%
     
       as.data.table()
-#browser()  
-   # Manually explore correlations
+browser()  
+   # Convert to tsibble format for time series regression by country
    data_dt = target_dt %>%
-    filter(!is.na(target) &
+    filter(!is.na(target)) %>% 
+     as_tsibble(index = year, key = c(country,d_v_a_id))
+   
+  # TODO Automate model comparison for each d_v_a
+  # Ad-hoc model comparison (AICc) was conducted here....
+   impact_model <- data_dt %>%
+     model(tslm = TSLM(log(target) ~ log(coverage) +
+                                     log(coverage_minus_1) +
+                                     log(coverage_minus_2) +
+                                     sdi +
+                                     gdp +
+                                     gini)) 
+   
+   #report(impact_model)
+   
+   # Arrange in tidy format for easy access of estimates, p-values etc.
+   model_fit = impact_model %>% tidy() 
+   
+   # Link model output back to WHO region
+   regions = as.data.frame(data_dt) %>% select(country, region_short) %>% unique()
+   model_fit = inner_join(x=regions, y=model_fit, by="country")
+   
+   # Plot estimates of regression predictors by region
+   plot_model_fit_df = model_fit %>%
+                       # filter(p.value <= 0.05) %>%
+                        select(country, region_short, term, estimate) %>%
+                        spread(term, estimate) %>%
+                        rename(check = 'log(coverage)')
+   
+   ggplot(plot_model_fit_df, aes(gini, sdi, colour = region_short)) +
+                     geom_point()
+   
+     
+  plot_model_fit_df %>% select(gini, check, `log(coverage_minus_1)`, `log(coverage_minus_2)`, sdi) %>% ggpairs()
+   
+   augment(impact_model) %>%
+   #  filter(country == "AFG") %>%
+     ggplot(aes(x = target, y = .fitted)) +
+     geom_point() +
+     labs(
+       y = "Fitted (predicted values)",
+       x = "Data (actual values)",
+       title = "Vaccine impact (HepB routine)"
+     ) +
+     geom_abline(intercept = 0, slope = 1)
+   
+   augment(impact_model) %>%
+       filter(country == "AFG") %>%
+          ggplot(aes(x = year)) +
+     geom_line(aes(y = target, colour = "Data")) +
+     geom_line(aes(y = .fitted, colour = "Fitted")) +
+     labs(y = NULL,
+          title = "Vaccine impact (HepB routine)"
+     ) +
+     scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
+     guides(colour = guide_legend(title = NULL))
+   
+   
+   
+     
+           
+           data_dt %>% filter(
            year > 2000 & year <= 2020 &
            region_short == "WPR") %>%
     select(target, gini, health_spending, coverage, coverage_minus_1,coverage_minus_2,coverage_minus_3,sdi) 
