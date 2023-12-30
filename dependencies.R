@@ -68,7 +68,8 @@ packages = c(
   "lemon",          # Plotting functionality
   "pals",           # Colour palettes
   "colorspace",     # Colour palettes
-  "fpp",            # Time series forecasting
+  "fpp3",            # Time series forecasting
+  "tsibble",        # Time series data format
   "GGally",         # Plotting correlation
   "Hmisc")          # Correlation functions
 

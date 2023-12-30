@@ -92,7 +92,7 @@ perform_impute = function(d_v_a_id, target) {
                   ungroup() %>%
                   select(-c(total_fvps, total_pop))
   
-  
+ # browser()
     # Append covariates to target
   target_dt = target %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
@@ -111,7 +111,7 @@ perform_impute = function(d_v_a_id, target) {
     select(-v_a_id) %>% 
     ungroup () %>%
     
-    # Create dummy variables for historic coverage (assume 0 prior to our data)
+    # Create dummy variables for historic coverage (NA prior to our data)
     mutate(coverage_minus_1 = lag(coverage, 1),
            coverage_minus_2 = lag(coverage, 2),
            coverage_minus_3 = lag(coverage, 3),
@@ -122,7 +122,7 @@ perform_impute = function(d_v_a_id, target) {
            coverage_minus_8 = lag(coverage, 8),
            coverage_minus_9 = lag(coverage, 9)) %>%
   
-    # Create dummy variables for historic health_spending (assume 0 prior to our data)
+    # Create dummy variables for historic health_spending (NA prior to our data)
     mutate(health_spending_minus_1 = lag(health_spending, 1),
            health_spending_minus_2 = lag(health_spending, 2),
            health_spending_minus_3 = lag(health_spending, 3),
@@ -134,24 +134,26 @@ perform_impute = function(d_v_a_id, target) {
            health_spending_minus_9 = lag(health_spending, 9)) %>%
     
       as.data.table()
-browser()  
+#browser()  
    # Convert to tsibble format for time series regression by country
    data_dt = target_dt %>%
     filter(!is.na(target)) %>% 
+     # Replace zero impact with minimal impact for log transformation
+     mutate(target = ifelse(target==0, 1e-20, target)) %>%
      as_tsibble(index = year, key = c(country,d_v_a_id))
    
   # TODO Automate model comparison for each d_v_a
   # Ad-hoc model comparison (AICc) was conducted here....
-   impact_model <- data_dt %>%
+   impact_model = data_dt %>%
      model(tslm = TSLM(log(target) ~ log(coverage) +
-                                     log(coverage_minus_1) +
-                                     log(coverage_minus_2) +
-                                     sdi +
-                                     gdp +
+                                    # log(coverage_minus_1) +
+                                     #log(coverage_minus_2) +
+                                     haqi +
+                                     #gdp +
                                      gini)) 
    
    #report(impact_model)
-   
+ # browser() 
    # Arrange in tidy format for easy access of estimates, p-values etc.
    model_fit = impact_model %>% tidy() 
    
@@ -161,19 +163,19 @@ browser()
    
    # Plot estimates of regression predictors by region
    plot_model_fit_df = model_fit %>%
-                       # filter(p.value <= 0.05) %>%
+                        #filter(p.value <= 0.05) %>%
                         select(country, region_short, term, estimate) %>%
-                        spread(term, estimate) %>%
-                        rename(check = 'log(coverage)')
-   
-   ggplot(plot_model_fit_df, aes(gini, sdi, colour = region_short)) +
+                        spread(term, estimate)# %>%
+                       # rename(check = 'log(coverage)')
+#browser()   
+   ggplot(plot_model_fit_df, aes(gini, haqi, colour = region_short)) +
                      geom_point()
    
      
-  plot_model_fit_df %>% select(gini, check, `log(coverage_minus_1)`, `log(coverage_minus_2)`, sdi) %>% ggpairs()
+  plot_model_fit_df %>% select(gini, haqi, `log(coverage)`) %>% ggpairs()
    
    augment(impact_model) %>%
-   #  filter(country == "AFG") %>%
+     filter(country == "KHM") %>%
      ggplot(aes(x = target, y = .fitted)) +
      geom_point() +
      labs(
@@ -182,9 +184,10 @@ browser()
        title = "Vaccine impact (HepB routine)"
      ) +
      geom_abline(intercept = 0, slope = 1)
-   
+
+   # browser()  
    augment(impact_model) %>%
-       filter(country == "AFG") %>%
+       filter(country == "KHM") %>%
           ggplot(aes(x = year)) +
      geom_line(aes(y = target, colour = "Data")) +
      geom_line(aes(y = .fitted, colour = "Fitted")) +
