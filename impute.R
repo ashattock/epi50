@@ -134,6 +134,7 @@ perform_impute = function(d_v_a_id, target) {
            health_spending_minus_9 = lag(health_spending, 9)) %>%
     
       as.data.table()
+  
 #browser()  
    # Convert to tsibble format for time series regression by country
    data_dt = target_dt %>%
@@ -145,15 +146,17 @@ perform_impute = function(d_v_a_id, target) {
   # TODO Automate model comparison for each d_v_a
   # Ad-hoc model comparison (AICc) was conducted here....
    impact_model = data_dt %>%
+     filter(country %in% c("ECU", "FJI", "GEO")) %>%   # TODO: generalise to avoid failure to fit models with paucity of data
      model(tslm = TSLM(log(target) ~ log(coverage) +
-                                    # log(coverage_minus_1) +
-                                     #log(coverage_minus_2) +
-                                     haqi +
-                                     #gdp +
+                                     log(coverage_minus_1) +
+                                     log(coverage_minus_2) +
+                                     HDI +
+                                     pop_0to14 +
+                                     attended_births +
                                      gini)) 
    
-   #report(impact_model)
- # browser() 
+   #report(impact_model) # Quick check summary
+  #browser() 
    # Arrange in tidy format for easy access of estimates, p-values etc.
    model_fit = impact_model %>% tidy() 
    
@@ -168,45 +171,53 @@ perform_impute = function(d_v_a_id, target) {
                         spread(term, estimate)# %>%
                        # rename(check = 'log(coverage)')
 #browser()   
-   ggplot(plot_model_fit_df, aes(gini, haqi, colour = region_short)) +
+   
+  # Plot correlation between two predictor variables
+  ggplot(plot_model_fit_df, aes(gini, HDI, colour = region_short)) +
                      geom_point()
    
-     
-  plot_model_fit_df %>% select(gini, haqi, `log(coverage)`) %>% ggpairs()
-   
-   augment(impact_model) %>%
-     filter(country == "KHM") %>%
-     ggplot(aes(x = target, y = .fitted)) +
+  # Plot correlation between multiple predictor variables   
+  plot_model_fit_df %>% select(gini, HDI, `log(coverage)`, pop_0to14) %>% ggpairs(upper = list(continuous = wrap("cor", method = "spearman")))
+  
+  
+  # Plot model fit for a single country 
+  plot_df = augment(impact_model) %>%
+     filter(country == "ECU")
+  
+  ggplot(data = plot_df, aes(x = target, y = .fitted)) +
      geom_point() +
      labs(
        y = "Fitted (predicted values)",
        x = "Data (actual values)",
-       title = "Vaccine impact (HepB routine)"
+       title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
      ) +
      geom_abline(intercept = 0, slope = 1)
 
-   # browser()  
-   augment(impact_model) %>%
-       filter(country == "KHM") %>%
-          ggplot(aes(x = year)) +
+  
+  # Plot model fit for a single country 
+  plot_df = augment(impact_model) %>%
+    filter(country == "GEO")
+  
+  ggplot(data = plot_df, aes(x = year)) +
      geom_line(aes(y = target, colour = "Data")) +
      geom_line(aes(y = .fitted, colour = "Fitted")) +
      labs(y = NULL,
-          title = "Vaccine impact (HepB routine)"
+          title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
      ) +
      scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
      guides(colour = guide_legend(title = NULL))
    
-   
-   
-     
-           
-           data_dt %>% filter(
-           year > 2000 & year <= 2020 &
-           region_short == "WPR") %>%
-    select(target, gini, health_spending, coverage, coverage_minus_1,coverage_minus_2,coverage_minus_3,sdi) 
-   
-  # data_dt %>%   ggpairs(upper = list(continuous = wrap("cor", method = "spearman")))
+   browser()
+  # Manually explore associations between predictor variables for different geographical regions and time points
+  #  explore_dt =  data_dt %>% as.data.table() %>% # Transform to data table to remove country as categorical variable
+  #                  filter(#year > 2000 & year <= 2020 &
+                    #region_short == "AFR" &
+  #                  target > 2e-20
+  #                  ) %>%
+  #                select(-country) %>%
+  #                select(target, gini, health_spending, coverage, coverage_minus_1,coverage_minus_2,coverage_minus_3,sdi) 
+
+   # explore_dt %>%   ggpairs(upper = list(continuous = wrap("cor", method = "spearman"))) # Use Spearman rank correlation to account for outliers
   
    # Reset data used to fit statistical model
    data_dt = target_dt %>%
