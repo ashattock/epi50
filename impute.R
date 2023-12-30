@@ -120,7 +120,7 @@ perform_impute = function(d_v_a_id, target) {
            coverage_minus_6 = lag(coverage, 6),
            coverage_minus_7 = lag(coverage, 7),
            coverage_minus_8 = lag(coverage, 8),
-           coverage_minus_9 = lag(coverage, 9)) %>%
+           coverage_minus_3 = lag(coverage, 3)) %>%
   
     # Create dummy variables for historic health_spending (NA prior to our data)
     mutate(health_spending_minus_1 = lag(health_spending, 1),
@@ -131,7 +131,7 @@ perform_impute = function(d_v_a_id, target) {
            health_spending_minus_6 = lag(health_spending, 6),
            health_spending_minus_7 = lag(health_spending, 7),
            health_spending_minus_8 = lag(health_spending, 8),
-           health_spending_minus_9 = lag(health_spending, 9)) %>%
+           health_spending_minus_3 = lag(health_spending, 3)) %>%
     
       as.data.table()
   
@@ -142,47 +142,245 @@ perform_impute = function(d_v_a_id, target) {
      # Replace zero impact with minimal impact for log transformation
      mutate(target = ifelse(target==0, 1e-20, target)) %>%
      as_tsibble(index = year, key = c(country,d_v_a_id))
+  browser() 
+  
+  # Stepwise regression
+  # TODO Update to lasso regularisation for optimal predictor selection
+  
+  # Model 1: log(coverage)
+  model_1 =  data_dt %>%
+               model(tslm = TSLM(log(target) ~ log(coverage))) 
+  
+  model_report_1 = report(model_1) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+                  mutate(model_number = 1) %>%
+    select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  model_fit_1 = model_1 %>% 
+                  tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
+                  mutate(model_number = 1) 
+    
+  # Model 2: log(coverage), log(coverage_minus_1)
+  model_2 = data_dt %>%
+    model(tslm = TSLM(log(target) ~ log(coverage) +
+                        log(coverage_minus_1) 
+                         )) 
+  
+  model_report_2 = report(model_2) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+    mutate(model_number = 2) %>%
+    select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  model_fit_2 = model_2 %>% 
+                 tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
+                 mutate(model_number = 2) 
+  
+  # Model 3: log(coverage), log(coverage_minus_1), log(coverage_minus_2)
+  model_3 = data_dt %>%
+    model(tslm = TSLM(log(target) ~ log(coverage) +
+                        log(coverage_minus_1) +
+                        log(coverage_minus_2) 
+    )) 
+  
+  model_report_3 = report(model_3) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+    mutate(model_number = 3) %>%
+    select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  model_fit_3 = model_3 %>% 
+                tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
+                mutate(model_number = 3) 
+  
+  # Model 4: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3)
+  model_4 = data_dt %>%
+    model(tslm = TSLM(log(target) ~ log(coverage) +
+                        log(coverage_minus_1) +
+                        log(coverage_minus_2) +
+                        log(coverage_minus_3) 
+                        ))
+  
+  model_report_4 = report(model_4) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+    mutate(model_number = 4) %>%
+    select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  
+  model_fit_4 = model_4 %>% 
+                 tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
+                 mutate(model_number = 4) 
+  
+  # Model 5: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4)
+  model_5 = data_dt %>%
+    model(tslm = TSLM(log(target) ~ log(coverage) +
+                        log(coverage_minus_1) +
+                        log(coverage_minus_2) +
+                        log(coverage_minus_3) +
+                        log(coverage_minus_4) 
+    )) 
+  
+  model_report_5 = report(model_5) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+    mutate(model_number = 5) %>%
+    select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  model_fit_5 = model_5 %>% 
+                tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
+                mutate(model_number = 5) 
+  
+  # Model 6: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI
+  model_6 = data_dt %>%
+    model(tslm = TSLM(log(target) ~ log(coverage) +
+                        log(coverage_minus_1) +
+                        log(coverage_minus_2) +
+                        log(coverage_minus_3) +
+                        log(coverage_minus_4) +
+                        HDI 
+    )) 
+  
+  model_report_6 = report(model_6) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+    mutate(model_number = 6) %>%
+    select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  model_fit_6 = model_6 %>% 
+                tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
+                mutate(model_number = 6) 
+  
+  # Model 7: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14
+  model_7 = data_dt %>%
+    model(tslm = TSLM(log(target) ~ log(coverage) +
+                        log(coverage_minus_1) +
+                        log(coverage_minus_2) +
+                        log(coverage_minus_3) +
+                        log(coverage_minus_4) +
+                        HDI +
+                        pop_0to14 
+    )) 
+  
+  model_report_7 = report(model_7) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+    mutate(model_number = 7) %>%
+    select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  model_fit_7 = model_7 %>% 
+                  tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
+                  mutate(model_number = 7) 
+  
+  # Model 8: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14, attended_births
+  model_8 = data_dt %>%
+    model(tslm = TSLM(log(target) ~ log(coverage) +
+                        log(coverage_minus_1) +
+                        log(coverage_minus_2) +
+                        log(coverage_minus_3) +
+                        log(coverage_minus_4) +
+                        HDI +
+                        pop_0to14 +
+                        attended_births
+    )) 
+  
+  model_report_8 = report(model_8) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+    mutate(model_number = 8) %>%
+    select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  model_fit_8 = model_8 %>% 
+                 tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
+                 mutate(model_number = 8) 
+  
+  # Model 9: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14, attended_births, gini
+  model_9 = data_dt %>%
+    model(tslm = TSLM(log(target) ~ log(coverage) +
+                        log(coverage_minus_1) +
+                        log(coverage_minus_2) +
+                        log(coverage_minus_3) +
+                        log(coverage_minus_4) +
+                        HDI +
+                        pop_0to14 +
+                        attended_births +
+                        gini
+    )) 
+  
+  model_report_9 = report(model_9) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+    mutate(model_number = 9) %>%
+    select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  model_fit_9 = model_9 %>% 
+                tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
+                mutate(model_number = 9) 
+  
+  # Model 10: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14, attended_births, gini
+  #model_10 = data_dt %>%
+   # model(tslm = TSLM(log(target) ~ log(coverage) +
+    #                    log(coverage_minus_1) +
+     #                   log(coverage_minus_2) +
+      #                  log(coverage_minus_3) +
+       #                 log(coverage_minus_4) +
+        #                HDI +
+         #               pop_0to14 +
+          #              attended_births +
+           #             gini
+    #)) 
+  
+  #model_report_10 = report(model_10) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+    #mutate(model_number = 10) %>%
+    #select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  #model_fit_10 = impact_model %>% tidy() # Arrange in tidy format for easy access of estimates, p-values etc.
+  
+ 
+  # For each country, select the model with the best AICc (lowest number)
+  model_choice = rbind(model_report_1,
+                       model_report_2,
+                       model_report_3,
+                       model_report_4,
+                       model_report_5,
+                       model_report_6,
+                       model_report_7,
+                       model_report_8,
+                       model_report_9) %>%
+                 arrange(country) %>%
+                 group_by(country) %>%
+                 filter(!is.infinite(AICc)) %>% # remove null models
+                 slice_min(AICc) %>%
+                 select(-c(.model, df, log_lik))
    
-  # TODO Automate model comparison for each d_v_a
-  # Ad-hoc model comparison (AICc) was conducted here....
-   impact_model = data_dt %>%
-     filter(country %in% c("ECU", "FJI", "GEO")) %>%   # TODO: generalise to avoid failure to fit models with paucity of data
-     model(tslm = TSLM(log(target) ~ log(coverage) +
-                                     log(coverage_minus_1) +
-                                     log(coverage_minus_2) +
-                                     HDI +
-                                     pop_0to14 +
-                                     attended_births +
-                                     gini)) 
+   # Extract parameters of best fitting model for each country (according to AICc)
+   model_fit = rbind(model_fit_1,
+                     model_fit_2,
+                     model_fit_3,
+                     model_fit_4,
+                     model_fit_5,
+                     model_fit_6,
+                     model_fit_7,
+                     model_fit_8,
+                     model_fit_9)
    
-   #report(impact_model) # Quick check summary
-  #browser() 
-   # Arrange in tidy format for easy access of estimates, p-values etc.
-   model_fit = impact_model %>% tidy() 
+   model_fit = left_join(model_choice, model_fit, by=c("country", "model_number"))
    
-   # Link model output back to WHO region
+      # Link model output back to WHO region
    regions = as.data.frame(data_dt) %>% select(country, region_short) %>% unique()
    model_fit = inner_join(x=regions, y=model_fit, by="country")
    
    # Plot estimates of regression predictors by region
    plot_model_fit_df = model_fit %>%
-                        #filter(p.value <= 0.05) %>%
                         select(country, region_short, term, estimate) %>%
-                        spread(term, estimate)# %>%
-                       # rename(check = 'log(coverage)')
-#browser()   
-   
-  # Plot correlation between two predictor variables
-  ggplot(plot_model_fit_df, aes(gini, HDI, colour = region_short)) +
-                     geom_point()
-   
-  # Plot correlation between multiple predictor variables   
-  plot_model_fit_df %>% select(gini, HDI, `log(coverage)`, pop_0to14) %>% ggpairs(upper = list(continuous = wrap("cor", method = "spearman")))
+                        spread(term, estimate) %>%
+                        group_by(region_short) %>%
+                        as.data.table()
+
+  # Plot Spearman rank correlation between coefficients of regression   
+  plot_model_fit_df %>% select(`log(coverage)`,
+                               `log(coverage_minus_1)`,
+                               `log(coverage_minus_2)`,
+                               `log(coverage_minus_3)`,
+                               `log(coverage_minus_4)`
+                              #gini#,
+                               #HDI,
+                               #attended_births
+                               ) %>% 
+                  ggpairs(upper = list(continuous = wrap("cor", method = "spearman")))
   
+  # Plot density of coefficients of predictors by region
+  ggpairs(plot_model_fit_df,               
+          columns = c(3,6:10),       
+          aes(colour = region_short,  
+              alpha = 0.5))   
   
   # Plot model fit for a single country 
   plot_df = augment(impact_model) %>%
-     filter(country == "ECU")
+     filter(country == "ALB")
   
   ggplot(data = plot_df, aes(x = target, y = .fitted)) +
      geom_point() +
@@ -196,7 +394,7 @@ perform_impute = function(d_v_a_id, target) {
   
   # Plot model fit for a single country 
   plot_df = augment(impact_model) %>%
-    filter(country == "GEO")
+    filter(country == "ALB")
   
   ggplot(data = plot_df, aes(x = year)) +
      geom_line(aes(y = target, colour = "Data")) +

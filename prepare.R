@@ -400,8 +400,10 @@ prepare_gapminder = function() {
   # Attended births
   attended_births_dt = fread(paste0(o$pth$input, "ddf--datapoints--births_attended_by_skilled_health_staff_percent_of_total--by--geo--time.csv")) %>%
                         rename(attended_births = births_attended_by_skilled_health_staff_percent_of_total)
-    
-    
+  # GDP
+  gdp_dt = fread(paste0(o$pth$input, "ddf--datapoints--gdppercapita_us_inflation_adjusted--by--geo--time.csv")) %>%
+    rename(gdp = gdppercapita_us_inflation_adjusted)
+  
   # Create table of Gapminder covariates
   gapminder_dt = gini_dt %>%
                   full_join(doctors_per_1000_dt, by=c("geo", "time")) %>%
