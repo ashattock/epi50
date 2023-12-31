@@ -494,9 +494,9 @@ perform_impute = function(d_v_a_id, target) {
           aes(colour = region_short,  
               alpha = 0.5))   
   #browser()
-  # Plot model fit for a single country 
+  # Plot data vs. fitted for a single country 
   plot_df = augment(best_model) %>%
-     filter(country == "AFG")
+     filter(country == "THA")
   
   ggplot(data = plot_df, aes(x = target, y = .fitted)) +
      geom_point() +
@@ -506,11 +506,25 @@ perform_impute = function(d_v_a_id, target) {
        title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
      ) +
      geom_abline(intercept = 0, slope = 1)
+  
+  # Plot data vs. fitted for all countries
+  plot_df = augment(best_model) 
+  
+  ggplot(data = plot_df, aes(x = target, y = .fitted)) +
+    geom_point() +
+    labs(
+      y = "Fitted (predicted values)",
+      x = "Data (actual values)",
+      title = paste("Vaccine impact of", d_v_a_name)
+    ) +
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap(~country, ncol = 21)
+  
 
   
   # Plot model fit for a single country 
   plot_df = augment(best_model) %>%
-    filter(country == "AFG")
+    filter(country == "ZMB")
   
   ggplot(data = plot_df, aes(x = year)) +
      geom_point(aes(y = target, colour = "Data")) +
@@ -520,6 +534,19 @@ perform_impute = function(d_v_a_id, target) {
      ) +
      scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
      guides(colour = guide_legend(title = NULL))
+  
+  # Plot model fit for all countries
+  plot_df = augment(best_model) 
+  
+  ggplot(data = plot_df, aes(x = year)) +
+    geom_point(aes(y = target, colour = "Data")) +
+    geom_line(aes(y = .fitted, colour = "Fitted")) +
+    labs(y = NULL,
+         title = paste("Vaccine impact of", d_v_a_name)
+    ) +
+    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
+    guides(colour = guide_legend(title = NULL))  +
+     facet_wrap(~country, ncol = 21)
    
   # Manually explore associations between predictor variables for different geographical regions and time points
   #  explore_dt =  data_dt %>% as.data.table() %>% # Transform to data table to remove country as categorical variable
@@ -532,6 +559,7 @@ perform_impute = function(d_v_a_id, target) {
 
    # explore_dt %>%   ggpairs(upper = list(continuous = wrap("cor", method = "spearman"))) # Use Spearman rank correlation to account for outliers
   
+  # TODO: remove this once fully integrated
    # Reset data used to fit statistical model
    data_dt = target_dt %>%
      filter(!is.na(target)) %>%
