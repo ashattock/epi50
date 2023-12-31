@@ -32,6 +32,10 @@ run_impute = function() {
   
   # Impute missing countries for all d-v-a combinations
   impute_dt = table("d_v_a") %>%
+    
+  # TODO: For debugging only!!  
+    filter(d_v_a_id == 4) %>% 
+    
     # Filter for VIMC pathogens only...
     left_join(y  = table("disease"),
               by = "disease") %>%
@@ -135,7 +139,6 @@ perform_impute = function(d_v_a_id, target) {
     
       as.data.table()
   
-  browser()
    # Convert to tsibble format for time series regression by country
    data_dt = target_dt %>%
     filter(!is.na(target)) %>% 
@@ -165,7 +168,7 @@ perform_impute = function(d_v_a_id, target) {
 
   # Stepwise regression
   # TODO Update to lasso regularisation for optimal predictor selection
-  browser()
+
   # Model 1: log(coverage)
   model_1 =  data_dt %>%
               model(tslm = TSLM(log(target) ~ log(coverage))) %>%
@@ -468,6 +471,7 @@ perform_impute = function(d_v_a_id, target) {
       # Link model output back to WHO region
    regions = as.data.frame(data_dt) %>% select(country, region_short) %>% unique()
    model_fit = inner_join(x=regions, y=model_fit, by="country")
+   model_choice = inner_join(x=regions, y=model_choice, by='country')
    
    # Plot estimates of regression predictors by region
    plot_model_fit_df = model_fit %>%
@@ -481,18 +485,21 @@ perform_impute = function(d_v_a_id, target) {
                                `log(coverage_minus_1)`,
                                `log(coverage_minus_2)`,
                                `log(coverage_minus_3)`,
-                               `log(coverage_minus_4)`
-                              #gini#,
-                               #HDI,
-                               #attended_births
+                               `log(coverage_minus_4)`,
+                               #gini,
+                               HDI,
+                               `(Intercept)`
+                              # attended_births
                                ) %>% 
-                  ggpairs(upper = list(continuous = wrap("cor", method = "spearman")))
+                  ggpairs()
+  
+  ggpairs(plot_model_fit_df, columns = c(3,6:12), ggplot2::aes(colour=region_short)) 
   
   # Plot density of coefficients of predictors by region
-  ggpairs(plot_model_fit_df,               
-          columns = c(3,6:10),       
-          aes(colour = region_short,  
-              alpha = 0.5))   
+  #ggpairs(plot_model_fit_df,               
+   #       columns = c(3,6:10),       
+  #        aes(colour = region_short,  
+  #            alpha = 0.5))   
   #browser()
   # Plot data vs. fitted for a single country 
   plot_df = augment(best_model) %>%
@@ -559,50 +566,62 @@ perform_impute = function(d_v_a_id, target) {
 
    # explore_dt %>%   ggpairs(upper = list(continuous = wrap("cor", method = "spearman"))) # Use Spearman rank correlation to account for outliers
   
+  # Explore model selection by region
+  ggplot(data = model_choice, aes(x = model_number)) +
+    geom_histogram() +
+    facet_wrap(~region_short)
+  
+  # Explore prob. density of coefficients of predictors
+  plot_df = model_fit %>% filter(term == "pop_0to14")
+  
+  ggplot(data = plot_df, aes(x=estimate) ) +
+    geom_density() +
+      facet_wrap(~region_short, ncol=1)
+  
+  
+  
   # TODO: remove this once fully integrated
    # Reset data used to fit statistical model
-   data_dt = target_dt %>%
-     filter(!is.na(target)) %>%
-     select(target, coverage, sdi)
+  # data_dt = target_dt %>%
+  #   filter(!is.na(target)) %>%
+  #   select(target, coverage, sdi)
             
   # Sanity check that we have no NAs here
-  if (any(is.na(data_dt)))
-    stop("NA values identified in predictors")
+  #if (any(is.na(data_dt)))
+  #  stop("NA values identified in predictors")
   
   # Values to predict for (including data used for fitting)
   pred_dt = target_dt %>%
     select(all_of(names(data_dt)))
   
- 
-  
-  # ---- Normalise predictors and response ----
+   # ---- Normalise predictors and response ----
   
   # Function to normalise ready for fitting
-  transform_fn = function(x, a, b)
-    y = t((x - a) / (b - a)) %>% as.data.table()
+  #transform_fn = function(x, a, b)
+   # y = t((x - a) / (b - a)) %>% as.data.table()
   
   # Function to back transform to original scale
-  retransform_fn = function(y, a, b)
-    x = y * (b["target"] - a["target"]) + a["target"]
+  #retransform_fn = function(y, a, b)
+   # x = y * (b["target"] - a["target"]) + a["target"]
   
   # Matrices of points to fit with and points to predict for
   data_mat = t(as.matrix(data_dt))
   pred_mat = t(as.matrix(pred_dt))
   
   # Min and max in data used for fitting
-  a = rowMins(data_mat)
-  b = rowMaxs(data_mat)
+  #a = rowMins(data_mat)
+  #b = rowMaxs(data_mat)
   
   # Use these min ana max values to normalise
-  norm_data_dt = transform_fn(data_mat, a, b)
-  norm_pred_dt = transform_fn(pred_mat, a, b)
+  #norm_data_dt = transform_fn(data_mat, a, b)
+  #norm_pred_dt = transform_fn(pred_mat, a, b)
   
   # ---- Fit a model to predict impact per FVP ----
   
   # Fit a GLM for impact per FVP using all covariates
-  fit_model = glm(
-    formula = target ~ coverage + sdi, 
-    data    = norm_data_dt)
+  #fit_model = glm(
+  #  formula = target ~ coverage + sdi, 
+   # data    = norm_data_dt)
   
   # Use fitted model to predict 
   result_dt = target_dt %>%
