@@ -147,8 +147,8 @@ perform_impute = function(d_v_a_id, target) {
      #mutate(target = ifelse(target==0, 1e-20, target)) %>%
      as_tsibble(index = year, key = c(country,d_v_a_id)) %>%
      group_by(country) %>%
-     filter(n() > 4) # remove if fewer than 4 non-zero values for a given country
-     
+     filter(n() > 4) %>% # remove if fewer than 4 non-zero values for a given country
+     ungroup()
      
    # ---- Check for trivial case ----
    
@@ -360,7 +360,7 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_2) +
                         HDI +
                         pop_0to14 +
-                        attended_births +
+                        #attended_births +
                         gini
     )) %>%
     mutate(model_number = 11)
@@ -379,7 +379,7 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_1) +
                         HDI +
                         pop_0to14 +
-                        attended_births +
+                        #attended_births +
                         gini
     )) %>%
     mutate(model_number = 12)
@@ -395,10 +395,9 @@ perform_impute = function(d_v_a_id, target) {
   # Model 13: log(coverage), HDI, pop_0to14, attended_births, gini
   model_13 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
-                        log(coverage_minus_1) +
                         HDI +
                         pop_0to14 +
-                        attended_births +
+                        #attended_births +
                         gini
     )) %>%
     mutate(model_number = 13)
@@ -410,7 +409,7 @@ perform_impute = function(d_v_a_id, target) {
   model_fit_13 = model_13 %>%
                   tidy() %>%# Arrange in tidy format for easy access of estimates, p-values etc.
                   mutate(model_number = 13)
-  browser()
+  #browser()
   # For each country, select the model with the best AICc (lowest number)
   model_choice = rbind(model_report_1,
                        model_report_2,
@@ -468,15 +467,16 @@ perform_impute = function(d_v_a_id, target) {
                  as_mable(key = c(country, d_v_a_id), model = tslm)
    
    
-      # Link model output back to WHO region
-   regions = as.data.frame(data_dt) %>% select(country, region_short) %>% unique()
+   # Link model output back to WHO region
+   regions = as.data.frame(target_dt) %>% select(country, region_short) %>% unique()
    model_fit = inner_join(x=regions, y=model_fit, by="country")
    model_choice = inner_join(x=regions, y=model_choice, by='country')
    
    # Plot estimates of regression predictors by region
    plot_model_fit_df = model_fit %>%
                         select(country, region_short, term, estimate) %>%
-                        spread(term, estimate) %>%
+                        pivot_wider(names_from = term,
+                                    values_from = estimate) %>%
                         group_by(region_short) %>%
                         as.data.table()
 
@@ -493,7 +493,7 @@ perform_impute = function(d_v_a_id, target) {
                                ) %>% 
                   ggpairs()
   
-  ggpairs(plot_model_fit_df, columns = c(3,6:12), ggplot2::aes(colour=region_short)) 
+  #ggpairs(plot_model_fit_df, columns = c(3,5,6), ggplot2::aes(colour=region_short)) 
   
   # Plot density of coefficients of predictors by region
   #ggpairs(plot_model_fit_df,               
@@ -590,9 +590,61 @@ perform_impute = function(d_v_a_id, target) {
   #if (any(is.na(data_dt)))
   #  stop("NA values identified in predictors")
   
+  browser()
+  
+  target_dt = target_dt %>% as_tsibble(index = year, key = c(country, d_v_a_id)) 
+  
+  # Select countries for imputation
+  impute_dt = pred_dt %>% filter(! country %in% data_dt$country)
+  
+  # Model 13 is the most commonly selected, summarise coefficients by WHO region
+  model_fit_13 = inner_join(x=regions, y=model_fit_13, by="country")
+  
+  model_13_region = model_fit_13 %>%
+                      group_by(region_short, term) %>%
+                      summarise(estimate = mean(estimate, na.rm = TRUE), n = n()) %>%
+                      pivot_wider(names_from = term,
+                                  names_glue = "{term}_coefficient",
+                                  values_from = estimate)
+  
+  # TODO: Choose most appropriate method for selecting coefficients e.g. nearest neighbours
+  # Impute target values using coefficients from WHO region
+  impute_dt = left_join(impute_dt, model_13_region, by = c("region_short")) %>%
+                mutate(target = exp((`log(coverage)_coefficient` * log(coverage)) +
+                                       (HDI_coefficient * HDI) +
+                                       (pop_0to14_coefficient * pop_0to14)+
+                                       (gini_coefficient * gini))) %>% 
+                select(-c(names(model_13_region))) %>%
+                inner_join(y = regions, by = "country") %>%
+                mutate(predict = target) # For downstream compatibility
+  
+  # Refit model to store in mable with non-imputed countries
+  impute_13 = impute_dt %>%
+               model(tslm = TSLM(log(target) ~ log(coverage) +
+                        HDI +
+                        pop_0to14 +
+                        gini)) %>%
+               filter(!is.na(d_v_a_id)) %>%
+               mutate(model_number = 13)
+
+  # Combine mable to give model for all countries, original and imputed
+  full_13 = rbind(model_13, impute_13) %>%
+                arrange(country)
+  
+  impute_report_13 = report(impute_13) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
+    mutate(model_number = 13) %>%
+    select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
+  
+  impute_fit_13 = impute_13 %>%
+    tidy() %>%# Arrange in tidy format for easy access of estimates, p-values etc.
+    mutate(model_number = 13)
+  
+  
   # Values to predict for (including data used for fitting)
   pred_dt = target_dt %>%
     select(all_of(names(data_dt)))
+  
+  #
   
    # ---- Normalise predictors and response ----
   
@@ -605,8 +657,8 @@ perform_impute = function(d_v_a_id, target) {
    # x = y * (b["target"] - a["target"]) + a["target"]
   
   # Matrices of points to fit with and points to predict for
-  data_mat = t(as.matrix(data_dt))
-  pred_mat = t(as.matrix(pred_dt))
+  #data_mat = t(as.matrix(data_dt))
+  #pred_mat = t(as.matrix(pred_dt))
   
   # Min and max in data used for fitting
   #a = rowMins(data_mat)
@@ -622,23 +674,26 @@ perform_impute = function(d_v_a_id, target) {
   #fit_model = glm(
   #  formula = target ~ coverage + sdi, 
    # data    = norm_data_dt)
+ # browser()
+ # fit_model = model_13
   
+ 
   # Use fitted model to predict 
-  result_dt = target_dt %>%
-    select(country, d_v_a_id, year, fvps_cum, impact_cum) %>%
+  result_dt = full_dt %>%
+    #select(country, d_v_a_id, year, fvps_cum, impact_cum) %>%
     # Predict impact per FVP...
-    cbind(norm_pred_dt) %>%
-    mutate(predict = predict(fit_model, .), 
-           predict = pmax(predict, 0)) %>%
+    #cbind(norm_pred_dt) %>%
+    #mutate(predict = predict(fit_model, .), 
+    #       predict = pmax(predict, 0)) %>%
     # Remove predictors...
     select(country, d_v_a_id, year, fvps_cum, impact_cum, 
-           target, predict) %>%
+           target, predict) #%>%
     # Back-transform target and prediction...
-    mutate(target  = retransform_fn(target,  a, b), 
-           predict = retransform_fn(predict, a, b)) %>%
+    #mutate(target  = retransform_fn(target,  a, b), 
+    #       predict = retransform_fn(predict, a, b)) %>%
     # Multiply through to obtain cumulative impact over time...
-    mutate(impact_impute = fvps_cum * predict, 
-           .after = impact_cum)
+    #mutate(impact_impute = fvps_cum * predict, 
+    #       .after = impact_cum)
   
   # Sanity check that all predicted values are legitimate
  # if (any(is.na(result_dt$predict)))
@@ -646,8 +701,8 @@ perform_impute = function(d_v_a_id, target) {
   
   # Store the fitted model, the data used, and the result
   fit = list(
-    model   = fit_model, 
-    data    = norm_data_dt, 
+    model   = full_model, 
+    data    = data_dt, 
     result  = result_dt)
   
   # Save to file
