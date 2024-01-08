@@ -500,9 +500,16 @@ prepare_income_status = function() {
 # ---------------------------------------------------------
 prepare_demography = function() {
   
-  # TODO: Could we instead use the 'wpp2022' package?
-  
   message(" - Demography data")
+  
+  
+  
+  
+  data = data_package("popAge1dt", "popprojAge1dt", package = "wpp2022")
+  
+  rbindlist(data, fill = TRUE)
+  
+  
   
   # SOURCE: https://population.un.org/wpp/Download/Standard
   
