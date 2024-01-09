@@ -31,6 +31,9 @@ set_options = function(do_step = NA) {
   # Ages modelled
   o$ages = 0 : 95
   
+  # Annual of 5-year bins for population data
+  o$pop_bin = 1  # OPTIONS: 1 or 5
+  
   # ---- Coverage settings ----
   
   # Bound coverage values below x%

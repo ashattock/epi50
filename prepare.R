@@ -502,71 +502,28 @@ prepare_demography = function() {
   
   message(" - Demography data")
   
+  # Names of WPP2022 data files to load
+  pop0 = paste0("popAge",     o$pop_bin, "dt")
+  pop1 = paste0("popprojAge", o$pop_bin, "dt") 
   
+  # Load pop data from WPP github package
+  data = data_package(pop0, pop1, package = "wpp2022")
   
+  # Combine past and future data
+  pop_dt = rbindlist(data, fill = TRUE) %>%
+    # Select countries of interst...
+    inner_join(y  = table("country"),  
+               by = "country_code") %>%
+    select(country, year, age, pop) %>%
+    # Shift year by one (see github.com/PPgp/wpp2022 for details)...
+    mutate(year = as.integer(year) + 1) %>%
+    filter(year %in% o$years) %>%
+    # Scale metrics by factor of 1k...
+    mutate(pop = pop * 1e3) %>%
+    arrange(country, year, age)
   
-  data = data_package("popAge1dt", "popprojAge1dt", package = "wpp2022")
-  
-  rbindlist(data, fill = TRUE)
-  
-  
-  
-  # SOURCE: https://population.un.org/wpp/Download/Standard
-  
-  # File names parts for WPP data
-  file_names = list(
-    pop   = "Population1January",
-    death = "Deaths")
-  
-  # Files name years - past and future
-  file_years = c("1950-2021", "2022-2100")
-  
-  # Loop through data types
-  for (type in names(file_names)) {
-    
-    # Filename part of this datataype
-    metric = file_names[[type]]
-    
-    # Initiate list to store data
-    data_list = list()
-    
-    # Loop through past and future data
-    for (year in file_years) {
-      
-      # Construct full file name
-      name = paste0("WPP2022_", metric, "BySingleAgeSex_Medium_", year, ".csv")
-      file = paste0(o$pth$input, file.path("wpp", name))
-      
-      # Stop here if file missing - ask user to download raw data
-      if (!file.exists(file))
-        stop("Please first download the file '", name, "' from",
-             " https://population.un.org/wpp/Download/Standard",  
-             " and copy to the /input/wpp/ directory")
-      
-      # Construct name of key data column
-      data_name = paste0(first_cap(type), "Total")
-      
-      # Load the file and wrangle what we need
-      data_list[[name]] = fread(file) %>%
-        select(country = ISO3_code,
-               year    = Time,
-               age     = AgeGrp,
-               metric  = !!data_name) %>%
-        # Scale metrics by factor of 1k...
-        mutate(metric = metric * 1e3) %>%
-        rename_with(~type, metric) %>%
-        # Only countries and years of interest...
-        filter(country %in% all_countries(),
-               year    %in% o$years) %>%
-        mutate(age = ifelse(age == "100+", 100, age),
-               age = as.integer(age))
-    }
-    
-    # Combine past and future data and save to file
-    rbindlist(data_list) %>%
-      arrange(country, year, age) %>%
-      save_table(paste1("wpp", type))
-  }
+  # Save in tables cache
+  save_table(pop_dt, "wpp_pop")
 }
 
 # ---------------------------------------------------------
