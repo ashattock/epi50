@@ -16,7 +16,7 @@
 run_impact = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(4, o$do_step)) return()
+  if (!is.element(5, o$do_step)) return()
   
   message("* Fitting impact functions")
   

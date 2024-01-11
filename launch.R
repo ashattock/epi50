@@ -23,22 +23,25 @@ o = set_options(do_step = 1)
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
 
-# Step 2) Estimate impact for non-modelled pathogens using GBD
+# Step 2) Interface with external polio and measles models
+run_external()  # See external.R
+
+# Step 3) Estimate impact for non-modelled pathogens using GBD
 run_non_modelled()  # See non_modelled.R
 
-# Step 3) Impute missing countries for VIMC-modelled pathogens
+# Step 4) Impute missing countries for VIMC-modelled pathogens
 run_impute()  # See impute.R
 
-# Step 4) Fit and select impact-FVP functions
+# Step 5) Fit and select impact-FVP functions
 run_impact()  # See impact.R
 
-# Step 5) Apply impact functions to historical coverage
+# Step 6) Apply impact functions to historical coverage
 run_history()  # See history.R
 
-# Step 6) Generate uncertainty draws
+# Step 7) Generate uncertainty draws
 run_uncertainty()  # See uncertainty.R
 
-# Step 7) Produce results
+# Step 8) Produce results
 run_results()  # See results.R
 
 # Finish up

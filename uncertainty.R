@@ -11,7 +11,7 @@
 run_uncertainty = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(6, o$do_step)) return()
+  if (!is.element(7, o$do_step)) return()
   
   warning("Uncertainty calculation still need to be fully integrated... skipping this step")
   

@@ -45,9 +45,6 @@ run_prepare = function() {
 
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
-  
-  # Prepare inputs and outputs for DynaMICE model
-  prepare_dynamice()  # See interface.R
 }
 
 # ---------------------------------------------------------

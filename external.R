@@ -1,15 +1,38 @@
 ###########################################################
-# INTERFACE
+# EXTERNAL
 #
-# Set of transmission-model specific helper functions to interface
-# between EPI50 pipeline and the specific model itself.
+# Prepare, simulate (if appropriate), and extract results
+# for external polio and measles models.
 #
 ###########################################################
 
 # ---------------------------------------------------------
-# Prepare inputs and outputs for DynaMICE measles model
+# Parent function for extracting results for all external models
 # ---------------------------------------------------------
-prepare_dynamice = function() {
+run_external = function() {
+  
+  # Only continue if specified by do_step
+  if (!is.element(2, o$do_step)) return()
+  
+  message("* Preparing external models")
+  
+  browser()
+  
+  # Simulate and extract results from DynaMICE
+  simulate_dynamice()
+  extract_dynamice()
+  
+  extract_measles()
+  
+  extract_polio()
+}
+
+# ---------------------------------------------------------
+# Prepare and simulate DynaMICE measles model
+# ---------------------------------------------------------
+simulate_dynamice = function() {
+  
+  browser()
   
   # TODO: How important are 'mid_day' and 'coverage_subnat' 
   #       and how should they be derived?
@@ -108,6 +131,14 @@ prepare_dynamice = function() {
   # Write to config folder
   fwrite(country_dt, file = country_file)
   fwrite(region_dt,  file = region_file)
+}
+
+# ---------------------------------------------------------
+# Extract outputs from DynaMICE measles model
+# ---------------------------------------------------------
+extract_dynamice = function() {
+  
+  browser()
 }
 
 # ---------------------------------------------------------
