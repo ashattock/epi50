@@ -31,7 +31,7 @@ run_history = function() {
   # Extract FVPs over time
   #
   # NOTE: We do not need cumulative FVPs yet, these are only for evaluating
-  #       impact fns, and we first need to subset what is to be evalated.
+  #       impact fns, and we first need to subset what is to be evaluated.
   fvps_dt = table("coverage") %>%
     # Append d_v_a details...
     left_join(y  = table("v_a"),

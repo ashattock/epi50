@@ -609,6 +609,121 @@ plot_coverage = function() {
   }
 }
 
+
+#===============================================
+#
+#   Helen dump
+#=================================================
+
+
+# Plot estimates of regression predictors by region
+#plot_model_fit_df = model_fit %>%
+#  select(country, region_short, term, estimate) %>%
+#  pivot_wider(names_from = term,
+#              values_from = estimate) %>%
+#  group_by(region_short) %>%
+#  as.data.table()
+
+# Plot Spearman rank correlation between coefficients of regression   
+#plot_model_fit_df %>% select(`log(coverage)`,
+#                             `log(coverage_minus_1)`,
+#                             `log(coverage_minus_2)`,
+#                             `log(coverage_minus_3)`,
+#                             `log(coverage_minus_4)`,
+                             #gini,
+#                             HDI,
+#                             `(Intercept)`
+                             # attended_births
+#) %>% 
+#  ggpairs()
+
+#ggpairs(plot_model_fit_df, columns = c(3,5,6), ggplot2::aes(colour=region_short)) 
+
+# Plot density of coefficients of predictors by region
+#ggpairs(plot_model_fit_df,               
+#       columns = c(3,6:10),       
+#        aes(colour = region_short,  
+#            alpha = 0.5))   
+#browser()
+# Plot data vs. fitted for a single country 
+#plot_df = augment(model_1) %>%
+#  filter(country == "THA")
+
+#ggplot(data = plot_df, aes(x = target, y = .fitted)) +
+#  geom_point() +
+ # labs(
+#    y = "Fitted (predicted values)",
+ #   x = "Data (actual values)",
+#    title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
+#  ) +
+ # geom_abline(intercept = 0, slope = 1)
+
+# Plot data vs. fitted for all countries
+#plot_df = augment(best_model) 
+
+#ggplot(data = plot_df, aes(x = target, y = .fitted)) +
+#  geom_point() +
+ # labs(
+#    y = "Fitted (predicted values)",
+ #   x = "Data (actual values)",
+#    title = paste("Vaccine impact of", d_v_a_name)
+#  ) +
+ # geom_abline(intercept = 0, slope = 1) +
+#  facet_wrap(~country, ncol = 21)
+
+
+
+# Plot model fit for a single country 
+#plot_df = augment(best_model) %>%
+#  filter(country == "AGO")
+
+#ggplot(data = plot_df, aes(x = year)) +
+#  geom_point(aes(y = target, colour = "Data")) +
+#  geom_line(aes(y = .fitted, colour = "Fitted")) +
+#  labs(y = NULL,
+ #      title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
+#  ) +
+ # scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
+#  guides(colour = guide_legend(title = NULL))
+
+# Plot model fit for all countries
+#plot_df = augment(best_model) 
+
+#ggplot(data = plot_df, aes(x = year)) +
+#  geom_point(aes(y = target, colour = "Data")) +
+ # geom_line(aes(y = .fitted, colour = "Fitted")) +
+#  labs(y = NULL,
+ #      title = paste("Vaccine impact of", d_v_a_name)
+#  ) +
+ # scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
+#  guides(colour = guide_legend(title = NULL))  +
+ # facet_wrap(~country, ncol = 21)
+
+# Manually explore associations between predictor variables for different geographical regions and time points
+#  explore_dt =  data_dt %>% as.data.table() %>% # Transform to data table to remove country as categorical variable
+#                  filter(#year > 2000 & year <= 2020 &
+#region_short == "AFR" &
+#                  target > 2e-20
+#                  ) %>%
+#                select(-country) %>%
+#                select(target, gini, health_spending, coverage, coverage_minus_1,coverage_minus_2,coverage_minus_3,sdi) 
+
+# explore_dt %>%   ggpairs(upper = list(continuous = wrap("cor", method = "spearman"))) # Use Spearman rank correlation to account for outliers
+
+# Explore model selection by region
+#ggplot(data = model_choice, aes(x = model_number)) +
+#  geom_histogram() +
+#  facet_wrap(~region_short)
+
+# Explore prob. density of coefficients of predictors
+#plot_df = model_fit %>% filter(term == "pop_0to14")
+
+#ggplot(data = plot_df, aes(x=estimate) ) +
+#  geom_density() +
+ # facet_wrap(~region_short, ncol=1)
+
+#--------------------------------------------------
+#--------------------------------------------------
 # ---------------------------------------------------------
 # Plot age targets as defined by WIISE and VIMC coverage data
 # ---------------------------------------------------------
@@ -1104,8 +1219,8 @@ plot_covariates = function() {
   # ---- Produce plot ----
   
   # Construct tidy plotting datatable
-  plot_dt = data_dt %>%
-    pivot_longer(cols = -c(d_v_a_id, target), 
+  plot_dt = covariates_dt %>%
+        pivot_longer(cols = -c(d_v_a_id, target), 
                  names_to = "covariate") %>%
     arrange(d_v_a_id, covariate, target) %>%
     append_d_v_a_name() %>%
@@ -1134,14 +1249,14 @@ plot_covariates = function() {
     # Prettify x axis...
     scale_x_continuous(
       name   = "Normalised predictor", 
-      limits = c(0, 1), 
-      expand = c(0, 0), 
+     # limits = c(0, 1), 
+    #  expand = c(0, 0), 
       breaks = pretty_breaks()) +  
     # Prettify y axis...
     scale_y_continuous(
       name   = "Normalised response (impact per FVP)", 
-      limits = c(0, 1), 
-      expand = c(0, 0), 
+     # limits = c(0, 1), 
+    #  expand = c(0, 0), 
       breaks = pretty_breaks())
   
   # Prettify theme
@@ -1193,13 +1308,13 @@ plot_impute_quality = function() {
     select(-country) %>%
     append_d_v_a_name() %>%
     # Remove target outliers for better normalisation...
-    group_by(d_v_a_name) %>%
-    mutate(lower = mean(target) - 3 * sd(target), 
-           upper = mean(target) + 3 * sd(target), 
-           outlier = target < lower | target > upper) %>%
-    ungroup() %>%
-    filter(outlier == FALSE) %>%
-    select(-outlier, -lower, -upper) %>%
+   # group_by(d_v_a_name) %>%
+  #  mutate(lower = mean(target) - 3 * sd(target), 
+  #         upper = mean(target) + 3 * sd(target), 
+  #         outlier = target < lower | target > upper) %>%
+  #  ungroup() %>%
+  #  filter(outlier == FALSE) %>%
+  #  select(-outlier, -lower, -upper) %>%
     as.data.table()
   
   # Maximum value in each facet (target or predict)
@@ -1295,8 +1410,8 @@ plot_impute_countries = function() {
   # Truth vs predicted over time for training data
   annual_dt = results_dt %>%
     select(country, d_v_a_name, year, 
-           vimc   = impact_cum, 
-           impute = impact_impute) %>%
+           vimc   = target, 
+           impute = predict) %>%
     filter(!is.na(vimc)) %>%
     mutate(lower = pmin(vimc, impute), 
            upper = pmax(vimc, impute))
@@ -1843,7 +1958,7 @@ plot_historical_impact = function() {
   
   # Dictionary for temporal and cumulative subplots
   impact_dict = c(
-    impact_cum = "Cumuative deaths averted (in millions)", 
+    impact_cum = "Cumulative deaths averted (in millions)", 
     impact     = "Deaths averted per year (in millions)")
   
   # ---- Construct plotting data ----
@@ -1938,7 +2053,7 @@ plot_historical_impact = function() {
 }
 
 # ---------------------------------------------------------
-# Convert v_a_id into human-readable sting
+# Convert v_a_id into human-readable string
 # ---------------------------------------------------------
 append_v_a_name = function(id_dt) {
   
@@ -1966,7 +2081,7 @@ append_v_a_name = function(id_dt) {
 }
 
 # ---------------------------------------------------------
-# Convert d_v_a_id into human-readable sting
+# Convert d_v_a_id into human-readable string
 # ---------------------------------------------------------
 append_d_v_a_name = function(id_dt) {
   
