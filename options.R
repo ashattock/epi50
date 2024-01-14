@@ -46,6 +46,16 @@ set_options = function(do_step = NA) {
   #
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
+  
+  # ---- External models ----
+  
+  # Directly simulate Dynamice model
+  #
+  # NOTE: If false, DynaMICE results must be otherwise available to user
+  o$simulate_dynamice = FALSE
+  
+  # GitHub repo for simulating DynaMICE model
+  o$repo_dynamice = "ashattock/dynamice"
 
   # ---- Impact function settings ----
   

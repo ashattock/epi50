@@ -16,15 +16,90 @@ run_external = function() {
   
   message("* Preparing external models")
   
-  browser()
+  # ---- Create results templates ----
   
-  # Simulate and extract results from DynaMICE
+  # TEMP: To be removed when all extern models fully integrated
+  
+  # Create template for polio model
+  polio_template()
+  
+  # Create template for measles models
+  measles_template()
+  
+  # ---- Simulate models ----
+  
+  # Simulate DynaMICE model
   simulate_dynamice()
-  extract_dynamice()
   
-  extract_measles()
+  # ---- Extract model results ----
   
-  extract_polio()
+  # Extract results from all extern models
+  # extract_extern_results()
+}
+
+# ---------------------------------------------------------
+# Create results template for polio model
+# ---------------------------------------------------------
+polio_template = function() {
+  
+  # TEMP: To be removed when all extern models fully integrated
+  
+  # All metrics of intrerest (epi outcomes and number of doses)
+  metrics = qc(paralytic_cases, deaths, dalys, OPV_doses, IPV_doses)
+  
+  # Two different stratifications of setting
+  geo = list(
+    region = sort(unique(table("country")$region)), 
+    income = sort(unique(table("income_status")$income)))
+  
+  # Repeat process for setting stratification
+  for (setting in names(geo)) {
+    
+    # Full factorial of factors: scenario, setting, year, age, metric
+    structure_dt = expand_grid(
+      scenario  = c("no_vaccine", "vaccine"), 
+      setting   = geo[[setting]], 
+      year      = o$years, 
+      age_group = paste1("age_group", 1 : 7),
+      metric    = metrics)
+    
+    # Redefine setting and append random result placeholders
+    template_dt = structure_dt %>%
+      rename(!!setting := setting) %>%
+      mutate(value = runif(n())) %>%
+      as.data.table()
+    
+    # Write to file
+    file = paste0(o$pth$extern, "template_polio_", setting, ".csv")
+    fwrite(template_dt, file = file)
+  }
+}
+
+# ---------------------------------------------------------
+# Create results template for measles models
+# ---------------------------------------------------------
+measles_template = function() {
+  
+  # TEMP: To be removed when all extern models fully integrated
+  
+  # All metrics of intrerest (epi outcomes and number of doses)
+  metrics = qc(deaths, dalys, MCV1_doses, MCV2_doses, SIA_doses)
+  
+  # Full factorial of factors: scenario, country, year, age, metric
+  template_dt = 
+    expand_grid(
+      scenario = c("no_vaccine", "vaccine"), 
+      country  = all_countries(), 
+      year     = o$years, 
+      age      = o$ages,
+      metric   = metrics) %>%
+    # Append random result placeholders...
+    mutate(value = runif(n())) %>%
+    as.data.table()
+  
+  # Write to file
+  file = paste0(o$pth$extern, "template_measles.csv")
+  fwrite(template_dt, file = file)
 }
 
 # ---------------------------------------------------------
@@ -32,17 +107,27 @@ run_external = function() {
 # ---------------------------------------------------------
 simulate_dynamice = function() {
   
-  browser()
-  
   # TODO: How important are 'mid_day' and 'coverage_subnat' 
   #       and how should they be derived?
+  
+  # Return out now if direct simulation not required
+  if (!o$simulate_dynamice)
+    return()
   
   # Extract path of local DynaMICE repo
   repo_path = repo_exists("dynamice")
   
-  # Return out now if repo doesn't exist locally
-  if (is.null(repo_path))
-    return()
+  # Throw error if repo doesn't exist locally
+  if (is.null(repo_path)) {
+    
+    # Construct error message
+    err_msg = paste0(
+      "In order to simulate the DynaMICE model, you must: ", 
+      "\n  1) Clone the repo '", o$repo_dynamice, "'", 
+      "\n  2) Have access to a SLURM-queued cluster")
+    
+    stop(err_msg)
+  }
   
   # ---- Dynamice coverage inputs ----
   
@@ -131,12 +216,16 @@ simulate_dynamice = function() {
   # Write to config folder
   fwrite(country_dt, file = country_file)
   fwrite(region_dt,  file = region_file)
+  
+  # ---- Simulate model ----
+  
+  # TODO: move to repor and call "sh launch.sh"
 }
 
 # ---------------------------------------------------------
-# Extract outputs from DynaMICE measles model
+# Extract results from all extern models
 # ---------------------------------------------------------
-extract_dynamice = function() {
+extract_extern_results = function() {
   
   browser()
 }

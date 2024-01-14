@@ -26,6 +26,9 @@ prepare_dirs = function(o) {
   pth$input  = file.path(pth$code, "input")
   pth$config = file.path(pth$code, "config")
   
+  # Parent path of all external model output files
+  pth$extern = file.path(pth$code, "extern")
+  
   # Path to log files
   pth$log = file.path(pth$code, "log")
   
