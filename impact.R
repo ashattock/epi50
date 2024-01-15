@@ -111,8 +111,8 @@ get_impact_data = function() {
   # NOTE: Result of imputation is already in cumulative form
   vimc_dt = read_rds("impute", "impute_result")
   
-  # Load non-modelled impact estimates
-  gbd_dt = read_rds("non_modelled", "deaths_averted_vaccine") %>%
+  # Load static model impact estimates
+  gbd_dt = read_rds("static", "deaths_averted_vaccine") %>%
     # Scale results to per capita...
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%

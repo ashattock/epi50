@@ -1,22 +1,22 @@
 ###########################################################
 # NON-MODELLED
 #
-# Estimate impact (deaths and DALYs averted) for non-modelled
+# Estimate impact (deaths and DALYs averted) for static model
 # pathogens using Global Burden of Disease estimates.
 #
 ###########################################################
 
 # ---------------------------------------------------------
-# Parent function for calculating impact for non-modelled pathogens
+# Parent function for calculating impact for static model pathogens
 # ---------------------------------------------------------
-run_non_modelled = function() {
+run_static = function() {
   
   # Only continue if specified by do_step
   if (!is.element(3, o$do_step)) return()
   
-  message("* Estimating vaccine impact for non-modelled pathogens")
+  message("* Estimating static model vaccine impact")
   
-  # All diseases of interest (everything non-modelled)
+  # Pathogens diseases of interest
   diseases = table("disease") %>%
     filter(source == "gbd") %>%
     pull(disease)
@@ -39,11 +39,11 @@ run_non_modelled = function() {
   
   # ---- Plot results ----
   
-  # Effective coverage with waning immunity for non-modelled pathogens
+  # Effective coverage with waning immunity for static model pathogens
   plot_effective_coverage()
   
-  # Deaths and DALYs averted for non-modelled pathogens
-  plot_non_modelled()
+  # Deaths and DALYs averted for static model pathogens
+  plot_static()
 }
 
 # ---------------------------------------------------------
@@ -136,7 +136,7 @@ effective_coverage = function(disease) {
   immunity_dt = rbindlist(immunity_list)
   
   # And save the result in it's own right
-  save_rds(immunity_dt, "non_modelled_d", "immunity", disease)
+  save_rds(immunity_dt, "static_d", "immunity", disease)
   
   # ---- Overall effective coverage ----
   
@@ -173,7 +173,7 @@ effective_coverage = function(disease) {
     effective_list[[vaccine_type]] = effective_v_dt
     
     # And save the result in it's own right
-    save_rds(effective_v_dt, "non_modelled_t", "effective_coverage", vaccine_type)
+    save_rds(effective_v_dt, "static_t", "effective_coverage", vaccine_type)
   }
   
   # Combine vaccine types (considered additive)
@@ -188,7 +188,7 @@ effective_coverage = function(disease) {
     as.data.table()
   
   # Save this result to file
-  save_rds(effective_d_dt, "non_modelled_d", "effective_coverage", disease)
+  save_rds(effective_d_dt, "static_d", "effective_coverage", disease)
 }
 
 # ---------------------------------------------------------
@@ -243,7 +243,7 @@ weight_booster = function(immunity_dt, type) {
     as.data.table()
   
   # Save this weighting to file
-  save_rds(weighting_dt, "non_modelled_w", "booster_weight", type)
+  save_rds(weighting_dt, "static_w", "booster_weight", type)
   
   # TODO: I'm now questioning this, I think it should be:
   #       effective = primary * (1 - weight) + booster
@@ -276,7 +276,7 @@ deaths_averted = function(disease) {
   # ---- Deaths averted for this disease ----
   
   # Load effective coverage for this disease from file
-  effective_dt = read_rds("non_modelled_d", "effective_coverage", disease)
+  effective_dt = read_rds("static_d", "effective_coverage", disease)
   
   # Load disease deaths, append coverage, and estimate deaths averted
   averted_disease = effective_dt %>%
@@ -289,12 +289,12 @@ deaths_averted = function(disease) {
     as.data.table()
   
   # Save this result to file
-  save_rds(averted_disease, "non_modelled_d", "deaths_averted", disease)
+  save_rds(averted_disease, "static_d", "deaths_averted", disease)
   
   # ---- Attribute impact to vaccine schedule ----
   
   # Relative weighting of effective coverage for each vaccine
-  weight_dt = read_rds("non_modelled_d", "immunity", disease) %>%
+  weight_dt = read_rds("static_d", "immunity", disease) %>%
     left_join(y  = table("d_v_a"),
               by = "vaccine") %>%
     group_by(country, year, age) %>%
@@ -341,14 +341,14 @@ deaths_averted = function(disease) {
   
   # Function for saving vaccine-specific results
   save_result_fn = function(x, name)
-    save_rds(x, "non_modelled_v", "deaths_averted", name)
+    save_rds(x, "static_v", "deaths_averted", name)
   
   # Apply save function to each vaccine
   napply(result_list, save_result_fn)
 }
 
 # ---------------------------------------------------------
-# Compile and save all non-modelled outputs 
+# Compile and save all static model outputs 
 # ---------------------------------------------------------
 compile_outputs = function(diseases) {
   
@@ -381,7 +381,7 @@ compile_outputs = function(diseases) {
   for (group in names(outputs)) {
     
     # Sub directory to load disease/vaccine results from
-    load_dir = paste1("non_modelled", str_sub(group, 1, 1))
+    load_dir = paste1("static", str_sub(group, 1, 1))
     
     # Function to read rds files
     load_fn = function(file) 
@@ -396,7 +396,7 @@ compile_outputs = function(diseases) {
         rbindlist()
       
       # Save compiled results to file
-      save_rds(output_dt, "non_modelled", output, group)
+      save_rds(output_dt, "static", output, group)
     }
   }
 }

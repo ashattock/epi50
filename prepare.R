@@ -25,10 +25,10 @@ run_prepare = function() {
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
 
-  # Parse vaccine efficacy profile for non-VIMC pathogens
+  # Parse vaccine efficacy profile for static model pathogens
   prepare_vaccine_efficacy()
 
-  # Prepare GBD estimates of deaths for non-VIMC pathogens
+  # Prepare GBD estimates of deaths for static model pathogens
   prepare_gbd_estimates()
 
   # Prepare GBD covariates for extrapolating to non-VIMC countries
@@ -125,7 +125,7 @@ prepare_vimc_estimates = function() {
 }
 
 # ---------------------------------------------------------
-# Parse vaccine efficacy profile for non-modelled pathogens
+# Parse vaccine efficacy profile for static model pathogens
 # ---------------------------------------------------------
 prepare_vaccine_efficacy = function() {
   
@@ -188,7 +188,7 @@ prepare_vaccine_efficacy = function() {
 }
 
 # ---------------------------------------------------------
-# Prepare GBD estimates of deaths for non-modelled pathogens
+# Prepare GBD estimates of deaths for static model pathogens
 # ---------------------------------------------------------
 prepare_gbd_estimates = function() {
   
@@ -267,7 +267,7 @@ prepare_gbd_estimates = function() {
 }
 
 # ---------------------------------------------------------
-# Prepare GBD covariates for extrapolating to non-modelled countries
+# Prepare GBD covariates for extrapolating to non-VIMC countries
 # ---------------------------------------------------------
 prepare_gbd_covariates = function() {
   
@@ -353,7 +353,7 @@ prepare_gbd_covariates = function() {
 }
 
 # ---------------------------------------------------------
-# Prepare Gapminder covariates for extrapolating to non-modelled countries
+# Prepare Gapminder covariates for extrapolating to non-VIMC countries
 # ---------------------------------------------------------
 prepare_gapminder = function() {
   

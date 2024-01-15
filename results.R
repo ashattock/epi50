@@ -41,16 +41,16 @@ run_results = function() {
   # ---- Non-modelled plots ----
 
   # Check plotting flag
-  if (o$plot_non_modelled) {
+  if (o$plot_static) {
 
-    # Plot vaccine efficacy profiles for non-modelled pathogens
+    # Plot vaccine efficacy profiles for static model pathogens
     plot_vaccine_efficacy()
 
-    # Effective coverage with waning immunity for non-modelled pathogens
+    # Effective coverage with waning immunity for static model pathogens
     plot_effective_coverage()
 
-    # Deaths and DALYs averted for non-modelled pathogens
-    plot_non_modelled()
+    # Deaths and DALYs averted for static model pathogens
+    plot_static()
   }
   
   # ---- Imputation plots ----

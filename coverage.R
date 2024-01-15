@@ -24,7 +24,7 @@ prepare_coverage = function() {
   # For other countries and years, extract coverage from WIISE database
   wiise_dt = coverage_wiise(vimc_countries_dt) %>%
     # Smooth estimates to produce sensible impact estimates...
-    smooth_non_modelled_fvps() %>%
+    smooth_static_fvps() %>%
     # Assume linear 1974-1980 scale up...
     linear_coverage_scaleup() %>%
     # Assume constant over most recent (post-COVID) years...
@@ -370,9 +370,9 @@ constant_coverage_extapolation = function(coverage_dt) {
 }
 
 # ---------------------------------------------------------
-# Apply smoother for non-modelled pathogens
+# Apply smoother for static model pathogens
 # ---------------------------------------------------------
-smooth_non_modelled_fvps = function(coverage_dt) {
+smooth_static_fvps = function(coverage_dt) {
   
   # TODO: Experiment reducing kernel smoothing bandwidth...
   
@@ -399,7 +399,7 @@ smooth_non_modelled_fvps = function(coverage_dt) {
     return(fvps_smooth)
   }
   
-  # Vaccine IDs to apply to: non-modelled pathogens only
+  # Vaccine IDs to apply to: static model pathogens only
   apply_id = table("disease") %>%
     filter(source == "gbd") %>%
     left_join(y  = table("d_v_a"), 

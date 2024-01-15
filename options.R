@@ -42,7 +42,7 @@ set_options = function(do_step = NA) {
   # Year that high-income countries switch to acellular pertussis vaccine
   o$wholecell_acellular_switch = 1995
   
-  # Smooth non-modelled coverage to better align with GBD burden estimates
+  # Smooth static model coverage to better align with GBD burden estimates
   #
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
@@ -96,12 +96,12 @@ set_options = function(do_step = NA) {
   # ---- Plotting flags ----
 
   # Turn figures on or off
-  o$plot_inputs       = TRUE
-  o$plot_non_modelled = TRUE
-  o$plot_imputation   = TRUE
-  o$plot_impact       = TRUE
-  o$plot_uncertainty  = FALSE
-  o$plot_history      = TRUE  # Primary result
+  o$plot_inputs      = TRUE
+  o$plot_static      = TRUE
+  o$plot_imputation  = TRUE
+  o$plot_impact      = TRUE
+  o$plot_uncertainty = FALSE
+  o$plot_history     = TRUE  # Primary result
 
   # ---- Plotting settings ----
   

@@ -423,11 +423,11 @@ plot_total_fvps = function() {
 }
 
 # ---------------------------------------------------------
-# Plot smoothed FVP for non-modelled pathogens
+# Plot smoothed FVP for static model pathogens
 # ---------------------------------------------------------
 plot_smooth_fvps = function() {
   
-  message("  > Plotting smoothed FVPs (non-modelled)")
+  message("  > Plotting smoothed FVPs (static model pathogens)")
   
   # ---- Plot 1: data vs smoothing ----
   
@@ -752,7 +752,7 @@ plot_gbd_estimates = function() {
 }
 
 # ---------------------------------------------------------
-# Plot non-modelled vaccine efficacy with immunity decay
+# Plot static model pathogen vaccine efficacy with immunity decay
 # ---------------------------------------------------------
 plot_vaccine_efficacy = function() {
   
@@ -842,12 +842,11 @@ plot_vaccine_efficacy = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save figure to file
-  save_fig(g, "Vaccine efficacy profiles", 
-           dir = "non_modelled")
+  save_fig(g, "Vaccine efficacy profiles", dir = "static")
 }
 
 # ---------------------------------------------------------
-# Plot effective coverage with waning immunity for non-modelled pathogens
+# Plot effective coverage with waning immunity for static model pathogens
 # ---------------------------------------------------------
 plot_effective_coverage = function() {
   
@@ -863,7 +862,7 @@ plot_effective_coverage = function() {
   for (by in c("disease", "type")) {
     
     # Load previously calculated total coverage file
-    effective_dt = read_rds("non_modelled", "effective_coverage", by)
+    effective_dt = read_rds("static", "effective_coverage", by)
     
     # Population weight over all countries
     plot_dt = effective_dt %>%
@@ -925,16 +924,16 @@ plot_effective_coverage = function() {
     
     # Save figure to file
     save_name = "Effective coverage by year and age"
-    save_fig(g, save_name, by, dir = "non_modelled")
+    save_fig(g, save_name, by, dir = "static")
   }
 }
 
 # ---------------------------------------------------------
-# Plot deaths and DALYs averted for non-modelled pathogens
+# Plot deaths and DALYs averted for static model pathogens
 # ---------------------------------------------------------
-plot_non_modelled = function() {
+plot_static = function() {
   
-  message("  > Plotting non-modelled impact results")
+  message("  > Plotting static model impact results")
   
   # Deaths disease/averted dictionary
   metric_dict = c(
@@ -947,7 +946,7 @@ plot_non_modelled = function() {
   # ---- Plot by disease ----
   
   # Load previously calculated total coverage file
-  averted_dt = read_rds("non_modelled", "deaths_averted_disease")
+  averted_dt = read_rds("static", "deaths_averted_disease")
   
   # Summarise results over country and age
   disease_dt = averted_dt %>%
@@ -1008,12 +1007,12 @@ plot_non_modelled = function() {
           legend.key.width  = unit(3, "lines"))
   
   # Save figure to file
-  save_fig(g, "Deaths averted by disease", dir = "non_modelled")
+  save_fig(g, "Deaths averted by disease", dir = "static")
   
   # ---- Plot by vaccine ----
   
   # Load previously calculated total coverage file
-  averted_dt = read_rds("non_modelled", "deaths_averted_vaccine")
+  averted_dt = read_rds("static", "deaths_averted_vaccine")
   
   # Summarise results over country
   vaccine_dt = averted_dt %>%
@@ -1066,7 +1065,7 @@ plot_non_modelled = function() {
           panel.grid.major.y = element_line(linewidth = 0.5))
   
   # Save figure to file
-  save_fig(g, "Deaths averted by vaccine", dir = "non_modelled")
+  save_fig(g, "Deaths averted by vaccine", dir = "static")
 }
 
 # ---------------------------------------------------------

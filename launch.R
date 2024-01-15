@@ -26,8 +26,8 @@ run_prepare()  # See prepare.R
 # Step 2) Interface with external polio and measles models
 run_external()  # See external.R
 
-# Step 3) Estimate impact for non-modelled pathogens using GBD
-run_non_modelled()  # See non_modelled.R
+# Step 3) Estimate impact for static models using GBD
+run_static()  # See static.R
 
 # Step 4) Impute missing countries for VIMC-modelled pathogens
 run_impute()  # See impute.R
