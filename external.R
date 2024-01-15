@@ -34,7 +34,7 @@ run_external = function() {
   # ---- Extract model results ----
   
   # Extract results from all extern models
-  # extract_extern_results()
+  extract_extern_results()
 }
 
 # ---------------------------------------------------------
@@ -43,6 +43,8 @@ run_external = function() {
 polio_template = function() {
   
   # TEMP: To be removed when all extern models fully integrated
+  
+  message(" - Creating results template: polio")
   
   # All metrics of intrerest (epi outcomes and number of doses)
   metrics = qc(paralytic_cases, deaths, dalys, OPV_doses, IPV_doses)
@@ -81,6 +83,8 @@ polio_template = function() {
 measles_template = function() {
   
   # TEMP: To be removed when all extern models fully integrated
+  
+  message(" - Creating results template: measles")
   
   # All metrics of intrerest (epi outcomes and number of doses)
   metrics = qc(deaths, dalys, MCV1_doses, MCV2_doses, SIA_doses)
@@ -123,15 +127,17 @@ simulate_dynamice = function() {
     # Construct error message
     err_msg = paste0(
       "In order to simulate the DynaMICE model, you must: ", 
-      "\n  1) Clone the repo '", o$repo_dynamice, "'", 
+      "\n  1) Clone the repo '", o$github_dynamice, "'", 
       "\n  2) Have access to a SLURM-queued cluster")
     
     stop(err_msg)
   }
   
+  message("\n----- Simulating DynaMICE -----\n")
+  
   # ---- Dynamice coverage inputs ----
   
-  message(" - Preparing inputs for DynaMICE measles model")
+  message("* Model set up")
   
   # Convert EPI50-DynaMICE vaccine references
   dynamice_dict = c(
@@ -219,7 +225,25 @@ simulate_dynamice = function() {
   
   # ---- Simulate model ----
   
-  # TODO: move to repor and call "sh launch.sh"
+  # Set working directory to DynaMICE repo
+  setwd(repo_path)
+
+  # Launch to model 
+  #
+  # NOTE: For full functionality, step should be set to 1 : 3 in DynaMICE repo
+  system("sh launch.sh")
+
+  # Once we're done, reset working directory to EPI50 repo
+  setwd(o$pth$code)
+  
+  message("\n----- DynaMICE complete -----\n")
+  
+  # Name of DynaMICE results file that should have been produced
+  results_name = "epi50_dynamice_results.rds"
+  results_file = file.path(repo_path, "output", results_name)
+  
+  # Copy results file from DynaMICE repo to EPI50 repo
+  invisible(file.copy(results_file, o$pth$extern))
 }
 
 # ---------------------------------------------------------
@@ -227,7 +251,72 @@ simulate_dynamice = function() {
 # ---------------------------------------------------------
 extract_extern_results = function() {
   
-  browser()
+  message(" - Extracting results from all external models")
+  
+  # All extern models and associated d_v_a_name
+  all_extern = c(
+    dynamice = "xxxMeasles") 
+  # measles  = "xxxMeasles",
+  # polio    = "xxxPolio")
+  
+  # ---- Deaths and DALYs averted ----
+  
+  # Function for extracting deaths and DALYs averted
+  averted_fn = function(model) {
+    
+    # Extract deaths and DALYs
+    averted_dt = read_rds("extern", "epi50", model, "results") %>%
+      filter(metric %in% qc(deaths, dalys)) %>%
+      # Burden in baseline minus burden in vaccine scenario...
+      group_by(country, year, age, metric) %>%
+      mutate(value = value[scenario == "no_vaccine"] - value) %>%
+      ungroup() %>%
+      # Remove reference to baseline...
+      filter(scenario != "no_vaccine") %>%
+      select(-scenario) %>%
+      # Append extern model name...
+      mutate(model = model, .before = 1) %>%
+      as.data.table()
+    
+    return(averted_dt)
+  }
+  
+  # Extract deaths and DALYs averted
+  extern_dt = names(all_extern) %>%
+    lapply(averted_fn) %>%
+    rbindlist() %>%
+    # Define d_v_a classification...
+    mutate(d_v_a_name = all_extern[model]) %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_name") %>%
+    # Summarise by d_v_a...
+    group_by(country, d_v_a_id, year, age, metric) %>%
+    summarise(value = mean(value, na.rm = TRUE)) %>%
+    ungroup() %>%
+    # Spread to wide format...
+    mutate(metric = paste1(metric, "averted")) %>%
+    pivot_wider(names_from  = metric, 
+                values_from = value) %>%
+    as.data.table()
+  
+  # Save in table cache
+  save_table(extern_dt, "extern_estimates")
+  
+  # plot_dt = extern_dt %>%
+  #   group_by(d_v_a_id, metric, year) %>%
+  #   summarise(value = sum(value)) %>%
+  #   ungroup() %>%
+  #   group_by(d_v_a_id, metric) %>%
+  #   mutate(cum_value = cumsum(value)) %>%
+  #   ungroup() %>%
+  #   format_d_v_a_name() %>%
+  #   as.data.table()
+  # 
+  # g = ggplot(plot_dt) +
+  #   aes(x = year, y = cum_value, colour = d_v_a_name) +
+  #   geom_line() +
+  #   facet_wrap(~metric, scales = "free_y") +
+  #   scale_y_continuous(labels = comma)
 }
 
 # ---------------------------------------------------------
@@ -235,7 +324,7 @@ extract_extern_results = function() {
 # ---------------------------------------------------------
 repo_exists = function(repo) {
   
-  # Path the parent directory on this EPI50 repository
+  # Path for the parent directory of this EPI50 repository
   parent_path = str_remove(o$pth$code, "[a-z,A-Z,0-9]+/$")
   
   # Path to the repo in question

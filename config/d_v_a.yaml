@@ -97,3 +97,13 @@ table:
   vaccine: BCG
   activity: all
   d_v_a_name: "Tuberculosis (BCG)"
+- d_v_a_id: 20
+  disease: xxxPolio
+  vaccine: xxxPolio
+  activity: all
+  d_v_a_name: "xxxPolio"
+- d_v_a_id: 21
+  disease: xxxMeasles
+  vaccine: xxxMeasles
+  activity: all
+  d_v_a_name: "xxxMeasles"

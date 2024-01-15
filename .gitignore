@@ -3,7 +3,7 @@
 core*
 *.nfs*
 log/*
-input/wpp/*.csv
+extern/template*
 input/sia_coverage.csv
 input/wiise_coverage.csv
 output*

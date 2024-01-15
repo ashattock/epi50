@@ -54,8 +54,8 @@ set_options = function(do_step = NA) {
   # NOTE: If false, DynaMICE results must be otherwise available to user
   o$simulate_dynamice = FALSE
   
-  # GitHub repo for simulating DynaMICE model
-  o$repo_dynamice = "ashattock/dynamice"
+  # GitHub repo for simulating DynaMICE model for EPI50 analysis
+  o$github_dynamice = "ashattock/dynamice"
 
   # ---- Impact function settings ----
   
