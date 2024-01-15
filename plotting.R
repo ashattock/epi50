@@ -22,7 +22,7 @@ plot_scope = function() {
   impact_dict = c(
     extern = "Dynamic modelling (external to VIMC)",
     vimc   = "Dynamic modelling (contributing to VIMC)", 
-    gbd    = "Static modelling", 
+    static    = "Static modelling", 
     impute = "Geographic imputation model", 
     extrap = "Temporal extrapolation model")
   
@@ -59,11 +59,11 @@ plot_scope = function() {
   
   # ---- Source of impact estimates ----
   
-  # GBD approach
-  gbd_dt = table("gbd_estimates") %>%
+  # Static model approach
+  static_dt = table("gbd_estimates") %>%
     select(disease, country, year) %>%
     unique() %>%
-    mutate(class = "gbd")
+    mutate(class = "static")
   
   # VIMC approach
   vimc_dt = table("vimc_estimates") %>%
@@ -97,7 +97,7 @@ plot_scope = function() {
   # ---- Construct plotting datatable ----
   
   # Combine all impact sources
-  all_dt = rbind(gbd_dt, vimc_dt, impute_dt, extern_dt) %>%
+  all_dt = rbind(static_dt, vimc_dt, impute_dt, extern_dt) %>%
     # Append FVPs...
     right_join(y  = fvps_dt, 
                by = c("disease", "country", "year")) %>%
@@ -2157,6 +2157,21 @@ plot_historical_impact = function() {
   # Save these figures to file
   save_fig(g, "Historical impact", dir = "historical_impact")
   save_fig(g, "Figure 2", dir = "manuscript")
+}
+
+# ---------------------------------------------------------
+# Key plot - change in child survival rates over time
+# ---------------------------------------------------------
+plot_child_survival = function() {
+  
+  browser()
+  
+  # STEPS
+  #  1) Number of deaths in u5 - vaccine and no_vaccine
+  #  2) Divide through by number of people u5
+  
+  
+  
 }
 
 # ---------------------------------------------------------

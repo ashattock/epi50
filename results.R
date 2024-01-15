@@ -38,7 +38,7 @@ run_results = function() {
     plot_gbd_estimates()
   }
 
-  # ---- Non-modelled plots ----
+  # ---- Static model plots ----
 
   # Check plotting flag
   if (o$plot_static) {
@@ -94,11 +94,14 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_history) {
     
-    # Plot inital impact ratios used to back project
-    plot_impact_fvps(scope = "initial")
+    # # Plot inital impact ratios used to back project
+    # plot_impact_fvps(scope = "initial")
+    # 
+    # # Main results plot - historical impact over time
+    # plot_historical_impact()
     
-    # Main results plot - historical impact over time
-    plot_historical_impact()
+    # Key plot - change in child survival rates over time
+    plot_child_survival()
   }
   
   # ---- Uncertainty plots ----

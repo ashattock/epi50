@@ -33,10 +33,10 @@ run_prepare = function() {
 
   # Prepare GBD covariates for extrapolating to non-VIMC countries
   prepare_gbd_covariates()
-  
+
   # Prepare Gapminder covariates for imputing non_VIMC countries
   prepare_gapminder()
-  
+
   # Prepare country income status classification over time
   prepare_income_status()
 
@@ -499,28 +499,56 @@ prepare_demography = function() {
   
   message(" - Demography data")
   
-  # Names of WPP2022 data files to load
-  pop0 = paste0("popAge",     o$pop_bin, "dt")
-  pop1 = paste0("popprojAge", o$pop_bin, "dt") 
+  # Details of data sets to load
+  data_sets = list(
+    pop = list(name = "pop",    var = "pop"),
+    mx  = list(name = "deaths", var = "mxB"))
   
-  # Load pop data from WPP github package
-  data = data_package(pop0, pop1, package = "wpp2022")
-  
-  # Combine past and future data
-  pop_dt = rbindlist(data, fill = TRUE) %>%
-    # Select countries of interst...
-    inner_join(y  = table("country"),  
-               by = "country_code") %>%
-    select(country, year, age, pop) %>%
-    # Shift year by one (see github.com/PPgp/wpp2022 for details)...
-    mutate(year = as.integer(year) + 1) %>%
-    filter(year %in% o$years) %>%
-    # Scale metrics by factor of 1k...
-    mutate(pop = pop * 1e3) %>%
-    arrange(country, year, age)
-  
-  # Save in tables cache
-  save_table(pop_dt, "wpp_pop")
+  # Iterate through data sets to load
+  for (id in names(data_sets)) {
+    
+    # Index data set name and variable reference
+    name = data_sets[[id]]$name
+    var  = data_sets[[id]]$var
+    
+    # Load population size data
+    if (id == "pop") {
+      
+      # Names of WPP2022 data files to load
+      past   = paste0("popAge",     o$pop_bin, "dt")
+      future = paste0("popprojAge", o$pop_bin, "dt") 
+      
+      # Load pop data from WPP github package
+      data_list = data_package(past, future, package = "wpp2022")
+    }
+    
+    # Load mortality data
+    if (id == "mx") {
+      
+      # Name of WPP2022 data file - history and projection in one
+      all_time = paste0("mx", o$pop_bin, "dt") 
+      
+      # Load mortality data from WPP github package
+      data_list = data_package(all_time, package = "wpp2022")
+    }
+    
+    # Combine past and future data
+    data_dt = rbindlist(data_list, fill = TRUE) %>%
+      # Select countries of interst...
+      inner_join(y  = table("country"),  
+                 by = "country_code") %>%
+      select(country, year, age, value = !!var) %>%
+      # Shift year by one (see github.com/PPgp/wpp2022 for details)...
+      mutate(year = as.integer(year) + 1) %>%
+      filter(year %in% o$years) %>%
+      # Scale metrics by factor of 1k...
+      mutate(value = value * 1e3) %>%
+      rename(!!name := value) %>%
+      arrange(country, year, age)
+    
+    # Save in tables cache
+    save_table(data_dt, paste1("wpp", name))
+  }
 }
 
 # ---------------------------------------------------------
