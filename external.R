@@ -243,7 +243,7 @@ simulate_dynamice = function() {
   results_file = file.path(repo_path, "output", results_name)
   
   # Copy results file from DynaMICE repo to EPI50 repo
-  invisible(file.copy(results_file, o$pth$extern))
+  invisible(file.copy(results_file, o$pth$extern, overwrite = TRUE))
 }
 
 # ---------------------------------------------------------
@@ -303,6 +303,8 @@ extract_extern_results = function() {
   save_table(extern_dt, "extern_estimates")
   
   # plot_dt = extern_dt %>%
+  #   pivot_longer(cols = c(dalys_averted, deaths_averted), 
+  #                names_to  = "metric") %>%
   #   group_by(d_v_a_id, metric, year) %>%
   #   summarise(value = sum(value)) %>%
   #   ungroup() %>%
