@@ -2164,8 +2164,10 @@ plot_historical_impact = function() {
 # ---------------------------------------------------------
 plot_child_mortality = function() {
   
+  message("  > Plotting historical impact")
+  
   # Define grouping of results
-  grouping = "region"  # OPTIONS: "region" or "income"
+  grouping = "none"  # OPTIONS: "none", "region", "income"
   
   # Define upper age bound
   age_bound = 5
@@ -2181,6 +2183,7 @@ plot_child_mortality = function() {
   grouping_dt = table("country") %>%
     left_join(y  = table("income_status"), 
               by = "country") %>%
+    mutate(none = "none") %>%
     select(country, year, group = !!grouping)
   
   # Child deaths as recorded by WPP
@@ -2244,7 +2247,6 @@ plot_child_mortality = function() {
         y = value, 
         linetype = case) +
     geom_line(linewidth = 1.1) +
-    facet_wrap(~group) + 
     # Prettiy x axis...
     scale_x_continuous(
       limits = c(min(o$years), max(o$years)), 
@@ -2254,11 +2256,16 @@ plot_child_mortality = function() {
     scale_y_continuous(
       name   = "Child deaths before 5 years of age", 
       labels = percent, 
-      breaks = pretty_breaks(),
-      expand = expansion(mult = c(0, 0.05))) +
+      limits = c(0, NA), 
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks()) +
     # Set colours and prettify legend...
     guides(linetype = guide_legend(
       byrow = TRUE, ncol = 1))
+  
+  # Facet unless grouping is trivial
+  if (grouping != "none") 
+    g = g + facet_wrap(~group)
   
   # Prettify theme
   g = g + theme_classic() + 
@@ -2283,7 +2290,7 @@ plot_child_mortality = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save figure to file
-  save_fig(g, "Child mortality", grouping, 
+  save_fig(g, "Child mortality", paste("by", grouping), 
            dir = "historical_impact")
   
   # Also save as main manuscript figure
