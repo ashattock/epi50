@@ -528,7 +528,7 @@ plot_smooth_fvps = function() {
   
   # Directory to save to
   save_dir = "data_visualisation"
-
+  
   # Save figures to file
   save_fig(g1, "Data smoothing outcomes",   dir = save_dir)
   save_fig(g2, "Data smoothing difference", dir = save_dir)
@@ -1773,7 +1773,7 @@ plot_impact_fvps = function(scope) {
     mutate(x_major = 1 : n()) %>%
     select(-order) %>%
     as.data.table()
-    
+  
   # Offset each income group
   x_minor = data_dt %>%
     select(income) %>%
@@ -1810,7 +1810,7 @@ plot_impact_fvps = function(scope) {
     ungroup() %>%
     arrange(x) %>%
     as.data.table()
-    
+  
   # Average by vaccine (over all income groups)
   vaccine_average_dt = data_dt %>%
     group_by(d_v_a) %>%
@@ -2164,80 +2164,24 @@ plot_historical_impact = function() {
 # ---------------------------------------------------------
 plot_child_mortality = function() {
   
-  message("  > Plotting historical impact")
+  message("  > Plotting child mortality rates")
+  
+  # ---- Figure A: xxx ----
   
   # Define grouping of results
   grouping = "none"  # OPTIONS: "none", "region", "income"
-  
-  # Define upper age bound
-  age_bound = 5
   
   # Dictionary for each vaccine case
   case_dict = list( 
     vaccine    = "Vaccination as obserevd", 
     no_vaccine = "No historical vaccination")
   
-  # ---- Mortality estimates ----
-  
-  # Construct grouping datatable to be joined to results
-  grouping_dt = table("country") %>%
-    left_join(y  = table("income_status"), 
-              by = "country") %>%
-    mutate(none = "none") %>%
-    select(country, year, group = !!grouping)
-  
-  # Child deaths as recorded by WPP
-  deaths_dt = table("wpp_deaths") %>%
-    filter(age <= age_bound) %>%
-    left_join(y  = grouping_dt, 
-              by = c("country", "year")) %>%
-    group_by(group, year) %>%
-    summarise(deaths = sum(deaths)) %>%
-    ungroup() %>%
-    arrange(group, year) %>%
-    as.data.table()
-  
-  # Estimated child deaths averted by vaccination
-  averted_dt = read_rds("results", "deaths_averted") %>%
-    left_join(y  = grouping_dt, 
-              by = c("country", "year")) %>%
-    group_by(group, year) %>%
-    summarise(averted = sum(impact)) %>%
-    ungroup() %>%
-    arrange(group, year) %>%
-    as.data.table()
-  
-  # ---- Create plotting datatable ----
-  
-  # Population as per WPP - needed to convert to rates
-  pop_dt = table("wpp_pop") %>%
-    filter(age <= age_bound) %>%
-    left_join(y  = grouping_dt, 
-              by = c("country", "year")) %>%
-    group_by(group, year) %>%
-    summarise(pop = sum(pop)) %>%
-    ungroup() %>%
-    arrange(group, year) %>%
-    as.data.table()
-  
-  # Bring everything together into a plotting datatable
-  plot_dt = pop_dt %>%
-    # Join child death estimates...
-    left_join(y  = deaths_dt, 
-              by = c("group", "year")) %>%
-    left_join(y  = averted_dt, 
-              by = c("group", "year")) %>%
-    replace_na(list(averted = 0)) %>%
-    # Calculate child mortality rates...
-    mutate(no_vaccine = (deaths + averted) / pop, 
-           vaccine    = deaths / pop) %>%
-    select(group, year, vaccine, no_vaccine) %>%
-    # Melt to tidy format...
+  # Format as plottable datatable
+  plot_dt = mortality_rates(grouping = grouping) %>%
     pivot_longer(cols = -c(group, year), 
                  names_to = "case") %>%
     mutate(case = recode(case, !!!case_dict), 
            case = factor(case, case_dict)) %>%
-    # Tidy up...
     arrange(case, group, year) %>%
     as.data.table()
   
@@ -2294,7 +2238,134 @@ plot_child_mortality = function() {
            dir = "historical_impact")
   
   # Also save as main manuscript figure
-  save_fig(g, "Figure 4", dir = "manuscript")
+  save_fig(g, "Figure 4a", dir = "manuscript")
+}
+
+# ---------------------------------------------------------
+# xxxxxxxx
+# ---------------------------------------------------------
+plot_mortality_change = function() {
+  
+  # Define grouping of results
+  grouping = "none"  # OPTIONS: "none", "region", "income"
+  
+  type_dict = list(
+    diff    = "Absolute decrease in under 5 mortality rate", 
+    rel     = "Relative decrease in under 5 mortality rate", 
+    contrib = "Contribution of vaccination to decrease in under 5 mortality rate")
+  
+  colours = c("#EBAA2D", "#DF721F", "#71C2A9", "#808080")
+  
+  region_dt = mortality_rates(grouping = "region")
+  world_dt  = mortality_rates(grouping = "none") %>%
+    mutate(group = "World")
+  
+  contrib_dt = rbind(region_dt, world_dt) %>%
+    select(group, year, 
+           end0 = no_vaccine, 
+           end  = vaccine) %>%
+    group_by(group) %>%
+    mutate(start = end0[year == min(year)],
+           diff0 = start - end0,
+           diff  = start - end) %>%
+    ungroup() %>%
+    filter(year == max(year)) %>%
+    select(-year) %>%
+    mutate(rel     = diff / start, 
+           contrib = 1 - diff0 / diff) %>%
+    select(-end0, -diff0) %>%
+    as.data.table()
+  
+  order = contrib_dt %>%
+    filter(group != "World") %>%
+    arrange(desc(diff)) %>%
+    pull(group) %>%
+    c("World")
+  
+  label_dt = contrib_dt %>%
+    mutate(across(
+      .cols = c(diff, start, end), 
+      .fns  = ~ . * 100)) %>%
+    mutate(label = sprintf(
+      "%.1f%%\n(%.1f%% to %.1f%%)", 
+      diff, start, end)) %>%
+    mutate(type  = "diff") %>%
+    select(group, type, label)
+  
+  plot_dt = contrib_dt %>%
+    select(group, diff, rel, contrib) %>%
+    pivot_longer(cols = -group, 
+                 names_to = "type") %>%
+    mutate(str = sprintf("%.0f%%", value * 100)) %>%
+    left_join(y  = label_dt, 
+              by = c("group", "type")) %>%
+    mutate(label = ifelse(is.na(label), str, label)) %>%
+    group_by(type) %>%
+    mutate(nudge   = max(value) * 0.05, 
+           lab_pos = value + nudge) %>%
+    ungroup() %>%
+    select(-str, -nudge) %>%
+    # Define colour groups...
+    mutate(colour = match(type, names(type_dict)), 
+           colour = ifelse(
+             test = group == "World", 
+             yes  = max(colour) + 1, 
+             no   = colour), 
+           colour = as.character(colour)) %>%
+    # xxx...
+    mutate(type  = recode(type, !!!type_dict), 
+           type  = factor(type, type_dict), 
+           group = factor(group, order)) %>%
+    as.data.table()
+  
+  g = ggplot(plot_dt) +
+    aes(x = group, 
+        y = value,  
+        fill = colour) +
+    # Plot bars...
+    geom_bar(
+      stat  = "identity", 
+      width = 0.6) +
+    # Add descriptive text...
+    geom_text(
+      mapping = aes(
+        label = label, 
+        y     = lab_pos), 
+      vjust   = 0) + 
+    # Facet by type...
+    facet_wrap(
+      facets = vars(type), 
+      ncol   = 1, 
+      scales = "free_y") + 
+    # Set colours...
+    scale_fill_manual(values = colours) +
+    # Prettify y axis...
+    scale_y_continuous(
+      labels = percent, 
+      limits = c(0, NA), 
+      expand = expansion(mult = c(0, 0.2)), 
+      breaks = pretty_breaks())
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title    = element_blank(),
+          axis.text.x   = element_text(size = 14),
+          axis.text.y   = element_text(size = 10),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 16),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(1, "lines"),
+          panel.grid.major.y = element_line(linewidth = 0.25),
+          legend.position = "none")
+  
+  # Save figure to file
+  save_fig(g, "Child mortality change", paste("by", grouping), 
+           dir = "historical_impact")
+  
+  # Also save as main manuscript figure
+  save_fig(g, "Figure 4b", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -2385,7 +2456,7 @@ format_d_v_a_name = function(name_dt) {
     name_dt %<>%
       left_join(y  = d_v_a_dt, 
                 by = "d_v_a_id")
-    }
+  }
   
   # Set order using factors according to d_v_a_dt
   order_dt = name_dt %>%

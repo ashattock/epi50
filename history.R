@@ -163,7 +163,7 @@ run_history = function() {
 }
 
 # ---------------------------------------------------------
-# # Evaluate impact function given FVPs
+# Evaluate impact function given FVPs
 # ---------------------------------------------------------
 evaluate_impact_function = function(eval_dt = NULL) {
   
@@ -243,5 +243,65 @@ evaluate_impact_function = function(eval_dt = NULL) {
     mutate(impact = impact / o$impact_scaler)
   
   return(result_dt)
+}
+
+# ---------------------------------------------------------
+# xxxxxx
+# ---------------------------------------------------------
+mortality_rates = function(age_bound = 5, grouping = "none") {
+  
+  # Construct grouping datatable to be joined to results
+  grouping_dt = table("country") %>%
+    left_join(y  = table("income_status"), 
+              by = "country") %>%
+    mutate(none = "none") %>%
+    select(country, year, group = !!grouping)
+  
+  # Child deaths as recorded by WPP
+  deaths_dt = table("wpp_deaths") %>%
+    filter(age <= age_bound) %>%
+    left_join(y  = grouping_dt, 
+              by = c("country", "year")) %>%
+    group_by(group, year) %>%
+    summarise(deaths = sum(deaths)) %>%
+    ungroup() %>%
+    arrange(group, year) %>%
+    as.data.table()
+  
+  # Estimated child deaths averted by vaccination
+  averted_dt = read_rds("results", "deaths_averted") %>%
+    left_join(y  = grouping_dt, 
+              by = c("country", "year")) %>%
+    group_by(group, year) %>%
+    summarise(averted = sum(impact)) %>%
+    ungroup() %>%
+    arrange(group, year) %>%
+    as.data.table()
+  
+  # Population as per WPP - needed to convert to rates
+  pop_dt = table("wpp_pop") %>%
+    filter(age <= age_bound) %>%
+    left_join(y  = grouping_dt, 
+              by = c("country", "year")) %>%
+    group_by(group, year) %>%
+    summarise(pop = sum(pop)) %>%
+    ungroup() %>%
+    arrange(group, year) %>%
+    as.data.table()
+  
+  # Calculate mortality rates in each scenario
+  mortality_dt = pop_dt %>%
+    # Join child death estimates...
+    left_join(y  = deaths_dt, 
+              by = c("group", "year")) %>%
+    left_join(y  = averted_dt, 
+              by = c("group", "year")) %>%
+    replace_na(list(averted = 0)) %>%
+    # Calculate child mortality rates...
+    mutate(no_vaccine = (deaths + averted) / pop, 
+           vaccine    = deaths / pop) %>%
+    select(group, year, vaccine, no_vaccine)
+  
+  return(mortality_dt)
 }
 

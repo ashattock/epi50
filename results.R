@@ -94,14 +94,16 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_history) {
     
-    # Plot inital impact ratios used to back project
-    plot_impact_fvps(scope = "initial")
-
-    # Main results plot - historical impact over time
-    plot_historical_impact()
+    # # Plot inital impact ratios used to back project
+    # plot_impact_fvps(scope = "initial")
+    # 
+    # # Main results plot - historical impact over time
+    # plot_historical_impact()
     
     # Another key plot - change in child mortality rates over time
     plot_child_mortality()
+    
+    plot_mortality_change()
   }
   
   # ---- Uncertainty plots ----
