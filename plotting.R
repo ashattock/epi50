@@ -2164,14 +2164,55 @@ plot_historical_impact = function() {
 # ---------------------------------------------------------
 plot_child_survival = function() {
   
-  browser()
+  age_bound = 5
   
   # STEPS
   #  1) Number of deaths in u5 - vaccine and no_vaccine
   #  2) Divide through by number of people u5
   
+  pop_vec = table("wpp_pop") %>%
+    filter(age <= age_bound) %>%
+    group_by(year) %>%
+    summarise(pop = sum(pop)) %>%
+    ungroup() %>%
+    arrange(year) %>%
+    pull(pop)
   
+  deaths_vec = table("wpp_deaths") %>%
+    filter(age <= age_bound) %>%
+    group_by(year) %>%
+    summarise(deaths = sum(deaths)) %>%
+    ungroup() %>%
+    arrange(year) %>%
+    pull(deaths)
   
+  averted_vec = read_rds("results", "deaths_averted") %>%
+    group_by(year) %>%
+    summarise(averted = sum(impact)) %>%
+    ungroup() %>%
+    arrange(year) %>%
+    pull(averted)
+  
+  mortality_dt = data.table(
+    vaccine    = deaths_vec / pop_vec, 
+    no_vaccine = (deaths_vec + averted_vec) / pop_vec)
+  
+  plot_dt = mortality_dt %>%
+    mutate(year = o$years) %>%
+    pivot_longer(cols = -year, 
+                 names_to = "scenario") %>%
+    arrange(scenario, year) %>%
+    as.data.table()
+    
+  g = ggplot(plot_dt) +
+    aes(x = year, 
+        y = value, 
+        linetype = scenario) +
+    geom_line()
+  
+  # Save these figures to file
+  save_fig(g, "Child survival rates", dir = "historical_impact")
+  save_fig(g, "Figure 4", dir = "manuscript")
 }
 
 # ---------------------------------------------------------

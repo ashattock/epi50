@@ -100,7 +100,7 @@ run_results = function() {
     # # Main results plot - historical impact over time
     # plot_historical_impact()
     
-    # Key plot - change in child survival rates over time
+    # Another key plot - change in child survival rates over time
     plot_child_survival()
   }
   

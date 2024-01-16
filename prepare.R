@@ -39,10 +39,10 @@ run_prepare = function() {
 
   # Prepare country income status classification over time
   prepare_income_status()
-
+  
   # Prepare demography-related estimates from WPP
   prepare_demography()
-
+  
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
 }
@@ -365,24 +365,24 @@ prepare_gapminder = function() {
   # Prepare Gapminder data for use as predictors
   # Gini coefficient
   gini_dt = fread(paste0(o$pth$input, "ddf--datapoints--gapminder_gini--by--geo--time.csv")) %>%
-              rename(gini = gapminder_gini)
-   
+    rename(gini = gapminder_gini)
+  
   # Doctors per 1000 population
   doctors_per_1000_dt = fread(paste0(o$pth$input, "ddf--datapoints--medical_doctors_per_1000_people--by--geo--time.csv")) %>%
     rename(doctors_per_1000 = medical_doctors_per_1000_people)
-    
+  
   # Population aged 0 to 14
   pop_0_to_14_dt = fread(paste0(o$pth$input, "ddf--datapoints--population_aged_0_14_years_both_sexes_percent--by--geo--time.csv")) %>%
     rename(pop_0to14 = population_aged_0_14_years_both_sexes_percent)
-    
+  
   # Population density
   pop_density_dt = fread(paste0(o$pth$input, "ddf--datapoints--population_density_per_square_km--by--geo--time.csv")) %>%
     rename(pop_density = population_density_per_square_km)
-    
+  
   # Urban population (%)
   urban_dt = fread(paste0(o$pth$input, "ddf--datapoints--urban_population_percent_of_total--by--geo--time.csv")) %>%
     rename(urban_percent = urban_population_percent_of_total)
-    
+  
   # Health spending ($)
   health_spending_dt = fread(paste0(o$pth$input, "ddf--datapoints--total_health_spending_per_person_us--by--geo--time.csv")) %>%
     rename(health_spending = total_health_spending_per_person_us)
@@ -394,54 +394,54 @@ prepare_gapminder = function() {
   # At least basic water source (%)
   water_dt = fread(paste0(o$pth$input, "ddf--datapoints--at_least_basic_water_source_overall_access_percent--by--geo--time.csv")) %>%
     rename(basic_water = at_least_basic_water_source_overall_access_percent)
-    
+  
   # Human development index
   hdi_dt = fread(paste0(o$pth$input, "ddf--datapoints--hdi_human_development_index--by--geo--time.csv")) %>%
-            rename(HDI = hdi_human_development_index)
+    rename(HDI = hdi_human_development_index)
   
   # Attended births
   attended_births_dt = fread(paste0(o$pth$input, "ddf--datapoints--births_attended_by_skilled_health_staff_percent_of_total--by--geo--time.csv")) %>%
-                        rename(attended_births = births_attended_by_skilled_health_staff_percent_of_total)
-    
-    
+    rename(attended_births = births_attended_by_skilled_health_staff_percent_of_total)
+  
+  
   # Create table of Gapminder covariates
   gapminder_dt = gini_dt %>%
-                  full_join(doctors_per_1000_dt, by=c("geo", "time")) %>%
-                  full_join(health_spending_dt, by=c("geo", "time")) %>%
-                  full_join(pop_0_to_14_dt, by=c("geo", "time")) %>%
-                  full_join(pop_density_dt, by=c("geo", "time")) %>%
-                  full_join(urban_dt, by=c("geo", "time")) %>%
-                  full_join(attended_births_dt, by=c("geo", "time")) %>%
-                  full_join(water_dt, by=c("geo", "time")) %>%
-                  full_join(sanitation_dt, by=c("geo", "time")) %>%
-                  full_join(hdi_dt, by=c("geo", "time")) %>%
-                  mutate(country_code = toupper(geo)) %>%
-                  select(-geo) %>%
-                  relocate(country_code) %>%
-                  rename(year = time) %>%
-                  full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
-                  select(-country) %>%
-                  rename(country = country_code) %>%
-                  arrange(country, year) %>%
-                  filter(year >= 1974 & year <= 2024)  %>%
-                  as.data.table()              
-    
+    full_join(doctors_per_1000_dt, by=c("geo", "time")) %>%
+    full_join(health_spending_dt, by=c("geo", "time")) %>%
+    full_join(pop_0_to_14_dt, by=c("geo", "time")) %>%
+    full_join(pop_density_dt, by=c("geo", "time")) %>%
+    full_join(urban_dt, by=c("geo", "time")) %>%
+    full_join(attended_births_dt, by=c("geo", "time")) %>%
+    full_join(water_dt, by=c("geo", "time")) %>%
+    full_join(sanitation_dt, by=c("geo", "time")) %>%
+    full_join(hdi_dt, by=c("geo", "time")) %>%
+    mutate(country_code = toupper(geo)) %>%
+    select(-geo) %>%
+    relocate(country_code) %>%
+    rename(year = time) %>%
+    full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
+    select(-country) %>%
+    rename(country = country_code) %>%
+    arrange(country, year) %>%
+    filter(year >= 1974 & year <= 2024)  %>%
+    as.data.table()              
+  
   # TODO Check list of countries
   
   # Check for Gapminder countries not linked to WHO regions
   gapminder_dt %>% filter(is.na(region_short)) %>%
-                    select(country, region_short) %>%
-                    unique()
+    select(country, region_short) %>%
+    unique()
   
   gapminder_dt = gapminder_dt %>%
-                      filter(!is.na(region_short))
+    filter(!is.na(region_short))
   
   
   # Save in tables cache
   save_table(gapminder_dt, "gapminder_covariates")
   
-    }
-  
+}
+
 # ---------------------------------------------------------
 # Prepare country income status classification over time
 # ---------------------------------------------------------
@@ -520,16 +520,28 @@ prepare_demography = function() {
       
       # Load pop data from WPP github package
       data_list = data_package(past, future, package = "wpp2022")
+      
+      # Scale metrics by factor of 1k
+      scaler_dt = expand_grid(
+        country = all_countries(), 
+        year    = o$years, 
+        age     = 0 : 100, 
+        scaler  = 1e3) %>%
+        as.data.table()
     }
     
-    # Load mortality data
-    if (id == "mx") {
+    # Load any other data type
+    if (id != "pop") {
       
       # Name of WPP2022 data file - history and projection in one
-      all_time = paste0("mx", o$pop_bin, "dt") 
+      all_time = paste0(id, o$pop_bin, "dt") 
       
-      # Load mortality data from WPP github package
+      # Load data from WPP github package
       data_list = data_package(all_time, package = "wpp2022")
+      
+      # We'll need to scale per 1k population
+      scaler_dt = table("wpp_pop") %>%
+        rename(scaler = pop)
     }
     
     # Combine past and future data
@@ -541,8 +553,12 @@ prepare_demography = function() {
       # Shift year by one (see github.com/PPgp/wpp2022 for details)...
       mutate(year = as.integer(year) + 1) %>%
       filter(year %in% o$years) %>%
-      # Scale metrics by factor of 1k...
-      mutate(value = value * 1e3) %>%
+      # Scale metrics...
+      left_join(y = scaler_dt, 
+                by = c("country", "year", "age")) %>%
+      mutate(value = value * scaler) %>%
+      select(-scaler) %>%
+      # Tidy up...
       rename(!!name := value) %>%
       arrange(country, year, age)
     
