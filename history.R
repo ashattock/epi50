@@ -158,8 +158,8 @@ run_history = function() {
   # Plot primary results figure: historical impact over time
   plot_historical_impact()
   
-  # Plot change in child survival rates over time
-  plot_child_survival()
+  # Plot change in child mortality rates over time
+  plot_child_mortality()
 }
 
 # ---------------------------------------------------------

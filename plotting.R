@@ -22,7 +22,7 @@ plot_scope = function() {
   impact_dict = c(
     extern = "Dynamic modelling (external to VIMC)",
     vimc   = "Dynamic modelling (contributing to VIMC)", 
-    static    = "Static modelling", 
+    static = "Static modelling", 
     impute = "Geographic imputation model", 
     extrap = "Temporal extrapolation model")
   
@@ -842,7 +842,7 @@ plot_vaccine_efficacy = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save figure to file
-  save_fig(g, "Vaccine efficacy profiles", dir = "static")
+  save_fig(g, "Vaccine efficacy profiles", dir = "static_models")
 }
 
 # ---------------------------------------------------------
@@ -924,7 +924,7 @@ plot_effective_coverage = function() {
     
     # Save figure to file
     save_name = "Effective coverage by year and age"
-    save_fig(g, save_name, by, dir = "static")
+    save_fig(g, save_name, by, dir = "static_models")
   }
 }
 
@@ -1007,7 +1007,7 @@ plot_static = function() {
           legend.key.width  = unit(3, "lines"))
   
   # Save figure to file
-  save_fig(g, "Deaths averted by disease", dir = "static")
+  save_fig(g, "Deaths averted by disease", dir = "static_models")
   
   # ---- Plot by vaccine ----
   
@@ -1065,7 +1065,7 @@ plot_static = function() {
           panel.grid.major.y = element_line(linewidth = 0.5))
   
   # Save figure to file
-  save_fig(g, "Deaths averted by vaccine", dir = "static")
+  save_fig(g, "Deaths averted by vaccine", dir = "static_models")
 }
 
 # ---------------------------------------------------------
@@ -2160,58 +2160,133 @@ plot_historical_impact = function() {
 }
 
 # ---------------------------------------------------------
-# Key plot - change in child survival rates over time
+# Key plot - change in child mortality rates over time
 # ---------------------------------------------------------
-plot_child_survival = function() {
+plot_child_mortality = function() {
   
+  # Define grouping of results
+  grouping = "region"  # OPTIONS: "region" or "income"
+  
+  # Define upper age bound
   age_bound = 5
   
-  # STEPS
-  #  1) Number of deaths in u5 - vaccine and no_vaccine
-  #  2) Divide through by number of people u5
+  # Dictionary for each vaccine case
+  case_dict = list( 
+    vaccine    = "Vaccination as obserevd", 
+    no_vaccine = "No historical vaccination")
   
-  pop_vec = table("wpp_pop") %>%
-    filter(age <= age_bound) %>%
-    group_by(year) %>%
-    summarise(pop = sum(pop)) %>%
-    ungroup() %>%
-    arrange(year) %>%
-    pull(pop)
+  # ---- Mortality estimates ----
   
-  deaths_vec = table("wpp_deaths") %>%
+  # Construct grouping datatable to be joined to results
+  grouping_dt = table("country") %>%
+    left_join(y  = table("income_status"), 
+              by = "country") %>%
+    select(country, year, group = !!grouping)
+  
+  # Child deaths as recorded by WPP
+  deaths_dt = table("wpp_deaths") %>%
     filter(age <= age_bound) %>%
-    group_by(year) %>%
+    left_join(y  = grouping_dt, 
+              by = c("country", "year")) %>%
+    group_by(group, year) %>%
     summarise(deaths = sum(deaths)) %>%
     ungroup() %>%
-    arrange(year) %>%
-    pull(deaths)
+    arrange(group, year) %>%
+    as.data.table()
   
-  averted_vec = read_rds("results", "deaths_averted") %>%
-    group_by(year) %>%
+  # Estimated child deaths averted by vaccination
+  averted_dt = read_rds("results", "deaths_averted") %>%
+    left_join(y  = grouping_dt, 
+              by = c("country", "year")) %>%
+    group_by(group, year) %>%
     summarise(averted = sum(impact)) %>%
     ungroup() %>%
-    arrange(year) %>%
-    pull(averted)
-  
-  mortality_dt = data.table(
-    vaccine    = deaths_vec / pop_vec, 
-    no_vaccine = (deaths_vec + averted_vec) / pop_vec)
-  
-  plot_dt = mortality_dt %>%
-    mutate(year = o$years) %>%
-    pivot_longer(cols = -year, 
-                 names_to = "scenario") %>%
-    arrange(scenario, year) %>%
+    arrange(group, year) %>%
     as.data.table()
-    
+  
+  # ---- Create plotting datatable ----
+  
+  # Population as per WPP - needed to convert to rates
+  pop_dt = table("wpp_pop") %>%
+    filter(age <= age_bound) %>%
+    left_join(y  = grouping_dt, 
+              by = c("country", "year")) %>%
+    group_by(group, year) %>%
+    summarise(pop = sum(pop)) %>%
+    ungroup() %>%
+    arrange(group, year) %>%
+    as.data.table()
+  
+  # Bring everything together into a plotting datatable
+  plot_dt = pop_dt %>%
+    # Join child death estimates...
+    left_join(y  = deaths_dt, 
+              by = c("group", "year")) %>%
+    left_join(y  = averted_dt, 
+              by = c("group", "year")) %>%
+    replace_na(list(averted = 0)) %>%
+    # Calculate child mortality rates...
+    mutate(no_vaccine = (deaths + averted) / pop, 
+           vaccine    = deaths / pop) %>%
+    select(group, year, vaccine, no_vaccine) %>%
+    # Melt to tidy format...
+    pivot_longer(cols = -c(group, year), 
+                 names_to = "case") %>%
+    mutate(case = recode(case, !!!case_dict), 
+           case = factor(case, case_dict)) %>%
+    # Tidy up...
+    arrange(case, group, year) %>%
+    as.data.table()
+  
+  # Plot child mortality over time
   g = ggplot(plot_dt) +
     aes(x = year, 
         y = value, 
-        linetype = scenario) +
-    geom_line()
+        linetype = case) +
+    geom_line(linewidth = 1.1) +
+    facet_wrap(~group) + 
+    # Prettiy x axis...
+    scale_x_continuous(
+      limits = c(min(o$years), max(o$years)), 
+      expand = expansion(mult = c(0, 0)), 
+      breaks = seq(min(o$years), max(o$years), by = 5)) +
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Child deaths before 5 years of age", 
+      labels = percent, 
+      breaks = pretty_breaks(),
+      expand = expansion(mult = c(0, 0.05))) +
+    # Set colours and prettify legend...
+    guides(linetype = guide_legend(
+      byrow = TRUE, ncol = 1))
   
-  # Save these figures to file
-  save_fig(g, "Child survival rates", dir = "historical_impact")
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(
+            size = 20, margin = margin(l = 10, r = 20)),
+          axis.text     = element_text(size = 10),
+          axis.text.x   = element_text(hjust = 1, angle = 50), 
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 16),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(1, "lines"),
+          panel.grid.major.y = element_line(linewidth = 0.25),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 14),
+          # legend.key    = element_blank(),
+          legend.position = "bottom", 
+          # legend.spacing.x  = unit(1, "lines"),
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
+  
+  # Save figure to file
+  save_fig(g, "Child mortality", grouping, 
+           dir = "historical_impact")
+  
+  # Also save as main manuscript figure
   save_fig(g, "Figure 4", dir = "manuscript")
 }
 
