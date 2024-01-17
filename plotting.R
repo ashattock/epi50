@@ -2160,13 +2160,11 @@ plot_historical_impact = function() {
 }
 
 # ---------------------------------------------------------
-# Key plot - change in child mortality rates over time
+# Plot change in child mortality rates over time
 # ---------------------------------------------------------
 plot_child_mortality = function() {
   
   message("  > Plotting child mortality rates")
-  
-  # ---- Figure A: xxx ----
   
   # Define grouping of results
   grouping = "none"  # OPTIONS: "none", "region", "income"
@@ -2176,8 +2174,14 @@ plot_child_mortality = function() {
     vaccine    = "Vaccination as obserevd", 
     no_vaccine = "No historical vaccination")
   
+  # Disease-vaccine-activity ID of vaccine coverage to plot
+  dtp3_id = 12
+  
+  # Y axis limit in terms of child mortality
+  y_lim = 0.03
+  
   # Format as plottable datatable
-  plot_dt = mortality_rates(grouping = grouping) %>%
+  mortality_dt = mortality_rates(grouping = grouping) %>%
     pivot_longer(cols = -c(group, year), 
                  names_to = "case") %>%
     mutate(case = recode(case, !!!case_dict), 
@@ -2185,12 +2189,39 @@ plot_child_mortality = function() {
     arrange(case, group, year) %>%
     as.data.table()
   
+  # Sanity check that user-defined axis limit doesn't cut off data
+  if (max(mortality_dt$value) > y_lim)
+    stop("Set y_lim > max mortality value for meaningful plot")
+  
+  # DTP3 coverage
+  #
+  # NOTE: Only global average for now
+  dtp3_dt = table("coverage") %>%
+    filter(v_a_id == dtp3_id) %>%
+    select(country, year, age, fvps) %>%
+    right_join(y  = table("wpp_pop")[age == 0], 
+              by = c("country", "year", "age")) %>%
+    replace_na(list(fvps = 0)) %>%
+    group_by(year) %>%
+    summarise(fvps   = sum(fvps), 
+              cohort = sum(pop)) %>%
+    ungroup() %>%
+    mutate(coverage = fvps / cohort) %>%
+    as.data.table()
+  
   # Plot child mortality over time
-  g = ggplot(plot_dt) +
+  g = ggplot(mortality_dt) +
     aes(x = year, 
-        y = value, 
-        linetype = case) +
-    geom_line(linewidth = 1.1) +
+        y = value) +
+    # Plot mortality rates over time...
+    geom_line(
+      mapping   = aes(linetype = case), 
+      linewidth = 1.1) +
+    # Plot selected coverage trends...
+    geom_line(
+      data    = dtp3_dt,
+      mapping = aes(y = coverage * y_lim), 
+      colour  = "grey") +
     # Prettiy x axis...
     scale_x_continuous(
       limits = c(min(o$years), max(o$years)), 
@@ -2200,9 +2231,13 @@ plot_child_mortality = function() {
     scale_y_continuous(
       name   = "Child deaths before 5 years of age", 
       labels = percent, 
-      limits = c(0, NA), 
-      expand = expansion(mult = c(0, 0.05)), 
-      breaks = pretty_breaks()) +
+      limits = c(0, y_lim), 
+      expand = c(0, 0), 
+      breaks = pretty_breaks(), 
+      sec.axis = sec_axis(
+        trans = ~ . / y_lim, 
+        name  = "Infant DTP3 coverage", 
+        labels = percent)) +
     # Set colours and prettify legend...
     guides(linetype = guide_legend(
       byrow = TRUE, ncol = 1))
@@ -2214,17 +2249,21 @@ plot_child_mortality = function() {
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title.x  = element_blank(),
-          axis.title.y  = element_text(
-            size = 20, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(size = 20),
+          axis.title.y.left = element_text(
+            margin = margin(l = 10, r = 20)),
+          axis.title.y.right = element_text(
+            margin = margin(l = 20, r = 10), color = "grey"),
           axis.text     = element_text(size = 10),
           axis.text.x   = element_text(hjust = 1, angle = 50), 
+          axis.text.y.right = element_text(color = "grey"),
           axis.line     = element_blank(),
           strip.text    = element_text(size = 16),
           strip.background = element_blank(), 
           panel.border  = element_rect(
             linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
-          panel.grid.major.y = element_line(linewidth = 0.25),
+          # panel.grid.major.y = element_line(linewidth = 0.25),
           legend.title  = element_blank(),
           legend.text   = element_text(size = 14),
           # legend.key    = element_blank(),
@@ -2242,7 +2281,7 @@ plot_child_mortality = function() {
 }
 
 # ---------------------------------------------------------
-# xxxxxxxx
+# Plot regional differences child mortality rates over time
 # ---------------------------------------------------------
 plot_mortality_change = function() {
   
