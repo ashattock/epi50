@@ -2166,8 +2166,7 @@ plot_child_mortality = function() {
   
   message("  > Plotting child mortality rates")
   
-  # Define grouping of results
-  grouping = "none"  # OPTIONS: "none", "region", "income"
+  # ---- Figure properties ----
   
   # Dictionary for each vaccine case
   case_dict = list( 
@@ -2180,8 +2179,10 @@ plot_child_mortality = function() {
   # Y axis limit in terms of child mortality
   y_lim = 0.03
   
+  # ---- Construct plotting datatables ----
+  
   # Format as plottable datatable
-  mortality_dt = mortality_rates(grouping = grouping) %>%
+  mortality_dt = mortality_rates(grouping = "none") %>%
     pivot_longer(cols = -c(group, year), 
                  names_to = "case") %>%
     mutate(case = recode(case, !!!case_dict), 
@@ -2193,9 +2194,7 @@ plot_child_mortality = function() {
   if (max(mortality_dt$value) > y_lim)
     stop("Set y_lim > max mortality value for meaningful plot")
   
-  # DTP3 coverage
-  #
-  # NOTE: Only global average for now
+  # DTP3 coverage over time - global average
   dtp3_dt = table("coverage") %>%
     filter(v_a_id == dtp3_id) %>%
     select(country, year, age, fvps) %>%
@@ -2208,6 +2207,8 @@ plot_child_mortality = function() {
     ungroup() %>%
     mutate(coverage = fvps / cohort) %>%
     as.data.table()
+  
+  # ---- Produce plot ----
   
   # Plot child mortality over time
   g = ggplot(mortality_dt) +
@@ -2242,10 +2243,6 @@ plot_child_mortality = function() {
     guides(linetype = guide_legend(
       byrow = TRUE, ncol = 1))
   
-  # Facet unless grouping is trivial
-  if (grouping != "none") 
-    g = g + facet_wrap(~group)
-  
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title.x  = element_blank(),
@@ -2263,12 +2260,9 @@ plot_child_mortality = function() {
           panel.border  = element_rect(
             linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
-          # panel.grid.major.y = element_line(linewidth = 0.25),
           legend.title  = element_blank(),
           legend.text   = element_text(size = 14),
-          # legend.key    = element_blank(),
           legend.position = "bottom", 
-          # legend.spacing.x  = unit(1, "lines"),
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   

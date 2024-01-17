@@ -246,9 +246,11 @@ evaluate_impact_function = function(eval_dt = NULL) {
 }
 
 # ---------------------------------------------------------
-# xxxxxx
+# Calulate child mortality rates in vaccine and no vaccine scenarios
 # ---------------------------------------------------------
 mortality_rates = function(age_bound = 5, grouping = "none") {
+  
+  # NOTE: Options for 'grouping' argument: "none", "region", or "income"
   
   # Construct grouping datatable to be joined to results
   grouping_dt = table("country") %>%
