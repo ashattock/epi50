@@ -2267,90 +2267,107 @@ plot_child_mortality = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save figure to file
-  save_fig(g, "Child mortality", paste("by", grouping), 
-           dir = "historical_impact")
+  save_fig(g, "Child mortality rates", dir = "historical_impact")
   
   # Also save as main manuscript figure
   save_fig(g, "Figure 4a", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
-# Plot regional differences child mortality rates over time
+# Plot regional differences in child mortality changes
 # ---------------------------------------------------------
 plot_mortality_change = function() {
   
-  # Define grouping of results
-  grouping = "none"  # OPTIONS: "none", "region", "income"
+  # Description of metric and year scope
+  metric_str = "under 5 mortality rate"
+  years_str  = paste0("(", paste(range(o$years), collapse = "-"), ")")
   
+  # Dictionary for metric type
   type_dict = list(
-    diff    = "Absolute decrease in under 5 mortality rate", 
-    rel     = "Relative decrease in under 5 mortality rate", 
-    contrib = "Contribution of vaccination to decrease in under 5 mortality rate")
+    diff    = paste("Absolute decrease in", metric_str, years_str),
+    rel     = paste("Relative decrease in", metric_str, years_str), 
+    contrib = paste("Contribution of vaccination to decrease in", 
+                    metric_str, years_str))
   
+  # Metric type colour scheme (+1 for global average)
   colours = c("#EBAA2D", "#DF721F", "#71C2A9", "#808080")
   
+  # Mortality rates - by region and global average
   region_dt = mortality_rates(grouping = "region")
   world_dt  = mortality_rates(grouping = "none") %>%
     mutate(group = "World")
   
+  # Contribution of vaccination to decrease in child mortality
   contrib_dt = rbind(region_dt, world_dt) %>%
-    select(group, year, 
-           end0 = no_vaccine, 
+    rename(end0 = no_vaccine, 
            end  = vaccine) %>%
+    # Start (year 1) and end (year n) values...
     group_by(group) %>%
     mutate(start = end0[year == min(year)],
            diff0 = start - end0,
            diff  = start - end) %>%
     ungroup() %>%
+    # We're interested in the value come the final year...
     filter(year == max(year)) %>%
     select(-year) %>%
+    # Relative decrease and contribution of vaccination...
     mutate(rel     = diff / start, 
            contrib = 1 - diff0 / diff) %>%
     select(-end0, -diff0) %>%
     as.data.table()
   
+  # Order regions by absolute decrease in mortality rates
   order = contrib_dt %>%
     filter(group != "World") %>%
     arrange(desc(diff)) %>%
     pull(group) %>%
     c("World")
   
+  # Labels bars for clarity
   label_dt = contrib_dt %>%
+    # Convert to percentage...
     mutate(across(
       .cols = c(diff, start, end), 
       .fns  = ~ . * 100)) %>%
+    # Construct string explaining start and end values...
     mutate(label = sprintf(
       "%.1f%%\n(%.1f%% to %.1f%%)", 
       diff, start, end)) %>%
-    mutate(type  = "diff") %>%
+    # Only required for absolute bars...
+    mutate(type = "diff") %>%
     select(group, type, label)
   
+  # Construct plotting datatable
   plot_dt = contrib_dt %>%
+    # Retain only what we want to plot...
     select(group, diff, rel, contrib) %>%
     pivot_longer(cols = -group, 
                  names_to = "type") %>%
+    # Labels: simple and expansive versions...
     mutate(str = sprintf("%.0f%%", value * 100)) %>%
     left_join(y  = label_dt, 
               by = c("group", "type")) %>%
     mutate(label = ifelse(is.na(label), str, label)) %>%
+    # Position according to metric type...
     group_by(type) %>%
     mutate(nudge   = max(value) * 0.05, 
            lab_pos = value + nudge) %>%
     ungroup() %>%
     select(-str, -nudge) %>%
-    # Define colour groups...
+    # Define colour groups (world is special case)...
     mutate(colour = match(type, names(type_dict)), 
            colour = ifelse(
              test = group == "World", 
              yes  = max(colour) + 1, 
              no   = colour), 
            colour = as.character(colour)) %>%
-    # xxx...
+    # Set factors for desired ordering...
     mutate(type  = recode(type, !!!type_dict), 
            type  = factor(type, type_dict), 
            group = factor(group, order)) %>%
     as.data.table()
   
+  # Plot regional results as bars
   g = ggplot(plot_dt) +
     aes(x = group, 
         y = value,  
@@ -2364,12 +2381,13 @@ plot_mortality_change = function() {
       mapping = aes(
         label = label, 
         y     = lab_pos), 
-      vjust   = 0) + 
+      vjust   = 0, 
+      size    = 3.5) + 
     # Facet by type...
     facet_wrap(
       facets = vars(type), 
       ncol   = 1, 
-      scales = "free_y") + 
+      scales = "free") + 
     # Set colours...
     scale_fill_manual(values = colours) +
     # Prettify y axis...
@@ -2385,16 +2403,16 @@ plot_mortality_change = function() {
           axis.text.x   = element_text(size = 14),
           axis.text.y   = element_text(size = 10),
           axis.line     = element_blank(),
-          strip.text    = element_text(size = 16),
+          strip.text    = element_text(size = 20),
           strip.background = element_blank(), 
           panel.border  = element_rect(
             linewidth = 0.5, fill = NA),
-          panel.spacing = unit(1, "lines"),
+          panel.spacing = unit(2, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.25),
           legend.position = "none")
   
   # Save figure to file
-  save_fig(g, "Child mortality change", paste("by", grouping), 
+  save_fig(g, "Child mortality change by region", 
            dir = "historical_impact")
   
   # Also save as main manuscript figure

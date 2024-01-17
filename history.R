@@ -301,8 +301,8 @@ mortality_rates = function(age_bound = 5, grouping = "none") {
     replace_na(list(averted = 0)) %>%
     # Calculate child mortality rates...
     mutate(no_vaccine = (deaths + averted) / pop, 
-           vaccine    = deaths / pop) %>%
-    select(group, year, vaccine, no_vaccine)
+           vaccine    = deaths / pop) # %>%
+    # select(group, year, vaccine, no_vaccine)
   
   return(mortality_dt)
 }
