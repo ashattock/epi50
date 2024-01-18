@@ -1212,7 +1212,8 @@ plot_covariates = function() {
     left_join(y  = table("disease"), 
               by = "disease") %>%
     filter(source == "vimc") %>%
-    pull(d_v_a_id) %>%
+     pull(d_v_a_id) %>%
+    as.vector(c(1,3,4,5,10)) %>%
     lapply(load_data_fn) %>%
     rbindlist()
   
