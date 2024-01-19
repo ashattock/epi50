@@ -2429,9 +2429,9 @@ plot_measles_in_context = function() {
   
   # Metrics to plot
   metric_dict = c(
-    cum  = "Cumulative number of deaths in children under",
-    abs  = "Annual deaths in children under", 
-    norm = "Normalised cause of death for children under")
+    cum  = "Cumulative number of deaths in",
+    abs  = "Annual number of deaths in", 
+    norm = "Normalised cause of death for")
   
   # Cause of death
   cause_dict = c(
@@ -2458,23 +2458,29 @@ plot_measles_in_context = function() {
   
   # ---- Deaths by cause ----
   
+  # Death data - WPP and external measles models
   deaths = list(
     wpp    = table("wpp_deaths"), 
     extern = table("extern_deaths"))
   
+  # Measles deaths with and without vaccine
   measles_deaths = deaths$extern %>%
     format_d_v_a_name() %>%
+    # Pathogen and age group of interest...
     filter(d_v_a_name == measles_id, 
-           age <= as.numeric(age_bound)) %>%
+           age        <= age_bound) %>%
     pivot_longer(cols = c(vaccine, no_vaccine), 
                  names_to = "case") %>%
+    # Summarise over age bins of interest...
     group_by(case, year) %>%
     summarise(measles = sum(value)) %>%
     ungroup() %>%
     as.data.table()
   
+  # All cause deaths from WPP
   all_deaths = deaths$wpp %>%
-    filter(age <= as.numeric(age_bound)) %>%
+    # Age group of interest...
+    filter(age <= age_bound) %>%
     group_by(year) %>%
     summarise(deaths = sum(deaths)) %>%
     ungroup() %>%
@@ -2487,11 +2493,13 @@ plot_measles_in_context = function() {
     group_by(year) %>%
     mutate(averted = measles - measles[case == "vaccine"]) %>%
     ungroup() %>%
+    # Increment all cause deaths in scenario of no vaccination...
     mutate(all_cause = deaths + averted) %>%
     select(case, year, all_cause) %>%
     arrange(case, year) %>%
     as.data.table()
   
+  # Combine causes of death for measles in context
   context_dt = all_deaths %>%
     left_join(y  = measles_deaths, 
               by = c("case", "year")) %>%
@@ -2500,13 +2508,20 @@ plot_measles_in_context = function() {
     pivot_longer(cols = names(cause_dict), 
                  names_to  = "cause", 
                  values_to = "abs") %>%
-    # Set appropriate order...
-    select(case, cause, year, abs) %>%
-    arrange(case, cause, year) %>%
-    # ...
+    # Calculate normalised cause of death...
+    group_by(case, year) %>%
+    mutate(norm = abs / abs[cause == "all_cause"]) %>%
+    ungroup() %>%
+    # Calculate cumulative values...
     group_by(case, cause) %>%
     mutate(cum = cumsum(abs)) %>%
     ungroup() %>%
+    # Convert to tidy format...
+    pivot_longer(cols = names(metric_dict), 
+                 names_to = "metric") %>%
+    # Set appropriate order...
+    select(case, metric, cause, year, value) %>%
+    arrange(case, metric, cause, year) %>%
     as.data.table()
   
   # ---- First and second dose routine coverage ----
@@ -2528,21 +2543,14 @@ plot_measles_in_context = function() {
   
   # ---- Construct plotting datatables ----
   
+  # Update metric dict to include age group
   metric_dict %<>% 
-    sapply(function(x) paste(x, age_bound))
+    sapply(function(x) paste(x, "children under", age_bound))
   
+  # Lines for measles and all cause
   line_dt = context_dt %>%
     filter(cause != "other") %>%
-    # Calculate normalised cause of death...
-    group_by(case, year) %>%
-    mutate(norm = abs / abs[cause == "all_cause"]) %>%
-    ungroup() %>%
-    # ...
-    pivot_longer(cols = names(metric_dict), 
-                 names_to = "metric") %>%
-    select(case, metric, cause, year, value) %>%
-    arrange(case, metric, cause, year) %>%
-    # ...
+    # Don't plot normalised all cause as always one...
     filter(!(metric == "norm" & 
                cause == "all_cause")) %>%
     # Recode variables and set ordering...
@@ -2551,27 +2559,18 @@ plot_measles_in_context = function() {
            metric = recode(metric, !!!metric_dict), 
            metric = factor(metric, metric_dict), 
            cause  = recode(cause,  !!!cause_dict),
-           cause  = factor(cause,  cause_dict)) %>%
-    as.data.table()
+           cause  = factor(cause,  cause_dict))
   
+  # Area for measles and other cause in vaccine case only
   area_dt = context_dt %>%
     filter(cause != "all_cause", 
            case  == "vaccine") %>%
-    # Calculate normalised cause of death...
-    group_by(year) %>%
-    mutate(norm = abs / sum(abs)) %>%
-    ungroup() %>%
-    # ...
-    pivot_longer(cols = names(metric_dict), 
-                 names_to = "metric") %>%
-    select(metric, cause, year, value) %>%
-    arrange(metric, cause, year) %>%
+    select(-case) %>%
     # Recode variables and set ordering...
     mutate(metric = recode(metric, !!!metric_dict), 
            metric = factor(metric, metric_dict), 
            cause  = recode(cause,  !!!cause_dict),
-           cause  = factor(cause,  cause_dict)) %>%
-    as.data.table()
+           cause  = factor(cause,  cause_dict))
   
   # ---- Produce plot ----
   
@@ -2581,8 +2580,8 @@ plot_measles_in_context = function() {
         y = value) +
     # Plot cause of death...
     geom_area(
-      mapping = aes(fill = fct_rev(cause)), 
-      alpha   = 0.5, 
+      mapping = aes(fill = fct_rev(cause)),
+      alpha   = 0.5,
       show.legend = FALSE) +
     # Plot all cause deaths...
     geom_line(
@@ -2590,7 +2589,7 @@ plot_measles_in_context = function() {
       mapping = aes(
         colour = cause, 
         linetype = case), 
-      linewidth = 1.5) +
+      linewidth = 1.2) +
     # Facet by metric...
     facet_wrap(
       facets = vars(metric),
