@@ -2199,7 +2199,7 @@ plot_child_mortality = function() {
     filter(v_a_id == dtp3_id) %>%
     select(country, year, age, fvps) %>%
     right_join(y  = table("wpp_pop")[age == 0], 
-              by = c("country", "year", "age")) %>%
+               by = c("country", "year", "age")) %>%
     replace_na(list(fvps = 0)) %>%
     group_by(year) %>%
     summarise(fvps   = sum(fvps), 
@@ -2417,6 +2417,227 @@ plot_mortality_change = function() {
   
   # Also save as main manuscript figure
   save_fig(g, "Figure 4b", dir = "manuscript")
+}
+
+# ---------------------------------------------------------
+# Plot measles deaths in context of all cause deaths
+# ---------------------------------------------------------
+plot_measles_in_context = function() {
+  
+  # Upper age bound for estimates
+  age_bound = 5
+  
+  # Metrics to plot
+  metric_dict = c(
+    cum  = "Cumulative number of deaths in children under",
+    abs  = "Annual deaths in children under", 
+    norm = "Normalised cause of death for children under")
+  
+  # Cause of death
+  cause_dict = c(
+    all_cause = "All cause deaths",
+    measles   = "Measles as cause of death", 
+    other     = "Other cause of death")
+  
+  # Define vaccine scenarios
+  case_dict = list( 
+    vaccine    = "Vaccination as obserevd", 
+    no_vaccine = "No historical vaccination")
+  
+  # Name of d-v-a to plot
+  measles_id = "xxxMeasles"
+  
+  # ID of coverage values to plot
+  coverage_ids = c(4, 5)
+  
+  # Colour schemes
+  colours = list(
+    area = c("#B0B0B0", "#0189C5"), 
+    line = c("#000000", "#0189C5"), 
+    coverage = "darkred")
+  
+  # ---- Deaths by cause ----
+  
+  deaths = list(
+    wpp    = table("wpp_deaths"), 
+    extern = table("extern_deaths"))
+  
+  measles_deaths = deaths$extern %>%
+    format_d_v_a_name() %>%
+    filter(d_v_a_name == measles_id, 
+           age <= as.numeric(age_bound)) %>%
+    pivot_longer(cols = c(vaccine, no_vaccine), 
+                 names_to = "case") %>%
+    group_by(case, year) %>%
+    summarise(measles = sum(value)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  all_deaths = deaths$wpp %>%
+    filter(age <= as.numeric(age_bound)) %>%
+    group_by(year) %>%
+    summarise(deaths = sum(deaths)) %>%
+    ungroup() %>%
+    # Repeat for each vaccine scenario...
+    expand_grid(case = names(case_dict)) %>%
+    select(case, year, deaths) %>%
+    # Append number of deaths averted from vaccination...
+    left_join(y  = measles_deaths, 
+              by = c("case", "year")) %>%
+    group_by(year) %>%
+    mutate(averted = measles - measles[case == "vaccine"]) %>%
+    ungroup() %>%
+    mutate(all_cause = deaths + averted) %>%
+    select(case, year, all_cause) %>%
+    arrange(case, year) %>%
+    as.data.table()
+  
+  context_dt = all_deaths %>%
+    left_join(y  = measles_deaths, 
+              by = c("case", "year")) %>%
+    mutate(other = all_cause - measles) %>% 
+    # Melt cause of death to long format...
+    pivot_longer(cols = names(cause_dict), 
+                 names_to  = "cause", 
+                 values_to = "abs") %>%
+    # Set appropriate order...
+    select(case, cause, year, abs) %>%
+    arrange(case, cause, year) %>%
+    # ...
+    group_by(case, cause) %>%
+    mutate(cum = cumsum(abs)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # ---- First and second dose routine coverage ----
+  
+  # # DTP3 coverage over time - global average
+  # dtp3_dt = table("coverage") %>%
+  #   append_v_a_name()
+  # filter(v_a_id == dtp3_id) %>%
+  #   select(country, year, age, fvps) %>%
+  #   right_join(y  = table("wpp_pop")[age == 0], 
+  #              by = c("country", "year", "age")) %>%
+  #   replace_na(list(fvps = 0)) %>%
+  #   group_by(year) %>%
+  #   summarise(fvps   = sum(fvps), 
+  #             cohort = sum(pop)) %>%
+  #   ungroup() %>%
+  #   mutate(coverage = fvps / cohort) %>%
+  #   as.data.table()
+  
+  # ---- Construct plotting datatables ----
+  
+  metric_dict %<>% 
+    sapply(function(x) paste(x, age_bound))
+  
+  line_dt = context_dt %>%
+    filter(cause != "other") %>%
+    # Calculate normalised cause of death...
+    group_by(case, year) %>%
+    mutate(norm = abs / abs[cause == "all_cause"]) %>%
+    ungroup() %>%
+    # ...
+    pivot_longer(cols = names(metric_dict), 
+                 names_to = "metric") %>%
+    select(case, metric, cause, year, value) %>%
+    arrange(case, metric, cause, year) %>%
+    # ...
+    filter(!(metric == "norm" & 
+               cause == "all_cause")) %>%
+    # Recode variables and set ordering...
+    mutate(case   = recode(case,   !!!case_dict), 
+           case   = factor(case,   case_dict), 
+           metric = recode(metric, !!!metric_dict), 
+           metric = factor(metric, metric_dict), 
+           cause  = recode(cause,  !!!cause_dict),
+           cause  = factor(cause,  cause_dict)) %>%
+    as.data.table()
+  
+  area_dt = context_dt %>%
+    filter(cause != "all_cause", 
+           case  == "vaccine") %>%
+    # Calculate normalised cause of death...
+    group_by(year) %>%
+    mutate(norm = abs / sum(abs)) %>%
+    ungroup() %>%
+    # ...
+    pivot_longer(cols = names(metric_dict), 
+                 names_to = "metric") %>%
+    select(metric, cause, year, value) %>%
+    arrange(metric, cause, year) %>%
+    # Recode variables and set ordering...
+    mutate(metric = recode(metric, !!!metric_dict), 
+           metric = factor(metric, metric_dict), 
+           cause  = recode(cause,  !!!cause_dict),
+           cause  = factor(cause,  cause_dict)) %>%
+    as.data.table()
+  
+  # ---- Produce plot ----
+  
+  # Plot measles in context of all cause deaths
+  g = ggplot(area_dt) +
+    aes(x = year, 
+        y = value) +
+    # Plot cause of death...
+    geom_area(
+      mapping = aes(fill = fct_rev(cause)), 
+      alpha   = 0.5, 
+      show.legend = FALSE) +
+    # Plot all cause deaths...
+    geom_line(
+      data    = line_dt,
+      mapping = aes(
+        colour = cause, 
+        linetype = case), 
+      linewidth = 1.5) +
+    # Facet by metric...
+    facet_wrap(
+      facets = vars(metric),
+      scales = "free_y",
+      ncol   = 1) +
+    # Prettiy x axis...
+    scale_x_continuous(
+      limits = c(min(o$years), max(o$years)), 
+      expand = expansion(mult = c(0, 0)), 
+      breaks = seq(min(o$years), max(o$years), by = 5)) +
+    # Prettify y axis...
+    scale_y_continuous(
+      labels = comma, 
+      expand = expansion(mult = c(0, 0)), 
+      breaks = pretty_breaks()) +
+    # Set colour scheme...
+    scale_colour_manual(
+      name   = "Cause of death", 
+      values = colours$line) + 
+    scale_fill_manual(
+      values = colours$area) +
+    # Prettify legends...
+    guides(colour   = guide_legend(reverse = TRUE), 
+           linetype = guide_legend(title = "Vaccine scenario"))
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title    = element_blank(),
+          axis.text     = element_text(size = 10),
+          axis.text.x   = element_text(hjust = 1, angle = 50), 
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 16),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(1, "lines"),
+          legend.title  = element_text(size = 14),
+          legend.text   = element_text(size = 12),
+          legend.position = "right", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
+  
+  # Save figure to file
+  save_fig(g, "Measles in context", dir = "historical_impact")
+  
+  # Also save as main manuscript figure
+  save_fig(g, "Figure 5", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
