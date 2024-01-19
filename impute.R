@@ -140,6 +140,8 @@ perform_impute = function(d_v_a_id, target) {
      filter(target != 0) %>%
      
      # TODO: Activate this functionality (will need to select appropriate model downstream for comparing time periods)
+     # Please extend to allow fitting to the temporally extrapolated data -> useful messages on determinants of vaccine impact over time 
+     
      # Set time periods
      mutate(period = case_when(year < 1984 ~ 1,
                                year >= 1984 & year < 1994 ~ 2,
@@ -157,7 +159,7 @@ perform_impute = function(d_v_a_id, target) {
      filter(n() > 4) %>% # remove if fewer than 4 non-zero values for a given country (insufficient for fitting)
      ungroup()
    
-   browser()
+
    
   # Stepwise regression
   # TODO LATER: Update to lasso regularisation for optimal predictor selection
@@ -590,9 +592,7 @@ perform_impute = function(d_v_a_id, target) {
   
   # Save to file
   save_rds(fit, "impute", "impute", d_v_a_id)
-  
- # browser()
-  
+
   return(result_dt)
 }
 
