@@ -94,20 +94,22 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_history) {
     
-    # # Inital impact ratios used to back project
+    # Inital impact ratios used to back project
     # plot_impact_fvps(scope = "initial")
-    # 
-    # # Main results plot - historical impact over time
+
+    # Main results plot - historical impact over time
     # plot_historical_impact()
-    # 
-    # # Child mortality rates over time with and without vaccination
+
+    # Child mortality rates over time with and without vaccination
     # plot_child_mortality()
-    # 
-    # # Regional differences in child mortality changes
-    # plot_mortality_change()
     
+    plot_prob_death_age()
+
+    # Regional differences in child mortality changes
+    # plot_mortality_change()
+
     # Measles deaths in context of all cause deaths
-    plot_measles_in_context()
+    # plot_measles_in_context()
   }
 }
 

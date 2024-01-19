@@ -2183,6 +2183,7 @@ plot_child_mortality = function() {
   
   # Format as plottable datatable
   mortality_dt = mortality_rates(grouping = "none") %>%
+    select(group, year, vaccine, no_vaccine) %>%
     pivot_longer(cols = -c(group, year), 
                  names_to = "case") %>%
     mutate(case = recode(case, !!!case_dict), 
@@ -2207,6 +2208,8 @@ plot_child_mortality = function() {
     ungroup() %>%
     mutate(coverage = fvps / cohort) %>%
     as.data.table()
+  
+  browser()
   
   # ---- Produce plot ----
   
@@ -2299,7 +2302,8 @@ plot_mortality_change = function() {
   
   # Contribution of vaccination to decrease in child mortality
   contrib_dt = rbind(region_dt, world_dt) %>%
-    rename(end0 = no_vaccine, 
+    select(group, year, 
+           end0 = no_vaccine, 
            end  = vaccine) %>%
     # Start (year 1) and end (year n) values...
     group_by(group) %>%
@@ -2417,6 +2421,50 @@ plot_mortality_change = function() {
   
   # Also save as main manuscript figure
   save_fig(g, "Figure 4b", dir = "manuscript")
+}
+
+# ---------------------------------------------------------
+# xxxxxxxxxx
+# ---------------------------------------------------------
+plot_prob_death_age = function() {
+  
+  age_bins = 6
+  
+  # Probability of death by age
+  prob_death_dt = table("wpp_pop") %>%
+    left_join(y  = table("wpp_deaths"), 
+              by = c("country", "year", "age")) %>%
+    mutate(prob_death = deaths / pop) %>%
+    # ....
+    mutate(age = age + 1) %>%
+    filter(age <= 2^age_bins) %>%
+    # Append region...
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    # Classify decade...
+    mutate(decade = floor(year / 10) * 10, 
+           decade = paste0(decade, "s")) %>%
+    # Average prob of death by region and decade...
+    group_by(region, decade, age) %>%
+    summarise(value = mean(prob_death, na.rm = TRUE)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  g = ggplot(prob_death_dt) +
+    aes(x = age, 
+        y = value, 
+        colour = decade) +
+    geom_line() +
+    facet_wrap(~region) +
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Age (log2 scale)",
+      trans  = "log2", 
+      limits = c(1, 2 ^ age_bins), 
+      expand = c(0, 0), 
+      breaks = 2 ^ (0 : age_bins))
+    
+  browser()
 }
 
 # ---------------------------------------------------------
@@ -2578,7 +2626,7 @@ plot_measles_in_context = function() {
       show.legend = FALSE) +
     # Plot all cause deaths...
     geom_line(
-      data    = line_dt[case == case_dict$vaccine],
+      data    = line_dt,
       mapping = aes(
         colour = cause, 
         linetype = case), 
@@ -2625,7 +2673,7 @@ plot_measles_in_context = function() {
       linetype  = guide_legend(
         order   = 1, 
         title   = "Vaccine scenario"))
-    
+  
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title    = element_blank(),
@@ -2642,8 +2690,7 @@ plot_measles_in_context = function() {
           legend.margin = margin(t = 40, b = 40, l = 10),
           legend.position = "right", 
           legend.key.height = unit(2, "lines"),
-          legend.key.width  = unit(2, "lines")) 
-          # legend.spacing.y  = unit(4, "lines"))
+          legend.key.width  = unit(2, "lines"))
   
   # Save figure to file
   save_fig(g, "Measles in context", dir = "historical_impact")
