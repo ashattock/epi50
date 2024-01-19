@@ -13,7 +13,7 @@
 run_history = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(5, o$do_step)) return()
+  if (!is.element(6, o$do_step)) return()
   
   message("* Calculating impact of historical coverage")
   
@@ -39,20 +39,20 @@ run_history = function() {
     left_join(y  = table("d_v_a"),
               by = c("vaccine", "activity")) %>%
     # Summarise over age...
-    group_by(country, d_v_a_id, year) %>%
+    group_by(d_v_a_id, country, year) %>%
     summarise(fvps_abs = sum(fvps)) %>%
     ungroup() %>%
     # Scale results to per capita...
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
-    select(country, d_v_a_id, year, pop, fvps_abs) %>%
+    select(d_v_a_id, country, year, pop, fvps_abs) %>%
     mutate(fvps_rel = fvps_abs / pop) %>%
     as.data.table()
   
   # From which years have impact functions been fit from
   start_fit_dt = read_rds("impact", "data") %>%
-    select(country, d_v_a_id, year) %>%
-    group_by(country, d_v_a_id) %>%
+    select(d_v_a_id, country, year) %>%
+    group_by(d_v_a_id, country) %>%
     slice_min(year, with_ties = FALSE) %>%
     ungroup() %>%
     rename(start_year = year) %>%
@@ -62,20 +62,20 @@ run_history = function() {
   eval_dt = 
     # Begin for full factorial of points...
     expand_grid(
-      country   = all_countries(), 
       d_v_a_id  = table("d_v_a")$d_v_a_id, 
+      country   = all_countries(), 
       eval_year = o$years) %>%
     # Remove years prior to fit start year...
     inner_join(y  = start_fit_dt, 
-               by = c("country", "d_v_a_id")) %>%
+               by = c("d_v_a_id", "country")) %>%
     filter(eval_year >= start_year) %>%
-    select(country, d_v_a_id, year = eval_year) %>%
+    select(d_v_a_id, country, year = eval_year) %>%
     # Append FVPs...
     inner_join(y  = fvps_dt, 
-               by = c("country", "d_v_a_id", "year")) %>%
+               by = c("d_v_a_id", "country", "year")) %>%
     # Cumulative sum FVPs...
-    arrange(country, d_v_a_id, year) %>%
-    group_by(country, d_v_a_id) %>%
+    arrange(d_v_a_id, country, year) %>%
+    group_by(d_v_a_id, country) %>%
     mutate(fvps_cum = cumsum(fvps_rel)) %>%
     ungroup() %>%
     as.data.table()
@@ -93,7 +93,7 @@ run_history = function() {
     rename(fvps_cum   = fvps, 
            impact_cum = impact) %>%
     # Reverse cumsum to derive annual relative impact...
-    group_by(country, d_v_a_id) %>%
+    group_by(d_v_a_id, country) %>%
     mutate(impact_rel = rev_cumsum(impact_cum)) %>%
     ungroup() %>%
     # Rescale back to population scale...
@@ -109,7 +109,7 @@ run_history = function() {
   # NOTE: Idea behind init_impact_years is to smooth out any 
   #       initially extreme or jumpy impact ratios
   initial_ratio_dt = result_fit_dt %>%
-    group_by(country, d_v_a_id) %>%
+    group_by(d_v_a_id, country) %>%
     # Take the first init_impact_years years...
     slice_min(order_by  = year, 
               n         = o$init_impact_years, 
@@ -120,7 +120,7 @@ run_history = function() {
     ungroup() %>%
     # Calculate the mean initial ratio...
     mutate(initial_ratio = impact_mean / fvps_mean) %>%
-    select(country, d_v_a_id, initial_ratio) %>%
+    select(d_v_a_id, country, initial_ratio) %>%
     as.data.table()
   
   # Save initial ratio to file for diagnostic plotting
@@ -128,17 +128,17 @@ run_history = function() {
   
   # Back project by applying initial ratio 
   result_dt = result_fit_dt %>%
-    select(country, d_v_a_id, year, impact_abs) %>%
+    select(d_v_a_id, country, year, impact_abs) %>%
     # Join with full FVPs data...
     full_join(y  = fvps_dt, 
-              by = c("country", "d_v_a_id", "year")) %>%
-    select(country, d_v_a_id, year, 
+              by = c("d_v_a_id", "country", "year")) %>%
+    select(d_v_a_id, country, year, 
            fvps   = fvps_abs, 
            impact = impact_abs) %>%
     arrange(country, d_v_a_id, year) %>%
     # Append impact ratio...
     left_join(y  = initial_ratio_dt, 
-              by = c("country", "d_v_a_id")) %>%
+              by = c("d_v_a_id", "country")) %>%
     replace_na(list(initial_ratio = 0)) %>%
     # Ratio of past impact assumed consistent with initial years...
     mutate(impact = ifelse(
@@ -157,6 +157,9 @@ run_history = function() {
   
   # Plot primary results figure: historical impact over time
   plot_historical_impact()
+  
+  # Plot change in child survival rates over time
+  plot_child_survival()
 }
 
 # ---------------------------------------------------------
@@ -173,12 +176,12 @@ evaluate_impact_function = function(eval_dt = NULL) {
   # Best coefficients
   best_coef = coef_dt %>%
     inner_join(y  = best_dt, 
-               by = c("country", "d_v_a_id", "fn")) %>%
+               by = c("d_v_a_id", "country", "fn")) %>%
     mutate(par = as.list(setNames(value, coef))) %>% 
-    group_by(country, d_v_a_id, fn) %>% 
+    group_by(d_v_a_id, country, fn) %>% 
     summarise(par = list(par)) %>% 
     ungroup() %>% 
-    arrange(country, d_v_a_id) %>% 
+    arrange(d_v_a_id, country) %>% 
     as.data.table()
   
   # ---- Interpret trivial argument ----
@@ -191,7 +194,7 @@ evaluate_impact_function = function(eval_dt = NULL) {
     
     # Construct evaluation datatable
     eval_dt = best_coef %>%
-      select(country, d_v_a_id) %>%
+      select(d_v_a_id, country) %>%
       expand_grid(fvps = x_eval) %>%
       as.data.table()
   }
@@ -206,12 +209,12 @@ evaluate_impact_function = function(eval_dt = NULL) {
     # Exract FVPs for this c_d_v_a
     data = c_d_v_a[i, ] %>%
       inner_join(y  = eval_dt, 
-                 by = c("country", "d_v_a_id"))
+                 by = c("d_v_a_id", "country"))
     
     # Fitted function and parameters
     pars = c_d_v_a[i, ] %>%
       inner_join(y  = best_coef, 
-                 by = c("country", "d_v_a_id"))
+                 by = c("d_v_a_id", "country"))
     
     # Load fitted function
     fn = fn_set()[[pars$fn]]
@@ -228,8 +231,8 @@ evaluate_impact_function = function(eval_dt = NULL) {
   # All country - dva combos to evaluate
   c_d_v_a = eval_dt %>%
     inner_join(y  = best_coef,
-               by = c("country", "d_v_a_id")) %>%
-    select(country, d_v_a_id) %>%
+               by = c("d_v_a_id", "country")) %>%
+    select(d_v_a_id, country) %>%
     unique()
   
   # Apply the evaluation funtion

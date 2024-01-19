@@ -26,6 +26,9 @@ prepare_dirs = function(o) {
   pth$input  = file.path(pth$code, "input")
   pth$config = file.path(pth$code, "config")
   
+  # Parent path of all external model output files
+  pth$extern = file.path(pth$code, "extern")
+  
   # Path to log files
   pth$log = file.path(pth$code, "log")
   
@@ -37,12 +40,12 @@ prepare_dirs = function(o) {
   # Path to cached data tables
   pth$tables = file.path(pth$output, "0_tables")
   
-  # Path to non-modelled assumptions and results
-  pth$non_modelled   = file.path(pth$output, "1_non_modelled")
-  pth$non_modelled_d = file.path(pth$non_modelled, "disease")
-  pth$non_modelled_v = file.path(pth$non_modelled, "vaccine")
-  pth$non_modelled_t = file.path(pth$non_modelled, "vaccine_type")
-  pth$non_modelled_w = file.path(pth$non_modelled, "weights")
+  # Path to static model assumptions and results
+  pth$static   = file.path(pth$output, "1_static")
+  pth$static_d = file.path(pth$static, "disease")
+  pth$static_v = file.path(pth$static, "vaccine")
+  pth$static_t = file.path(pth$static, "vaccine_type")
+  pth$static_w = file.path(pth$static, "weights")
   
   # Path to imputatation and impact calculation files
   pth$impute      = file.path(pth$output, "2_impute")

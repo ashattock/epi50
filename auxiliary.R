@@ -130,6 +130,35 @@ create_bash_log = function(pth, log = NULL, err = NULL) {
 }
 
 # ---------------------------------------------------------
+# Load data from package and store in self named list
+# ---------------------------------------------------------
+data_package = function(..., package = NULL) {
+  
+  # Initiate list to store loaded data
+  data_list = list()
+  
+  # Unpack variable input arguments - these are files to load
+  load_files = unlist(list(...))
+  
+  # Iterate through files to load
+  for (load_file in load_files) {
+    
+    # Load data from specified package into local environment
+    eval_str("data(", load_file, ", ", 
+             "package = '", package, "', ", 
+             "envir = environment())")
+    
+    # Append data set to list using same name
+    data_list[[load_file]] = get(load_file)
+    
+    # Remove data from local environment
+    rm(list = load_file, envir = environment())
+  }
+  
+  return(data_list)
+}
+
+# ---------------------------------------------------------
 # Apply lappy to each row of a dataframe or datatable
 # ---------------------------------------------------------
 dtapply = function(dt, fn, ...) {

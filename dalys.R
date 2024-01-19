@@ -1,7 +1,7 @@
 ###########################################################
 # DALYS
 #
-# Estimate DALYs for non-modelled pathogens
+# Estimate DALYs for static model pathogens
 #
 ###########################################################
 

@@ -57,7 +57,6 @@ packages = c(
   "splines",        # Spline fitting functions
   "imputeTS",       # Linear interpolation in dplyr pipes
   # "pspline",        # Spline fitting functions
-  # "wpp2022",        # Demographic data
   "countrycode",    # Country name <-> code transformation
   "yaml",           # Data loading functionality
   "parallel",       # Local parallelisation
@@ -74,9 +73,16 @@ packages = c(
   "GGally",         # Plotting correlation
   "Hmisc")          # Correlation functions
 
+# List of all packages only available from github
+gh_packages = c(
+  "PPgp/wpp2022")   # Demographic data
+
 # ---- Install and/or load R packages with pacman ----
 
 message("* Installing required packages")
+
+# Allow extra time for downloading big packages
+options(timeout = 600)  # Timeout in seconds
 
 # Check whether pacman itself has been installed
 pacman_installed = "pacman" %in% rownames(installed.packages())
@@ -90,6 +96,9 @@ library(pacman)
 
 # Load all required packages, installing them if required
 pacman::p_load(char = packages)
+
+# Same for github packages
+pacman::p_load_gh(gh_packages)
 
 # ---- Redefine or unmask particular functions ----
 

@@ -31,6 +31,9 @@ set_options = function(do_step = NA) {
   # Ages modelled
   o$ages = 0 : 95
   
+  # Annual of 5-year bins for population data
+  o$pop_bin = 1  # OPTIONS: 1 or 5
+  
   # ---- Coverage settings ----
   
   # Bound coverage values below x%
@@ -39,10 +42,20 @@ set_options = function(do_step = NA) {
   # Year that high-income countries switch to acellular pertussis vaccine
   o$wholecell_acellular_switch = 1995
   
-  # Smooth non-modelled coverage to better align with GBD burden estimates
+  # Smooth static model coverage to better align with GBD burden estimates
   #
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
+  
+  # ---- External models ----
+  
+  # Directly simulate Dynamice model
+  #
+  # NOTE: If false, DynaMICE results must be otherwise available to user
+  o$simulate_dynamice = FALSE
+  
+  # GitHub repo for simulating DynaMICE model for EPI50 analysis
+  o$github_dynamice = "ashattock/dynamice"
 
   # ---- Impact function settings ----
   
@@ -53,10 +66,10 @@ set_options = function(do_step = NA) {
   o$impact_scaler = 1000
 
   # Defalt x scale for evaluating impact functions
-  o$eval_x_scale = 2  # Not a critical value - often overwritten with actual FVPs
+  o$eval_x_scale = 3  # Not a critical value - often overwritten with actual FVPs
   
   # Number of initial years to average over for back-projecting impact ratio
-  o$init_impact_years = 1 # 3
+  o$init_impact_years = 3
   
   # ---- Uncertainty settings ----
 
@@ -83,12 +96,12 @@ set_options = function(do_step = NA) {
   # ---- Plotting flags ----
 
   # Turn figures on or off
-  o$plot_inputs       = TRUE
-  o$plot_non_modelled = TRUE
-  o$plot_imputation   = TRUE
-  o$plot_impact       = TRUE
-  o$plot_uncertainty  = FALSE
-  o$plot_history      = TRUE  # Primary result
+  o$plot_inputs      = FALSE
+  o$plot_static      = FALSE
+  o$plot_imputation  = FALSE
+  o$plot_impact      = FALSE
+  o$plot_uncertainty = FALSE
+  o$plot_history     = TRUE  # Primary result
 
   # ---- Plotting settings ----
   

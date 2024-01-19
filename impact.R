@@ -16,7 +16,7 @@
 run_impact = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(4, o$do_step)) return()
+  if (!is.element(5, o$do_step)) return()
   
   message("* Fitting impact functions")
   
@@ -87,6 +87,9 @@ run_impact = function() {
   # Plot function selection statistics
   plot_model_selection()
   
+  # Plot impact vs coverage by vaccine, income, and decade 
+  # plot_impact_coverage()
+  
   # Plot impact function evaluation
   plot_model_fits()
 }
@@ -108,8 +111,8 @@ get_impact_data = function() {
   # NOTE: Result of imputation is already in cumulative form
   vimc_dt = read_rds("impute", "impute_result")
   
-  # Load non-modelled impact estimates
-  gbd_dt = read_rds("non_modelled", "deaths_averted_vaccine") %>%
+  # Load static model impact estimates
+  gbd_dt = read_rds("static", "deaths_averted_vaccine") %>%
     # Scale results to per capita...
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%

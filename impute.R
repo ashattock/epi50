@@ -19,7 +19,7 @@
 run_impute = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(3, o$do_step)) return()
+  if (!is.element(4, o$do_step)) return()
   
   message("* Running country imputation")
   
@@ -74,15 +74,10 @@ run_impute = function() {
 # ---------------------------------------------------------
 perform_impute = function(d_v_a_id, target) {
   
-  # Details of this d_v_a
-  d_v_a_name = data.table(d_v_a_id = d_v_a_id) %>%
-    append_d_v_a_name() %>%
-    pull(d_v_a_name)
-  
-  # Display progress message to user
-  message(" - ", d_v_a_name)
+  message(" - ", table("d_v_a")[d_v_a_id, d_v_a_name])
   
   # ---- Append covariates ----
+  
   # Summarise vaccination coverage by country, by year
   coverage_dt = table("coverage") %>%
                 as.data.frame() %>%
@@ -631,6 +626,10 @@ perform_impute = function(d_v_a_id, target) {
   covariates_dt = data_dt %>% 
                     as.data.table() %>%
                     select(c(d_v_a_id, target, coverage, HDI, gini, pop_0to14))
+  
+  # TEMP: Just to get everything running through rest of pipeline
+  result_dt %<>% 
+    filter(!is.na(target))
   
   # Store the fitted model, the data used, and the result
   fit = list(

@@ -13,44 +13,44 @@
 run_results = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(7, o$do_step)) return()
+  if (!is.element(8, o$do_step)) return()
   
   message("* Producing results")
   
   # ---- Input data plots ----
-  
+
   # Check plotting flag
   if (o$plot_inputs) {
-    
+
     # Methodology pathogen-country-scope figure
     plot_scope()
-    
+
     # Total number of FVP over time by source
     plot_total_fvps()
-    
+
     # Plot coverage density by disease
     plot_coverage()
 
     # Coverage data density by age
     plot_coverage_age_density()
-    
+
     # GBD death estimates
     plot_gbd_estimates()
   }
-  
-  # ---- Non-modelled plots ----
-  
+
+  # ---- Static model plots ----
+
   # Check plotting flag
-  if (o$plot_non_modelled) {
-    
-    # Plot vaccine efficacy profiles for non-modelled pathogens
+  if (o$plot_static) {
+
+    # Plot vaccine efficacy profiles for static model pathogens
     plot_vaccine_efficacy()
-    
-    # Effective coverage with waning immunity for non-modelled pathogens
+
+    # Effective coverage with waning immunity for static model pathogens
     plot_effective_coverage()
-    
-    # Deaths and DALYs averted for non-modelled pathogens
-    plot_non_modelled()
+
+    # Deaths and DALYs averted for static model pathogens
+    plot_static()
   }
   
   # ---- Imputation plots ----
@@ -79,6 +79,9 @@ run_results = function() {
     # Plot all-time impact per FVPs
     plot_impact_fvps(scope = "all_time")
     
+    # Plot impact vs coverage by vaccine, income, and decade 
+    # plot_impact_coverage()
+    
     # Plot function selection statistics
     plot_model_selection()
     
@@ -91,11 +94,14 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_history) {
     
-    # Plot inital impact ratios used to back project
-    plot_impact_fvps(scope = "initial")
+    # # Plot inital impact ratios used to back project
+    # plot_impact_fvps(scope = "initial")
+    # 
+    # # Main results plot - historical impact over time
+    # plot_historical_impact()
     
-    # Main results plot - historical impact over time
-    plot_historical_impact()
+    # Another key plot - change in child survival rates over time
+    plot_child_survival()
   }
   
   # ---- Uncertainty plots ----
