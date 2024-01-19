@@ -2428,13 +2428,14 @@ plot_measles_in_context = function() {
   age_bound = 5
   
   # Metrics to plot
-  metric_dict = c(
-    cum  = "Cumulative number of deaths in",
-    abs  = "Annual number of deaths in", 
-    norm = "Normalised cause of death for")
+  metric_dict = list(
+    cum  = "Cumulative number of deaths in children under 5",
+    abs  = "Annual number of deaths in children under 5", 
+    norm = "Normalised cause of death for children under 5", 
+    cov  = "Number of vaccine doses delivered")
   
   # Cause of death
-  cause_dict = c(
+  cause_dict = list(
     all_cause = "All cause deaths",
     measles   = "Measles as cause of death", 
     other     = "Other cause of death")
@@ -2448,13 +2449,13 @@ plot_measles_in_context = function() {
   measles_id = "xxxMeasles"
   
   # ID of coverage values to plot
-  coverage_ids = c(4, 5)
+  coverage_ids = c(4, 5, 6)
   
   # Colour schemes
   colours = list(
-    area = c("#B0B0B0", "#0189C5"), 
-    line = c("#000000", "#0189C5"), 
-    coverage = "darkred")
+    area  = c("#B0B0B0", "#0189C5"), 
+    line  = c("#000000", "#0189C5"), 
+    doses = c("#C70A0A", "#901616", "#400808"))
   
   # ---- Deaths by cause ----
   
@@ -2517,35 +2518,14 @@ plot_measles_in_context = function() {
     mutate(cum = cumsum(abs)) %>%
     ungroup() %>%
     # Convert to tidy format...
-    pivot_longer(cols = names(metric_dict), 
+    pivot_longer(cols = any_of(names(metric_dict)), 
                  names_to = "metric") %>%
     # Set appropriate order...
     select(case, metric, cause, year, value) %>%
     arrange(case, metric, cause, year) %>%
     as.data.table()
   
-  # ---- First and second dose routine coverage ----
-  
-  # # DTP3 coverage over time - global average
-  # dtp3_dt = table("coverage") %>%
-  #   append_v_a_name()
-  # filter(v_a_id == dtp3_id) %>%
-  #   select(country, year, age, fvps) %>%
-  #   right_join(y  = table("wpp_pop")[age == 0], 
-  #              by = c("country", "year", "age")) %>%
-  #   replace_na(list(fvps = 0)) %>%
-  #   group_by(year) %>%
-  #   summarise(fvps   = sum(fvps), 
-  #             cohort = sum(pop)) %>%
-  #   ungroup() %>%
-  #   mutate(coverage = fvps / cohort) %>%
-  #   as.data.table()
-  
   # ---- Construct plotting datatables ----
-  
-  # Update metric dict to include age group
-  metric_dict %<>% 
-    sapply(function(x) paste(x, "children under", age_bound))
   
   # Lines for measles and all cause
   line_dt = context_dt %>%
@@ -2572,6 +2552,19 @@ plot_measles_in_context = function() {
            cause  = recode(cause,  !!!cause_dict),
            cause  = factor(cause,  cause_dict))
   
+  # Total measles doses over time
+  doses_dt = table("coverage") %>%
+    filter(v_a_id == coverage_ids) %>%
+    append_v_a_name() %>%
+    group_by(v_a_name, year) %>%
+    summarise(doses = sum(fvps)) %>%
+    mutate(value = cumsum(doses)) %>%
+    ungroup() %>%
+    mutate(metric = metric_dict$cov, 
+           metric = factor(metric, metric_dict), 
+           .before = 1) %>%
+    as.data.table()
+  
   # ---- Produce plot ----
   
   # Plot measles in context of all cause deaths
@@ -2585,11 +2578,30 @@ plot_measles_in_context = function() {
       show.legend = FALSE) +
     # Plot all cause deaths...
     geom_line(
-      data    = line_dt,
+      data    = line_dt[case == case_dict$vaccine],
       mapping = aes(
         colour = cause, 
         linetype = case), 
-      linewidth = 1.2) +
+      linewidth = 1.1) +
+    # Set primary colour scheme...
+    scale_colour_manual(
+      name   = "Cause of death", 
+      values = colours$line) + 
+    scale_fill_manual(
+      values = colours$area) +
+    # Prettify primary legends...
+    guides(colour = guide_legend(
+      order   = 2, 
+      reverse = TRUE)) + 
+    # Plot number of doses...
+    ggnewscale::new_scale_color() + 
+    geom_line(
+      data    = doses_dt,
+      mapping = aes(colour = v_a_name)) +
+    # Set doses colour scheme...
+    scale_colour_manual(
+      name   = "Vaccine", 
+      values = colours$doses) + 
     # Facet by metric...
     facet_wrap(
       facets = vars(metric),
@@ -2605,16 +2617,15 @@ plot_measles_in_context = function() {
       labels = comma, 
       expand = expansion(mult = c(0, 0)), 
       breaks = pretty_breaks()) +
-    # Set colour scheme...
-    scale_colour_manual(
-      name   = "Cause of death", 
-      values = colours$line) + 
-    scale_fill_manual(
-      values = colours$area) +
-    # Prettify legends...
-    guides(colour   = guide_legend(reverse = TRUE), 
-           linetype = guide_legend(title = "Vaccine scenario"))
-  
+    # Prettify primary legends...
+    guides(
+      colour    = guide_legend(
+        order   = 3, 
+        reverse = TRUE), 
+      linetype  = guide_legend(
+        order   = 1, 
+        title   = "Vaccine scenario"))
+    
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title    = element_blank(),
@@ -2628,9 +2639,11 @@ plot_measles_in_context = function() {
           panel.spacing = unit(1, "lines"),
           legend.title  = element_text(size = 14),
           legend.text   = element_text(size = 12),
+          legend.margin = margin(t = 40, b = 40, l = 10),
           legend.position = "right", 
           legend.key.height = unit(2, "lines"),
-          legend.key.width  = unit(2, "lines"))
+          legend.key.width  = unit(2, "lines")) 
+          # legend.spacing.y  = unit(4, "lines"))
   
   # Save figure to file
   save_fig(g, "Measles in context", dir = "historical_impact")
