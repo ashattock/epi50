@@ -1809,6 +1809,26 @@ plot_model_fits = function() {
   save_fig(g, "Impact function evaluation", dir = "impact_functions")
 }
 
+
+#----------------------------------------#
+# Tornado plot of predictor coefficients #
+#----------------------------------------#
+
+#TODO: Split by decade, facet by region OR d_v_a_id OR predictor
+
+# Explore density of coefficients of predictors
+#plot_dt = impute_1$model_fit %>% 
+#  select(-c(country, d_v_a_id.x, d_v_a_id.y, model_number, .model, AICc)) %>%
+#  filter(#!term == "HDI" &
+#    !region_short == "NA" &
+#      p.value <= 0.05) %>%
+#  mutate(model = region_short)
+
+#plot_dt %>% dwplot() + theme_classic() + 
+#  geom_vline(xintercept = 0, linetype = 2) +
+#  ggtitle(paste0("Predicting ", d_v_a_name, " vaccine impact"))
+
+
 # ---------------------------------------------------------
 # Plot impact ratios - either all or initial only
 # ---------------------------------------------------------
