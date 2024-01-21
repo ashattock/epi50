@@ -52,25 +52,25 @@ packages = c(
   "stats",          # Statistical calculations and random number generation
   "stats4",         # MLE algorithm
   "matrixStats",    # Matrix row and column operations
-  "tgp",            # Latin hypercube sampler
-  "splines",        # Spline fitting functions
+  "fpp3",           # Time series forecasting
+  "tsibble",        # Time series data format
   "imputeTS",       # Linear interpolation in dplyr pipes
+  "Hmisc",          # Correlation functions
+  "tgp",            # Latin hypercube sampler
+  "rsample",        # Resampling
+  "splines",        # Spline fitting functions
   "countrycode",    # Country name <-> code transformation
   "yaml",           # Data loading functionality
   "parallel",       # Local parallelisation
   "lubridate",      # Data formatting functionality
   "naniar",         # Data formatting functionality
+  "GGally",         # Plotting correlation
   "ggpubr",         # Plotting functionality
   "ggnewscale",     # Plotting functionality
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
   "pals",           # Colour palettes
-  "colorspace",     # Colour palettes
-  "rsample",        # Resampling
-  "fpp3",           # Time series forecasting
-  "tsibble",        # Time series data format
-  "GGally",         # Plotting correlation
-  "Hmisc")          # Correlation functions
+  "colorspace")     # Colour palettes
 
 # List of all packages only available from github
 gh_packages = c(

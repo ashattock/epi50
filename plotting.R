@@ -716,11 +716,10 @@ plot_gbd_estimates = function() {
     facet_wrap(~disease, scales = "free_y") + 
     # Set colour scheme...
     scale_fill_manual(
+      name   = "Age group",
       values = colour_scheme(
         map = "brewer::paired", 
         n   = length(age_groups))) +
-    # Prettify legend...
-    guides(fill = guide_legend(title = "Age group")) +
     # Prettify y axis...
     scale_y_continuous(
       name   = "GBD-estimated number of deaths", 
@@ -2430,11 +2429,15 @@ plot_prob_death_age = function() {
   
   age_bins = 6
   
-  colours = c("black", "firebrick")
+  colours = c("grey", o$palette_who)
   
-  age_effect = data.table(age = 1 : 2 ^ age_bins) %>%
+  browser()
+  
+  age_effect = data.table(age = o$ages) %>%
     mutate(scaler = exp(-age), 
-           scaler = scaler / sum(scaler))
+           scaler = scaler / sum(scaler), 
+           age = age + 1) %>%
+    filter(age %in% 2 ^ (0 : age_bins))
   
   # Estimated child deaths averted by vaccination
   averted_dt = read_rds("results", "deaths_averted") %>%
@@ -2463,7 +2466,7 @@ plot_prob_death_age = function() {
     mutate(year = as.character(year)) %>%
     # xxx ...
     mutate(age = age + 1) %>%
-    filter(age <= 2^age_bins) %>%
+    filter(age %in% 2 ^ (0 : age_bins)) %>%
     # Append region...
     left_join(y  = table("country"), 
               by = "country") %>%
@@ -2486,28 +2489,192 @@ plot_prob_death_age = function() {
     filter(!(year == as.character(min(o$years)) & 
                case == "vaccine")) %>%
     arrange(year, case, region, age) %>%
+    # xxx ...
+    mutate(group = paste1(case, year)) %>%
     as.data.table()
   
   g = ggplot(prob_death_dt) +
     aes(x = age, 
         y = value, 
-        colour   = year, 
-        linetype = case) +
-    geom_line(linewidth = 1.5) +
-    facet_wrap(~region) +
+        fill = group) +
+    geom_col(position = "dodge") +
+    facet_wrap(
+      facets = vars(region), 
+      scales = "free_y") +
     # Set colour scheme...
-    scale_colour_manual(
-      name   = "Year", 
+    scale_fill_manual(
       values = colours) + 
     # Prettify x axis...
     scale_x_continuous(
       name   = "Age (log2 scale)",
       trans  = "log2", 
-      limits = c(1, 2 ^ age_bins), 
-      expand = c(0, 0), 
+      # limits = c(1, 2 ^ age_bins), 
+      expand = expansion(add = 1), 
       breaks = 2 ^ (0 : age_bins))
   
   browser()
+}
+
+# ---------------------------------------------------------
+# xxxxxxxxxx
+# ---------------------------------------------------------
+plot_survival_increase = function() {
+  
+  age_bound = 50
+  
+  y_lim = 0.5
+  
+  title = "Historical vaccination compared to hypothetical no vaccination"
+  
+  age_effect = data.table(age = o$ages) %>%
+    mutate(scaler = exp(-age), 
+           scaler = scaler / sum(scaler)) %>%
+    filter(age <= age_bound)
+  
+  # Estimated child deaths averted by vaccination
+  averted_dt = read_rds("results", "deaths_averted") %>%
+    # ...
+    filter(year == max(o$years)) %>%
+    mutate(year = as.character(year)) %>%
+    # Append region...
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    # ...
+    group_by(region) %>%
+    summarise(total_averted = sum(impact)) %>%
+    ungroup() %>%
+    # ...
+    expand_grid(age_effect) %>%
+    mutate(averted = total_averted * scaler) %>%
+    select(region, age, averted) %>%
+    as.data.table()
+  
+  survival_dt = table("wpp_pop") %>%
+    left_join(y  = table("wpp_deaths"), 
+              by = c("country", "year", "age")) %>%
+    # xxx ...
+    filter(year == max(o$years), 
+           age  <= age_bound) %>%
+    # Append region...
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    # Average prob of death by region and year...
+    group_by(region, age) %>%
+    summarise(pop    = sum(pop), 
+              deaths = sum(deaths)) %>%
+    ungroup() %>%
+    # xxx ...
+    left_join(y  = averted_dt, 
+              by = c("region", "age")) %>%
+    # xxx...
+    group_by(region) %>%
+    mutate(c_pop   = cumsum(pop), 
+           c_death = cumsum(deaths), 
+           c_avert = cumsum(averted)) %>%
+    ungroup() %>%
+    # xxx ...
+    mutate(vaccine    = c_death / c_pop, 
+           no_vaccine = (c_death + c_avert) / c_pop, 
+           relative   = 1 - vaccine / no_vaccine) %>%
+    select(region, age, pop, value = relative) %>%
+    as.data.table()
+  
+  world_dt = survival_dt %>%
+    group_by(age) %>%
+    mutate(weight = pop / sum(pop)) %>%
+    summarise(value = sum(value * weight)) %>%
+    ungroup() %>%
+    mutate(region = "World", 
+           global = 1) %>%
+    bind_rows(survival_dt) %>%
+    select(-pop) %>%
+    replace_na(list(global = 0)) %>%
+    arrange(global, region) %>%
+    mutate(region = fct_inorder(region)) %>%
+    as.data.table()
+  
+  fvps_dt = table("coverage") %>%
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    group_by(age) %>%
+    summarise(fvps = sum(fvps)) %>%
+    ungroup() %>%
+    mutate(value = fvps / sum(fvps)) %>%
+    filter(age <= age_bound) %>%
+    as.data.table()
+  
+  # ---- Produce plot ----
+  
+  colours = c(get_palette("region"), "#000000")
+  
+  g = ggplot(fvps_dt) +
+    aes(x = age, 
+        y = value) +
+    geom_col(alpha = 0.4) +
+    geom_line(
+      data    = world_dt, 
+      mapping = aes(
+        colour    = region,
+        linetype  = fct_rev(factor(global)),
+        linewidth = global)) +
+    # Set colour scheme
+    scale_colour_manual(values = colours) +
+    scale_linewidth(range = c(1.2, 3)) +
+    # Add a figure title
+    ggtitle(title) + 
+    # Prettiy x axis...
+    scale_x_continuous(
+      expand = expansion(add = 1),
+      breaks = seq(0, age_bound, by = 5)) +
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Relative increase in survival probability", 
+      labels = percent, 
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks(), 
+      sec.axis = sec_axis(
+        trans = ~ .,
+        name  = "Age at vaccination (all vaccines)",
+        labels = percent, 
+        breaks = pretty_breaks())) +
+    # Prettify legend...
+    guides(linetype  = "none", 
+           linewidth = "none", 
+           colour = guide_legend(
+             nrow = 1, 
+             override.aes = list(linewidth = 2)))
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(size = 20),
+          axis.title.y.left = element_text(
+            margin = margin(l = 10, r = 20)),
+          axis.title.y.right = element_text(
+            margin = margin(l = 20, r = 10), color = "grey"),
+          axis.text     = element_text(size = 10),
+          axis.text.y.right = element_text(color = "grey"),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 16),
+          strip.background = element_blank(), 
+          plot.title    = element_text(
+            margin = margin(t = 10, b = 20), 
+            size   = 24,
+            hjust  = 0.5), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(1, "lines"),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 14),
+          legend.position = "bottom", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
+  
+  # Save figure to file
+  save_fig(g, "Increase in survival", dir = "historical_impact")
+  
+  # Also save as main manuscript figure
+  save_fig(g, "Figure 6", dir = "manuscript")
 }
 
 # ---------------------------------------------------------

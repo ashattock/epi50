@@ -103,7 +103,9 @@ run_results = function() {
     # Child mortality rates over time with and without vaccination
     # plot_child_mortality()
     
-    plot_prob_death_age()
+    # plot_prob_death_age()
+    
+    plot_survival_increase()
 
     # Regional differences in child mortality changes
     # plot_mortality_change()
