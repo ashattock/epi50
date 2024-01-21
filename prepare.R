@@ -497,65 +497,73 @@ prepare_income_status = function() {
 # ---------------------------------------------------------
 prepare_demography = function() {
   
-  # TODO: Could we instead use the 'wpp2022' package?
-  
   message(" - Demography data")
   
-  # SOURCE: https://population.un.org/wpp/Download/Standard
+  # Details of data sets to load
+  data_sets = list(
+    pop = list(name = "pop",    var = "pop"),
+    mx  = list(name = "deaths", var = "mxB"))
   
-  # File names parts for WPP data
-  file_names = list(
-    pop   = "Population1January",
-    death = "Deaths")
-  
-  # Files name years - past and future
-  file_years = c("1950-2021", "2022-2100")
-  
-  # Loop through data types
-  for (type in names(file_names)) {
+  # Iterate through data sets to load
+  for (id in names(data_sets)) {
     
-    # Filename part of this datataype
-    metric = file_names[[type]]
+    # Index data set name and variable reference
+    name = data_sets[[id]]$name
+    var  = data_sets[[id]]$var
     
-    # Initiate list to store data
-    data_list = list()
-    
-    # Loop through past and future data
-    for (year in file_years) {
+    # Load population size data
+    if (id == "pop") {
       
-      # Construct full file name
-      name = paste0("WPP2022_", metric, "BySingleAgeSex_Medium_", year, ".csv")
-      file = paste0(o$pth$input, file.path("wpp", name))
+      # Names of WPP2022 data files to load
+      past   = paste0("popAge",     o$pop_bin, "dt")
+      future = paste0("popprojAge", o$pop_bin, "dt") 
       
-      # Stop here if file missing - ask user to download raw data
-      if (!file.exists(file))
-        stop("Please first download the file '", name, "' from",
-             " https://population.un.org/wpp/Download/Standard",  
-             " and copy to the /input/wpp/ directory")
+      # Load pop data from WPP github package
+      data_list = data_package(past, future, package = "wpp2022")
       
-      # Construct name of key data column
-      data_name = paste0(first_cap(type), "Total")
-      
-      # Load the file and wrangle what we need
-      data_list[[name]] = fread(file) %>%
-        select(country = ISO3_code,
-               year    = Time,
-               age     = AgeGrp,
-               metric  = !!data_name) %>%
-        # Scale metrics by factor of 1k...
-        mutate(metric = metric * 1e3) %>%
-        rename_with(~type, metric) %>%
-        # Only countries and years of interest...
-        filter(country %in% all_countries(),
-               year    %in% o$years) %>%
-        mutate(age = ifelse(age == "100+", 100, age),
-               age = as.integer(age))
+      # Scale metrics by factor of 1k
+      scaler_dt = expand_grid(
+        country = all_countries(), 
+        year    = o$years, 
+        age     = 0 : 100, 
+        scaler  = 1e3) %>%
+        as.data.table()
     }
     
-    # Combine past and future data and save to file
-    rbindlist(data_list) %>%
-      arrange(country, year, age) %>%
-      save_table(paste1("wpp", type))
+    # Load any other data type
+    if (id != "pop") {
+      
+      # Name of WPP2022 data file - history and projection in one
+      all_time = paste0(id, o$pop_bin, "dt") 
+      
+      # Load data from WPP github package
+      data_list = data_package(all_time, package = "wpp2022")
+      
+      # We'll need to scale per 1k population
+      scaler_dt = table("wpp_pop") %>%
+        rename(scaler = pop)
+    }
+    
+    # Combine past and future data
+    data_dt = rbindlist(data_list, fill = TRUE) %>%
+      # Select countries of interst...
+      inner_join(y  = table("country"),  
+                 by = "country_code") %>%
+      select(country, year, age, value = !!var) %>%
+      # Shift year by one (see github.com/PPgp/wpp2022 for details)...
+      mutate(year = as.integer(year) + 1) %>%
+      filter(year %in% o$years) %>%
+      # Scale metrics...
+      left_join(y = scaler_dt, 
+                by = c("country", "year", "age")) %>%
+      mutate(value = value * scaler) %>%
+      select(-scaler) %>%
+      # Tidy up...
+      rename(!!name := value) %>%
+      arrange(country, year, age)
+    
+    # Save in tables cache
+    save_table(data_dt, paste1("wpp", name))
   }
 }
 
