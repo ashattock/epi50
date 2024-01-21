@@ -7,3 +7,4 @@ extern/template*
 input/sia_coverage.csv
 input/wiise_coverage.csv
 output*
+*.csv
