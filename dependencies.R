@@ -63,6 +63,7 @@ packages = c(
   "lubridate",      # Data formatting functionality
   "naniar",         # Data formatting functionality
   "ggpubr",         # Plotting functionality
+  # "ggh4x",          # Plotting functionality
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
   "pals",           # Colour palettes

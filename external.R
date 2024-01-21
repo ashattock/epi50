@@ -263,7 +263,7 @@ extract_extern_results = function() {
   
   # Function for extracting deaths and DALYs averted
   averted_fn = function(model) {
-    
+
     # Extract deaths and DALYs
     averted_dt = read_rds("extern", "epi50", model, "results") %>%
       filter(metric %in% qc(deaths, dalys)) %>%
@@ -277,17 +277,17 @@ extract_extern_results = function() {
       # Append extern model name...
       mutate(model = model, .before = 1) %>%
       as.data.table()
-    
+
     return(averted_dt)
   }
-  
+
   # Extract deaths and DALYs averted
-  extern_dt = names(all_extern) %>%
+  extern_averted_dt = names(all_extern) %>%
     lapply(averted_fn) %>%
     rbindlist() %>%
     # Define d_v_a classification...
     mutate(d_v_a_name = all_extern[model]) %>%
-    left_join(y  = table("d_v_a"), 
+    left_join(y  = table("d_v_a"),
               by = "d_v_a_name") %>%
     # Summarise by d_v_a...
     group_by(country, d_v_a_id, year, age, metric) %>%
@@ -295,14 +295,14 @@ extract_extern_results = function() {
     ungroup() %>%
     # Spread to wide format...
     mutate(metric = paste1(metric, "averted")) %>%
-    pivot_wider(names_from  = metric, 
+    pivot_wider(names_from  = metric,
                 values_from = value) %>%
     as.data.table()
-  
+
   # Save in table cache
-  save_table(extern_dt, "extern_estimates")
+  save_table(extern_averted_dt, "extern_estimates")
   
-  # plot_dt = extern_dt %>%
+  # plot_dt = extern_averted_dt %>%
   #   pivot_longer(cols = c(dalys_averted, deaths_averted), 
   #                names_to  = "metric") %>%
   #   group_by(d_v_a_id, metric, year) %>%
@@ -319,6 +319,42 @@ extract_extern_results = function() {
   #   geom_line() +
   #   facet_wrap(~metric, scales = "free_y") +
   #   scale_y_continuous(labels = comma)
+  
+  # ---- Historical deaths ----
+  
+  # NOTE: Used only for final plotting purposes
+  
+  # Function for extracting total deaths
+  deaths_fn = function(model) {
+    
+    # Extract death estimates from vaccine and no vaccie scenarios
+    deaths_dt = read_rds("extern", "epi50", model, "results") %>%
+      filter(metric == "deaths") %>%
+      select(-metric) %>%
+      mutate(model = model, .before = 1)
+    
+    return(deaths_dt)
+  }
+  
+  # Extract deaths and DALYs averted
+  extern_deaths_dt = names(all_extern) %>%
+    lapply(deaths_fn) %>%
+    rbindlist() %>%
+    # Define d_v_a classification...
+    mutate(d_v_a_name = all_extern[model]) %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_name") %>%
+    # Summarise by d_v_a...
+    group_by(scenario, d_v_a_id, country, year, age) %>%
+    summarise(value = mean(value, na.rm = TRUE)) %>%
+    ungroup() %>%
+    # Spread to wide format...
+    pivot_wider(names_from  = scenario, 
+                values_from = value) %>%
+    as.data.table()
+  
+  # Save in table cache
+  save_table(extern_deaths_dt, "extern_deaths")
 }
 
 # ---------------------------------------------------------

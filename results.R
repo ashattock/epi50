@@ -94,29 +94,22 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_history) {
     
-    # # Plot inital impact ratios used to back project
+    # Inital impact ratios used to back project
     # plot_impact_fvps(scope = "initial")
-    # 
-    # # Main results plot - historical impact over time
+
+    # Main results plot - historical impact over time
     # plot_historical_impact()
+
+    # Child mortality rates over time with and without vaccination
+    # plot_child_mortality()
     
-    # Another key plot - change in child survival rates over time
-    plot_child_survival()
-  }
-  
-  # ---- Uncertainty plots ----
-  
-  # Check plotting flag
-  if (o$plot_uncertainty) {
-    
-    # Plot annual totals to check alignment of means
-    plot_annual_total()
-    
-    # Plot uncertainty draws for all diseases
-    plot_uncertainty_draws()
-    
-    # Plot fit parameters around vaccine efficacy (GBD diseases only)
-    plot_gbd_uncertainty_dist()
+    plot_prob_death_age()
+
+    # Regional differences in child mortality changes
+    # plot_mortality_change()
+
+    # Measles deaths in context of all cause deaths
+    # plot_measles_in_context()
   }
 }
 

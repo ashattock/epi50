@@ -86,8 +86,8 @@ set_options = function(do_step = NA) {
   # Statistical summary to use for 'best estimate' projection
   #
   # OPTIONS:
-  #  "median" := Median of uncertainty simulations (stochastic and parameter uncertainty)
-  #    "mean" := Mean of uncertainty simulations (stochastic and parameter uncertainty)
+  #  "median" := Median of uncertainty simulations
+  #    "mean" := Mean of uncertainty simulations
   # o$best_estimate_simulation = "mean"
 
   # Quantiles for credibility intervals
@@ -96,12 +96,11 @@ set_options = function(do_step = NA) {
   # ---- Plotting flags ----
 
   # Turn figures on or off
-  o$plot_inputs      = FALSE
-  o$plot_static      = FALSE
-  o$plot_imputation  = FALSE
-  o$plot_impact      = FALSE
-  o$plot_uncertainty = FALSE
-  o$plot_history     = TRUE  # Primary result
+  o$plot_inputs     = FALSE
+  o$plot_static     = FALSE
+  o$plot_imputation = FALSE
+  o$plot_impact     = FALSE
+  o$plot_history    = TRUE  # Primary results
 
   # ---- Plotting settings ----
   
