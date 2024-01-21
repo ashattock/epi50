@@ -105,13 +105,13 @@ run_results = function() {
     
     # plot_prob_death_age()
     
-    plot_survival_increase()
+    # plot_survival_increase()
 
     # Regional differences in child mortality changes
     # plot_mortality_change()
 
     # Measles deaths in context of all cause deaths
-    # plot_measles_in_context()
+    plot_measles_in_context()
   }
 }
 

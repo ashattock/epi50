@@ -131,13 +131,16 @@ coverage_wiise = function(vimc_countries_dt) {
   # ---- Wrangle WIISE data ----
   
   # Parse 'interventions' into EPI50 vaccines
-  intervention_dt = raw_dt %>%
+  reduced_dt = raw_dt %>%
     # Convert to lower case...
     setnames(names(.), tolower(names(.))) %>% 
     mutate_if(is.character, tolower) %>%
     # Reduce columns...
     select(country = code, intervention = antigen, 
-           year, coverage, source = coverage_category) %>% 
+           year, coverage, source = coverage_category)
+  
+  # Parse 'interventions' into EPI50 vaccines
+  intervention_dt = reduced_dt %>%
     # Remove any unknown countries...
     mutate(country = toupper(country)) %>%
     filter(country %in% all_countries(), 
@@ -177,6 +180,26 @@ coverage_wiise = function(vimc_countries_dt) {
   #       fill   = intervention) + 
   #   geom_density(alpha = 0.2) + 
   #   facet_wrap(~vaccine)
+  
+  # ---- Separately store global coverages ----
+  
+  # Global vaccine coverage according to WUENIC
+  global_dt = reduced_dt %>%
+    filter(country == "global", 
+           source  == "wuenic") %>%
+    # Interpret 'intervention'...
+    left_join(y  = table("vaccine_dict"), 
+              by = "intervention", 
+              relationship = "many-to-many") %>%
+    filter(!is.na(vaccine)) %>%
+    # Retain coverage by year
+    select(vaccine, year, coverage) %>%
+    arrange(vaccine, year)
+  
+  # Save table in cache
+  save_table(global_dt, "coverage_global")
+  
+  # ---- Append age targets ----
   
   # Function for parsing and expanding to single age bins
   expand_age_fn = function(x)

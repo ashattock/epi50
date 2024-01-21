@@ -2522,8 +2522,6 @@ plot_survival_increase = function() {
   
   age_bound = 50
   
-  y_lim = 0.5
-  
   title = "Historical vaccination compared to hypothetical no vaccination"
   
   age_effect = data.table(age = o$ages) %>%
@@ -2624,6 +2622,7 @@ plot_survival_increase = function() {
     ggtitle(title) + 
     # Prettiy x axis...
     scale_x_continuous(
+      name   = "Age in years", 
       expand = expansion(add = 1),
       breaks = seq(0, age_bound, by = 5)) +
     # Prettify y axis...
@@ -2646,16 +2645,17 @@ plot_survival_increase = function() {
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.title.x  = element_blank(),
-          axis.title.y  = element_text(size = 20),
+    theme(axis.title   = element_text(size = 20),
+          axis.title.x = element_text(
+            margin = margin(t = 20, b = 10)),
           axis.title.y.left = element_text(
             margin = margin(l = 10, r = 20)),
           axis.title.y.right = element_text(
             margin = margin(l = 20, r = 10), color = "grey"),
-          axis.text     = element_text(size = 10),
+          axis.text = element_text(size = 10),
           axis.text.y.right = element_text(color = "grey"),
-          axis.line     = element_blank(),
-          strip.text    = element_text(size = 16),
+          axis.line  = element_blank(),
+          strip.text = element_text(size = 16),
           strip.background = element_blank(), 
           plot.title    = element_text(
             margin = margin(t = 10, b = 20), 
@@ -2687,10 +2687,10 @@ plot_measles_in_context = function() {
   
   # Metrics to plot
   metric_dict = list(
-    cum  = "Cumulative number of deaths in children under 5",
-    abs  = "Annual number of deaths in children under 5", 
-    norm = "Normalised cause of death for children under 5", 
-    cov  = "Number of vaccine doses delivered")
+    cum  = "Cumulative number of deaths in children under %i",
+    abs  = "Annual number of deaths in children under %i",
+    norm = "Normalised cause of death for children under %i",
+    cov  = "Number of vaccine doses delivered (%i-%i)")
   
   # Cause of death
   cause_dict = list(
@@ -2707,13 +2707,64 @@ plot_measles_in_context = function() {
   measles_id = "xxxMeasles"
   
   # ID of coverage values to plot
-  coverage_ids = c(4, 5, 6)
+  coverage_ids = c(4, 5) # 6
   
   # Colour schemes
   colours = list(
     area  = c("#B0B0B0", "#0189C5"), 
     line  = c("#000000", "#0189C5"), 
     doses = c("#C70A0A", "#901616", "#400808"))
+  
+  # ---- Vaccine coverage ----
+  
+  # First update metric dictionary with values
+  metric_dict = list(
+    cum  = sprintf(metric_dict$cum,  age_bound),
+    abs  = sprintf(metric_dict$abs,  age_bound),
+    norm = sprintf(metric_dict$norm, age_bound),
+    cov  = sprintf(metric_dict$cov,  min(o$years), max(o$years)))
+  
+  # Cohort size for each measles dose
+  cohort_dt = table("v_a") %>%
+    filter(v_a_id %in% coverage_ids) %>%
+    left_join(y  = table("vaccine"), 
+              by = "vaccine") %>%
+    # Mean target age for each dose...
+    rowwise() %>%
+    mutate(mean_age = mean(eval_str(age))) %>%
+    ungroup() %>%
+    select(v_a_id, age = mean_age) %>%
+    # Join pop sizes by year for these ages...
+    left_join(y  = table("wpp_pop"), 
+              by = "age") %>%
+    # Cohort for each vaccine every year...
+    group_by(v_a_id, year) %>%
+    summarise(cohort = sum(pop)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # Gloabl measles coverage over time
+  coverage_dt = table("coverage") %>%
+    filter(v_a_id == coverage_ids) %>%
+    # Total number of doses per year...
+    group_by(v_a_id, year) %>%
+    summarise(fvps = sum(fvps)) %>%
+    ungroup() %>%
+    # Append global cohort sizes...
+    full_join(y  = cohort_dt, 
+              by = c("v_a_id", "year")) %>%
+    replace_na(list(fvps = 0)) %>%
+    mutate(value = fvps / cohort) %>%
+    # Append metric details...
+    append_v_a_name() %>%
+    mutate(metric = metric_dict$cov, 
+           metric = factor(metric, metric_dict)) %>%
+    select(metric, v_a_name, year, value) %>%
+    as.data.table()
+  
+  browser()
+  
+  # coverage_dt = table("coverage_global")
   
   # ---- Deaths by cause ----
   
@@ -2784,7 +2835,7 @@ plot_measles_in_context = function() {
     as.data.table()
   
   # ---- Construct plotting datatables ----
-  
+
   # Lines for measles and all cause
   line_dt = context_dt %>%
     filter(cause != "other") %>%
@@ -2809,19 +2860,6 @@ plot_measles_in_context = function() {
            metric = factor(metric, metric_dict), 
            cause  = recode(cause,  !!!cause_dict),
            cause  = factor(cause,  cause_dict))
-  
-  # Total measles doses over time
-  doses_dt = table("coverage") %>%
-    filter(v_a_id == coverage_ids) %>%
-    append_v_a_name() %>%
-    group_by(v_a_name, year) %>%
-    summarise(doses = sum(fvps)) %>%
-    mutate(value = cumsum(doses)) %>%
-    ungroup() %>%
-    mutate(metric = metric_dict$cov, 
-           metric = factor(metric, metric_dict), 
-           .before = 1) %>%
-    as.data.table()
   
   # ---- Produce plot ----
   
@@ -2853,8 +2891,14 @@ plot_measles_in_context = function() {
       reverse = TRUE)) + 
     # Plot number of doses...
     ggnewscale::new_scale_color() + 
+    stat_smooth(
+      data    = coverage_dt,
+      mapping = aes(colour = v_a_name),
+      method  = "lm",
+      formula = y ~ poly(x, 10), 
+      se      = FALSE) +
     geom_line(
-      data    = doses_dt,
+      data    = coverage_dt,
       mapping = aes(colour = v_a_name)) +
     # Set doses colour scheme...
     scale_colour_manual(
@@ -2878,8 +2922,7 @@ plot_measles_in_context = function() {
     # Prettify primary legends...
     guides(
       colour    = guide_legend(
-        order   = 3, 
-        reverse = TRUE), 
+        order   = 3), 
       linetype  = guide_legend(
         order   = 1, 
         title   = "Vaccine scenario"))
@@ -2907,6 +2950,8 @@ plot_measles_in_context = function() {
   
   # Also save as main manuscript figure
   save_fig(g, "Figure 5", dir = "manuscript")
+  
+  browser()
 }
 
 # ---------------------------------------------------------
