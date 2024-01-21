@@ -20,14 +20,19 @@ plot_scope = function() {
   
   # Dictionary for full impact source descriptions
   impact_dict = c(
-    extern = "Dynamic modelling (external to VIMC)",
+    polio  = "Dynamic modelling (external to VIMC)",
     vimc   = "Dynamic modelling (contributing to VIMC)", 
     static = "Static modelling", 
     impute = "Geographic imputation model", 
     extrap = "Temporal extrapolation model")
   
   # Associated colours
-  impact_colours = c("#EB7D5B", "#FED23F", "#B5D33D", "#6CA2EA", "#442288")
+  impact_colours = c(
+    polio  = "#EB7D5B",
+    vimc   = "#FED23F",
+    static = "#B5D33D",
+    impute = "#6CA2EA",
+    extrap = "#442288")
   
   # ---- Number of FVPs by pathogen ----
   
@@ -89,15 +94,15 @@ plot_scope = function() {
   # Other modelled pathogens
   #
   # TEMP: Read in polio impact table when ready
-  extern_dt = fvps_dt %>%
+  polio_dt = fvps_dt %>%
     filter(disease == "Polio") %>%
     select(disease, country, year) %>%
-    mutate(class = "extern")
+    mutate(class = "polio")
   
   # ---- Construct plotting datatable ----
   
   # Combine all impact sources
-  all_dt = rbind(static_dt, vimc_dt, impute_dt, extern_dt) %>%
+  all_dt = rbind(gbd_dt, vimc_dt, impute_dt, polio_dt) %>%
     # Append FVPs...
     right_join(y  = fvps_dt, 
                by = c("disease", "country", "year")) %>%
@@ -193,7 +198,7 @@ plot_scope = function() {
       repeat.tick.labels = FALSE) + 
     # Set colours and legend title...
     scale_fill_manual(
-      values = impact_colours, 
+      values = unname(impact_colours), 
       name   = "Source of impact estimates") +
     guides(fill = guide_legend(reverse = TRUE)) +
     # Prettify x axis...
@@ -260,11 +265,12 @@ plot_total_fvps = function() {
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
     full_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity")) %>%
-    select(d_v_a_name, source, year, fvps, fvps_cum) %>%
+              by = c("vaccine", "activity"), 
+              relationship = "many-to-many") %>%
+    select(d_v_a_id, source, year, fvps, fvps_cum) %>%
     # Tidy up...
-    format_d_v_a_name() %>%
-    arrange(d_v_a_name, source, year) %>%
+    arrange(d_v_a_id, source, year) %>%
+    append_d_v_a_name() %>%
     as.data.table()
   
   # Total FVPs (sum of all sources)
@@ -284,11 +290,12 @@ plot_total_fvps = function() {
     left_join(y  = table("v_a"), 
               by = "v_a_id") %>%
     full_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity")) %>%
+              by = c("vaccine", "activity"), 
+              relationship = "many-to-many") %>%
     select(d_v_a_id, year, fvps, fvps_cum) %>%
     # Tidy up...
-    format_d_v_a_name() %>%
     arrange(d_v_a_id, year) %>%
+    append_d_v_a_name() %>%
     as.data.table()
   
   # Metric to use for y axis
@@ -297,19 +304,11 @@ plot_total_fvps = function() {
   # Plot FVPs over time for each d_v_a
   g = ggplot(source_dt) + 
     aes(x = year, y = !!sym(y)) + 
-    geom_line(
-      mapping   = aes(colour = source), 
-      linewidth = 1.5) + 
-    geom_line(
-      data      = total_dt, 
-      linetype  = "dashed",
-      colour    = "black", 
-      linewidth = 1.5) + 
-    # Facet with strip text wrapping...
-    facet_wrap(
-      facets   = vars(d_v_a_name), 
-      labeller = label_wrap_gen(width = 24), 
-      scales   = "free_y") + 
+    geom_line(aes(colour = source)) + 
+    geom_line(data = total_dt, 
+              linetype = "dashed",
+              colour   = "black") + 
+    facet_wrap(~d_v_a_name) +
     # Prettify x axis...
     scale_x_continuous(
       limits = c(min(o$years), max(o$years)), 
@@ -317,7 +316,7 @@ plot_total_fvps = function() {
       breaks = seq(min(o$years), max(o$years), by = 10)) +  
     # Prettify y axis...
     scale_y_continuous(
-      name   = "Total receiving full schedule (in billions)", 
+      name   = "Total receiving final primary dose (in billions)", 
       labels = comma,
       expand = expansion(mult = c(0, NA)))
   
@@ -332,7 +331,7 @@ plot_total_fvps = function() {
           strip.text    = element_text(size = 12),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
+            linewidth = 1, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.5),
           legend.title  = element_blank(),
@@ -354,7 +353,7 @@ plot_total_fvps = function() {
     # Sum FVPs for each disease or vaccine
     d_v_dt = source_dt %>%
       left_join(y  = table("d_v_a"), 
-                by = "d_v_a_name") %>%
+                by = "d_v_a_id") %>%
       select(d_v = !!d_v, activity, year, fvps) %>%
       group_by(d_v, activity, year) %>%
       summarise(fvps = sum(fvps)) %>%
@@ -401,17 +400,17 @@ plot_total_fvps = function() {
       theme(axis.title.x  = element_blank(),
             axis.title.y  = element_text(
               size = 20, margin = margin(l = 10, r = 20)),
-            axis.text     = element_text(size = 9),
+            axis.text     = element_text(size = 10),
             axis.text.x   = element_text(hjust = 1, angle = 50), 
             axis.line     = element_blank(),
-            strip.text    = element_text(size = 12),
+            strip.text    = element_text(size = 14),
             strip.background = element_blank(), 
             panel.border  = element_rect(
-              linewidth = 0.5, fill = NA),
+              linewidth = 1, fill = NA),
             panel.spacing = unit(1, "lines"),
             panel.grid.major.y = element_line(linewidth = 0.5),
             legend.title  = element_blank(),
-            legend.text   = element_text(size = 12),
+            legend.text   = element_text(size = 14),
             legend.key    = element_blank(),
             legend.position = "right", 
             legend.key.height = unit(2, "lines"),
@@ -423,11 +422,11 @@ plot_total_fvps = function() {
 }
 
 # ---------------------------------------------------------
-# Plot smoothed FVP for static model pathogens
+# Plot smoothed FVP for non-modelled pathogens
 # ---------------------------------------------------------
 plot_smooth_fvps = function() {
   
-  message("  > Plotting smoothed FVPs (static model pathogens)")
+  message("  > Plotting smoothed FVPs (non-modelled)")
   
   # ---- Plot 1: data vs smoothing ----
   
@@ -477,7 +476,7 @@ plot_smooth_fvps = function() {
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
+            linewidth = 1, fill = NA),
           panel.spacing = unit(1, "lines"))
   
   # ---- Plot 2: smoothing error ----
@@ -522,7 +521,7 @@ plot_smooth_fvps = function() {
           axis.title.y  = element_blank(),
           axis.line     = element_blank(),
           panel.border  = element_rect(
-            linewidth = 0.5, fill = NA))
+            linewidth = 1, fill = NA))
   
   # ---- Save diagnostic plots ----
   
@@ -596,7 +595,7 @@ plot_coverage = function() {
             strip.text    = element_text(size = 14),
             strip.background = element_blank(), 
             panel.border  = element_rect(
-              linewidth = 0.5, fill = NA),
+              linewidth = 1, fill = NA),
             panel.spacing = unit(1, "lines"),
             legend.title  = element_blank(),
             legend.text   = element_text(size = 14),
@@ -610,6 +609,121 @@ plot_coverage = function() {
   }
 }
 
+
+#===============================================
+#
+#   Helen dump
+#=================================================
+
+
+# Plot estimates of regression predictors by region
+#plot_model_fit_df = model_fit %>%
+#  select(country, region_short, term, estimate) %>%
+#  pivot_wider(names_from = term,
+#              values_from = estimate) %>%
+#  group_by(region_short) %>%
+#  as.data.table()
+
+# Plot Spearman rank correlation between coefficients of regression   
+#plot_model_fit_df %>% select(`log(coverage)`,
+#                             `log(coverage_minus_1)`,
+#                             `log(coverage_minus_2)`,
+#                             `log(coverage_minus_3)`,
+#                             `log(coverage_minus_4)`,
+                             #gini,
+#                             HDI,
+#                             `(Intercept)`
+                             # attended_births
+#) %>% 
+#  ggpairs()
+
+#ggpairs(plot_model_fit_df, columns = c(3,5,6), ggplot2::aes(colour=region_short)) 
+
+# Plot density of coefficients of predictors by region
+#ggpairs(plot_model_fit_df,               
+#       columns = c(3,6:10),       
+#        aes(colour = region_short,  
+#            alpha = 0.5))   
+#browser()
+# Plot data vs. fitted for a single country 
+#plot_df = augment(model_1) %>%
+#  filter(country == "THA")
+
+#ggplot(data = plot_df, aes(x = target, y = .fitted)) +
+#  geom_point() +
+ # labs(
+#    y = "Fitted (predicted values)",
+ #   x = "Data (actual values)",
+#    title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
+#  ) +
+ # geom_abline(intercept = 0, slope = 1)
+
+# Plot data vs. fitted for all countries
+#plot_df = augment(best_model) 
+
+#ggplot(data = plot_df, aes(x = target, y = .fitted)) +
+#  geom_point() +
+ # labs(
+#    y = "Fitted (predicted values)",
+ #   x = "Data (actual values)",
+#    title = paste("Vaccine impact of", d_v_a_name)
+#  ) +
+ # geom_abline(intercept = 0, slope = 1) +
+#  facet_wrap(~country, ncol = 21)
+
+
+
+# Plot model fit for a single country 
+#plot_df = augment(best_model) %>%
+#  filter(country == "AGO")
+
+#ggplot(data = plot_df, aes(x = year)) +
+#  geom_point(aes(y = target, colour = "Data")) +
+#  geom_line(aes(y = .fitted, colour = "Fitted")) +
+#  labs(y = NULL,
+ #      title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
+#  ) +
+ # scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
+#  guides(colour = guide_legend(title = NULL))
+
+# Plot model fit for all countries
+#plot_df = augment(best_model) 
+
+#ggplot(data = plot_df, aes(x = year)) +
+#  geom_point(aes(y = target, colour = "Data")) +
+ # geom_line(aes(y = .fitted, colour = "Fitted")) +
+#  labs(y = NULL,
+ #      title = paste("Vaccine impact of", d_v_a_name)
+#  ) +
+ # scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
+#  guides(colour = guide_legend(title = NULL))  +
+ # facet_wrap(~country, ncol = 21)
+
+# Manually explore associations between predictor variables for different geographical regions and time points
+#  explore_dt =  data_dt %>% as.data.table() %>% # Transform to data table to remove country as categorical variable
+#                  filter(#year > 2000 & year <= 2020 &
+#region_short == "AFR" &
+#                  target > 2e-20
+#                  ) %>%
+#                select(-country) %>%
+#                select(target, gini, health_spending, coverage, coverage_minus_1,coverage_minus_2,coverage_minus_3,sdi) 
+
+# explore_dt %>%   ggpairs(upper = list(continuous = wrap("cor", method = "spearman"))) # Use Spearman rank correlation to account for outliers
+
+# Explore model selection by region
+#ggplot(data = model_choice, aes(x = model_number)) +
+#  geom_histogram() +
+#  facet_wrap(~region_short)
+
+# Explore prob. density of coefficients of predictors
+#plot_df = model_fit %>% filter(term == "pop_0to14")
+
+#ggplot(data = plot_df, aes(x=estimate) ) +
+#  geom_density() +
+ # facet_wrap(~region_short, ncol=1)
+
+#--------------------------------------------------
+#--------------------------------------------------
 # ---------------------------------------------------------
 # Plot age targets as defined by WIISE and VIMC coverage data
 # ---------------------------------------------------------
@@ -629,10 +743,7 @@ plot_coverage_age_density = function() {
         colour = source,
         fill   = source) +
     geom_density(alpha = 0.2) +
-    # Facet with strip text wrapping...
-    facet_wrap(
-      facets   = vars(v_a_name), 
-      labeller = label_wrap_gen(width = 24)) + 
+    facet_wrap(~v_a_name) +
     # Prettify x axis...
     scale_x_continuous(
       name   = "Age (log2 scale)",
@@ -655,13 +766,13 @@ plot_coverage_age_density = function() {
           axis.title.y  = element_text(
             size = 20, margin = margin(l = 10, r = 20)),
           axis.line     = element_blank(),
-          strip.text    = element_text(size = 12),
+          strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
+            linewidth = 1, fill = NA),
           panel.spacing = unit(1, "lines"),
           legend.title  = element_blank(),
-          legend.text   = element_text(size = 12),
+          legend.text   = element_text(size = 14),
           legend.key    = element_blank(),
           legend.position = "right", 
           legend.key.height = unit(2, "lines"),
@@ -738,7 +849,7 @@ plot_gbd_estimates = function() {
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
+            linewidth = 1, fill = NA),
           panel.spacing = unit(1, "lines"),
           legend.title  = element_blank(),
           legend.text   = element_text(size = 14),
@@ -752,7 +863,7 @@ plot_gbd_estimates = function() {
 }
 
 # ---------------------------------------------------------
-# Plot static model pathogen vaccine efficacy with immunity decay
+# Plot non-modelled vaccine efficacy with immunity decay
 # ---------------------------------------------------------
 plot_vaccine_efficacy = function() {
   
@@ -846,7 +957,7 @@ plot_vaccine_efficacy = function() {
 }
 
 # ---------------------------------------------------------
-# Plot effective coverage with waning immunity for static model pathogens
+# Plot effective coverage with waning immunity for non-modelled pathogens
 # ---------------------------------------------------------
 plot_effective_coverage = function() {
   
@@ -862,7 +973,7 @@ plot_effective_coverage = function() {
   for (by in c("disease", "type")) {
     
     # Load previously calculated total coverage file
-    effective_dt = read_rds("static", "effective_coverage", by)
+    effective_dt = read_rds("non_modelled", "effective_coverage", by)
     
     # Population weight over all countries
     plot_dt = effective_dt %>%
@@ -929,11 +1040,11 @@ plot_effective_coverage = function() {
 }
 
 # ---------------------------------------------------------
-# Plot deaths and DALYs averted for static model pathogens
+# Plot deaths and DALYs averted for non-modelled pathogens
 # ---------------------------------------------------------
-plot_static = function() {
+plot_non_modelled = function() {
   
-  message("  > Plotting static model impact results")
+  message("  > Plotting non-modelled impact results")
   
   # Deaths disease/averted dictionary
   metric_dict = c(
@@ -946,7 +1057,7 @@ plot_static = function() {
   # ---- Plot by disease ----
   
   # Load previously calculated total coverage file
-  averted_dt = read_rds("static", "deaths_averted_disease")
+  averted_dt = read_rds("non_modelled", "deaths_averted_disease")
   
   # Summarise results over country and age
   disease_dt = averted_dt %>%
@@ -996,7 +1107,7 @@ plot_static = function() {
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
+            linewidth = 1, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.5),
           legend.title  = element_blank(),
@@ -1012,7 +1123,7 @@ plot_static = function() {
   # ---- Plot by vaccine ----
   
   # Load previously calculated total coverage file
-  averted_dt = read_rds("static", "deaths_averted_vaccine")
+  averted_dt = read_rds("non_modelled", "deaths_averted_vaccine")
   
   # Summarise results over country
   vaccine_dt = averted_dt %>%
@@ -1060,7 +1171,7 @@ plot_static = function() {
           strip.text    = element_text(size = 12),
           strip.background = element_blank(), 
           panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
+            linewidth = 1, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.5))
   
@@ -1100,19 +1211,19 @@ plot_covariates = function() {
     left_join(y  = table("disease"), 
               by = "disease") %>%
     filter(source == "vimc") %>%
-    pull(d_v_a_id) %>%
+     pull(d_v_a_id) %>%
+    as.vector(c(1,3,4,5,10)) %>%
     lapply(load_data_fn) %>%
     rbindlist()
   
   # ---- Produce plot ----
   
   # Construct tidy plotting datatable
-  plot_dt = data_dt %>%
-    pivot_longer(cols = -c(d_v_a_id, target), 
+  plot_dt = covariates_dt %>%
+        pivot_longer(cols = -c(d_v_a_id, target), 
                  names_to = "covariate") %>%
     arrange(d_v_a_id, covariate, target) %>%
-    format_d_v_a_name() %>%
-    select(d_v_a_name, target, covariate, value) %>%
+    append_d_v_a_name() %>%
     as.data.table()
   
   # Plot covariates vs imputation target
@@ -1138,14 +1249,14 @@ plot_covariates = function() {
     # Prettify x axis...
     scale_x_continuous(
       name   = "Normalised predictor", 
-      limits = c(0, 1), 
-      expand = c(0, 0), 
+     # limits = c(0, 1), 
+    #  expand = c(0, 0), 
       breaks = pretty_breaks()) +  
     # Prettify y axis...
     scale_y_continuous(
       name   = "Normalised response (impact per FVP)", 
-      limits = c(0, 1), 
-      expand = c(0, 0), 
+     # limits = c(0, 1), 
+    #  expand = c(0, 0), 
       breaks = pretty_breaks())
   
   # Prettify theme
@@ -1195,15 +1306,15 @@ plot_impute_quality = function() {
   plot_dt = results_dt %>%
     filter(!is.na(target)) %>%
     select(-country) %>%
-    format_d_v_a_name() %>%
+    append_d_v_a_name() %>%
     # Remove target outliers for better normalisation...
-    group_by(d_v_a_name) %>%
-    mutate(lower = mean(target) - 3 * sd(target), 
-           upper = mean(target) + 3 * sd(target), 
-           outlier = target < lower | target > upper) %>%
-    ungroup() %>%
-    filter(outlier == FALSE) %>%
-    select(-outlier, -lower, -upper, -d_v_a_id) %>%
+   # group_by(d_v_a_name) %>%
+  #  mutate(lower = mean(target) - 3 * sd(target), 
+  #         upper = mean(target) + 3 * sd(target), 
+  #         outlier = target < lower | target > upper) %>%
+  #  ungroup() %>%
+  #  filter(outlier == FALSE) %>%
+  #  select(-outlier, -lower, -upper) %>%
     as.data.table()
   
   # Maximum value in each facet (target or predict)
@@ -1292,15 +1403,15 @@ plot_impute_countries = function() {
     pull(d_v_a_id) %>%
     lapply(load_results_fn) %>%
     rbindlist() %>%
-    format_d_v_a_name()
+    append_d_v_a_name()
   
   # ---- Plot 1: annual error by country ----
   
   # Truth vs predicted over time for training data
   annual_dt = results_dt %>%
-    select(d_v_a_name, country, year, 
-           vimc   = impact_cum, 
-           impute = impact_impute) %>%
+    select(country, d_v_a_name, year, 
+           vimc   = target, 
+           impute = predict) %>%
     filter(!is.na(vimc)) %>%
     mutate(lower = pmin(vimc, impute), 
            upper = pmax(vimc, impute))
@@ -1311,16 +1422,15 @@ plot_impute_countries = function() {
                     ymax = upper, 
                     fill = country),
                 alpha = 0.3) +
-    # Country truth...
     geom_line(aes(y = vimc, colour = country), 
               linewidth = 0.5) +
-    # Country predicted...
     geom_line(aes(y = impute, colour = country), 
               linewidth = 0.5, 
               linetype  = "dashed") +
-    facet_wrap(~d_v_a_name, scales = "free_y") + 
-    # Remove legend...
-    theme(legend.position = "none")
+    facet_wrap(~d_v_a_name, scales = "free_y")
+  
+  # Remove legend
+  g = g + theme(legend.position = "none")
   
   # Save figure to file
   save_fig(g, "Imputation error annual", dir = "imputation")
@@ -1330,7 +1440,7 @@ plot_impute_countries = function() {
   # Where imputed countries lie in terms of magnitude
   total_dt = results_dt %>%
     # Take cumulative values for each country...
-    group_by(d_v_a_name, country) %>%
+    group_by(country, d_v_a_name) %>%
     summarise(truth   = max(impact_cum), 
               predict = max(impact_impute)) %>%
     ungroup() %>%
@@ -1371,7 +1481,7 @@ plot_impact_data = function() {
   
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "data") %>%
-    format_d_v_a_name()
+    append_d_v_a_name()
   
   # ---- Plot 1: impact per FVP over time ----
   
@@ -1463,8 +1573,7 @@ plot_impact_data = function() {
           axis.line     = element_blank(),
           strip.text    = element_text(size = 10),
           strip.background = element_blank(), 
-          panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
+          panel.border  = element_rect(linewidth = 0.5, fill = NA),
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
@@ -1481,7 +1590,7 @@ plot_model_selection = function() {
   
   # Load stuff: best fit functions and associtaed coefficients
   best_dt = read_rds("impact", "best_model") %>%
-    format_d_v_a_name()
+    append_d_v_a_name()
   
   # ---- Plot function count ----
   
@@ -1540,7 +1649,7 @@ plot_model_selection = function() {
               axis.title.y  = element_blank(),
               axis.line     = element_blank(),
               panel.border  = element_rect(
-                linewidth = 0.5, fill = NA),
+                linewidth = 1, fill = NA),
               legend.title  = element_blank(),
               legend.text   = element_text(size = 12),
               legend.key    = element_blank(),
@@ -1576,7 +1685,7 @@ plot_model_selection = function() {
                 size = 20, margin = margin(l = 10, r = 20)),
               axis.line     = element_blank(),
               panel.border  = element_rect(
-                linewidth = 0.5, fill = NA),
+                linewidth = 1, fill = NA),
               legend.title  = element_blank(),
               legend.text   = element_text(size = 12),
               legend.key    = element_blank(),
@@ -1621,29 +1730,29 @@ plot_model_fits = function() {
   
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "data") %>%
-    format_d_v_a_name()
+    append_d_v_a_name()
   
   # Evaluate only as far as we have data
   max_data = data_dt %>%
-    group_by(d_v_a_name, country) %>%
+    group_by(country, d_v_a_name) %>%
     slice_max(fvps, n = 1, with_ties = FALSE) %>%
     ungroup() %>%
-    select(d_v_a_name, country, x_max = fvps) %>%
+    select(country, d_v_a_name, x_max = fvps) %>%
     # Increment up one so we plot slightly past the data
     mutate(x_max = x_max + o$eval_x_scale / 100) %>%
     as.data.table()
   
   # Evaluate selected impact function
   best_fit = evaluate_impact_function() %>%
-    format_d_v_a_name()
+    append_d_v_a_name()
   
   # Apply max_data so we only plot up to data (or just past)
   plot_dt = best_fit %>%
     left_join(y  = max_data,
-              by = c("d_v_a_name", "country")) %>%
+              by = c("country", "d_v_a_name")) %>%
     filter(fvps < x_max) %>%
-    format_d_v_a_name() %>%
-    select(d_v_a_name, country, fvps, impact)
+    append_d_v_a_name() %>%
+    select(country, d_v_a_name, fvps, impact)
   
   # Plot function evaluation against the data
   g = ggplot(plot_dt) +
@@ -1699,15 +1808,32 @@ plot_model_fits = function() {
   save_fig(g, "Impact function evaluation", dir = "impact_functions")
 }
 
+
+#----------------------------------------#
+# Tornado plot of predictor coefficients #
+#----------------------------------------#
+
+#TODO: Split by decade, facet by region OR d_v_a_id OR predictor
+
+# Explore density of coefficients of predictors
+#plot_dt = impute_1$model_fit %>% 
+#  select(-c(country, d_v_a_id.x, d_v_a_id.y, model_number, .model, AICc)) %>%
+#  filter(#!term == "HDI" &
+#    !region_short == "NA" &
+#      p.value <= 0.05) %>%
+#  mutate(model = region_short)
+
+#plot_dt %>% dwplot() + theme_classic() + 
+#  geom_vline(xintercept = 0, linetype = 2) +
+#  ggtitle(paste0("Predicting ", d_v_a_name, " vaccine impact"))
+
+
 # ---------------------------------------------------------
 # Plot impact ratios - either all or initial only
 # ---------------------------------------------------------
 plot_impact_fvps = function(scope) {
   
-  width = 0.3
-  
-  # Function for averaging (mean or median)
-  avg_fn = get("mean")
+  annual_means = seq(1990, 2020, by = 10)
   
   # ---- Load data based on scope ----
   
@@ -1717,7 +1843,8 @@ plot_impact_fvps = function(scope) {
     message("  > Plotting all-time impact per FVP")
     
     # Load initial ratio data
-    impact_dt = read_rds("impact", "data")
+    data_dt = read_rds("impact", "data") %>%
+      select(d_v_a_id, year, impact_fvp)
     
     # Set a descriptive y-axis title
     y_lab = "Impact per fully vaccinated person (log10 scale)"
@@ -1729,27 +1856,18 @@ plot_impact_fvps = function(scope) {
     message("  > Plotting initial impact per FVP")
     
     # Load initial ratio data
-    impact_dt = read_rds("impact", "initial_ratio") %>%
-      rename(impact_fvp = initial_ratio)
+    data_dt = read_rds("impact", "initial_ratio") %>%
+      select(d_v_a_id, impact_fvp = initial_ratio)
     
     # Set a descriptive y-axis title
     y_lab = "Initial impact per FVP used for back projection (log10 scale)"
   }
   
-  # ---- Classify by income status ----
+  # ---- Construct primary plot datatable ----
   
-  # Load income status dictionary
-  income_dict = table("income_dict")
-  
-  # Load income status of each country
-  income_dt = table("income_status") %>%
-    filter(year == max(year)) %>%
-    left_join(y  = income_dict, 
-              by = "income") %>%
-    select(country, income = income_name)
-  
-  # Classify by income group
-  data_dt = impact_dt %>%
+  # Remove trivial zeros
+  plot_dt = data_dt %>%
+    append_d_v_a_name() %>%
     filter(impact_fvp > 0) %>%
     # Append d_v_a description...
     format_d_v_a_name() %>%
@@ -1784,8 +1902,7 @@ plot_impact_fvps = function(scope) {
       to   = width / 2, 
       length.out = n()))
   
-  # Width of offset of points within income group
-  x_spray = width / (nrow(income_dict) * 2)
+  # ---- Extract bounds ----
   
   # Bring all x and y values together
   plot_dt = data_dt %>%
@@ -1824,43 +1941,63 @@ plot_impact_fvps = function(scope) {
   
   # ---- Produce primary plot ----
   
-  # Plot impact per FVP
+  # Plot initial impact ratio used for back projection
   g = ggplot(plot_dt) +
-    aes(x = x, y = y) +
-    # Plot all points by vaccine and income...
-    geom_point(
-      mapping  = aes(colour = income),
-      alpha    = 0.1,
-      shape    = 16,
-      stroke   = 0,
-      position = position_jitter(
-        width = x_spray,
-        seed  = 1)) + 
-    # Average of each vaccine...
-    geom_point(
-      data   = vaccine_average_dt,
-      colour = "black",
-      shape = 95, # Horizontal lines
-      size  = 20) +
-    # Average of each income group...
-    geom_point(
-      data    = income_average_dt, 
-      mapping = aes(fill = income), 
-      color   = "black", 
-      shape   = 23, 
-      size    = 3) + 
-    # Prettify x axis...
-    scale_x_continuous(
-      breaks = x_major$x_major, 
-      labels = x_major$d_v_a) +
+    aes(x = d_v_a_name,
+        y = impact_fvp) +
+    # Plot total density density
+    geom_violin(
+      colour = "grey40", 
+      fill   = "grey40",
+      alpha  = 0.3) +
     # Prettify y axis...
     scale_y_continuous(
-      name   = y_lab,
+      name   = y_lab, 
       trans  = "log10",
       labels = scientific, 
       limits = c(10 ^ lb, 10 ^ ub),
-      expand = c(0, 0),
+      expand = c(0, 0), 
       breaks = 10 ^ rev(ub : lb))
+  
+  # ---- Plot annual means (all time plot only) ----
+  
+  # All time plot
+  if (scope == "all_time") {
+    
+    # Function for computing annual means
+    annual_mean_fn = function(year) {
+      
+      # Filter for this year and summarise
+      mean_dt = plot_dt %>%
+        filter(year == !!year) %>%
+        group_by(d_v_a_name, year) %>%
+        summarise(impact_fvp = mean(impact_fvp)) %>%
+        ungroup() %>%
+        as.data.table()
+      
+      return(mean_dt)
+    }
+    
+    # Annual global mean over each year
+    annual_mean_dt = annual_means %>%
+      lapply(annual_mean_fn) %>%
+      rbindlist() %>%
+      arrange(d_v_a_name, year) %>%
+      mutate(year = factor(year, annual_means))
+    
+    # Add annual means to the plot
+    g = g + 
+      geom_point(
+        data    = annual_mean_dt, 
+        mapping = aes(colour = year), 
+        size    = 2) + 
+      # Set colours and legend title...
+      scale_colour_manual(
+        name   = "Global mean by year", 
+        values = colour_scheme(
+          map = "brewer::greens", 
+          n   = length(annual_means))) 
+  }
   
   # ---- Prettify and save ----
   
@@ -1890,172 +2027,6 @@ plot_impact_fvps = function(scope) {
 }
 
 # ---------------------------------------------------------
-# Plot impact vs coverage by vaccine, income, and decade 
-# ---------------------------------------------------------
-plot_impact_coverage = function() {
-  
-  message("  > Plotting impact against coverage")
-  
-  browser()
-  
-  # Function for averaging (mean or median)
-  avg_fn = get("mean")
-  
-  # ---- Classify by income status ----
-  
-  # Load initial ratio data
-  impact_dt = read_rds("impact", "data")
-  
-  # Load income status dictionary
-  income_dict = table("income_dict")
-  
-  # Load income status of each country
-  income_dt = table("income_status") %>%
-    filter(year == max(year)) %>%
-    left_join(y  = income_dict, 
-              by = "income") %>%
-    select(country, income = income_name)
-  
-  browser()
-  
-  # Classify by income group
-  data_dt = impact_dt %>%
-    filter(impact_fvp > 0) %>%
-    # Append income status description...
-    left_join(y  = income_dt, 
-              by = "country") %>%
-    mutate(income = factor(
-      x      = income, 
-      levels = rev(income_dict$income_name))) %>%
-    select(d_v_a = d_v_a_name, income, impact_fvp) %>%
-    unique()
-  
-  # ---- Plotting coordinates ----
-  
-  # Set x values for each d_v_a
-  x_major = data_dt %>%
-    group_by(d_v_a) %>%
-    summarise(order = avg_fn(impact_fvp)) %>%
-    ungroup() %>%
-    arrange(desc(order)) %>%
-    mutate(x_major = 1 : n()) %>%
-    select(-order) %>%
-    as.data.table()
-  
-  # Offset each income group
-  x_minor = data_dt %>%
-    select(income) %>%
-    unique() %>%
-    arrange(income) %>%
-    mutate(x_minor = seq(
-      from = -width / 2, 
-      to   = width / 2, 
-      length.out = n()))
-  
-  # Width of offset of points within income group
-  x_spray = width / (nrow(income_dict) * 2)
-  
-  # Bring all x and y values together
-  plot_dt = data_dt %>%
-    left_join(y  = x_major, 
-              by = "d_v_a") %>%
-    left_join(y  = x_minor, 
-              by = "income") %>%
-    mutate(x = x_major + x_minor) %>%
-    select(d_v_a, income, x, y = impact_fvp) %>%
-    arrange(x)
-  
-  # Extract bounds (after transformation)
-  lb = floor(min(log10(data_dt$impact_fvp)))
-  ub = ceiling(max(log10(data_dt$impact_fvp)))
-  
-  # ---- Vaccine and income status averages ----
-  
-  income_average_dt = plot_dt %>%
-    group_by(income, x) %>%
-    summarise(y = avg_fn(y)) %>%
-    ungroup() %>%
-    arrange(x) %>%
-    as.data.table()
-  
-  vaccine_average_dt = data_dt %>%
-    group_by(d_v_a) %>%
-    summarise(y = avg_fn(impact_fvp)) %>%
-    ungroup() %>%
-    left_join(y  = x_major,
-              by = "d_v_a") %>%
-    select(d_v_a, x = x_major, y) %>%
-    arrange(x) %>%
-    as.data.table()
-  
-  # ---- Produce primary plot ----
-  
-  # Plot impact per FVP
-  g = ggplot(plot_dt) +
-    aes(x = x, y = y) +
-    # Plot all points by vaccine and income...
-    geom_point(
-      mapping  = aes(colour = income),
-      alpha    = 0.1,
-      shape    = 16,
-      stroke   = 0,
-      position = position_jitter(
-        width = x_spray,
-        seed  = 1)) + 
-    # Average of each vaccine...
-    geom_point(
-      data   = vaccine_average_dt,
-      colour = "black",
-      shape = 95, # Horizontal lines
-      size  = 20) +
-    # Average of each income group...
-    geom_point(
-      data    = income_average_dt, 
-      mapping = aes(fill = income), 
-      color   = "black", 
-      shape   = 23, 
-      size    = 3) + 
-    # Prettify x axis...
-    scale_x_continuous(
-      breaks = x_major$x_major, 
-      labels = x_major$d_v_a) +
-    # Prettify y axis...
-    scale_y_continuous(
-      name   = "Impact per fully vaccinated person (log10 scale)",
-      trans  = "log10",
-      labels = scientific, 
-      limits = c(10 ^ lb, 10 ^ ub),
-      expand = c(0, 0),
-      breaks = 10 ^ rev(ub : lb))
-  
-  # ---- Prettify and save ----
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(axis.text     = element_text(size = 10),
-          axis.text.x   = element_text(hjust = 1, angle = 50),
-          axis.title.x  = element_blank(),
-          axis.title.y  = element_text(
-            size = 16, margin = margin(l = 10, r = 20)),
-          axis.line     = element_blank(),
-          panel.grid.major.y = element_line(linewidth = 0.25),
-          panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
-          panel.spacing = unit(1, "lines"))
-  
-  # Filename to save to depending on scope
-  save_stem  = "Impact - coverage by income and decade"
-  save_scope = str_replace(scope, "_", " ")
-  
-  # Save these figures to file
-  save_fig(g, save_stem, save_scope, dir = "impact_functions")
-  
-  # Save all time plot as key manuscript figure
-  # if (scope == "all_time")
-  #   save_fig(g, "Figure 3", dir = "manuscript")
-}
-
-# ---------------------------------------------------------
 # Main results plot - historical impact over time
 # ---------------------------------------------------------
 plot_historical_impact = function() {
@@ -2064,7 +2035,7 @@ plot_historical_impact = function() {
   
   # Dictionary for temporal and cumulative subplots
   impact_dict = c(
-    impact_cum = "Cumuative deaths averted (in millions)", 
+    impact_cum = "Cumulative deaths averted (in millions)", 
     impact     = "Deaths averted per year (in millions)")
   
   # ---- Construct plotting data ----
@@ -2142,8 +2113,7 @@ plot_historical_impact = function() {
           axis.line     = element_blank(),
           strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
-          panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
+          panel.border  = element_rect(linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.25),
           legend.title  = element_blank(),
@@ -2729,6 +2699,42 @@ append_v_a_name = function(id_dt) {
     # Set plotting order...
     mutate(v_a_name = fct_inorder(v_a_name)) %>%
     select(-.v, -.a)
+  
+  return(name_dt)
+}
+
+# ---------------------------------------------------------
+# Convert d_v_a_id into human-readable string
+# ---------------------------------------------------------
+append_d_v_a_name = function(id_dt) {
+  
+  # Disease descriptive names
+  disease_dt = table("disease") %>%
+    select(disease, .x = disease_name)
+  
+  # Vaccine descriptive names
+  vaccine_dt = table("vaccine") %>%
+    select(vaccine, .v = vaccine_name)
+  
+  # Append d_v_a description
+  name_dt = id_dt %>%
+    # Append d_v_a details...
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    rename(.a = activity) %>%
+    # Append descriptive names...
+    left_join(disease_dt, by = "disease") %>%
+    left_join(vaccine_dt, by = "vaccine") %>%
+    select(-disease, -vaccine) %>%
+    # Construct full names...
+    mutate(d_v_a_name = ifelse(
+      test = .x == .v,
+      yes  = paste0(.x, ": ", .a), 
+      no   = paste0(.x, " (", .v, "): ", .a)), 
+      .after = d_v_a_id) %>%
+    # Set plotting order...
+    mutate(d_v_a_name = fct_inorder(d_v_a_name)) %>%
+    select(-.x, -.v, -.a)
   
   return(name_dt)
 }
