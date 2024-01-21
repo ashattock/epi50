@@ -2430,22 +2430,24 @@ plot_prob_death_age = function() {
   
   age_bins = 6
   
+  colours = c("black", "firebrick")
+  
   # Probability of death by age
   prob_death_dt = table("wpp_pop") %>%
     left_join(y  = table("wpp_deaths"), 
               by = c("country", "year", "age")) %>%
     mutate(prob_death = deaths / pop) %>%
-    # ....
+    # ...
+    filter(year %in% range(o$years)) %>%
+    mutate(year = as.character(year)) %>%
+    # ...
     mutate(age = age + 1) %>%
     filter(age <= 2^age_bins) %>%
     # Append region...
     left_join(y  = table("country"), 
               by = "country") %>%
-    # Classify decade...
-    mutate(decade = floor(year / 10) * 10, 
-           decade = paste0(decade, "s")) %>%
-    # Average prob of death by region and decade...
-    group_by(region, decade, age) %>%
+    # Average prob of death by region and year...
+    group_by(region, year, age) %>%
     summarise(value = mean(prob_death, na.rm = TRUE)) %>%
     ungroup() %>%
     as.data.table()
@@ -2453,9 +2455,13 @@ plot_prob_death_age = function() {
   g = ggplot(prob_death_dt) +
     aes(x = age, 
         y = value, 
-        colour = decade) +
-    geom_line() +
+        colour = year) +
+    geom_line(linewidth = 1.5) +
     facet_wrap(~region) +
+    # Set colour scheme...
+    scale_colour_manual(
+      name   = "Year", 
+      values = colours) + 
     # Prettify x axis...
     scale_x_continuous(
       name   = "Age (log2 scale)",

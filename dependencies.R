@@ -48,7 +48,6 @@ packages = c(
   "data.table",     # Next generation dataframes
   "gsubfn",         # Output multiple variables from functions
   "magrittr",       # Additional pipe operators, such as %<>%
-  # "rlist",          # List-related operation functions
   "wrapr",          # Convenience functions (eg qc)
   "stats",          # Statistical calculations and random number generation
   "stats4",         # MLE algorithm
@@ -56,14 +55,13 @@ packages = c(
   "tgp",            # Latin hypercube sampler
   "splines",        # Spline fitting functions
   "imputeTS",       # Linear interpolation in dplyr pipes
-  # "pspline",        # Spline fitting functions
   "countrycode",    # Country name <-> code transformation
   "yaml",           # Data loading functionality
   "parallel",       # Local parallelisation
   "lubridate",      # Data formatting functionality
   "naniar",         # Data formatting functionality
   "ggpubr",         # Plotting functionality
-  # "ggh4x",          # Plotting functionality
+  "ggnewscale",     # Plotting functionality
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
   "pals",           # Colour palettes
