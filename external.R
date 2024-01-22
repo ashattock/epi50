@@ -293,6 +293,7 @@ extract_extern_results = function() {
     group_by(country, d_v_a_id, year, age, metric) %>%
     summarise(value = mean(value, na.rm = TRUE)) %>%
     ungroup() %>%
+    mutate(value = pmax(value, 0)) %>%  # TEMP: Experimenting
     # Spread to wide format...
     mutate(metric = paste1(metric, "averted")) %>%
     pivot_wider(names_from  = metric,
@@ -302,9 +303,11 @@ extract_extern_results = function() {
   # Save in table cache
   save_table(extern_averted_dt, "extern_estimates")
   
+  # TODO: Migrate to plotting.R
+  
   # plot_dt = extern_averted_dt %>%
-  #   pivot_longer(cols = c(dalys_averted, deaths_averted), 
-  #                names_to  = "metric") %>%
+  #   pivot_longer(cols = c(dalys_averted, deaths_averted),
+  #                names_to = "metric") %>%
   #   group_by(d_v_a_id, metric, year) %>%
   #   summarise(value = sum(value)) %>%
   #   ungroup() %>%

@@ -127,7 +127,7 @@ run_history = function() {
   save_rds(initial_ratio_dt, "impact", "initial_ratio") 
   
   # Back project by applying initial ratio 
-  result_dt = result_fit_dt %>%
+  back_project_dt = result_fit_dt %>%
     select(d_v_a_id, country, year, impact_abs) %>%
     # Join with full FVPs data...
     full_join(y  = fvps_dt, 
@@ -146,6 +146,21 @@ run_history = function() {
       yes  = fvps * initial_ratio, 
       no   = impact)) %>%
     select(-initial_ratio)
+  
+  # ---- Append external models ----
+  
+  message(" - Appending external models")
+  
+  extern_dt = table("extern_estimates") %>%
+    group_by(d_v_a_id, country, year) %>%
+    summarise(impact = sum(deaths_averted)) %>%
+    ungroup() %>%
+    # TODO: Update placeholder with actual values
+    mutate(fvps = 1, .before = impact) %>%
+    as.data.table()
+  
+  result_dt = back_project_dt %>%
+    rbind(extern_dt)
   
   # Save results to file
   save_rds(result_dt, "results", "deaths_averted") 
@@ -272,12 +287,17 @@ mortality_rates = function(age_bound = 5, grouping = "none") {
     arrange(group, year) %>%
     as.data.table()
   
+  # Vaccine impact disaggregated by age
+  age_effect = impact_age_multiplier()
+  
   # Estimated child deaths averted by vaccination
   averted_dt = read_rds("results", "deaths_averted") %>%
+    expand_grid(age_effect) %>%
+    filter(age <= age_bound) %>%
     left_join(y  = grouping_dt, 
               by = c("country", "year")) %>%
     group_by(group, year) %>%
-    summarise(averted = sum(impact)) %>%
+    summarise(averted = sum(impact * scaler)) %>%
     ungroup() %>%
     arrange(group, year) %>%
     as.data.table()
@@ -307,5 +327,21 @@ mortality_rates = function(age_bound = 5, grouping = "none") {
     # select(group, year, vaccine, no_vaccine)
   
   return(mortality_dt)
+}
+
+# ---------------------------------------------------------
+# Scaler to estimate vaccination impact disaggregated by age
+# ---------------------------------------------------------
+impact_age_multiplier = function() {
+  
+  # TODO: Extract impact distribution by age for each d-v-a
+  #       using original impact estimates
+  
+  # TEMP: Assume impact is highest for infants and decays exponentially
+  age_effect = data.table(age = o$ages) %>%
+    mutate(scaler = exp(-sqrt(2 * age)), 
+           scaler = scaler / sum(scaler)) 
+  
+  return(age_effect)
 }
 
