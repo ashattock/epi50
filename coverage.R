@@ -191,10 +191,13 @@ coverage_wiise = function(vimc_countries_dt) {
     left_join(y  = table("vaccine_dict"), 
               by = "intervention", 
               relationship = "many-to-many") %>%
-    filter(!is.na(vaccine)) %>%
-    # Retain coverage by year
-    select(vaccine, year, coverage) %>%
-    arrange(vaccine, year)
+    # Append v-a details...
+    inner_join(y  = table("v_a"), 
+               by = "vaccine") %>%
+    select(v_a_id, vaccine, year, coverage) %>%
+    arrange(v_a_id, year) %>%
+    # Coverage as a proportion...
+    mutate(coverage = coverage / 100)
   
   # Save table in cache
   save_table(global_dt, "coverage_global")
