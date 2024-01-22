@@ -25,7 +25,13 @@ coverage_sia = function(vimc_countries_dt) {
   
   # Campaign activities (or 'all' for GBD pathogens)
   v_a_dt = table("v_a") %>%
-    filter(activity %in% c("campaign", "all"))
+    filter(activity %in% c("campaign", "all")) %>%
+    left_join(y  = table("d_v_a"), 
+              by = c("vaccine", "activity")) %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source != "extern") %>%  # Remove external models
+    select(v_a_id, vaccine)
   
   # Data dictionary for converting to v_a
   data_dict = table("vaccine_dict") %>%

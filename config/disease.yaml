@@ -8,9 +8,6 @@ table:
 - disease: Hib
   disease_name: "Haemophilus influenzae type b"
   source: vimc
-- disease: Measles
-  disease_name: "Measles"
-  source: vimc
 - disease: PCV
   disease_name: "Pneumococcal"
   source: vimc
@@ -32,3 +29,9 @@ table:
 - disease: TB
   disease_name: "Tuberculosis"
   source: gbd
+- disease: Measles
+  disease_name: "Measles"
+  source: extern
+# - disease: Polio
+#   disease_name: "Poliomyelitis"
+#   source: extern

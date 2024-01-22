@@ -78,6 +78,15 @@ coverage_vimc = function() {
   
   message(" - Coverage data: VIMC")
   
+  # Vaccines for which we'll use VIMC estimates
+  vaccines_dt = table("v_a") %>%
+    left_join(y  = table("d_v_a"), 
+              by = c("vaccine", "activity")) %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    select(v_a_id, vaccine, activity)
+  
   # Extract VIMC vaccine coverage data
   vimc_dt = fread(paste0(o$pth$input, "vimc_coverage.csv")) %>%
     select(country, disease, vaccine, activity = activity_type, 
@@ -92,7 +101,7 @@ coverage_vimc = function() {
               coverage = fvps / cohort) %>%
     ungroup() %>%
     # Append v_a ID...
-    inner_join(y  = table("v_a"), 
+    inner_join(y  = vaccines_dt, 
                by = c("vaccine", "activity")) %>%
     select(country, v_a_id, year, age, fvps, cohort, coverage) %>%
     arrange(country, v_a_id, year, age) %>%
@@ -217,7 +226,13 @@ coverage_wiise = function(vimc_countries_dt) {
   
   # Routine activities (or 'all' for GBD pathogens)
   v_a_dt = table("v_a") %>%
-    filter(activity %in% c("routine", "all"))
+    filter(activity %in% c("routine", "all")) %>%
+    left_join(y  = table("d_v_a"), 
+              by = c("vaccine", "activity")) %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source != "extern") %>%  # Remove external models
+    select(v_a_id, vaccine)
   
   # Append age and calculate FVPs
   wiise_dt = intervention_dt %>%
@@ -229,7 +244,6 @@ coverage_wiise = function(vimc_countries_dt) {
     # Apply v_a ID...
     left_join(y  = v_a_dt, 
               by = c("vaccine")) %>%
-    select(-activity) %>%
     # Append ages...
     left_join(y  = age_dt, 
               by = "vaccine", 

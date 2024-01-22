@@ -111,7 +111,10 @@ prepare_vimc_estimates = function() {
     # Disease, vaccines, and activities of interest...
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
-    filter(!is.na(d_v_a_id)) %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(!is.na(d_v_a_id), 
+           source == "vimc") %>%
     # Tidy up...
     select(country, d_v_a_id, year, age, deaths_averted) %>%
     arrange(country, d_v_a_id, age, year) %>%

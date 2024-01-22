@@ -43,4 +43,4 @@ table:
   lower: 0.08
   upper: 0.88
   decay_x: 15 # (in years) Assumption
-  decay_y: 0.33 # (halflife)
+  decay_y: 0.66 # 0.33 # (halflife)
