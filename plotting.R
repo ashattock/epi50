@@ -2167,95 +2167,160 @@ plot_child_mortality = function() {
   
   # ---- Figure properties ----
   
+  metric_dict = list(
+    avert = "Deaths of children under 5 averted", 
+    rate  = "Mortality rate for children under 5", 
+    exp   = "Global life expectancy", 
+    cov   = "Global vaccine coverage")
+  
   # Dictionary for each vaccine case
   case_dict = list( 
     vaccine    = "Vaccination as obserevd", 
     no_vaccine = "No historical vaccination")
   
-  # Disease-vaccine-activity ID of vaccine coverage to plot
-  dtp3_id = 12
-  
-  # Y axis limit in terms of child mortality
-  y_lim = 0.03
-  
   # ---- Construct plotting datatables ----
   
-  # Format as plottable datatable
-  mortality_dt = mortality_rates(grouping = "none") %>%
-    select(group, year, vaccine, no_vaccine) %>%
-    pivot_longer(cols = -c(group, year), 
+  mortality_dt = mortality_rates(grouping = "none")
+  
+  # Cumulative deaths averted
+  averted_dt = mortality_dt %>%
+    mutate(total_averted = cumsum(averted)) %>%
+    mutate(metric = "avert", 
+           case   = "vaccine") %>%
+    select(metric, case, year, value = total_averted)
+  
+  # Mortality rate over time
+  rate_dt = mortality_dt %>%
+    select(year, vaccine, no_vaccine) %>%
+    pivot_longer(cols = -year, 
                  names_to = "case") %>%
-    mutate(case = recode(case, !!!case_dict), 
-           case = factor(case, case_dict)) %>%
-    arrange(case, group, year) %>%
+    mutate(metric = "rate") %>%
+    select(metric, case, year, value) %>%
     as.data.table()
   
-  # Sanity check that user-defined axis limit doesn't cut off data
-  if (max(mortality_dt$value) > y_lim)
-    stop("Set y_lim > max mortality value for meaningful plot")
+  # Life expectancy over time
+  life_exp_dt = NULL
   
-  # DTP3 coverage over time - global average
-  dtp3_dt = table("coverage") %>%
-    filter(v_a_id == dtp3_id) %>%
-    select(country, year, age, fvps) %>%
-    right_join(y  = table("wpp_pop")[age == 0], 
-               by = c("country", "year", "age")) %>%
-    replace_na(list(fvps = 0)) %>%
-    group_by(year) %>%
-    summarise(fvps   = sum(fvps), 
-              cohort = sum(pop)) %>%
+  # Vaccine coverage over time - global average
+  coverage_dt = table("coverage_global") %>%
+    filter(coverage > 0, 
+           !grepl("_BD$", vaccine)) %>%
+    # Combine DTP3 estimates...
+    mutate(vaccine = ifelse(
+      test = vaccine %in% qc(Dip3, Tet3, aPer3), 
+      yes  = "DTP3", 
+      no   = vaccine)) %>%
+    group_by(vaccine, year) %>%
+    summarise(coverage = mean(coverage)) %>%
     ungroup() %>%
-    mutate(coverage = fvps / cohort) %>%
+    # Append descriptive vaccine names...
+    left_join(y  = table("vaccine"), 
+              by = "vaccine") %>%
+    replace_na(list(vaccine_name = "DTP third dose")) %>%
+    mutate(metric = "cov", 
+           case   = "vaccine") %>%
+    # Tidy up...
+    select(metric, case, vaccine_name, 
+           year, value = coverage) %>%
     as.data.table()
   
-  browser()
+  # Combine into single plotting datatable
+  lines_dt = averted_dt %>%
+    bind_rows(rate_dt) %>%
+    bind_rows(life_exp_dt) %>%
+    bind_rows(coverage_dt) %>%
+    replace_na(list(vaccine_name = "-")) %>%
+    mutate(metric = recode(metric, !!!metric_dict),
+           metric = factor(metric, metric_dict), 
+           case   = recode(case,   !!!case_dict), 
+           case   = factor(case,   case_dict))
+  
+  area_dt = averted_dt %>%
+    rbind(rate_dt) %>%
+    rbind(life_exp_dt) %>%
+    pivot_wider(names_from = case) %>%
+    replace_na(list(no_vaccine = 0)) %>%
+    mutate(y_min = pmin(vaccine, no_vaccine), 
+           y_max = pmax(vaccine, no_vaccine)) %>%
+    mutate(metric = recode(metric, !!!metric_dict),
+           metric = factor(metric, metric_dict)) %>%
+    select(metric, year, y_min, y_max) %>%
+    as.data.table()
+  
+  # ---- Set y axis properties for each facet ----
+  
+  fct_fn = function(x) factor(metric_dict[[x]], metric_dict)
+  
+  y1 = scale_y_continuous(
+    labels = comma, 
+    limits = c(0, NA),
+    expand = expansion(mult = c(0, 0.05)), 
+    breaks = pretty_breaks())
+  
+  y2 = scale_y_continuous(
+    labels = percent, 
+    limits = c(0, NA),
+    expand = expansion(mult = c(0, 0.05)), 
+    breaks = pretty_breaks())
+
+  y3 = scale_y_continuous(
+    labels = percent, 
+    limits = c(0, 1),
+    expand = c(0, 0), 
+    breaks = pretty_breaks())
+
+  y_list = list(
+    metric == fct_fn("avert") ~ y1,
+    metric == fct_fn("rate")  ~ y2, 
+    metric == fct_fn("exp")   ~ y1, 
+    metric == fct_fn("cov")   ~ y3)
+  
+  n_cols  = n_unique(coverage_dt$vaccine_name)
+  colours = colour_scheme("viridis::viridis", n = n_cols)
   
   # ---- Produce plot ----
   
-  # Plot child mortality over time
-  g = ggplot(mortality_dt) +
-    aes(x = year, 
-        y = value) +
-    # Plot mortality rates over time...
+  # Plot all metrics over time
+  g = ggplot(area_dt) +
+    aes(x = year) +
+    # Plot area...
+    geom_ribbon(
+      mapping = aes(
+        ymin = y_min, 
+        ymax = y_max), 
+      fill  = "grey", 
+      alpha = 0.7) +
+    # Plot lines...
     geom_line(
-      mapping   = aes(linetype = case), 
+      data    = lines_dt,
+      mapping = aes(
+        y = value,
+        linetype = case, 
+        colour   = vaccine_name), 
       linewidth = 1.1) +
-    # Plot selected coverage trends...
-    geom_line(
-      data    = dtp3_dt,
-      mapping = aes(y = coverage * y_lim), 
-      colour  = "grey") +
+    # Facet by metric...
+    facet_wrap(
+      facets = vars(metric), 
+      scales = "free_y", 
+      ncol   = 1) +
+    # Set colour scheme...
+    scale_color_manual(
+      values = c("black", colours)) + 
+    # Prettify y axis...
+    facetted_pos_scales(y = y_list) + 
     # Prettiy x axis...
     scale_x_continuous(
       limits = c(min(o$years), max(o$years)), 
       expand = expansion(mult = c(0, 0)), 
       breaks = seq(min(o$years), max(o$years), by = 5)) +
-    # Prettify y axis...
-    scale_y_continuous(
-      name   = "Child deaths before 5 years of age", 
-      labels = percent, 
-      limits = c(0, y_lim), 
-      expand = c(0, 0), 
-      breaks = pretty_breaks(), 
-      sec.axis = sec_axis(
-        trans = ~ . / y_lim, 
-        name  = "Infant DTP3 coverage", 
-        labels = percent)) +
-    # Set colours and prettify legend...
-    guides(linetype = guide_legend(
-      byrow = TRUE, ncol = 1))
+    # Prettify legend...
+    guides(colour = "none")
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.title.x  = element_blank(),
-          axis.title.y  = element_text(size = 20),
-          axis.title.y.left = element_text(
-            margin = margin(l = 10, r = 20)),
-          axis.title.y.right = element_text(
-            margin = margin(l = 20, r = 10), color = "grey"),
+    theme(axis.title    = element_blank(),
           axis.text     = element_text(size = 10),
           axis.text.x   = element_text(hjust = 1, angle = 50), 
-          axis.text.y.right = element_text(color = "grey"),
           axis.line     = element_blank(),
           strip.text    = element_text(size = 16),
           strip.background = element_blank(), 
@@ -2264,7 +2329,7 @@ plot_child_mortality = function() {
           panel.spacing = unit(1, "lines"),
           legend.title  = element_blank(),
           legend.text   = element_text(size = 14),
-          legend.position = "bottom", 
+          legend.position = "right", 
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
@@ -2279,6 +2344,8 @@ plot_child_mortality = function() {
 # Plot regional differences in child mortality changes
 # ---------------------------------------------------------
 plot_mortality_change = function() {
+  
+  message("  > Plotting regional changes in child mortality")
   
   # Description of metric and year scope
   metric_str = "under 5 mortality rate"
@@ -2427,43 +2494,39 @@ plot_mortality_change = function() {
 # ---------------------------------------------------------
 plot_prob_death_age = function() {
   
-  age_bins = 6
+  message("  > Plotting probability of death by age")
   
-  colours = c("grey", o$palette_who)
+  age_bins = 4
   
-  browser()
-  
-  age_effect = data.table(age = o$ages) %>%
-    mutate(scaler = exp(-age), 
-           scaler = scaler / sum(scaler), 
-           age = age + 1) %>%
-    filter(age %in% 2 ^ (0 : age_bins))
+  # Dictionary for each vaccine case
+  #
+  # NOTE: Using reverse order here for prettier plot
+  case_dict = list( 
+    no_vaccine = "No historical vaccination",
+    vaccine    = "Vaccination as obserevd")
   
   # Estimated child deaths averted by vaccination
   averted_dt = read_rds("results", "deaths_averted") %>%
-    # ...
     filter(year == max(o$years)) %>%
-    mutate(year = as.character(year)) %>%
     # Append region...
     left_join(y  = table("country"), 
               by = "country") %>%
-    # ...
-    group_by(region, year) %>%
+    # xxx ...
+    group_by(region) %>%
     summarise(total_averted = sum(impact)) %>%
     ungroup() %>%
-    # ...
-    expand_grid(age_effect) %>%
-    mutate(averted = total_averted * scaler) %>%
-    select(region, year, age, averted) %>%
+    # xxx ...
+    expand_grid(impact_age_multiplier()) %>%
+    mutate(age     = age + 1, 
+           averted = total_averted * scaler) %>%
+    select(region, age, averted) %>%
     as.data.table()
   
   # Probability of death by age
-  prob_death_dt = table("wpp_pop") %>%
+  plot_dt = table("wpp_pop") %>%
+    filter(year == max(o$years)) %>%
     left_join(y  = table("wpp_deaths"), 
               by = c("country", "year", "age")) %>%
-    # xxx ...
-    filter(year %in% range(o$years)) %>%
-    mutate(year = as.character(year)) %>%
     # xxx ...
     mutate(age = age + 1) %>%
     filter(age %in% 2 ^ (0 : age_bins)) %>%
@@ -2471,48 +2534,81 @@ plot_prob_death_age = function() {
     left_join(y  = table("country"), 
               by = "country") %>%
     # Average prob of death by region and year...
-    group_by(region, year, age) %>%
+    group_by(region, age) %>%
     summarise(pop    = sum(pop), 
               deaths = sum(deaths)) %>%
     ungroup() %>%
-    # xxx ...
+    # Append deaths averted...
     left_join(y  = averted_dt, 
-              by = c("region", "year", "age")) %>%
+              by = c("region", "age")) %>%
     replace_na(list(averted = 0)) %>%
     mutate(vaccine    = deaths / pop, 
            no_vaccine = (deaths + averted) / pop) %>%
-    # xxx ...
-    select(region, year, age, vaccine, no_vaccine) %>%
+    # Melt to long format ready for plotting...
+    select(region, age, vaccine, no_vaccine) %>%
     pivot_longer(cols = c(vaccine, no_vaccine), 
                  names_to = "case") %>%
-    # Avoid plotting vaccine case in first year...
-    filter(!(year == as.character(min(o$years)) & 
-               case == "vaccine")) %>%
-    arrange(year, case, region, age) %>%
-    # xxx ...
-    mutate(group = paste1(case, year)) %>%
+    # Set regional order...
+    arrange(desc(value)) %>%
+    mutate(region = fct_inorder(region)) %>%
+    # Set vaccine case order...
+    mutate(case = recode(case, !!!case_dict), 
+           case = factor(case, case_dict)) %>%
+    arrange(region, case, age) %>%
     as.data.table()
   
-  g = ggplot(prob_death_dt) +
+  g = ggplot(plot_dt) +
     aes(x = age, 
         y = value, 
-        fill = group) +
+        fill = case) +
     geom_col(position = "dodge") +
+    # Facet by region...
     facet_wrap(
       facets = vars(region), 
       scales = "free_y") +
     # Set colour scheme...
     scale_fill_manual(
-      values = colours) + 
+      values = o$palette_who) + 
     # Prettify x axis...
     scale_x_continuous(
       name   = "Age (log2 scale)",
       trans  = "log2", 
-      # limits = c(1, 2 ^ age_bins), 
-      expand = expansion(add = 1), 
-      breaks = 2 ^ (0 : age_bins))
+      breaks = 2 ^ (0 : age_bins)) +
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = paste("Probability of death before", 
+                     "n^th birthday in", max(o$years)),
+      labels = percent, 
+      limits = c(0, NA), 
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks())
   
-  browser()
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title   = element_text(size = 20),
+          axis.title.x = element_text(
+            margin = margin(t = 20, b = 10)),
+          axis.title.y = element_text(
+            margin = margin(l = 10, r = 20)),
+          axis.text    = element_text(size = 10),
+          axis.ticks   = element_blank(), 
+          axis.line    = element_line(linewidth = 0.25),
+          strip.text   = element_text(size = 18),
+          strip.background = element_blank(), 
+          panel.spacing = unit(1, "lines"), 
+          panel.grid.major.y = element_line(linewidth = 0.25),
+          legend.title = element_blank(),
+          legend.text  = element_text(size = 14),
+          legend.key   = element_blank(),
+          legend.position = "bottom", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
+  
+  # Save figure to file
+  save_fig(g, "Probability of death by age", dir = "historical_impact")
+  
+  # Also save as main manuscript figure
+  save_fig(g, "Figure 7", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -2520,14 +2616,11 @@ plot_prob_death_age = function() {
 # ---------------------------------------------------------
 plot_survival_increase = function() {
   
+  message("  > Plotting increase in childhood survival")
+  
   age_bound = 50
   
   title = "Historical vaccination compared to hypothetical no vaccination"
-  
-  age_effect = data.table(age = o$ages) %>%
-    mutate(scaler = exp(-age), 
-           scaler = scaler / sum(scaler)) %>%
-    filter(age <= age_bound)
   
   # Estimated child deaths averted by vaccination
   averted_dt = read_rds("results", "deaths_averted") %>%
@@ -2542,7 +2635,7 @@ plot_survival_increase = function() {
     summarise(total_averted = sum(impact)) %>%
     ungroup() %>%
     # ...
-    expand_grid(age_effect) %>%
+    expand_grid(impact_age_multiplier()) %>%
     mutate(averted = total_averted * scaler) %>%
     select(region, age, averted) %>%
     as.data.table()
@@ -2682,6 +2775,8 @@ plot_survival_increase = function() {
 # ---------------------------------------------------------
 plot_measles_in_context = function() {
   
+  message("  > Plotting measles in context")
+  
   # Upper age bound for estimates
   age_bound = 5
   
@@ -2714,57 +2809,6 @@ plot_measles_in_context = function() {
     area  = c("#B0B0B0", "#0189C5"), 
     line  = c("#000000", "#0189C5"), 
     doses = c("#C70A0A", "#901616", "#400808"))
-  
-  # ---- Vaccine coverage ----
-  
-  # First update metric dictionary with values
-  metric_dict = list(
-    cum  = sprintf(metric_dict$cum,  age_bound),
-    abs  = sprintf(metric_dict$abs,  age_bound),
-    norm = sprintf(metric_dict$norm, age_bound),
-    cov  = sprintf(metric_dict$cov,  min(o$years), max(o$years)))
-  
-  # Cohort size for each measles dose
-  cohort_dt = table("v_a") %>%
-    filter(v_a_id %in% coverage_ids) %>%
-    left_join(y  = table("vaccine"), 
-              by = "vaccine") %>%
-    # Mean target age for each dose...
-    rowwise() %>%
-    mutate(mean_age = mean(eval_str(age))) %>%
-    ungroup() %>%
-    select(v_a_id, age = mean_age) %>%
-    # Join pop sizes by year for these ages...
-    left_join(y  = table("wpp_pop"), 
-              by = "age") %>%
-    # Cohort for each vaccine every year...
-    group_by(v_a_id, year) %>%
-    summarise(cohort = sum(pop)) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  # Gloabl measles coverage over time
-  coverage_dt = table("coverage") %>%
-    filter(v_a_id == coverage_ids) %>%
-    # Total number of doses per year...
-    group_by(v_a_id, year) %>%
-    summarise(fvps = sum(fvps)) %>%
-    ungroup() %>%
-    # Append global cohort sizes...
-    full_join(y  = cohort_dt, 
-              by = c("v_a_id", "year")) %>%
-    replace_na(list(fvps = 0)) %>%
-    mutate(value = fvps / cohort) %>%
-    # Append metric details...
-    append_v_a_name() %>%
-    mutate(metric = metric_dict$cov, 
-           metric = factor(metric, metric_dict)) %>%
-    select(metric, v_a_name, year, value) %>%
-    as.data.table()
-  
-  browser()
-  
-  # coverage_dt = table("coverage_global")
   
   # ---- Deaths by cause ----
   
@@ -2835,6 +2879,13 @@ plot_measles_in_context = function() {
     as.data.table()
   
   # ---- Construct plotting datatables ----
+  
+  # First update metric dictionary with values
+  metric_dict = list(
+    cum  = sprintf(metric_dict$cum,  age_bound),
+    abs  = sprintf(metric_dict$abs,  age_bound),
+    norm = sprintf(metric_dict$norm, age_bound),
+    cov  = sprintf(metric_dict$cov,  min(o$years), max(o$years)))
 
   # Lines for measles and all cause
   line_dt = context_dt %>%
@@ -2860,6 +2911,18 @@ plot_measles_in_context = function() {
            metric = factor(metric, metric_dict), 
            cause  = recode(cause,  !!!cause_dict),
            cause  = factor(cause,  cause_dict))
+  
+  # Gloabl measles coverage over time
+  coverage_dt = table("coverage_global") %>%
+    select(-vaccine) %>%
+    filter(v_a_id %in% coverage_ids) %>%
+    # Append metric details...
+    append_v_a_name() %>%
+    mutate(metric = metric_dict$cov, 
+           metric = factor(metric, metric_dict)) %>%
+    # Tidy up...
+    select(metric, v_a_name, year, value = coverage) %>%
+    as.data.table()
   
   # ---- Produce plot ----
   
@@ -2891,12 +2954,6 @@ plot_measles_in_context = function() {
       reverse = TRUE)) + 
     # Plot number of doses...
     ggnewscale::new_scale_color() + 
-    stat_smooth(
-      data    = coverage_dt,
-      mapping = aes(colour = v_a_name),
-      method  = "lm",
-      formula = y ~ poly(x, 10), 
-      se      = FALSE) +
     geom_line(
       data    = coverage_dt,
       mapping = aes(colour = v_a_name)) +
@@ -2915,6 +2972,7 @@ plot_measles_in_context = function() {
       expand = expansion(mult = c(0, 0)), 
       breaks = seq(min(o$years), max(o$years), by = 5)) +
     # Prettify y axis...
+    expand_limits(y = c(0, 1)) + 
     scale_y_continuous(
       labels = comma, 
       expand = expansion(mult = c(0, 0)), 
@@ -2950,8 +3008,6 @@ plot_measles_in_context = function() {
   
   # Also save as main manuscript figure
   save_fig(g, "Figure 5", dir = "manuscript")
-  
-  browser()
 }
 
 # ---------------------------------------------------------

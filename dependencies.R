@@ -67,6 +67,7 @@ packages = c(
   "GGally",         # Plotting correlation
   "ggpubr",         # Plotting functionality
   "ggnewscale",     # Plotting functionality
+  "ggh4x",          # Plotting functionality
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
   "pals",           # Colour palettes
