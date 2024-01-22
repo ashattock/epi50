@@ -31,6 +31,8 @@ plot_scope = function() {
   
   # ---- Number of FVPs by pathogen ----
   
+  browser()
+  
   # Number of FVPs over time
   fvps_dt = table("coverage") %>%
     filter(coverage > 0) %>%

@@ -96,11 +96,11 @@ set_options = function(do_step = NA) {
   # ---- Plotting flags ----
 
   # Turn figures on or off
-  o$plot_inputs     = FALSE
+  o$plot_inputs     = TRUE
   o$plot_static     = FALSE
   o$plot_imputation = FALSE
   o$plot_impact     = FALSE
-  o$plot_history    = TRUE  # Primary results
+  o$plot_history    = FALSE  # Primary results
 
   # ---- Plotting settings ----
   

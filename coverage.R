@@ -242,8 +242,8 @@ coverage_wiise = function(vimc_countries_dt) {
     filter(is.na(source)) %>%
     select(-intervention, -source) %>%
     # Apply v_a ID...
-    left_join(y  = v_a_dt, 
-              by = c("vaccine")) %>%
+    inner_join(y  = v_a_dt, 
+               by = c("vaccine")) %>%
     # Append ages...
     left_join(y  = age_dt, 
               by = "vaccine", 
