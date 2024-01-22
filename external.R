@@ -139,6 +139,11 @@ simulate_dynamice = function() {
   
   message("* Model set up")
   
+  stop("Additional work on external model integration needed here")
+  
+  # TODO: Need to compute measles coverage fropm VIMC, WIISE, 
+  #       and SIA without running through full pipeline
+  
   # Convert EPI50-DynaMICE vaccine references
   dynamice_dict = c(
     MCV1    = "MCV1", 
