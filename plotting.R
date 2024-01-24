@@ -31,8 +31,6 @@ plot_scope = function() {
   
   # ---- Number of FVPs by pathogen ----
   
-  browser()
-  
   # Number of FVPs over time
   fvps_dt = table("coverage") %>%
     filter(coverage > 0) %>%
@@ -2801,10 +2799,10 @@ plot_measles_in_context = function() {
     no_vaccine = "No historical vaccination")
   
   # Name of d-v-a to plot
-  measles_id = "xxxMeasles"
+  measles_id = "Measles"
   
   # ID of coverage values to plot
-  coverage_ids = c(4, 5) # 6
+  coverage_ids = c(4, 5)
   
   # Colour schemes
   colours = list(

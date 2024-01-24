@@ -260,9 +260,9 @@ extract_extern_results = function() {
   
   # All extern models and associated d_v_a_name
   all_extern = c(
-    dynamice = "xxxMeasles") 
-  # measles  = "xxxMeasles",
-  # polio    = "xxxPolio")
+    dynamice = "Measles") 
+  # measles  = "Measles",
+  # polio    = "Polio")
   
   # ---- Deaths and DALYs averted ----
   
