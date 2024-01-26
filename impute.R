@@ -113,24 +113,9 @@ perform_impute = function(d_v_a_id, target) {
     mutate(coverage_minus_1 = lag(coverage, 1),
            coverage_minus_2 = lag(coverage, 2),
            coverage_minus_3 = lag(coverage, 3),
-           coverage_minus_4 = lag(coverage, 4),
-           coverage_minus_5 = lag(coverage, 5),
-           coverage_minus_6 = lag(coverage, 6),
-           coverage_minus_7 = lag(coverage, 7),
-           coverage_minus_8 = lag(coverage, 8),
-           coverage_minus_3 = lag(coverage, 3)) %>%
+           coverage_minus_4 = lag(coverage, 4)) %>%
   
-    # Create dummy variables for historic health_spending (NA prior to our data)
-    mutate(health_spending_minus_1 = lag(health_spending, 1),
-           health_spending_minus_2 = lag(health_spending, 2),
-           health_spending_minus_3 = lag(health_spending, 3),
-           health_spending_minus_4 = lag(health_spending, 4),
-           health_spending_minus_5 = lag(health_spending, 5),
-           health_spending_minus_6 = lag(health_spending, 6),
-           health_spending_minus_7 = lag(health_spending, 7),
-           health_spending_minus_8 = lag(health_spending, 8)) %>%
-    
-    as_tsibble(index = year, key = c(country,d_v_a_id)) 
+   as_tsibble(index = year, key = c(country,d_v_a_id)) 
   
    # Convert to tsibble format for time series regression by country
    data_dt = target_dt %>%
