@@ -18,20 +18,23 @@ run_external = function() {
   
   # ---- Create results templates ----
   
-  # TEMP: To be removed when all extern models fully integrated
+  # Create template for measles models
+  template_measles()  # TEMP: To be removed when all extern models fully integrated
   
   # Create template for polio model
-  polio_template()
-  
-  # Create template for measles models
-  measles_template()
+  template_polio()  # TEMP: To be removed when all extern models fully integrated
   
   # ---- Simulate models ----
   
-  # Simulate DynaMICE model
+  # Simulate DynaMICE measles model
   simulate_dynamice()
   
-  # ---- Extract model results ----
+  # ---- Format external model output ----
+  
+  # Format polio modelling results for EPI50 use
+  format_polio()
+  
+  # ---- Extract all extern model results ----
   
   # Extract results from all extern models
   extract_extern_results()
@@ -40,7 +43,7 @@ run_external = function() {
 # ---------------------------------------------------------
 # Create results template for polio model
 # ---------------------------------------------------------
-polio_template = function() {
+template_polio = function() {
   
   # TEMP: To be removed when all extern models fully integrated
   
@@ -80,7 +83,7 @@ polio_template = function() {
 # ---------------------------------------------------------
 # Create results template for measles models
 # ---------------------------------------------------------
-measles_template = function() {
+template_measles = function() {
   
   # TEMP: To be removed when all extern models fully integrated
   
@@ -252,6 +255,107 @@ simulate_dynamice = function() {
 }
 
 # ---------------------------------------------------------
+# Format polio modelling results for EPI50 use
+# ---------------------------------------------------------
+format_polio = function() {
+  
+  # Raw output from polio model
+  #
+  # TEMP: Link up with actual results when available
+  raw_file = "template_polio_region.csv"
+  
+  # Load raw polio results
+  raw_dt = fread(paste0(o$pth$extern, raw_file))
+  
+  # ---- Crudely expand regions to countries ----
+  
+  # We'll (very crudely) disaggregate results into countries
+  #
+  # NOTE: This is simply to have consistent format with other diseases
+  setting_dt = table("country") %>%
+    select(region, country) %>%
+    # Append population size in most recent year...
+    mutate(year = max(o$years)) %>%
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year")) %>%
+    # Summarise over all ages...
+    group_by(region, country) %>%
+    summarise(pop = sum(pop)) %>%
+    ungroup() %>%
+    # Country population share by region...
+    group_by(region) %>%
+    mutate(pop_share = pop / sum(pop)) %>%
+    ungroup() %>%
+    select(-pop) %>%
+    as.data.table()
+    
+  # ---- Expand age groups in single years ----
+  
+  # Age groupings as defined in polio results
+  age_groups   = sort(unique(raw_dt$age_group))
+  age_group_dt = data.table(age_group = age_groups) %>% 
+      mutate(age = 2 ^ (seq_along(age_groups) - 1),
+             age = pmin(age, max(o$ages)))
+  
+  # Construct age datatable to expand age bins to single years
+  age_dt = data.table(age = o$ages) %>%
+    left_join(y  = age_group_dt, 
+              by = "age") %>%
+    fill(age_group, .direction = "downup") %>%
+    group_by(age_group) %>%
+    add_count(age_group) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # ---- Disaggregate raw results by country and age ----
+  
+  # Bring it all together to disaggregate raw results...
+  polio_dt = raw_dt %>%
+    # Expand regions to countries...
+    full_join(setting_dt, by = "region", 
+              relationship = "many-to-many") %>%
+    select(-region) %>%
+    # Expand age groups to all ages...
+    full_join(age_dt, by = "age_group", 
+              relationship = "many-to-many") %>%
+    select(-age_group) %>%
+    # Divide results through for each country and age ...
+    mutate(value = (value * pop_share) / n) %>%
+    select(scenario, country, year, age, metric, value) %>%
+    arrange(scenario, country, year, age)
+  
+  # ---- Sanity checks ----
+  
+  # Function to compute total outcomes
+  total_fn = function(dt, name) {
+    
+    # Total outcomes by scenario and metric
+    total_dt = dt %>%
+      group_by(scenario, metric) %>%
+      summarise(value = sum(value)) %>%
+      ungroup() %>%
+      rename(!!name := value) %>%
+      as.data.table()
+    
+    return(total_dt)
+  }
+  
+  # Compare raw with formatted model outcomes
+  check_dt = total_fn(polio_dt, "clean") %>%
+    left_join(y  = total_fn(raw_dt, "raw"), 
+              by = c("scenario", "metric")) %>%
+    mutate(diff = abs(clean - raw), 
+           err  = diff > 1e-6)
+  
+  # Throw an error if any differences are identified
+  if (any(check_dt$err))
+    stop("Error in country or age polio results disaggregation")
+  
+  # Save EPI50-formatted polio results 
+  save_rds(polio_dt, "extern", "epi50_polio_results")
+}
+
+# ---------------------------------------------------------
 # Extract results from all extern models
 # ---------------------------------------------------------
 extract_extern_results = function() {
@@ -260,9 +364,9 @@ extract_extern_results = function() {
   
   # All extern models and associated d_v_a_name
   all_extern = c(
-    dynamice = "Measles") 
-  # measles  = "Measles",
-  # polio    = "Polio")
+    dynamice = "Measles",  
+    # measles  = "Measles",
+    polio    = "Polio")
   
   # ---- Deaths and DALYs averted ----
   
@@ -285,6 +389,8 @@ extract_extern_results = function() {
 
     return(averted_dt)
   }
+  
+  browser()
 
   # Extract deaths and DALYs averted
   extern_averted_dt = names(all_extern) %>%
