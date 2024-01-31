@@ -13,10 +13,10 @@ plot_scope = function() {
   message("  > Plotting country-disease scope")
   
   # Manually set tidy y axis limit
-  y_max = 625  # In millions
+  y_max = 10  # In billions
   
   # Linear time interpolation for less pixilated figures
-  smoothness = 10  # Higher value for smoother plot
+  smoothness = 1  # Higher value for smoother plot
   
   # Dictionary for full impact source descriptions
   impact_dict = c(
@@ -31,7 +31,7 @@ plot_scope = function() {
   
   # ---- Number of FVPs by pathogen ----
   
-  # Number of FVPs over time
+  # Number of FVPs by country
   fvps_dt = table("coverage") %>%
     filter(coverage > 0) %>%
     # Append disease details...
@@ -48,24 +48,35 @@ plot_scope = function() {
     ungroup() %>%
     as.data.table()
   
-  # TEMP: A placeholder for polio (copy of measles FVP)
-  polio_dt = fvps_dt %>%
-    filter(disease == "Measles") %>%
-    mutate(disease = "Polio", 
-           fvps = fvps * 1.02)
-  
-  # TEMP: Append these polio placeholder values
-  fvps_dt %<>% rbind(polio_dt)
+  # Total cumulative FVPs per disease
+  total_dt = fvps_dt %>%
+    # Total by disease...
+    group_by(disease, year) %>%
+    summarise(total = sum(fvps)) %>%
+    ungroup() %>%
+    # Cumulative over time...
+    group_by(disease) %>%
+    mutate(cum = cumsum(total)) %>%
+    ungroup() %>%
+    as.data.table()
   
   # ---- Source of impact estimates ----
   
-  # Static model approach
+  # Static model settings
   static_dt = table("gbd_estimates") %>%
     select(disease, country, year) %>%
     unique() %>%
     mutate(class = "static")
   
-  # VIMC approach
+  # External model settings
+  extern_dt = table("extern_estimates") %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    select(disease, country, year) %>%
+    unique() %>%
+    mutate(class = "extern")
+  
+  # VIMC settings
   vimc_dt = table("vimc_estimates") %>%
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_id") %>%
@@ -73,7 +84,7 @@ plot_scope = function() {
     unique() %>%
     mutate(class = "vimc")
   
-  # VIMC country imputation method
+  # VIMC country imputation settings
   impute_dt = table("disease") %>%
     filter(source == "vimc") %>%
     select(disease) %>%
@@ -86,92 +97,69 @@ plot_scope = function() {
     mutate(class = "impute") %>%
     as.data.table()
   
-  # Other modelled pathogens
-  #
-  # TEMP: Read in polio impact table when ready
-  extern_dt = fvps_dt %>%
-    filter(disease == "Polio") %>%
-    select(disease, country, year) %>%
-    mutate(class = "extern")
-  
   # ---- Construct plotting datatable ----
   
   # Combine all impact sources
-  all_dt = rbind(static_dt, vimc_dt, impute_dt, extern_dt) %>%
+  plot_dt = rbind(static_dt, extern_dt, vimc_dt, impute_dt) %>%
     # Append FVPs...
     right_join(y  = fvps_dt, 
                by = c("disease", "country", "year")) %>%
     # Anything not yet specified is time-exrapolated...
     mutate(class = ifelse(is.na(class), "extrap", class)) %>%
+    # Summarise over all countries...
     group_by(disease, class, year) %>%
     summarise(fvps = sum(fvps)) %>%
     ungroup() %>%
-    as.data.table()
-  
-  # Year range of analysis
-  year1 = min(o$years)
-  year2 = max(o$years)
-  
-  # Smoothen over non-trivial years
-  plot_dt = expand_grid(
-    disease = unique(fvps_dt$disease), 
-    class   = names(impact_dict), 
-    year    = seq(year1, year2, by = 1 / smoothness)) %>%
-    # Append results and source of impact...
-    left_join(y  = all_dt, 
-              by = c("disease", "class", "year")) %>%
-    # Interpolate annual values for smoother plot...
-    mutate(year_int = floor(year)) %>%
-    group_by(disease, class, year_int) %>%
-    mutate(n = sum(fvps, na.rm = TRUE)) %>%
-    ungroup() %>%
-    filter(n > 0) %>%
-    select(-year_int, -n) %>%
-    # Interpolate annual values for smoother plot...
-    group_by(disease, class) %>%
-    mutate(fvps = na_interpolation(fvps)) %>%
-    ungroup() %>%
-    # Convert to units of millions...
-    mutate(fvps = fvps / 1e6) %>%
-    # filter(fvps > 0) %>%
+    # Append cumulative total...
+    left_join(y  = total_dt, 
+              by = c("disease", "year")) %>%
+    # Share of cumulative FVPs by class over time...
+    mutate(share = fvps / total, 
+           value = share * cum / 1e9) %>%
     # Use impact source descriptions...
     mutate(class = recode(class, !!!impact_dict), 
            class = factor(class, rev(impact_dict))) %>%
     # Use full disease names...
     left_join(y  = table("disease"), 
               by = "disease") %>%
-    replace_na(list(disease_name = "Poliomyelitis")) %>%
-    # Total number of FVP over time...
-    group_by(disease) %>%
-    mutate(total = sum(fvps)) %>%
-    ungroup() %>%
     # And use this to set disease order...
-    arrange(desc(total), disease, class, year) %>%
-    select(disease = disease_name, class, year, fvps, total) %>%
+    arrange(desc(cum)) %>%
+    select(disease = disease_name, class, year, value) %>%
     mutate(disease = fct_inorder(disease)) %>%
+    # Tidy up...
+    arrange(disease, year, class) %>%
     as.data.table()
   
   # ---- Construct label datatable ----
   
+  # Year range of analysis
+  year1 = min(o$years)
+  year2 = max(o$years)
+  
   # Label description string
-  label_str = paste0("Total (", year1, "-", year2, "): ")
+  label = paste0("Total (", year1, "-", year2, "):")
   
   # Construct labels: total FVPs over analysis timeframe
   label_dt = plot_dt %>%
-    select(disease, total) %>%
-    unique() %>%
-    mutate(total = round(total / (1e3 * smoothness), 2), 
-           label = paste0(label_str, total, " billion")) %>%
+    filter(year == year2) %>%
+    # Total cumulative FVPs by disease...
+    group_by(disease) %>%
+    summarise(value = sum(value)) %>%
+    ungroup() %>%
+    # Construct labels...
+    mutate(value = round(value, 2),
+           label = paste(label, value, "billion")) %>%
     # Set coordinates...
     mutate(year = year1 + 0.01 * (year2 - year1), 
-           fvps = y_max * 0.9)
+           fvps = y_max * 0.9) %>%
+    as.data.table()
   
   # ---- Produce plot ----
   
   # Plot FVP over time per pathogen and impact source
   g = ggplot(plot_dt) +
     aes(x = year, 
-        y = fvps) +
+        y = value) +
     geom_bar(
       mapping  = aes(fill = class), 
       stat     = "identity", 
@@ -204,8 +192,9 @@ plot_scope = function() {
       breaks = seq(year1, year2, by = 5)) +  
     # Prettify y axis...
     scale_y_continuous(
-      name   = "Number of people receiving final primary dose (in millions)", 
-      limits = c(0, y_max), 
+      name   = paste("Cumulative number of people receiving",
+                     "final primary dose (in billions)"), 
+      limits = c(0, y_max),
       labels = comma,
       expand = expansion(mult = c(0, 0)))
   
@@ -228,6 +217,8 @@ plot_scope = function() {
           legend.position = "right", 
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
+  
+  browser()
   
   # Save to file
   save_fig(g, "Analysis scope", dir = "data_visualisation")
@@ -757,6 +748,21 @@ plot_vaccine_efficacy = function() {
   
   message("  > Plotting vaccine efficacy profiles")
   
+  # Function to extract vaccine efficacy data
+  extract_data_fn = function(dt) {
+
+    # Extract and format into datatable
+    data = dt$data %>%
+      unlist() %>%
+      as_named_dt("value") %>%
+      mutate(name    = c("y", "x"), 
+             vaccine = dt$vaccine) %>%
+      pivot_wider(id_cols = vaccine) %>%
+      as.data.table()
+    
+    return(data)
+  }
+  
   # Function to group similar vaccines but split by dose
   schedule_fn = function(dt) {
     
@@ -774,35 +780,37 @@ plot_vaccine_efficacy = function() {
     return(shedule_dt)
   }
   
-  # Load vaccine efficacy profiles
-  plot_dt = table("vaccine_efficacy_profiles") %>%
-    schedule_fn() %>%
-    select(d_v, schedule, time, profile)
-  
-  # Load data used to calculate these profiles
+  # Extract all vaccine efficacy data points
   data_dt = table("vaccine_efficacy") %>%
-    left_join(y  = table("d_v"), 
-              by = "vaccine") %>%
+    dtapply(extract_data_fn) %>%
+    rbindlist() %>%
+    inner_join(y  = table("d_v"), 
+               by = "vaccine") %>%
     schedule_fn() %>%
-    select(d_v, schedule, 
-           init     = efficacy, 
-           time     = decay_x, 
-           halflife = decay_y) %>%
-    pivot_longer(cols = c(init, halflife), 
-                 values_to = "profile") %>%
-    mutate(time = ifelse(name == "init", 0, time)) %>%
-    filter(!is.na(time), 
-           !is.na(profile)) %>%
-    select(all_of(names(plot_dt))) %>%
-    as.data.table()
+    select(d_v, schedule, time = x, value = y)
+  
+  # Load vaccine efficacy profiles
+  profile_dt = table("vaccine_efficacy_profiles") %>%
+    schedule_fn() %>%
+    select(d_v, schedule, time, value = profile)
   
   # Plot vaccine efficacy with waning immunity (if any)
-  g = ggplot(plot_dt) + 
-    aes(x = time, y = profile, colour = d_v) + 
-    geom_line(linewidth = 2) + 
-    geom_point(data = data_dt, 
-               size = 5) + 
-    facet_grid(~schedule) +
+  g = ggplot(profile_dt) + 
+    aes(x = time, 
+        y = value) + 
+    # Plot immunity profile...
+    geom_line(
+      colour    = "black",
+      linewidth = 1.5) + 
+    # Plot coloured data points...
+    geom_point(
+      data    = data_dt, 
+      mapping = aes(colour = d_v),
+      size    = 2.5) + 
+    # Facet by vaccine and schedule...
+    facet_grid(
+      rows = vars(d_v), 
+      cols = vars(schedule)) +
     # Prettify x axis...
     scale_x_continuous(
       name   = "Years after completion of full schedule",
