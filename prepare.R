@@ -17,29 +17,29 @@ run_prepare = function() {
   
   message("* Preparing input data")
   
-  # # Convert config yaml files to datatables
-  # prepare_config_tables()
-  # 
-  # # Streamline VIMC impact estimates for quick loading
-  # prepare_vimc_estimates()
-  # 
-  # # Parse vaccine efficacy profile for non-VIMC pathogens
-  # prepare_vaccine_efficacy()
-  # 
-  # # Prepare GBD estimates of deaths for non-VIMC pathogens
-  # prepare_gbd_estimates()
-  # 
-  # # Prepare GBD covariates for extrapolating to non-VIMC countries
-  # prepare_gbd_covariates()
-  # 
-  # # Prepare Gapminder covariates for imputing non_VIMC countries
-  # prepare_gapminder()
-  # 
-  # # Prepare country income status classification over time
-  # prepare_income_status()
-  # 
-  # # Prepare demography-related estimates from WPP
-  # prepare_demography()
+  # Convert config yaml files to datatables
+  prepare_config_tables()
+  
+  # Streamline VIMC impact estimates for quick loading
+  prepare_vimc_estimates()
+  
+  # Parse vaccine efficacy profile for non-VIMC pathogens
+  prepare_vaccine_efficacy()
+  
+  # Prepare GBD estimates of deaths for non-VIMC pathogens
+  prepare_gbd_estimates()
+  
+  # Prepare GBD covariates for extrapolating to non-VIMC countries
+  prepare_gbd_covariates()
+  
+  # Prepare Gapminder covariates for imputing non_VIMC countries
+  prepare_gapminder()
+  
+  # Prepare country income status classification over time
+  prepare_income_status()
+  
+  # Prepare demography-related estimates from WPP
+  prepare_demography()
   
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
@@ -69,7 +69,7 @@ prepare_config_tables = function() {
     # Convert to datatable
     config_dt = yaml_data %>%
       lapply(as.data.table) %>%
-      rbindlist(fill=TRUE)
+      rbindlist(fill = TRUE)
     
     # Save in tables cache
     save_table(config_dt, file)
@@ -132,58 +132,89 @@ prepare_vaccine_efficacy = function() {
   
   message(" - Vaccine efficacy")
   
-  # Vaccine efficacy details
-  pars_dt = table("vaccine_efficacy") %>%
-    left_join(y  = table("d_v"), 
-              by = "vaccine") %>%
-    select(disease, vaccine, 
-           a = efficacy, 
-           x = decay_x, 
-           y = decay_y)
+  # ---- Optimisation functions ----
   
-  # We'll use these to represent waning immunity profile
-  #
-  # NOTE: We represent immunity decay using an exponential y = ae^(-rx)
-  profile_list = list()
-  
-  # Points at which to evaluate exponential function
-  #
-  # NOTE: These represent immunity in the years following vaccination
-  x_eval = seq_along(o$years) - 1
-  
-  # Iterate through diseases
-  for (i in seq_row(pars_dt)) {
-    pars = pars_dt[i, ]
+  # Function to determine optimal immunity profiles parameters
+  optimisation_fn = function(vaccine) {
     
-    # If values are NA, interpret as no immunity decay
-    has_decay = !any(is.na(pars[, .(x, y)]))
+    # Efficacy details (incl data) for this vaccine
+    efficacy_info = table("vaccine_efficacy") %>%
+      filter(vaccine == !!vaccine)
     
-    # In this case, constant efficacy for n years
-    if (!has_decay)
-      profile = rep(pars$a, length(x_eval))
+    # Extract the data points (efficacy, year)
+    data = efficacy_info %>%
+      pull(data) %>%
+      unlist() %>%
+      matrix(nrow = 2) %>%
+      t()
     
-    # Otherwise represent this decay
-    if (has_decay) {
-      
-      # Solve exponential function for r
-      r = -log(pars$y / pars$a) / pars$x
-      
-      # Evaluate exponential using this rate
-      profile = pars$a * exp(-r * x_eval)
-    }
+    # Extract user-defined functional form for vaccine efficacy
+    fn = eval_str(unique(efficacy_info$fn))
+    
+    # Number of input arguments for this function - each to be optimised
+    n_args = length(formals(fn))
+    
+    # Fit all required parameters to the data available
+    optim = asd(
+      fn   = obj_fn,
+      x0   = runif(n_args),
+      args = list(
+        data   = data, 
+        fn     = fn, 
+        n_args = n_args),
+      lb   = 0, 
+      ub   = Inf,
+      max_iters = 1e3)
+    
+    # Evaluate function using optimal parameters
+    profile = do.call(fn, as.list(optim$x))
     
     # Form profile into a datatable
-    profile_list[[i]] = pars %>%
-      select(disease, vaccine) %>%
-      expand_grid(time = x_eval) %>%
-      mutate(profile = profile) %>%
-      as.data.table()
+    profile_dt = data.table(
+      vaccine = vaccine,
+      time    = t,
+      profile = profile)
+    
+    return(profile_dt)
   }
   
-  # Bind into single datatable and save
-  rbindlist(profile_list) %>%
-    save_table("vaccine_efficacy_profiles")
+  # Objective function to minimise
+  obj_fn = function(x, args) {
+    
+    # Evalulate immunity function
+    y = do.call(args$fn, as.list(x))
+    
+    # Data points we want to hit
+    data_x = args$data[, 2] + 1
+    data_y = args$data[, 1]
+    
+    # Calculate sum of squared error
+    obj_val = sum((y[data_x] - data_y) ^ 2)
+    
+    return(list(y = obj_val))
+  }
   
+  # ---- Perform optimisation for each vaccine ----
+  
+  # Points at which to evaluate efficacy functions
+  t = seq_along(o$years) - 1  # Immunity in the years following vaccination
+  
+  # Vaccines we want efficacy profiles for (all static modelled vaccines)
+  vaccines = table("disease") %>%
+    left_join(y  = table("d_v_a"), 
+              by = "disease") %>%
+    filter(source == "static") %>%
+    pull(vaccine)
+  
+  # Apply optimisation to determine optimal immunity parameters
+  vaccines %>%
+    lapply(optimisation_fn) %>%
+    rbindlist() %>%
+    left_join(y  = table("d_v"), 
+              by = "vaccine") %>%
+    select(disease, vaccine, time, profile) %>%
+    save_table("vaccine_efficacy_profiles")
+
   # Plot these profiles
   plot_vaccine_efficacy()
 }
@@ -212,13 +243,16 @@ prepare_gbd_estimates = function() {
   
   # Load GBD estimates of deaths for relevant diseases
   deaths_dt = fread(paste0(o$pth$input, "gbd19_deaths.csv")) %>%
+    filter(year %in% o$gbd_estimate_years) %>%
     # Parse disease and countries...
     mutate(disease = recode(cause, !!!disease_dict), 
            country = countrycode(
              sourcevar   = location,
              origin      = "country.name", 
              destination = "iso3c")) %>%
-    filter(country %in% all_countries()) %>%
+    # Retain only what we're interesting in...
+    filter(disease %in% table("disease")$disease, 
+           country %in% all_countries()) %>%
     # Parse age groups...
     mutate(age     = recode(age, !!!age_dict), 
            age_bin = str_extract(age, "^[0-9]+"), 
@@ -366,24 +400,24 @@ prepare_gapminder = function() {
   # Prepare Gapminder data for use as predictors
   # Gini coefficient
   gini_dt = fread(paste0(o$pth$input, "ddf--datapoints--gapminder_gini--by--geo--time.csv")) %>%
-              rename(gini = gapminder_gini)
-   
+    rename(gini = gapminder_gini)
+  
   # Doctors per 1000 population
   doctors_per_1000_dt = fread(paste0(o$pth$input, "ddf--datapoints--medical_doctors_per_1000_people--by--geo--time.csv")) %>%
     rename(doctors_per_1000 = medical_doctors_per_1000_people)
-    
+  
   # Population aged 0 to 14
   pop_0_to_14_dt = fread(paste0(o$pth$input, "ddf--datapoints--population_aged_0_14_years_both_sexes_percent--by--geo--time.csv")) %>%
     rename(pop_0to14 = population_aged_0_14_years_both_sexes_percent)
-    
+  
   # Population density
   pop_density_dt = fread(paste0(o$pth$input, "ddf--datapoints--population_density_per_square_km--by--geo--time.csv")) %>%
     rename(pop_density = population_density_per_square_km)
-    
+  
   # Urban population (%)
   urban_dt = fread(paste0(o$pth$input, "ddf--datapoints--urban_population_percent_of_total--by--geo--time.csv")) %>%
     rename(urban_percent = urban_population_percent_of_total)
-    
+  
   # Health spending ($)
   health_spending_dt = fread(paste0(o$pth$input, "ddf--datapoints--total_health_spending_per_person_us--by--geo--time.csv")) %>%
     rename(health_spending = total_health_spending_per_person_us)
@@ -395,56 +429,56 @@ prepare_gapminder = function() {
   # At least basic water source (%)
   water_dt = fread(paste0(o$pth$input, "ddf--datapoints--at_least_basic_water_source_overall_access_percent--by--geo--time.csv")) %>%
     rename(basic_water = at_least_basic_water_source_overall_access_percent)
-    
+  
   # Human development index
   hdi_dt = fread(paste0(o$pth$input, "ddf--datapoints--hdi_human_development_index--by--geo--time.csv")) %>%
-            rename(HDI = hdi_human_development_index)
+    rename(HDI = hdi_human_development_index)
   
   # Attended births
   attended_births_dt = fread(paste0(o$pth$input, "ddf--datapoints--births_attended_by_skilled_health_staff_percent_of_total--by--geo--time.csv")) %>%
-                        rename(attended_births = births_attended_by_skilled_health_staff_percent_of_total)
+    rename(attended_births = births_attended_by_skilled_health_staff_percent_of_total)
   # GDP
   gdp_dt = fread(paste0(o$pth$input, "ddf--datapoints--gdppercapita_us_inflation_adjusted--by--geo--time.csv")) %>%
     rename(gdp = gdppercapita_us_inflation_adjusted)
   
   # Create table of Gapminder covariates
   gapminder_dt = gini_dt %>%
-                  full_join(doctors_per_1000_dt, by=c("geo", "time")) %>%
-                  full_join(health_spending_dt, by=c("geo", "time")) %>%
-                  full_join(pop_0_to_14_dt, by=c("geo", "time")) %>%
-                  full_join(pop_density_dt, by=c("geo", "time")) %>%
-                  full_join(urban_dt, by=c("geo", "time")) %>%
-                  full_join(attended_births_dt, by=c("geo", "time")) %>%
-                  full_join(water_dt, by=c("geo", "time")) %>%
-                  full_join(sanitation_dt, by=c("geo", "time")) %>%
-                  full_join(hdi_dt, by=c("geo", "time")) %>%
-                  mutate(country_code = toupper(geo)) %>%
-                  select(-geo) %>%
-                  relocate(country_code) %>%
-                  rename(year = time) %>%
-                  full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
-                  select(-country) %>%
-                  rename(country = country_code) %>%
-                  arrange(country, year) %>%
-                  filter(year >= 1974 & year <= 2024)  %>%
-                  as.data.table()              
-    
+    full_join(doctors_per_1000_dt, by=c("geo", "time")) %>%
+    full_join(health_spending_dt, by=c("geo", "time")) %>%
+    full_join(pop_0_to_14_dt, by=c("geo", "time")) %>%
+    full_join(pop_density_dt, by=c("geo", "time")) %>%
+    full_join(urban_dt, by=c("geo", "time")) %>%
+    full_join(attended_births_dt, by=c("geo", "time")) %>%
+    full_join(water_dt, by=c("geo", "time")) %>%
+    full_join(sanitation_dt, by=c("geo", "time")) %>%
+    full_join(hdi_dt, by=c("geo", "time")) %>%
+    mutate(country_code = toupper(geo)) %>%
+    select(-geo) %>%
+    relocate(country_code) %>%
+    rename(year = time) %>%
+    full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
+    select(-country) %>%
+    rename(country = country_code) %>%
+    arrange(country, year) %>%
+    filter(year >= 1974 & year <= 2024)  %>%
+    as.data.table()              
+  
   # TODO Check list of countries
   
   # Check for Gapminder countries not linked to WHO regions
   gapminder_dt %>% filter(is.na(region_short)) %>%
-                    select(country, region_short) %>%
-                    unique()
+    select(country, region_short) %>%
+    unique()
   
   gapminder_dt = gapminder_dt %>%
-                      filter(!is.na(region_short))
+    filter(!is.na(region_short))
   
   
   # Save in tables cache
   save_table(gapminder_dt, "gapminder_covariates")
   
-    }
-  
+}
+
 # ---------------------------------------------------------
 # Prepare country income status classification over time
 # ---------------------------------------------------------
@@ -490,7 +524,7 @@ prepare_income_status = function() {
     replace_na(list(income = "H")) %>%
     mutate(income = paste0(tolower(income), "ic")) %>%
     as.data.table()
-    
+  
   # Save in tables cache
   save_table(income_dt, "income_status")
 }

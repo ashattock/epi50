@@ -1,46 +1,64 @@
 ---
 
+# NOTE: Format of 'data' points: [efficacy, year after dose]
+
 # Creates datatable: vaccine_efficacy_table
 table:
 - vaccine: Dip3
-  efficacy: 0.95 # https://apps.who.int/iris/bitstream/handle/10665/258681/WER9231.pdf?sequence=1
-  lower: 0.94
-  upper: 0.98
-  decay_x: 19 # (in years) https://www.sciencedirect.com/science/article/pii/S2666636723000593#:~:text=Tetanus%20and%20diphtheria%20immunity%20decrease,years%2C%20respectively%20%5B22%5D.
-  decay_y: 0.485 # (halflife)
+  fn: "function(a, b) a * exp(-t * b)" # Exponenital decay
+  data: 
+  - [0.95, 0]   # Initial efficacy [1]
+  - [0.48, 19]  # Half life [2]
+  - [0.48, 27]  # Half life [3]
 - vaccine: Dip_BX
-  efficacy: 0.95 # Placeholder
-  lower: 0.94
-  upper: 0.98
+  fn: "function(a) a" # Constant
+  data: 
+  - [0.95, 0]  # Assumption
 - vaccine: Tet3
-  efficacy: 0.95 # https://apps.who.int/iris/bitstream/handle/10665/233093/WER8120_198-208.PDF
-  lower: 0.8
-  upper: 1.0
-  decay_x: 11 # (in years) https://www.sciencedirect.com/science/article/pii/S2666636723000593#:~:text=Tetanus%20and%20diphtheria%20immunity%20decrease,years%2C%20respectively%20%5B22%5D.
-  decay_y: 0.495 # (halflife)
+  fn: "function(a, b) a * exp(-t * b)" # Exponenital decay
+  data: 
+  - [0.95, 0]   # Initial efficacy [4]
+  - [0.48, 11]  # Half life [5]
+  - [0.48, 14]  # Half life [3]
+   
 - vaccine: Tet_BX
-  efficacy: 0.98 # Placeholder
-  lower: 0.8
-  upper: 1.0
+  fn: "function(a) a" # Constant
+  data: 
+  - [0.95, 0]  # Assumption
 - vaccine: wPer3
-  efficacy: 0.92 # https://iris.who.int/bitstream/handle/10665/241645/WER8540_385-400.PDF
-  lower: 0.89
-  upper: 0.96
-  decay_x: 15 # (in years) Assumption
-  decay_y: 0.46 # (halflife)
+  fn: "function(a, b) a * exp(-t * b)" # Exponenital decay
+  data: 
+  - [0.92, 0]   # Initial efficacy [6]
+  - [0.94, 0]   # Initial efficacy [8]
+  - [0.46, 15]  # Assumption
 - vaccine: aPer3
-  efficacy: 0.8 # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5088088/
-  lower: 0.71
-  upper: 0.86
-  decay_x: 5 # (in years) https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547082/
-  decay_y: 0.49 # (0.75 * 0.65) https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547082/
+  fn: "function(a, b) a * exp(-t * b)" # Exponenital decay
+  data: 
+  - [0.80, 0]  # Initial efficacy [7]
+  - [0.84, 0]  # Initial efficacy [8]
+  - [0.49, 5]  # 75% efficacy drops 35% after 5 years [9]
+  - [0.41, 8]  # Vaccine efficacy of 41% after 8 years [10]
 - vaccine: aPer_BX
-  efficacy: 0.8 # Placeholder
-  lower: 0.71
-  upper: 0.86
+  fn: "function(a) a" # Constant
+  data: 
+  - [0.80, 0]  # Assumption
 - vaccine: BCG
-  efficacy: 0.66 # https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-016-0685-4
-  lower: 0.08
-  upper: 0.88
-  decay_x: 15 # (in years) Assumption
-  decay_y: 0.66 # 0.33 # (halflife)
+  fn: "function(a, b, c, d) a + (b - a) / (1 + (t / c) ^ -d)" # Sigmoidal
+  data: 
+  - [0.66, 0]   # Initial efficacy [11]
+  - [0.66, 15]  # Various sources
+  - [0.10, 40]  # Assumption
+  
+# Sources:
+# [1]  https://apps.who.int/iris/bitstream/handle/10665/258681/WER9231.pdf?sequence=1
+# [2]  https://www.sciencedirect.com/science/article/pii/S2666636723000593#:~:text=Tetanus%20and%20diphtheria%20immunity%20decrease,years%2C%20respectively%20%5B22%5D.
+# [3]  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4826453/
+# [4]  https://apps.who.int/iris/bitstream/handle/10665/233093/WER8120_198-208.PDF
+# [5]  https://www.sciencedirect.com/science/article/pii/S2666636723000593#:~:text=Tetanus%20and%20diphtheria%20immunity%20decrease,years%2C%20respectively%20%5B22%5D.  
+# [6]  https://iris.who.int/bitstream/handle/10665/241645/WER8540_385-400.PDF
+# [7]  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5088088/
+# [8]  https://karger.com/mpp/article/31/4/313/825084/Whole-Cell-and-Acellular-Pertussis-Vaccine
+# [9]  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547082/
+# [10] https://pubmed.ncbi.nlm.nih.gov/27672225/
+# [11] https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-016-0685-4
+
