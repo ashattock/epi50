@@ -56,6 +56,11 @@ set_options = function(do_step = NA) {
   
   # GitHub repo for simulating DynaMICE model for EPI50 analysis
   o$github_dynamice = "ashattock/dynamice"
+  
+  # ---- Global Burden of Disease settings ----
+  
+  # Use GBD estimates starting from a given year
+  o$gbd_estimate_years = 1990 : 2019
 
   # ---- Impact function settings ----
   
@@ -96,10 +101,10 @@ set_options = function(do_step = NA) {
   # ---- Plotting flags ----
 
   # Turn figures on or off
-  o$plot_inputs     = FALSE
-  o$plot_static     = FALSE
-  o$plot_imputation = FALSE
-  o$plot_impact     = FALSE
+  o$plot_inputs     = TRUE
+  o$plot_static     = TRUE
+  o$plot_imputation = TRUE
+  o$plot_impact     = TRUE
   o$plot_history    = TRUE  # Primary results
 
   # ---- Plotting settings ----

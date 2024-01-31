@@ -441,7 +441,7 @@ smooth_static_fvps = function(coverage_dt) {
   
   # Vaccine IDs to apply to: static model pathogens only
   apply_id = table("disease") %>%
-    filter(source == "gbd") %>%
+    filter(source == "static") %>%
     left_join(y  = table("d_v_a"), 
               by = "disease") %>%
     left_join(y  = table("v_a"), 

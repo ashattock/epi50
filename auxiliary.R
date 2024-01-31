@@ -486,7 +486,7 @@ quiet = function(x) {
 # ---------------------------------------------------------
 # Convenience wrapper for readRDS
 # ---------------------------------------------------------
-read_rds = function(pth, ...) {
+read_rds = function(pth, ..., err = TRUE) {
   
   # Special use case: pth is the full .rds file path
   if (grepl(".*\\.rds$", pth)) {
@@ -502,8 +502,26 @@ read_rds = function(pth, ...) {
     full_path = paste0(file_path, file_name, ".rds")
   }
   
-  # Read and return the object
-  x = readRDS(file = full_path)
+  # Check whether file exists
+  exists = file.exists(full_path)
+  
+  # If file exists, load it
+  if (exists)
+    x = readRDS(file = full_path)
+  
+  # If file does not exist
+  if (!exists) {
+    
+    # Construct error / warning message
+    err_message = paste("Unable to load file '", full_path, "'")
+    
+    # Either throw an error or warning depending on err argument
+    if (err) stop(err_message)
+    if (!err) warning(err_message)
+    
+    # Return out trivial result
+    x = NULL
+  }
   
   return(x)
 }

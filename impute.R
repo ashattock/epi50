@@ -21,6 +21,10 @@ run_impute = function() {
   # Load target to fit to (impact per FVP)
   target_dt = get_impute_data()
   
+  # Return out if no training data identified
+  if (nrow(target_dt) == 0)
+    return()
+  
   # ---- Perform imputation ----
   
   # Impute missing countries for all d-v-a combinations
@@ -799,6 +803,10 @@ get_impute_data = function() {
   
   # Save this datatable to file for plotting purposes
   save_rds(target_dt, "impute", "target")
+  
+  # Throw a warning if no target data identified
+  if (nrow(target_dt) == 0)
+    warning("No imputation training data identified")
   
   return(target_dt)
 }

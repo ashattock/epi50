@@ -18,7 +18,7 @@ run_static = function() {
   
   # Pathogens diseases of interest
   diseases = table("disease") %>%
-    filter(source == "gbd") %>%
+    filter(source == "static") %>%
     pull(disease)
   
   # Iterate through these diseases

@@ -82,27 +82,27 @@ table:
   vaccine: BCG
   activity: all
   d_v_a_name: "Tuberculosis (BCG)"
-# - d_v_a_id: 17
-#   disease: Polio
-#   vaccine: Polio
-#   activity: all
-#   d_v_a_name: "Polio"
 - d_v_a_id: 17
   disease: Measles
   vaccine: Measles
   activity: all
   d_v_a_name: "Measles"
 # - d_v_a_id: 18
+#   disease: Polio
+#   vaccine: Polio
+#   activity: all
+#   d_v_a_name: "Polio"
+# - d_v_a_id: 101
 #   disease: Measles
 #   vaccine: MCV1
 #   activity: routine
 #   d_v_a_name: "Measles (first dose)"
-# - d_v_a_id: 19
+# - d_v_a_id: 102
 #   disease: Measles
 #   vaccine: MCV2
 #   activity: routine
 #   d_v_a_name: "Measles (second dose)"
-# - d_v_a_id: 20
+# - d_v_a_id: 103
 #   disease: Measles
 #   vaccine: Measles
 #   activity: campaign

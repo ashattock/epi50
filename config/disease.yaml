@@ -19,16 +19,16 @@ table:
   source: vimc
 - disease: Dip
   disease_name: "Diphtheria"
-  source: gbd
+  source: static
 - disease: Tet
   disease_name: "Tetanus"
-  source: gbd
+  source: static
 - disease: Per
   disease_name: "Pertussis"
-  source: gbd
+  source: static
 - disease: TB
   disease_name: "Tuberculosis"
-  source: gbd
+  source: static
 - disease: Measles
   disease_name: "Measles"
   source: extern

@@ -33,7 +33,7 @@ explore_dalys = function() {
   years = 2000 : 2019
   
   # Diseases for which we use GBD method for deaths averted
-  gbd_diseases = disease_table[source == "gbd", disease]
+  gbd_diseases = disease_table[source == "static", disease]
   
   # TEMP: Recode GBD disease names to old format until it's changed everywhere
   temp_dict = c(Dip = "D", Tet = "T", Per = "P", TB = "TB")

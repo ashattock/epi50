@@ -152,6 +152,8 @@ run_history = function() {
   message(" - Appending external models")
   
   extern_dt = table("extern_estimates") %>%
+    filter(d_v_a_id %in% table("d_v_a")$d_v_a_id) %>%
+    # Summarise results over age...
     group_by(d_v_a_id, country, year) %>%
     summarise(impact = sum(deaths_averted)) %>%
     ungroup() %>%
