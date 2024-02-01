@@ -23,25 +23,22 @@ coverage_sia = function(vimc_countries_dt) {
   
   # ---- Set up ----
   
-  # Campaign activities (or 'all' for GBD pathogens)
-  v_a_dt = table("v_a") %>%
+  # Campaign activities (or 'all' for non-VIMC pathogens)
+  d_v_a_dt = table("d_v_a") %>%
+    filter(source != "extern") %>%
+    bind_rows(table("d_v_a_extern")) %>%
     filter(activity %in% c("campaign", "all")) %>%
-    left_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity")) %>%
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
-    filter(source != "extern") %>%  # Remove external models
-    select(v_a_id, vaccine)
+    select(d_v_a_id, vaccine)
   
   # Data dictionary for converting to v_a
   data_dict = table("vaccine_dict") %>%
-    left_join(y  = v_a_dt, 
+    left_join(y  = d_v_a_dt, 
               by = "vaccine") %>%
     left_join(y  = table("sia_schedule"), 
               by = "vaccine") %>%
-    filter(!is.na(v_a_id)) %>%
-    select(v_a_id, vaccine, intervention, schedule) %>%
-    arrange(v_a_id, intervention)
+    filter(!is.na(d_v_a_id)) %>%
+    select(d_v_a_id, vaccine, intervention, schedule) %>%
+    arrange(d_v_a_id, intervention)
   
   # ---- Load and wrangle data ----
   
@@ -49,8 +46,8 @@ coverage_sia = function(vimc_countries_dt) {
   data_dt = fread(paste0(o$pth$input, "sia_coverage.csv")) %>%
     setnames(names(.), tolower(names(.))) %>% 
     # Select columns of interest...
-    select(country      = iso3_code,          # Country ISO3 codes
-           intervention = intervention_code,
+    select(intervention = intervention_code,
+           country      = iso3_code,          # Country ISO3 codes, 
            sia_type     = activity_type_code, # Catch up, national day, etc
            status       = activity_status,    # Done, ongoing, planned, etc
            age_group    = activity_age_group,
@@ -72,7 +69,7 @@ coverage_sia = function(vimc_countries_dt) {
     filter(country %in% all_countries()) %>%
     # Remove any unknown interventions...
     filter(intervention %in% unique(data_dict$intervention)) %>%
-    arrange(country, intervention) %>%
+    arrange(intervention, country) %>%
     # Deal with dates...
     format_sia_dates() %>%
     impute_sia_dates() %>%
@@ -80,37 +77,41 @@ coverage_sia = function(vimc_countries_dt) {
     parse_age_groups()
   
   # intervention_dt = data_dt %>%
-  #   left_join(y  = data_dict, 
-  #             by = "intervention", 
+  #   left_join(y  = data_dict,
+  #             by = "intervention",
   #             relationship = "many-to-many") %>%
-  #   mutate(raw_coverage = doses / (schedule * pop)) %>%
-  #   select(raw_coverage, intervention, vaccine)
+  #   mutate(raw = doses / (schedule * pop), 
+  #          coverage = pmin(raw, o$max_coverage)) %>%
+  #   select(intervention, vaccine, coverage)
   # 
   # g = ggplot(intervention_dt) +
-  #   aes(x = raw_coverage,
-  #       y = after_stat(count),
+  #   aes(x = coverage,
   #       colour = intervention,
   #       fill   = intervention) +
-  #   geom_density(alpha = 0.2) + 
-  #   facet_wrap(~vaccine, scales = "free")
+  #   geom_histogram(
+  #     binwidth = 0.05, 
+  #     alpha    = 0.2) +
+  #   facet_wrap(
+  #     facets = vars(vaccine), 
+  #     scales = "free_y")
   
   # Interpret 'interventions'
   sia_dt = data_dt %>%
-    # Convert to v_a...
+    # Convert to d-v-a...
     left_join(y  = data_dict, 
               by = "intervention", 
               relationship = "many-to-many") %>%
-    filter(!is.na(v_a_id)) %>%
+    filter(!is.na(d_v_a_id)) %>%
     # Remove entires already covered by VIMC...
     left_join(y  = vimc_countries_dt, 
-              by = c("vaccine", "country", "year")) %>%
+              by = c("d_v_a_id", "country", "year")) %>%
     filter(is.na(source)) %>%
     select(-source) %>%
     # Calculate FVPs...
     mutate(sheduled_doses = doses / schedule) %>%
     calculate_fvps() %>%
     # Tidy up...
-    arrange(country, v_a_id, year, age) %>%
+    arrange(d_v_a_id, country, year, age) %>%
     mutate(source = "sia") %>%
     as.data.table()
   
@@ -176,7 +177,7 @@ format_sia_dates = function(sia_dt) {
     filter(!is.na(start_date),
            start_date >= format_date(data_from), 
            start_date <  format_date(data_to)) %>%
-    arrange(country, intervention, start_date)
+    arrange(intervention, country, start_date)
   
   return(date_dt)
 }
@@ -232,14 +233,14 @@ impute_sia_dates = function(sia_dt) {
     mutate(month = format_date(month), 
            doses = (doses / n_months) * value) %>%     # Divide total doses across the months
     select(-start_date, -end_date, -run_months, -n_months) %>%
-    arrange(country, intervention, month) %>%
+    arrange(intervention, country, month) %>%
     as.data.table()
   
   # Remove these trivial dose entries and sum over year
   sia_year_dt = sia_month_dt %>%
     filter(doses > 0) %>%
     mutate(year = year(month)) %>%
-    group_by(country, intervention, year, age_group) %>%
+    group_by(intervention, country, year, age_group) %>%
     summarise(doses = sum(doses)) %>%
     ungroup() %>%
     as.data.table()
@@ -358,11 +359,11 @@ parse_age_groups = function(sia_dt) {
     left_join(y  = table("wpp_pop"), 
               by = c("country", "year", "age")) %>%
     # Distribute across age bins...
-    group_by(country, intervention, year, age_group) %>%
+    group_by(intervention, country, year, age_group) %>%
     mutate(doses = total_doses * pop / sum(pop)) %>%
     ungroup() %>%
     # Tidy up...
-    select(country, intervention, year, age, doses, pop) %>%
+    select(intervention, country, year, age, doses, pop) %>%
     as.data.table()
   
   # Sanity check that we haven't lost/gained doses

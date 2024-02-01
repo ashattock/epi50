@@ -16,6 +16,8 @@ run_static = function() {
   
   message("* Estimating static model vaccine impact")
   
+  browser() # No more table("disease")
+  
   # Pathogens diseases of interest
   diseases = table("disease") %>%
     filter(source == "static") %>%

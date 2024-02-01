@@ -8,8 +8,6 @@ table:
   schedule: 1
 - vaccine: Hib3
   schedule: 3
-- vaccine: Measles
-  schedule: 2
 - vaccine: PCV3
   schedule: 3
 - vaccine: Rota
@@ -32,3 +30,9 @@ table:
   schedule: 3
 - vaccine: BCG
   schedule: 1
+- vaccine: Measles
+  schedule: 2
+- vaccine: IPV
+  schedule: 4
+- vaccine: OPV
+  schedule: 4

@@ -427,8 +427,8 @@ plot_smooth_fvps = function() {
     mutate(country_age = paste1(country, age), 
            fvps_smooth = fvps_smooth / 1e6, 
            fvps        = fvps / 1e6) %>%
-    append_v_a_name() %>%
-    select(v_a_name, country, country_age, 
+    format_d_v_a_name() %>%
+    select(d_v_a_name, country, country_age, 
            year, fvps, fvps_smooth)
   
   # Plot the data with associated smoothing
@@ -445,7 +445,7 @@ plot_smooth_fvps = function() {
       mapping = aes(y = fvps_smooth),
       show.legend = FALSE) +
     # Simple faceting...
-    facet_wrap(~v_a_name) + 
+    facet_wrap(~d_v_a_name) + 
     # Prettify x axis...
     scale_x_continuous(
       expand = expansion(mult = c(0, 0)), 
@@ -476,7 +476,7 @@ plot_smooth_fvps = function() {
   # Total error for each vaccine
   diagnostic_dt = smooth_dt %>%
     # Summarise for each vaccine...
-    group_by(v_a_name) %>%
+    group_by(d_v_a_name) %>%
     summarise(fvps = sum(fvps),
               fvps_smooth = sum(fvps_smooth)) %>%
     ungroup() %>%
@@ -487,15 +487,15 @@ plot_smooth_fvps = function() {
     mutate(err = round(100 * abs / fvps, 2), 
            err = paste0("Error: ", err, "%")) %>%
     # Append error to vaccine description...
-    mutate(v_a_name = paste0(v_a_name, "\n", err)) %>%
+    mutate(d_v_a_name = paste0(d_v_a_name, "\n", err)) %>%
     # Set plotting order by abs diff...
     arrange(abs) %>%
-    mutate(v_a_name = fct_inorder(v_a_name)) %>%
+    mutate(d_v_a_name = fct_inorder(d_v_a_name)) %>%
     as.data.table()
   
   # Plot total smoothing errors
   g2 = ggplot(diagnostic_dt) +
-    aes(x = v_a_name, 
+    aes(x = d_v_a_name, 
         y = diff, 
         fill = abs) +
     geom_col(show.legend = FALSE) +

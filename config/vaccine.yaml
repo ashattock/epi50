@@ -56,6 +56,12 @@ table:
 - vaccine: Measles
   vaccine_name: "Measles"
   age: "4:6"
+- vaccine: IPV
+  vaccine_name: "Poliomyelitis inactivated"
+  age: 0
+- vaccine: OPV
+  vaccine_name: "Poliomyelitis oral"
+  age: 0
 
 # Source for DTP-containing booster dose age groups:
 #   https://terrance.who.int/mediacentre/data/sage/SAGE_Docs_Ppt_Apr2017/10_session_diptheria/Apr2017_session10_diphtheria_vax_effectiveness.pdf

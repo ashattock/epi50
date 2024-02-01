@@ -6,6 +6,16 @@ table:
 # Vaccines modelled
 - intervention: bcg
   vaccine: BCG
+- intervention: bopv
+  vaccine: OPV
+- intervention: bopv_ipv
+  vaccine:
+  - OPV
+  - IPV
+- intervention: bopv_ipv_frac
+  vaccine:
+  - OPV
+  - IPV
 - intervention: diphcv4
   vaccine: Dip_BX
 - intervention: diphteria
@@ -99,6 +109,8 @@ table:
   vaccine:
   - Hib3
   - HepB
+- intervention: ipv
+  vaccine: IPV
 - intervention: m_mmr
   vaccine:
   - Measles
@@ -107,34 +119,12 @@ table:
   vaccine:
   - Measles
   - Rubella
-# - intervention: mcv
-#   vaccine: MenA
 - intervention: mcv1
   vaccine: MCV1
 - intervention: mcv2
   vaccine: MCV2
 - intervention: measles
   vaccine: Measles
-# - intervention: men_a
-#   vaccine: MenA
-# - intervention: men_a_conj
-#   vaccine:
-#   - MenA
-# - intervention: men_ac
-#   vaccine:
-#   - MenA
-# - intervention: men_acw
-#   vaccine:
-#   - MenA
-# - intervention: men_acwy
-#   vaccine:
-#   - MenA
-# - intervention: men_acyw_135conj
-#   vaccine:
-#   - MenA
-# - intervention: men_acyw_conj
-#   vaccine:
-#   - MenA
 - intervention: mmr
   vaccine:
   - Measles
@@ -143,6 +133,9 @@ table:
   vaccine:
   - Measles
   - Rubella
+  - IPV
+- intervention: mopv3
+  vaccine: OPV
 - intervention: mr
   vaccine:
   - Measles
@@ -151,6 +144,10 @@ table:
   vaccine:
   - Measles
   - Rubella
+- intervention: opv
+  vaccine: OPV
+- intervention: opvt
+  vaccine: OPV
 - intervention: pcv3
   vaccine: PCV3
 - intervention: pcv7
@@ -170,6 +167,10 @@ table:
   vaccine: aPer_BX
 - intervention: pneumo_conj
   vaccine: PCV3
+- intervention: pol3
+  vaccine:
+  - OPV
+  - IPV
 - intervention: ppv23
   vaccine: PCV3
 - intervention: rcv
@@ -191,11 +192,13 @@ table:
   vaccine:
   - Dip3
   - Tet3
+  - IPV
 - intervention: tdpipv
   vaccine:
   - Dip3
   - Tet3
   - aPer3
+  - IPV
 - intervention: tt
   vaccine: Tet3
 - intervention: tt2plus
@@ -209,9 +212,6 @@ table:
 - intervention: "15hpvc_f"
 - intervention: "15hpvc_m"
 - intervention: all_vaccines
-- intervention: bopv
-- intervention: bopv_ipv
-- intervention: bopv_ipv_frac
 - intervention: bopv_mopv1
 - intervention: bopv_mopv2
 - intervention: dtpcv1
@@ -236,31 +236,32 @@ table:
 - intervention: hepb2
 - intervention: hpv_fem
 - intervention: hpv_male
-- intervention: ipv
 - intervention: ipv_frac
-- intervention: ipv1
-- intervention: ipv1_frac
 - intervention: ipv1
 - intervention: ipv1_frac
 - intervention: ipv2
 - intervention: ipv2_frac
+- intervention: mcv
+- intervention: men_a
+- intervention: men_a_conj
+- intervention: men_ac
+- intervention: men_acw
+- intervention: men_acwy
+- intervention: men_acyw_135conj
+- intervention: men_acyw_conj
 - intervention: men_b
 - intervention: men_bc
 - intervention: men_c_conj
 - intervention: mopv1
 - intervention: mopv2
-- intervention: mopv3
 - intervention: mumps
 - intervention: japenc
 - intervention: japenc_1
 - intervention: japenc_c
-- intervention: opv
-- intervention: opvt
 - intervention: pab
 - intervention: pcv1
 - intervention: pcv2
 - intervention: percv_pw
-- intervention: pol3
 - intervention: prhpv1_f
 - intervention: prhpv1_m
 - intervention: prhpvc_f

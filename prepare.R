@@ -17,29 +17,29 @@ run_prepare = function() {
   
   message("* Preparing input data")
   
-  # Convert config yaml files to datatables
-  prepare_config_tables()
-  
-  # Streamline VIMC impact estimates for quick loading
-  prepare_vimc_estimates()
-  
-  # Parse vaccine efficacy profile for non-VIMC pathogens
-  prepare_vaccine_efficacy()
-  
-  # Prepare GBD estimates of deaths for non-VIMC pathogens
-  prepare_gbd_estimates()
-  
-  # Prepare GBD covariates for extrapolating to non-VIMC countries
-  prepare_gbd_covariates()
-  
-  # Prepare Gapminder covariates for imputing non_VIMC countries
-  prepare_gapminder()
-  
-  # Prepare country income status classification over time
-  prepare_income_status()
-  
-  # Prepare demography-related estimates from WPP
-  prepare_demography()
+  # # Convert config yaml files to datatables
+  # prepare_config_tables()
+  # 
+  # # Streamline VIMC impact estimates for quick loading
+  # prepare_vimc_estimates()
+  # 
+  # # Parse vaccine efficacy profile for non-VIMC pathogens
+  # prepare_vaccine_efficacy()
+  # 
+  # # Prepare GBD estimates of deaths for non-VIMC pathogens
+  # prepare_gbd_estimates()
+  # 
+  # # Prepare GBD covariates for extrapolating to non-VIMC countries
+  # prepare_gbd_covariates()
+  # 
+  # # Prepare Gapminder covariates for imputing non_VIMC countries
+  # prepare_gapminder()
+  # 
+  # # Prepare country income status classification over time
+  # prepare_income_status()
+  # 
+  # # Prepare demography-related estimates from WPP
+  # prepare_demography()
   
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
@@ -111,8 +111,6 @@ prepare_vimc_estimates = function() {
     # Disease, vaccines, and activities of interest...
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
     filter(!is.na(d_v_a_id), 
            source == "vimc") %>%
     # Tidy up...
@@ -151,8 +149,10 @@ prepare_vaccine_efficacy = function() {
     # Extract user-defined functional form for vaccine efficacy
     fn = eval_str(unique(efficacy_info$fn))
     
-    # Number of input arguments for this function - each to be optimised
-    n_args = length(formals(fn))
+    # Number of function input arguments (without default values)
+    #
+    # NOTE: These are the set of values to be optimised
+    n_args = sum(!unlist(lapply(formals(fn), is.numeric)))
     
     # Fit all required parameters to the data available
     optim = asd(
@@ -162,8 +162,8 @@ prepare_vaccine_efficacy = function() {
         data   = data, 
         fn     = fn, 
         n_args = n_args),
-      lb   = 0, 
-      ub   = Inf,
+      lb   = 1e-6, 
+      ub   = 1e6,
       max_iters = 1e3)
     
     # Evaluate function using optimal parameters
@@ -200,21 +200,16 @@ prepare_vaccine_efficacy = function() {
   t = seq_along(o$years) - 1  # Immunity in the years following vaccination
   
   # Vaccines we want efficacy profiles for (all static modelled vaccines)
-  vaccines = table("disease") %>%
-    left_join(y  = table("d_v_a"), 
-              by = "disease") %>%
-    filter(source == "static") %>%
-    pull(vaccine)
+  vaccines = table("d_v_a")[source == "static", vaccine]
   
   # Apply optimisation to determine optimal immunity parameters
-  vaccines %>%
-    lapply(optimisation_fn) %>%
+  lapply(vaccines, optimisation_fn) %>%
     rbindlist() %>%
     left_join(y  = table("d_v"), 
               by = "vaccine") %>%
     select(disease, vaccine, time, profile) %>%
     save_table("vaccine_efficacy_profiles")
-
+  
   # Plot these profiles
   plot_vaccine_efficacy()
 }
@@ -251,7 +246,7 @@ prepare_gbd_estimates = function() {
              origin      = "country.name", 
              destination = "iso3c")) %>%
     # Retain only what we're interesting in...
-    filter(disease %in% table("disease")$disease, 
+    filter(disease %in% table("d_v_a")$disease, 
            country %in% all_countries()) %>%
     # Parse age groups...
     mutate(age     = recode(age, !!!age_dict), 
