@@ -1,0 +1,25 @@
+---
+
+# Creates datatable: extern_table
+table:
+- d_v_a_id: 101
+  disease: Measles
+  vaccine: MCV1
+  activity: routine
+- d_v_a_id: 102
+  disease: Measles
+  vaccine: MCV2
+  activity: routine
+- d_v_a_id: 103
+  disease: Measles
+  vaccine: Measles
+  activity: campaign
+- d_v_a_id: 104
+  disease: Polio
+  vaccine: IPV
+  activity: all
+- d_v_a_id: 105
+  disease: Polio
+  vaccine: OPV
+  activity: all
+
