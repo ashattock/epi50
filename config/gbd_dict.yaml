@@ -1,0 +1,13 @@
+---
+
+# Creates datatable: gbd_dict_table
+table:
+- disease: Dip
+  disease_name: "Diphtheria"
+- disease: Tet
+  disease_name: "Tetanus"
+- disease: Per
+  disease_name: "Pertussis"
+  gbd_alt_name: "Whooping cough"
+- disease: TB
+  disease_name: "Tuberculosis"

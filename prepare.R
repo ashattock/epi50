@@ -17,29 +17,29 @@ run_prepare = function() {
   
   message("* Preparing input data")
   
-  # # Convert config yaml files to datatables
-  # prepare_config_tables()
-  # 
-  # # Streamline VIMC impact estimates for quick loading
-  # prepare_vimc_estimates()
-  # 
-  # # Parse vaccine efficacy profile for non-VIMC pathogens
-  # prepare_vaccine_efficacy()
-  # 
-  # # Prepare GBD estimates of deaths for non-VIMC pathogens
-  # prepare_gbd_estimates()
-  # 
-  # # Prepare GBD covariates for extrapolating to non-VIMC countries
-  # prepare_gbd_covariates()
-  # 
-  # # Prepare Gapminder covariates for imputing non_VIMC countries
-  # prepare_gapminder()
-  # 
-  # # Prepare country income status classification over time
-  # prepare_income_status()
-  # 
-  # # Prepare demography-related estimates from WPP
-  # prepare_demography()
+  # Convert config yaml files to datatables
+  prepare_config_tables()
+
+  # Streamline VIMC impact estimates for quick loading
+  prepare_vimc_estimates()
+
+  # Parse vaccine efficacy profile for non-VIMC pathogens
+  prepare_vaccine_efficacy()
+
+  # Prepare GBD estimates of deaths for non-VIMC pathogens
+  prepare_gbd_estimates()
+
+  # Prepare GBD covariates for extrapolating to non-VIMC countries
+  prepare_gbd_covariates()
+
+  # Prepare Gapminder covariates for imputing non_VIMC countries
+  prepare_gapminder()
+
+  # Prepare country income status classification over time
+  prepare_income_status()
+
+  # Prepare demography-related estimates from WPP
+  prepare_demography()
   
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
@@ -74,24 +74,6 @@ prepare_config_tables = function() {
     # Save in tables cache
     save_table(config_dt, file)
   }
-  
-  # ---- Other config-related tables ----
-  
-  # Disease-vaccine table
-  table("d_v_a") %>%
-    select(disease, vaccine) %>%
-    unique() %>%
-    mutate(d_v_id = 1 : n(), 
-           .before = 1) %>%
-    save_table("d_v")
-  
-  # Vaccine-activity table
-  table("d_v_a") %>%
-    select(vaccine, activity) %>%
-    unique() %>%
-    mutate(v_a_id = 1 : n(), 
-           .before = 1) %>%
-    save_table("v_a")
 }
 
 # ---------------------------------------------------------
@@ -205,7 +187,7 @@ prepare_vaccine_efficacy = function() {
   # Apply optimisation to determine optimal immunity parameters
   lapply(vaccines, optimisation_fn) %>%
     rbindlist() %>%
-    left_join(y  = table("d_v"), 
+    left_join(y  = table("d_v_a"), 
               by = "vaccine") %>%
     select(disease, vaccine, time, profile) %>%
     save_table("vaccine_efficacy_profiles")
@@ -229,18 +211,21 @@ prepare_gbd_estimates = function() {
     "<1 year" = "0 to 1", 
     "80 plus" = "80 to 95")
   
-  # Parse diseases
-  disease_dict = c(
-    "Diphtheria"     = "Dip",
-    "Tetanus"        = "Tet",
-    "Whooping cough" = "Per", 
-    "Tuberculosis"   = "TB")
+  # Dictionary of GBD disease names
+  gbd_dict = table("gbd_dict") %>%
+    mutate(name = ifelse(
+      test = is.na(gbd_alt_name), 
+      yes  = disease_name, 
+      no   = gbd_alt_name)) %>%
+    select(name, value = disease) %>%
+    pivot_wider() %>%
+    as.list()
   
   # Load GBD estimates of deaths for relevant diseases
   deaths_dt = fread(paste0(o$pth$input, "gbd19_deaths.csv")) %>%
     filter(year %in% o$gbd_estimate_years) %>%
     # Parse disease and countries...
-    mutate(disease = recode(cause, !!!disease_dict), 
+    mutate(disease = recode(cause, !!!gbd_dict), 
            country = countrycode(
              sourcevar   = location,
              origin      = "country.name", 
@@ -253,20 +238,20 @@ prepare_gbd_estimates = function() {
            age_bin = str_extract(age, "^[0-9]+"), 
            age_bin = as.numeric(age_bin)) %>%
     # Tidy up...
-    select(country, disease, year, age_bin, value = val) %>%
-    arrange(country, disease, year, age_bin)
+    select(disease, country, year, age_bin, value = val) %>%
+    arrange(disease, country, year, age_bin)
   
   warning("Improvements to GBD death extrapolations required...")
   
   # TEMP: Until we do a proper future projection of GBD estimates
   deaths_dt = 
-    expand_grid(country = all_countries(), 
-                disease = unique(deaths_dt$disease),
+    expand_grid(disease = unique(deaths_dt$disease),
+                country = all_countries(), 
                 age_bin = unique(deaths_dt$age_bin), 
                 year    = o$years) %>%
     left_join(y  = deaths_dt, 
               by = names(.)) %>%
-    group_by(country, disease, age_bin) %>%
+    group_by(disease, country, age_bin) %>%
     fill(value, .direction = "down") %>%
     ungroup() %>%
     filter(!is.na(value)) %>%
@@ -287,9 +272,9 @@ prepare_gbd_estimates = function() {
     full_join(y  = age_dt, 
               by = "age_bin", 
               relationship = "many-to-many") %>%
-    arrange(country, disease, year, age) %>%
+    arrange(disease, country, year, age) %>%
     mutate(deaths_disease = value / n) %>%
-    select(country, disease, year, age, deaths_disease) %>%
+    select(disease, country, year, age, deaths_disease) %>%
     save_table("gbd_estimates")
   
   # Plot GBD death estimates by age
@@ -628,12 +613,14 @@ save_table = function(x, table) {
 # ---------------------------------------------------------
 table = function(table) {
   
+  # TODO: If 'table' contains 'extern' report step 2 back to user 
+  
   # Construct file path
   file = paste0(o$pth$tables, table, "_table.rds")
   
   # Throw an error if this file doesn't exist
   if (!file.exists(file))
-    stop("Table ", table, " has not been cached - have you run step 0?")
+    stop("Table ", table, " has not been cached - have you run step 1?")
   
   # Load rds file
   y = read_rds(file)
