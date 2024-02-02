@@ -6,6 +6,17 @@
 # Written by A.J.Shattock
 ###########################################################
 
+
+# ---------------------------------------------------------
+# Simple wrapper for selecting all names of an object
+# ---------------------------------------------------------
+all_names = function(x) all_of(names(x))
+
+# ---------------------------------------------------------
+# Simple wrapper for selecting any names of given object
+# ---------------------------------------------------------
+any_names = function(x) any_of(names(x))
+
 # ---------------------------------------------------------
 # Set as datatable and rename columns in one line
 # ---------------------------------------------------------
