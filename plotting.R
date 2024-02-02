@@ -35,10 +35,8 @@ plot_scope = function() {
   fvps_dt = table("coverage") %>%
     filter(coverage > 0) %>%
     # Append disease details...
-    left_join(y  = table("v_a"), 
-              by = "v_a_id") %>%
     left_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity")) %>%
+              by = "d_v_a_id") %>%
     # Concept here is FVP, so remove birth dose & boosters...
     filter(!grepl("_BX$", vaccine), 
            !grepl("_BD$", vaccine)) %>% 
@@ -687,11 +685,12 @@ plot_gbd_estimates = function() {
   
   # Load GBD estimates and categorise into age groups
   plot_dt = table("gbd_estimates") %>%
-    append_d_v_t_name() %>%
+    left_join(y  = table("gbd_dict"), 
+              by = "disease") %>%
     left_join(y  = age_group_dt,
               by = "age") %>%
     # Summarise for broad age groups...
-    group_by(disease, year, age_group) %>%
+    group_by(disease_name, year, age_group) %>%
     summarise(deaths = sum(deaths_disease)) %>%
     ungroup() %>%
     # Set factors for meaningful plotting order...
@@ -704,7 +703,10 @@ plot_gbd_estimates = function() {
         y = deaths, 
         fill = age_group) +
     geom_bar(stat = "identity") +
-    facet_wrap(~disease, scales = "free_y") + 
+    # Facet by disease...
+    facet_wrap(
+      facets = vars(disease_name), 
+      scales = "free_y") + 
     # Set colour scheme...
     scale_fill_manual(
       name   = "Age group",
@@ -774,8 +776,8 @@ plot_vaccine_efficacy = function() {
       mutate(schedule = factor(schedule, c("primary", "booster"))) %>%
       # Append disease-vaccine name
       mutate(vaccine = str_remove(vaccine, "[0-9]|(_BX)"), 
-             d_v = paste0(disease, " (", vaccine, ")"), 
-             d_v = fct_inorder(d_v))
+             name = paste0(disease, " (", vaccine, ")"), 
+             name = fct_inorder(name))
     
     return(shedule_dt)
   }
@@ -784,15 +786,15 @@ plot_vaccine_efficacy = function() {
   data_dt = table("vaccine_efficacy") %>%
     dtapply(extract_data_fn) %>%
     rbindlist() %>%
-    inner_join(y  = table("d_v"), 
+    inner_join(y  = table("d_v_a"), 
                by = "vaccine") %>%
     schedule_fn() %>%
-    select(d_v, schedule, time = x, value = y)
+    select(name, schedule, time = x, value = y)
   
   # Load vaccine efficacy profiles
   profile_dt = table("vaccine_efficacy_profiles") %>%
     schedule_fn() %>%
-    select(d_v, schedule, time, value = profile)
+    select(name, schedule, time, value = profile)
   
   # Plot vaccine efficacy with waning immunity (if any)
   g = ggplot(profile_dt) + 
@@ -805,11 +807,11 @@ plot_vaccine_efficacy = function() {
     # Plot coloured data points...
     geom_point(
       data    = data_dt, 
-      mapping = aes(colour = d_v),
+      mapping = aes(colour = name),
       size    = 2.5) + 
     # Facet by vaccine and schedule...
     facet_grid(
-      rows = vars(d_v), 
+      rows = vars(name), 
       cols = vars(schedule)) +
     # Prettify x axis...
     scale_x_continuous(
@@ -2879,7 +2881,7 @@ plot_measles_in_context = function() {
     mutate(cum = cumsum(abs)) %>%
     ungroup() %>%
     # Convert to tidy format...
-    pivot_longer(cols = any_of(names(metric_dict)), 
+    pivot_longer(cols = any_names(metric_dict), 
                  names_to = "metric") %>%
     # Set appropriate order...
     select(case, metric, cause, year, value) %>%
@@ -3153,33 +3155,6 @@ plot_tornado = function() {
   g = g + theme_classic()
 }
 
-# ---------------------------------------------------------
-# Convert v_a_id into human-readable sting
-# ---------------------------------------------------------
-append_v_a_name = function(id_dt) {
-  
-  # Vaccine descriptive names
-  vaccine_dt = table("vaccine") %>%
-    select(vaccine, .v = vaccine_name)
-  
-  # Append v_a description
-  name_dt = id_dt %>%
-    left_join(y  = table("v_a"), 
-              by = "v_a_id") %>%
-    rename(.a = activity) %>%
-    # Append descriptive names...
-    left_join(y  = vaccine_dt, 
-              by = "vaccine") %>%
-    select(-vaccine) %>%
-    # Construct full names...
-    mutate(v_a_name = paste0(.v, ": ", .a), 
-           .after = v_a_id) %>%
-    # Set plotting order...
-    mutate(v_a_name = fct_inorder(v_a_name)) %>%
-    select(-.v, -.a)
-  
-  return(name_dt)
-}
 
 # ---------------------------------------------------------
 # Full descriptive names for disease, vaccine, or vaccine type
@@ -3215,7 +3190,7 @@ append_d_v_t_name = function(name_dt) {
       rename(.x := all_of(x_name)) %>%
       mutate(.x = factor(.x, x_ord)) %>%
       rename(!!x := .x) %>%
-      select(all_of(names(name_dt)))
+      select(all_names(name_dt))
   }
   
   # Convert back vaccine_type -> type

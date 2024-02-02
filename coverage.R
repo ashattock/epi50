@@ -63,11 +63,6 @@ prepare_coverage = function() {
 
   # ---- Data visualisation plots ----
   
-  browser()
-  
-  # Methodology pathogen-country-scope figure
-  plot_scope()
-  
   # Plot total number of FVP over time
   plot_total_fvps()
   
@@ -136,6 +131,8 @@ coverage_wiise = function(vimc_countries_dt) {
     # Non-VIMC coverage taken from WIISE database
     raw_url = "https://whowiise.blob.core.windows.net/upload/coverage--2021.xlsx"
     raw_dt  = read_url_xls(raw_url, sheet = 1) 
+    
+    browser() # TODO: Use fwrite rather than write_delim...
     
     # Save csv file locally for easy re-loading
     write_delim(raw_dt, raw_file, delim = ",")
@@ -348,7 +345,7 @@ linear_coverage_scaleup = function(coverage_dt) {
     rename(cohort = pop) %>%
     mutate(fvps = cohort * coverage) %>%
     # Tidy up...
-    select(all_of(names(coverage_dt))) %>%
+    select(all_names(coverage_dt)) %>%
     arrange(d_v_a_id, country, year, age) %>%
     as.data.table()
   
@@ -364,7 +361,7 @@ linear_coverage_scaleup = function(coverage_dt) {
     rename(cohort = pop) %>%
     mutate(fvps = cohort * coverage) %>%
     # Tidy up...
-    select(all_of(names(coverage_dt))) %>%
+    select(all_names(coverage_dt)) %>%
     arrange(d_v_a_id, country, year, age) %>%
     as.data.table()
   
@@ -400,7 +397,7 @@ constant_coverage_extapolation = function(coverage_dt) {
     rename(cohort = pop) %>%
     mutate(fvps = cohort * coverage) %>%
     # Tidy up...
-    select(all_of(names(coverage_dt))) %>%
+    select(all_names(coverage_dt)) %>%
     arrange(d_v_a_id, country, year, age) %>%
     as.data.table()
   
@@ -527,7 +524,7 @@ wholecell_acellular_switch = function(coverage_dt) {
     ungroup() %>%
     # Recalculate coverage...
     mutate(coverage = pmin(fvps / cohort, 1)) %>%
-    select(all_of(names(coverage_dt))) %>%
+    select(all_names(coverage_dt)) %>%
     as.data.table()
   
   # Recombine all data

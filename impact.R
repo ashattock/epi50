@@ -195,7 +195,7 @@ get_best_model = function(id, run, data, pb) {
     # Run MLE from this starting point
     fit = run_mle(fns, start, x, y)
     
-    # # Determine AICc value for model suitability
+    # Determine AICc value for model suitability
     model_quality(fns, fit, x, y, id)
   }
   

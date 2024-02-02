@@ -45,6 +45,8 @@ run_impute = function() {
     select(country, d_v_a_id, year,
            fvps = fvps_cum, impact)
   
+  # TODO: Reduce down to only years of interest
+  
   # Save imputed results to file
   save_rds(impute_dt, "impute", "impute_result")
   
@@ -121,7 +123,7 @@ basic_impute = function(d_v_a_id, target) {
   
   # Values to predict for (including data used for fitting)
   pred_dt = target_dt %>%
-    select(all_of(names(data_dt)))
+    select(all_names(data_dt))
   
   # ---- Check for trivial case ----
   
@@ -652,11 +654,10 @@ perform_impute = function(d_v_a_id, target) {
     guides(colour = guide_legend(title = NULL))  +
     facet_wrap(~country, ncol = 21)
   
+  browser()
   
   # Select countries for imputation
   impute_dt = target_dt %>% filter(! country %in% data_dt$country)
-  
-  browser()
   
   # TODO LATER: Generalise. Allow model selection for imputed country by e.g. region. For now, model 13 works well in general
   # Model 13 is the most commonly selected, take median coefficient by WHO region (helps to avoid outliers)
@@ -707,6 +708,8 @@ perform_impute = function(d_v_a_id, target) {
     facet_wrap(~country, ncol = 21)
   
   # ---- Compile results ----
+  
+  browser() # target_dt, target
   
   # Recombine estimated impact with predictor data
   recombine_dt = full_join(data_dt, best_model_output, by = c("country", "d_v_a_id", "year")) %>% 

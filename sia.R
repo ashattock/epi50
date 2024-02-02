@@ -34,7 +34,7 @@ coverage_sia = function(vimc_countries_dt) {
   data_dict = table("vaccine_dict") %>%
     left_join(y  = d_v_a_dt, 
               by = "vaccine") %>%
-    left_join(y  = table("sia_schedule"), 
+    left_join(y  = table("regimen"), 
               by = "vaccine") %>%
     filter(!is.na(d_v_a_id)) %>%
     select(d_v_a_id, vaccine, intervention, schedule) %>%

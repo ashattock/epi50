@@ -18,7 +18,7 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = 1)
+o = set_options(do_step = 2)
 
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
@@ -37,6 +37,8 @@ run_impact()  # See impact.R
 
 # Step 6) Apply impact functions to historical coverage
 run_history()  # See history.R
+
+# TODO: Rerun imputation functionality (called run_predictors) on full history and all pathogens
 
 # Step 7) Generate uncertainty draws
 run_uncertainty()  # See uncertainty.R
