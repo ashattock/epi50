@@ -27,7 +27,7 @@ run_external = function() {
   dummy_polio()  # TODO: Remove when polio results available
   
   # Format external modelling results for EPI50 use
-  # format_measles()
+  format_measles()
   format_polio()
   
   # Extract results from all extern models
@@ -243,7 +243,7 @@ simulate_dynamice = function() {
 # ---------------------------------------------------------
 dummy_polio = function() {
   
-  message(" - Creating dummy polio results")
+  message(" - Generating dummy polio outcomes")
   
   # Load template of regional results
   template_file = "template_polio_region.csv"
@@ -342,15 +342,52 @@ format_measles = function() {
   
   message(" - Appending to measles outcomes")
   
-  browser()
+  # Dictionary for converting dose names
+  dose_dict = c(
+    MCV1_doses = "MCV1",
+    MCV2_doses = "MCV2",
+    SIA_doses  = "Measles")
   
-  dummy_dt = read_rds("extern", "epi50_polio_results")
+  # Load template of regional results
+  template_file = "template_measles.csv"
+  template_dt = fread(paste0(o$pth$extern, template_file)) %>%
+    mutate(metric = recode(metric, !!!dose_dict)) %>%
+    select(-value)
   
-  # Format stuff
+  # Load measles vaccine coverage by vaccine
+  fvps_dt = table("coverage_everything") %>%
+    inner_join(y  = table("d_v_a_extern"), 
+               by = "d_v_a_id") %>%
+    filter(disease == "Measles") %>%
+    mutate(scenario = "vaccine") %>%
+    select(scenario, country, year, age, 
+           metric = vaccine, value = fvps)
   
-  # Save EPI50-formatted polio results 
-  save_table(polio_dt, "extern_polio_results")
+  # All measles models to append to
+  measles_models = table("extern_models") %>%
+    filter(disease == "Measles") %>%
+    pull(model)
   
+  # Iterate through measles models
+  for (model in measles_models) {
+    
+    # File names for raw and formatted results
+    raw_name   = paste1("epi50",  model, "results")
+    table_name = paste1("extern", model, "results")
+    
+    # Load raw results, removing any appended FVPs info
+    raw_dt = read_rds("extern", raw_name) %>%
+      filter(!metric %in% dose_dict)
+    
+    # Append original FVPs from coverage table
+    model_dt = template_dt %>%
+      left_join(y  = rbind(raw_dt, fvps_dt),
+                by = names(template_dt)) %>%
+      replace_na(list(value = 0))
+    
+    # Save EPI50-formatted results for this model 
+    save_table(model_dt, table_name)
+  }
 }
 
 # ---------------------------------------------------------
@@ -359,6 +396,8 @@ format_measles = function() {
 format_polio = function() {
   
   message(" - Interpolating polio outcomes")
+  
+  # TODO: Convert doses into FVPs by dividing through...
   
   # Load raw polio results
   raw_dt = read_rds("extern", "epi50_polio_results")
@@ -447,6 +486,17 @@ format_polio = function() {
   if (any(check_dt$err))
     stop("Error in country or age polio results disaggregation")
   
+  # ---- Finally, convery doses to FVPs ----
+  
+  # Divide doses through to get FVPs
+  polio_dt %<>%
+    mutate(metric = str_remove(metric, "_doses$")) %>%
+    left_join(y  = table("regimen"), 
+              by = c("metric" = "vaccine")) %>%
+    replace_na(list(schedule = 1)) %>%
+    mutate(value = value / schedule) %>%
+    select(-schedule)
+  
   # Save EPI50-formatted polio results 
   save_table(polio_dt, "extern_polio_results")
 }
@@ -458,24 +508,21 @@ extract_extern_results = function() {
   
   message(" - Extracting results from all external models")
   
-  # All extern models and associated d_v_a_name
-  all_extern = c(
-    dynamice = "Measles",  
-    # measles  = "Measles",
-    polio    = "Polio")
-  
-  browser()
+  # All extern models and associated disease name
+  all_models = table("extern_models") %>%
+    pivot_wider(names_from  = model, 
+                values_from = disease) %>%
+    unlist()
   
   # ---- Deaths and DALYs averted ----
   
   # Function for extracting deaths and DALYs averted
   averted_fn = function(model) {
     
-    message("  > ", model)
+    message("  > Deaths averted: ", model)
     
+    # Name of formatted table for this model
     model_table = paste1("extern", model, "results")
-    
-    browser()
 
     # Extract deaths and DALYs
     averted_dt = table(model_table) %>%
@@ -495,11 +542,11 @@ extract_extern_results = function() {
   }
 
   # Extract deaths and DALYs averted
-  extern_averted_dt = names(all_extern) %>%
+  extern_averted_dt = names(all_models) %>%
     lapply(averted_fn) %>%
     rbindlist() %>%
     # Define d_v_a classification...
-    mutate(d_v_a_name = all_extern[model]) %>%
+    mutate(d_v_a_name = all_models[model]) %>%
     left_join(y  = table("d_v_a"),
               by = "d_v_a_name") %>%
     # Summarise by d_v_a...
@@ -545,6 +592,9 @@ extract_extern_results = function() {
     
     browser()
     
+    message("  > Other metrics: ", model)
+    
+    # Name of formatted table for this model
     model_table = paste1("extern", model, "results")
     
     # Extract death estimates from vaccine and no vaccie scenarios
@@ -557,11 +607,11 @@ extract_extern_results = function() {
   }
   
   # Extract deaths and DALYs averted
-  extern_deaths_dt = names(all_extern) %>%
+  extern_deaths_dt = names(all_models) %>%
     lapply(extract_fn) %>%
     rbindlist() %>%
     # Define d_v_a classification...
-    mutate(d_v_a_name = all_extern[model]) %>%
+    mutate(d_v_a_name = all_models[model]) %>%
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_name") %>%
     # Summarise by d_v_a...

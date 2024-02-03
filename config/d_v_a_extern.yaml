@@ -1,6 +1,6 @@
 ---
 
-# Creates datatable: extern_table
+# Creates datatable: d_v_a_extern_table
 table:
 - d_v_a_id: 101
   disease: Measles
