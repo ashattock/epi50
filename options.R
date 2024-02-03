@@ -49,6 +49,9 @@ set_options = function(do_step = NA) {
   
   # ---- External models ----
   
+  # Create/recreate dummy polio results
+  o$dummy_polio = FALSE  # TODO: Remove when polio results are available
+  
   # Directly simulate Dynamice model
   #
   # NOTE: If false, DynaMICE results must be otherwise available to user

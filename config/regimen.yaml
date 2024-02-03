@@ -30,6 +30,10 @@ table:
   schedule: 3
 - vaccine: BCG
   schedule: 1
+- vaccine: MCV1
+  schedule: 1
+- vaccine: MCV2
+  schedule: 1
 - vaccine: Measles
   schedule: 2
 - vaccine: IPV

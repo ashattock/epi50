@@ -8,7 +8,7 @@
 # ---- R version check ----
 
 # R versions for which this project has been tested and is stable
-stable_versions = "4.3.0"
+stable_versions = c("4.3.0", "4.3.2")
 
 # R versions for which this project is stable (as a string)
 stable_str = paste(stable_versions, collapse = ", ")
@@ -98,7 +98,7 @@ library(pacman)
 pacman::p_load(char = packages)
 
 # Same for github packages
-pacman::p_load_gh(gh_packages)
+# pacman::p_load_gh(gh_packages)
 
 # ---- Redefine or unmask particular functions ----
 

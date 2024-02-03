@@ -39,7 +39,7 @@ run_prepare = function() {
   prepare_income_status()
 
   # Prepare demography-related estimates from WPP
-  prepare_demography()
+  # prepare_demography()
   
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R

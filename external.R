@@ -16,16 +16,18 @@ run_external = function() {
   
   message("* Preparing external models")
   
-  # Create templates for measles and polio models
-  template_measles()  
-  template_polio()
+  # TODO: Split impact across each vaccine...
   
+  # Create templates for measles and polio models
+  template_measles()
+  template_polio()
+
   # Simulate DynaMICE measles model
   simulate_dynamice()
-  
+
   # TEMP: Construct temporary dummy polio results
   dummy_polio()  # TODO: Remove when polio results available
-  
+
   # Format external modelling results for EPI50 use
   format_measles()
   format_polio()
@@ -219,12 +221,12 @@ simulate_dynamice = function() {
   
   # Set working directory to DynaMICE repo
   setwd(repo_path)
-
+  
   # Launch to model
   #
   # NOTE: For full functionality, step should be set to 1 : 3 in DynaMICE repo
   system("sh launch.sh")
-
+  
   # Once we're done, reset working directory to EPI50 repo
   setwd(o$pth$code)
   
@@ -242,6 +244,13 @@ simulate_dynamice = function() {
 # TEMP: Construct temporary dummy polio results
 # ---------------------------------------------------------
 dummy_polio = function() {
+  
+  # Check whether dummy results already exist
+  dummy_exist = file.exists(paste0(o$pth$extern, "epi50_polio_results.rds"))
+  
+  # Return out if process not necessary
+  if (dummy_exist && o$dummy_polio == FALSE)
+    return()
   
   message(" - Generating dummy polio outcomes")
   
@@ -288,7 +297,7 @@ dummy_polio = function() {
   baseline_dt = template_dt %>%
     filter(scenario == "no_vaccine",
            !grepl(".+_doses$", metric)) %>%
-    mutate(baseline = runif(n(), max = 1e6)) %>%
+    mutate(baseline = runif(n(), max = 1e5)) %>%
     rbind(mutate(., scenario = "vaccine"))
   
   # Scale dummy values if doses given in that year
@@ -508,52 +517,73 @@ extract_extern_results = function() {
   
   message(" - Extracting results from all external models")
   
-  # All extern models and associated disease name
-  all_models = table("extern_models") %>%
-    pivot_wider(names_from  = model, 
-                values_from = disease) %>%
-    unlist()
+  # ---- Extract outcomes ----
   
-  # ---- Deaths and DALYs averted ----
-  
-  # Function for extracting deaths and DALYs averted
-  averted_fn = function(model) {
-    
-    message("  > Deaths averted: ", model)
+  # Function for extracting model outcomes
+  extract_fn = function(model) {
     
     # Name of formatted table for this model
     model_table = paste1("extern", model, "results")
-
-    # Extract deaths and DALYs
-    averted_dt = table(model_table) %>%
-      filter(metric %in% qc(deaths, dalys)) %>%
-      # Burden in baseline minus burden in vaccine scenario...
-      group_by(country, year, age, metric) %>%
-      mutate(value = value[scenario == "no_vaccine"] - value) %>%
-      ungroup() %>%
-      # Remove reference to baseline...
-      filter(scenario != "no_vaccine") %>%
-      select(-scenario) %>%
-      # Append extern model name...
-      mutate(model = model, .before = 1) %>%
-      as.data.table()
-
-    return(averted_dt)
+    
+    # Extract death estimates from vaccine and no vaccine scenarios
+    model_dt = table(model_table) %>%
+      mutate(model = model, .before = 1)
+    
+    return(model_dt)
   }
-
-  # Extract deaths and DALYs averted
-  extern_averted_dt = names(all_models) %>%
-    lapply(averted_fn) %>%
+  
+  # All extern models and associated disease name
+  all_models = table("extern_models") %>%
+    pivot_wider(
+      names_from  = model, 
+      values_from = disease) %>%
+    unlist()
+  
+  # Load historical outcomes from all models
+  historical_dt = names(all_models) %>%
+    lapply(extract_fn) %>%
     rbindlist() %>%
     # Define d_v_a classification...
     mutate(d_v_a_name = all_models[model]) %>%
-    left_join(y  = table("d_v_a"),
+    left_join(y  = table("d_v_a"), 
               by = "d_v_a_name") %>%
-    # Summarise by d_v_a...
-    group_by(country, d_v_a_id, year, age, metric) %>%
+    # Summarise by d_v_a (mean across all models)...
+    group_by(d_v_a_id, scenario, country, year, age, metric) %>%
     summarise(value = mean(value, na.rm = TRUE)) %>%
     ungroup() %>%
+    as.data.table()
+  
+  # ---- Historical deaths and DALYs ----
+  
+  message("  > Summarising historical estimates")
+
+  # Historical deaths in each scenario
+  #
+  # NOTE: Used for final plotting purposes
+  extern_deaths_dt = historical_dt %>%
+    filter(metric == "deaths") %>%
+    pivot_wider(names_from  = scenario,
+                values_from = value) %>%
+    as.data.table()
+
+  # Save in table cache
+  save_table(extern_deaths_dt, "extern_deaths")
+  
+  # ---- Deaths and DALYs averted ----
+  
+  message("  > Calculating deaths and DALYs averted")
+  
+  # Extract deaths and DALYs averted
+  extern_averted_dt = historical_dt %>%
+    filter(metric %in% c("deaths", "dalys")) %>%
+    # Burden in baseline minus burden in vaccine scenario...
+    group_by(d_v_a_id, country, year, age, metric) %>%
+    mutate(value = value[scenario == "no_vaccine"] - value) %>%
+    ungroup() %>%
     mutate(value = pmax(value, 0)) %>%  # TEMP: Experimenting
+    # Remove reference to baseline...
+    filter(scenario != "no_vaccine") %>%
+    select(-scenario) %>%
     # Spread to wide format...
     mutate(metric = paste1(metric, "averted")) %>%
     pivot_wider(names_from  = metric,
@@ -583,50 +613,42 @@ extract_extern_results = function() {
   #   facet_wrap(~metric, scales = "free_y") +
   #   scale_y_continuous(labels = comma)
   
-  # ---- Historical deaths ----
-  
-  # NOTE: Used only for final plotting purposes
-  
-  # Function for extracting deaths and coverage
-  extract_fn = function(model) {
-    
-    browser()
-    
-    message("  > Other metrics: ", model)
-    
-    # Name of formatted table for this model
-    model_table = paste1("extern", model, "results")
-    
-    # Extract death estimates from vaccine and no vaccie scenarios
-    deaths_dt = read_rds("extern", "epi50", model, "results") %>%
-      filter(metric == "deaths") %>%
-      select(-metric) %>%
-      mutate(model = model, .before = 1)
-    
-    return(deaths_dt)
-  }
-  
-  # Extract deaths and DALYs averted
-  extern_deaths_dt = names(all_models) %>%
-    lapply(extract_fn) %>%
-    rbindlist() %>%
-    # Define d_v_a classification...
-    mutate(d_v_a_name = all_models[model]) %>%
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_name") %>%
-    # Summarise by d_v_a...
-    group_by(scenario, d_v_a_id, country, year, age) %>%
-    summarise(value = mean(value, na.rm = TRUE)) %>%
-    ungroup() %>%
-    # Spread to wide format...
-    pivot_wider(names_from  = scenario, 
-                values_from = value) %>%
-    as.data.table()
-  
-  # Save in table cache
-  save_table(extern_deaths_dt, "extern_deaths")
-  
   # ---- Update coverage estimates using model outputs ----
+  
+  message("  > Extracting vaccine coverage")
+  
+  base_coverage_dt = table("coverage")
+  
+  browser() # TODO: I think we need to split impact across the vaccines for this...
+  
+  # Extract vaccine coverage from external model outcomes
+  extern_coverage_dt = historical_dt %>%
+    # Reduce down to non-trival dose estimates...
+    filter(scenario == "vaccine",
+           metric %in% table("d_v_a_extern")$vaccine, 
+           value > 0) %>%
+    # Divide doses through by regimen...
+    left_join(y  = table("regimen"), 
+              by = c("metric" = "vaccine")) %>%
+    mutate(fvps = value / schedule) %>%
+    # Append cohort and calculate coverage...
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    mutate(fvps = pmin(fvps, cohort * o$max_coverage),
+           coverage = fvps / cohort) %>%
+    
+    # We are still disaggregated by vaccine here
+    
+    # Tidy up...
+    select(all_names(base_coverage_dt))
+    
+  browser()
+  
+  # Append external coverage to coverage table
+  base_coverage_dt %>%
+    rbind(extern_coverage_dt) %>%
+    arrange(d_v_a_id, country, year, age) %>%
+    save_table("coverage")
   
   browser()
 }

@@ -130,12 +130,10 @@ coverage_wiise = function(vimc_countries_dt) {
     
     # Non-VIMC coverage taken from WIISE database
     raw_url = "https://whowiise.blob.core.windows.net/upload/coverage--2021.xlsx"
-    raw_dt  = read_url_xls(raw_url, sheet = 1) 
-    
-    browser() # TODO: Use fwrite rather than write_delim...
+    raw_dt  = read_url_xls(raw_url, sheet = 1)
     
     # Save csv file locally for easy re-loading
-    write_delim(raw_dt, raw_file, delim = ",")
+    fwrite(raw_dt, file = raw_file)
   }
   
   # ---- Wrangle WIISE data ----
