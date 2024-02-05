@@ -17,14 +17,14 @@ run_prepare = function() {
   
   message("* Preparing input data")
   
-  # Convert config yaml files to datatables
-  prepare_config_tables()
-
-  # Streamline VIMC impact estimates for quick loading
-  prepare_vimc_estimates()
-
-  # Parse vaccine efficacy profile for non-VIMC pathogens
-  prepare_vaccine_efficacy()
+  # # Convert config yaml files to datatables
+  # prepare_config_tables()
+  # 
+  # # Streamline VIMC impact estimates for quick loading
+  # prepare_vimc_estimates()
+  # 
+  # # Parse vaccine efficacy profile for non-VIMC pathogens
+  # prepare_vaccine_efficacy()
 
   # Prepare GBD estimates of deaths for non-VIMC pathogens
   prepare_gbd_estimates()
@@ -43,6 +43,28 @@ run_prepare = function() {
   
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
+  
+
+  
+  browser()
+  
+  missing_data = table("coverage") %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    select(disease, country) %>%
+    unique() %>%
+    mutate(value = TRUE) %>%
+    pivot_wider(id_cols     = "country", 
+                names_from  = "disease") %>%
+    pivot_longer(cols = -country, 
+                 names_to = "disease") %>%
+    filter(is.na(value)) %>%
+    select(disease, country) %>%
+    arrange(disease, country) %>%
+    as.data.table()
+  
+  
+  
 }
 
 # ---------------------------------------------------------
@@ -210,6 +232,8 @@ prepare_gbd_estimates = function() {
   age_dict = c(
     "<1 year" = "0 to 1", 
     "80 plus" = "80 to 95")
+  
+  browser()  # TODO: Also consider neonatals...
   
   # Dictionary of GBD disease names
   gbd_dict = table("gbd_dict") %>%
