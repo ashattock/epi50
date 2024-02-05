@@ -98,7 +98,7 @@ library(pacman)
 pacman::p_load(char = packages)
 
 # Same for github packages
-# pacman::p_load_gh(gh_packages)
+pacman::p_load_gh(gh_packages)
 
 # ---- Redefine or unmask particular functions ----
 

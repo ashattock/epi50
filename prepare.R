@@ -25,46 +25,24 @@ run_prepare = function() {
   # 
   # # Parse vaccine efficacy profile for non-VIMC pathogens
   # prepare_vaccine_efficacy()
-
-  # Prepare GBD estimates of deaths for non-VIMC pathogens
-  prepare_gbd_estimates()
-
-  # Prepare GBD covariates for extrapolating to non-VIMC countries
-  prepare_gbd_covariates()
-
-  # Prepare Gapminder covariates for imputing non_VIMC countries
-  prepare_gapminder()
-
-  # Prepare country income status classification over time
-  prepare_income_status()
-
-  # Prepare demography-related estimates from WPP
+  # 
+  # # Prepare GBD estimates of deaths for non-VIMC pathogens
+  # prepare_gbd_estimates()
+  # 
+  # # Prepare GBD covariates for extrapolating to non-VIMC countries
+  # prepare_gbd_covariates()
+  # 
+  # # Prepare Gapminder covariates for imputing non_VIMC countries
+  # prepare_gapminder()
+  # 
+  # # Prepare country income status classification over time
+  # prepare_income_status()
+  # 
+  # # Prepare demography-related estimates from WPP
   # prepare_demography()
   
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
-  
-
-  
-  browser()
-  
-  missing_data = table("coverage") %>%
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    select(disease, country) %>%
-    unique() %>%
-    mutate(value = TRUE) %>%
-    pivot_wider(id_cols     = "country", 
-                names_from  = "disease") %>%
-    pivot_longer(cols = -country, 
-                 names_to = "disease") %>%
-    filter(is.na(value)) %>%
-    select(disease, country) %>%
-    arrange(disease, country) %>%
-    as.data.table()
-  
-  
-  
 }
 
 # ---------------------------------------------------------

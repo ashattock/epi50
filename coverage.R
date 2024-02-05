@@ -10,6 +10,18 @@
 # ---------------------------------------------------------
 prepare_coverage = function() {
   
+  
+  
+  
+  plot_missing_data()
+  stop("Move to bottom of function")
+  
+  
+  
+  
+  
+  
+  
   # Extract coverage for VIMC pathogens
   vimc_dt = coverage_vimc()
   
@@ -373,7 +385,7 @@ linear_coverage_scaleup = function(coverage_dt) {
 }
 
 # ---------------------------------------------------------
-# Assume constant coverage over most recent years...
+# Assume constant coverage over most recent years
 # ---------------------------------------------------------
 constant_coverage_extapolation = function(coverage_dt) {
   
@@ -538,5 +550,96 @@ wholecell_acellular_switch = function(coverage_dt) {
     stop("FVPs have been lost/gained through wholecell-acellular switch")
   
   return(switched_dt)
+}
+
+# ---------------------------------------------------------
+# Plot countries with missing coverage data
+# ---------------------------------------------------------
+plot_missing_data = function() {
+  
+  # Country population (most recent year)
+  pop_dt = table("wpp_pop") %>%
+    filter(year == max(o$years)) %>%
+    group_by(country) %>%
+    summarise(pop = sum(pop)) %>%
+    ungroup() %>%
+    mutate(pop_norm = sqrt(pop / max(pop))) %>%
+    as.data.table()
+  
+  # Identify countries with no data
+  plot_dt = table("coverage") %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    select(disease, country) %>%
+    unique() %>%
+    mutate(value = 0) %>%
+    # Wrangle to sparse, long format...
+    pivot_wider(id_cols     = "country", 
+                names_from  = "disease") %>%
+    pivot_longer(cols = -country, 
+                 names_to = "disease") %>%
+    # Append pop size for missing countries...
+    left_join(y  = pop_dt, 
+              by = "country") %>%
+    mutate(value = ifelse(is.na(value), pop_norm, NA)) %>%
+    # Append region details...
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    select(disease, region, country = country_name, value) %>%
+    arrange(disease, region, country) %>%
+    # Set plotting order...
+    mutate(region  = fct_inorder(region),
+           country = fct_inorder(country)) %>% 
+    as.data.table()
+  
+  # Extract population limits for the data
+  limits  = range(plot_dt$value, na.rm = TRUE)
+  colours = colour_scheme("pals::brewer.reds", n = 10)
+  
+  # Plot missing data
+  g = ggplot(plot_dt) +
+    aes(x = disease, 
+        y = fct_rev(country), 
+        fill = value) + 
+    # Plot missing countries in colour...
+    geom_tile() + 
+    # Facet by region for readability...
+    facet_wrap(
+      facets = vars(region), 
+      scales = "free") + 
+    # Prettify y axis...
+    scale_y_discrete(
+      name = "Countries with missing data") +
+    # Set continuous colour bar...
+    scale_fill_gradientn(
+      na.value = "white",
+      colours  = colours,
+      limits   = limits, 
+      breaks   = limits, 
+      labels   = c("Smaller population", 
+                   "Larger population"))
+  
+  # Prettify theme
+  g = g + theme_classic() +
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(size = 28),
+          axis.text.x   = element_text(
+            size = 8, hjust = 1, angle = 50),
+          axis.text.y   = element_text(size = 8),
+          axis.line     = element_blank(),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing.x = unit(0.5, "lines"), 
+          panel.spacing.y = unit(0.5, "lines"), 
+          strip.text    = element_text(size = 12),
+          strip.background = element_blank(), 
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 10),
+          legend.position = "bottom", 
+          legend.key.width = unit(4, "cm"))
+    
+  # Save figure to file
+  save_fig(g, "Missing data by country", 
+           dir = "data_visualisation")
 }
 
