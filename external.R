@@ -34,6 +34,13 @@ run_external = function() {
   
   # Extract results from all extern models
   extract_extern_results()
+  
+  # ---- Diagnostic plots ----
+  
+  browser() # Check figure still works after table("coverage") update...
+  
+  # Missing coverage data by country
+  plot_missing_data()
 }
 
 # ---------------------------------------------------------

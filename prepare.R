@@ -17,29 +17,29 @@ run_prepare = function() {
   
   message("* Preparing input data")
   
-  # # Convert config yaml files to datatables
-  # prepare_config_tables()
-  # 
-  # # Streamline VIMC impact estimates for quick loading
-  # prepare_vimc_estimates()
-  # 
-  # # Parse vaccine efficacy profile for non-VIMC pathogens
-  # prepare_vaccine_efficacy()
-  # 
-  # # Prepare GBD estimates of deaths for non-VIMC pathogens
-  # prepare_gbd_estimates()
-  # 
-  # # Prepare GBD covariates for extrapolating to non-VIMC countries
-  # prepare_gbd_covariates()
-  # 
-  # # Prepare Gapminder covariates for imputing non_VIMC countries
-  # prepare_gapminder()
-  # 
-  # # Prepare country income status classification over time
-  # prepare_income_status()
-  # 
-  # # Prepare demography-related estimates from WPP
-  # prepare_demography()
+  # Convert config yaml files to datatables
+  prepare_config_tables()
+
+  # Streamline VIMC impact estimates for quick loading
+  prepare_vimc_estimates()
+
+  # Parse vaccine efficacy profile for non-VIMC pathogens
+  prepare_vaccine_efficacy()
+
+  # Prepare GBD estimates of deaths for non-VIMC pathogens
+  prepare_gbd_estimates()
+
+  # Prepare GBD covariates for extrapolating to non-VIMC countries
+  prepare_gbd_covariates()
+
+  # Prepare Gapminder covariates for imputing non_VIMC countries
+  prepare_gapminder()
+
+  # Prepare country income status classification over time
+  prepare_income_status()
+
+  # Prepare demography-related estimates from WPP
+  prepare_demography()
   
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
@@ -203,15 +203,11 @@ prepare_gbd_estimates = function() {
   
   message(" - GBD estimates")
   
-  # NOTE: We are using GBD's 'number' metric here, where IA2030
-  #       pipeline uses 'rate' (which is number per 100k people)
-  
   # Parse specific age strings
   age_dict = c(
-    "<1 year" = "0 to 1", 
-    "80 plus" = "80 to 95")
-  
-  browser()  # TODO: Also consider neonatals...
+    "<28 days"    = "neonate", 
+    "28-364 days" = "0-1", 
+    "80+ years"   = "80-95")
   
   # Dictionary of GBD disease names
   gbd_dict = table("gbd_dict") %>%
@@ -237,8 +233,7 @@ prepare_gbd_estimates = function() {
            country %in% all_countries()) %>%
     # Parse age groups...
     mutate(age     = recode(age, !!!age_dict), 
-           age_bin = str_extract(age, "^[0-9]+"), 
-           age_bin = as.numeric(age_bin)) %>%
+           age_bin = str_extract(age, "^[0-9,(neonate)]+")) %>%
     # Tidy up...
     select(disease, country, year, age_bin, value = val) %>%
     arrange(disease, country, year, age_bin)
@@ -247,10 +242,11 @@ prepare_gbd_estimates = function() {
   
   # TEMP: Until we do a proper future projection of GBD estimates
   deaths_dt = 
-    expand_grid(disease = unique(deaths_dt$disease),
-                country = all_countries(), 
-                age_bin = unique(deaths_dt$age_bin), 
-                year    = o$years) %>%
+    expand_grid(
+      disease = unique(deaths_dt$disease),
+      country = all_countries(), 
+      age_bin = unique(deaths_dt$age_bin), 
+      year    = o$years) %>%
     left_join(y  = deaths_dt, 
               by = names(.)) %>%
     group_by(disease, country, age_bin) %>%
@@ -259,9 +255,12 @@ prepare_gbd_estimates = function() {
     filter(!is.na(value)) %>%
     as.data.table()
   
+  # Age bins in data before and after transformation
+  age_bins = unique(deaths_dt$age_bin)
+  age_fct  = c("neonate", o$ages)
+  
   # Construct age datatable to expand age bins to single years
-  age_bins = sort(unique(deaths_dt$age_bin))
-  age_dt   = data.table(age = o$ages) %>%
+  age_dt = data.table(age = age_fct) %>%
     mutate(age_bin = ifelse(age %in% age_bins, age, NA)) %>%
     fill(age_bin, .direction = "down") %>%
     group_by(age_bin) %>%
@@ -274,9 +273,10 @@ prepare_gbd_estimates = function() {
     full_join(y  = age_dt, 
               by = "age_bin", 
               relationship = "many-to-many") %>%
-    arrange(disease, country, year, age) %>%
     mutate(deaths_disease = value / n) %>%
     select(disease, country, year, age, deaths_disease) %>%
+    mutate(age = factor(age, age_fct)) %>%
+    arrange(disease, country, year, age) %>%
     save_table("gbd_estimates")
   
   # Plot GBD death estimates by age

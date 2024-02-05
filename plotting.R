@@ -661,30 +661,127 @@ plot_coverage_age_density = function() {
 }
 
 # ---------------------------------------------------------
+# Plot countries with missing coverage data
+# ---------------------------------------------------------
+plot_missing_data = function() {
+  
+  message("  > Plotting countries with missing coverage data")
+  
+  # Country population (most recent year)
+  pop_dt = table("wpp_pop") %>%
+    filter(year == max(o$years)) %>%
+    group_by(country) %>%
+    summarise(pop = sum(pop)) %>%
+    ungroup() %>%
+    mutate(pop_norm = sqrt(pop / max(pop))) %>%
+    as.data.table()
+  
+  # Identify countries with no data
+  plot_dt = table("coverage") %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    select(disease, country) %>%
+    unique() %>%
+    mutate(value = 0) %>%
+    # Wrangle to sparse, long format...
+    pivot_wider(id_cols     = "country", 
+                names_from  = "disease") %>%
+    pivot_longer(cols = -country, 
+                 names_to = "disease") %>%
+    # Append pop size for missing countries...
+    left_join(y  = pop_dt, 
+              by = "country") %>%
+    mutate(value = ifelse(is.na(value), pop_norm, NA)) %>%
+    # Append region details...
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    select(disease, region, country = country_name, value) %>%
+    arrange(disease, region, country) %>%
+    # Set plotting order...
+    mutate(region  = fct_inorder(region),
+           country = fct_inorder(country)) %>% 
+    as.data.table()
+  
+  # Extract population limits for the data
+  limits  = range(plot_dt$value, na.rm = TRUE)
+  colours = colour_scheme("pals::brewer.reds", n = 10)
+  
+  # Plot missing data
+  g = ggplot(plot_dt) +
+    aes(x = disease, 
+        y = fct_rev(country), 
+        fill = value) + 
+    # Plot missing countries in colour...
+    geom_tile() + 
+    # Facet by region for readability...
+    facet_wrap(
+      facets = vars(region), 
+      scales = "free") + 
+    # Prettify y axis...
+    scale_y_discrete(
+      name = "Countries with missing data") +
+    # Set continuous colour bar...
+    scale_fill_gradientn(
+      na.value = "white",
+      colours  = colours,
+      limits   = limits, 
+      breaks   = limits, 
+      labels   = c("Smaller population", 
+                   "Larger population"))
+  
+  # Prettify theme
+  g = g + theme_classic() +
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(size = 28),
+          axis.text.x   = element_text(
+            size = 8, hjust = 1, angle = 50),
+          axis.text.y   = element_text(size = 8),
+          axis.line     = element_blank(),
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing.x = unit(0.5, "lines"), 
+          panel.spacing.y = unit(0.5, "lines"), 
+          strip.text    = element_text(size = 12),
+          strip.background = element_blank(), 
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 10),
+          legend.position = "bottom", 
+          legend.key.width = unit(4, "cm"))
+  
+  # Save figure to file
+  save_fig(g, "Missing data by country", 
+           dir = "data_visualisation")
+}
+
+# ---------------------------------------------------------
 # Plot Global Burden of Disease death estimates by age
 # ---------------------------------------------------------
 plot_gbd_estimates = function() {
+  
+  # ---- Figure 1: GBD burden by age group ----
   
   message("  > Plotting GBD death estimates by age")
   
   # Define age groups and associated upper bounds
   age_groups = c(
-    "Infants"   = 1,
-    "1-4 years" = 5,
-    "5-14"      = 15,
-    "15-49"     = 50,
-    "50-69"     = 70,
-    "70+ years" = max(o$ages))
+    "Neonates"      = "neonate",
+    "Other infants" = 0,
+    "1-4 years"     = 5,
+    "5-14"          = 15,
+    "15-49"         = 50,
+    "50-69"         = 70,
+    "70+ years"     = max(o$ages))
   
   # Map each age bin to respective age group
-  age_group_dt = data.table(age = o$ages) %>%
+  age_group_dt = data.table(age = c("neonate", o$ages)) %>%
     mutate(group_idx = match(age, age_groups),
            group = names(age_groups[group_idx])) %>%
     fill(group, .direction = "up") %>%
-    select(age, age_group = group)
+    select(age, age_group = group) %>%
+    mutate(age = fct_inorder(age))
   
   # Load GBD estimates and categorise into age groups
-  plot_dt = table("gbd_estimates") %>%
+  gbd_dt = table("gbd_estimates") %>%
     left_join(y  = table("gbd_dict"), 
               by = "disease") %>%
     left_join(y  = age_group_dt,
@@ -696,9 +793,9 @@ plot_gbd_estimates = function() {
     # Set factors for meaningful plotting order...
     mutate(age_group = factor(age_group, names(age_groups))) %>%
     as.data.table()
-  
+    
   # Plot deaths over time by age group
-  g = ggplot(plot_dt) +
+  g1 = ggplot(gbd_dt) +
     aes(x = year, 
         y = deaths, 
         fill = age_group) +
@@ -721,7 +818,7 @@ plot_gbd_estimates = function() {
       breaks = pretty_breaks())
   
   # Prettify theme
-  g = g + theme_classic() + 
+  g1 = g1 + theme_classic() + 
     theme(axis.title.x  = element_blank(),
           axis.title.y  = element_text(
             size = 20, margin = margin(l = 10, r = 20)),
@@ -740,7 +837,86 @@ plot_gbd_estimates = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save to file
-  save_fig(g, "GBD deaths by age group", dir = "data_visualisation")
+  save_fig(g1, "GBD deaths by age group", dir = "data_visualisation")
+  
+  # ---- Figure 2: GBD burden by vaccine coverage status ----
+  
+  message("  > Plotting GBD burden by vaccine coverage status")
+  
+  # Dictionary for status groups
+  status_dict = c(
+    trivial     = "Countries with NO coverage data",
+    non_trivial = "Countries with coverage data")
+  
+  # Countries which have non-trivial status
+  coverage_dt = table("coverage") %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    filter(source == "static") %>%
+    select(disease, country) %>%
+    unique() %>%
+    mutate(status = "non_trivial")
+  
+  # GBD disease burden by status group
+  status_dt = table("gbd_estimates") %>%
+    group_by(disease, country, year) %>%
+    summarise(deaths = sum(deaths_disease)) %>%
+    ungroup() %>%
+    left_join(y  = coverage_dt, 
+              by = c("disease", "country")) %>%
+    replace_na(list(status = "trivial")) %>%
+    left_join(y  = table("gbd_dict"), 
+              by = "disease") %>%
+    group_by(disease_name, year, status) %>%
+    summarise(deaths = sum(deaths)) %>%
+    ungroup() %>%
+    mutate(status = recode(status, !!!status_dict), 
+           status = factor(status, status_dict)) %>%
+    as.data.table()
+  
+  # Plot burden over time by vaccine coverage status
+  g2 = ggplot(status_dt) +
+    aes(x = year, 
+        y = deaths, 
+        fill = status) +
+    geom_bar(stat = "identity") +
+    # Facet by disease...
+    facet_wrap(
+      facets = vars(disease_name), 
+      scales = "free_y") + 
+    # Set colour scheme...
+    scale_fill_manual(
+      name   = "Age group",
+      values = c("red", "gray")) +
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "GBD-estimated number of deaths", 
+      labels = comma,
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks())
+  
+  # Prettify theme
+  g2 = g2 + theme_classic() + 
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(
+            size = 20, margin = margin(l = 10, r = 20)),
+          axis.text     = element_text(size = 10),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 14),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(1, "lines"),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 14),
+          legend.key    = element_blank(),
+          legend.position = "bottom", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
+  
+  # Save to file
+  save_fig(g2, "GBD deaths by vaccine coverage status", 
+           dir = "data_visualisation")
 }
 
 # ---------------------------------------------------------
