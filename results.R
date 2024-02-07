@@ -21,6 +21,7 @@ run_results = function() {
 
   # Check plotting flag
   if (o$plot_inputs) {
+    
 
     # Methodology pathogen-country-scope figure
     plot_scope()
@@ -57,6 +58,9 @@ run_results = function() {
   
   # Check plotting flag
   if (o$plot_imputation) {
+    
+    # Plot model choice by region
+    plot_model_choice()
     
     # Plot predictor and response relationships
     plot_covariates()

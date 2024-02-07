@@ -56,11 +56,14 @@ run_impute = function() {
   save_rds(impute_dt, "impute", "impute_result")
   
   # ---- Plot results ----
-  
+  browser()
   # NOTE: All plotting functionality lives in plotting.R
   
   # Plot predictor-response relationships
-  plot_covariates()
+ # plot_covariates()
+  
+  # Plot model choice
+  plot_model_choice()
   
   # Plot imputation quality of fit
   plot_impute_quality()
@@ -461,43 +464,43 @@ perform_impute = function(d_v_a_id, target) {
    # Plot data vs. fitted for all countries (model fit)
    plot_df = augment(best_model) 
    
-   ggplot(data = plot_df, aes(x = target, y = .fitted)) +
-     geom_point() +
-    labs(
-       y = "Fitted (predicted values)",
-      x = "Data (actual values)",
-       title = paste("Vaccine impact of", d_v_a_name)
-     ) +
-    geom_abline(intercept = 0, slope = 1) +
-     facet_wrap(~country, ncol = 21)
+ #  ggplot(data = plot_df, aes(x = target, y = .fitted)) +
+#     geom_point() +
+#    labs(
+#       y = "Fitted (predicted values)",
+#      x = "Data (actual values)",
+#       title = paste("Vaccine impact of", d_v_a_name)
+#     ) +
+#    geom_abline(intercept = 0, slope = 1) +
+#     facet_wrap(~country, ncol = 21)
    
    #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
      # Plot model fit for a single country 
-     plot_df = augment(best_model) %>%
-       filter(country == "HND")
+   #  plot_df = augment(best_model) %>%
+  #     filter(country == "HND")
      
-     ggplot(data = plot_df, aes(x = year)) +
-       geom_point(aes(y = target, colour = "Data")) +
-       geom_line(aes(y = .fitted, colour = "Fitted")) +
-       labs(y = NULL,
-           title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
-     ) +
-    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-     guides(colour = guide_legend(title = NULL))
+  #   ggplot(data = plot_df, aes(x = year)) +
+  #     geom_point(aes(y = target, colour = "Data")) +
+  #     geom_line(aes(y = .fitted, colour = "Fitted")) +
+  #     labs(y = NULL,
+  #         title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
+  #   ) +
+  #  scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
+  #   guides(colour = guide_legend(title = NULL))
    
      #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
      # Plot model fit for all countries
-   plot_df = augment(best_model)
+   #plot_df = augment(best_model)
    
-   ggplot(data = plot_df, aes(x = year)) +
-     geom_point(aes(y = target, colour = "Data")) +
-    geom_line(aes(y = .fitted, colour = "Fitted")) +
-     labs(y = NULL,
-         title = paste("Vaccine impact of", d_v_a_name)
-     ) +
-    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-     guides(colour = guide_legend(title = NULL))  +
-    facet_wrap(~country, ncol = 21)
+   #ggplot(data = plot_df, aes(x = year)) +
+  #   geom_point(aes(y = target, colour = "Data")) +
+  #  geom_line(aes(y = .fitted, colour = "Fitted")) +
+  #   labs(y = NULL,
+  #       title = paste("Vaccine impact of", d_v_a_name)
+  #   ) +
+  #  scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
+  #   guides(colour = guide_legend(title = NULL))  +
+  #  facet_wrap(~country, ncol = 21)
    
  
   # Select countries for imputation
@@ -538,17 +541,17 @@ perform_impute = function(d_v_a_id, target) {
   estimate_dt = bind_rows(best_model_output, impute_output)
   
   #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
-  plot_df = estimate_dt
+ # plot_df = estimate_dt
   
-  ggplot(data = plot_df, aes(x = year)) +
-    geom_point(aes(y = target, colour = "Data")) +
-    geom_line(aes(y = .fitted, colour = "Fitted")) +
-    labs(y = NULL,
-         title = paste("Vaccine impact of", d_v_a_name)
-    ) +
-    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-    guides(colour = guide_legend(title = NULL))  +
-    facet_wrap(~country, ncol = 21)
+#  ggplot(data = plot_df, aes(x = year)) +
+#    geom_point(aes(y = target, colour = "Data")) +
+#    geom_line(aes(y = .fitted, colour = "Fitted")) +
+#    labs(y = NULL,
+#         title = paste("Vaccine impact of", d_v_a_name)
+#    ) +
+#    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
+#    guides(colour = guide_legend(title = NULL))  +
+#    facet_wrap(~country, ncol = 21)
   
   # Recombine estimated impact with predictor data
   recombine_dt = full_join(data_dt, best_model_output, by = c("country", "d_v_a_id", "year")) %>% 

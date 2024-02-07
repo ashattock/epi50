@@ -610,120 +610,69 @@ plot_coverage = function() {
 }
 
 
-#===============================================
-#
-#   Helen dump
-#=================================================
+#-------------------------------------------------
+#  Plot model choice per region
+#-------------------------------------------------
+plot_model_choice = function(){
+  
+  message("  > Plotting model choice by region")
+  
+  # ---- Load results from imputation ----
+  
+  # Function to load imputation results
+  load_results_fn = function(id)
+    result = read_rds("impute", "impute", id)$choice
+  
+  # Load imputation results for all d-v-a
+  choice_dt = table("d_v_a") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id) %>%
+    lapply(load_results_fn) %>%
+    rbindlist()
+  
+  # Details for file destination
+  save_name = "Model_choice_by_region"
+  save_dir  = "data_visualisation"
+  
+    # Omit country missing region
+    plot_dt = choice_dt %>% 
+              filter(!is.na(region_short))
+    
+    # Plot coverage value density
+    g = ggplot(plot_dt) + 
+      aes(x = model_number) + 
+      geom_histogram(binwidth = 1) +
+      facet_wrap(~region_short) 
+ 
+    # Prettify theme
+    g = g + theme_classic() + 
+      theme(axis.text     = element_text(size = 10),
+            axis.title.x  = element_text(
+              size = 20, margin = margin(b = 10, t = 20)),
+            axis.title.y  = element_text(
+              size = 20, margin = margin(l = 10, r = 20)),
+            axis.line     = element_blank(),
+            strip.text    = element_text(size = 14),
+            strip.background = element_blank(), 
+            panel.border  = element_rect(
+              linewidth = 1, fill = NA),
+            panel.spacing = unit(1, "lines"),
+            legend.title  = element_blank(),
+            legend.text   = element_text(size = 14),
+            legend.key    = element_blank(),
+            legend.position = "right", 
+            legend.key.height = unit(2, "lines"),
+            legend.key.width  = unit(2, "lines"))
+    
+    # Save to file
+    save_fig(g, save_name, dir = save_dir)
+
+ 
+}
 
 
-# Plot estimates of regression predictors by region
-#plot_model_fit_df = model_fit %>%
-#  select(country, region_short, term, estimate) %>%
-#  pivot_wider(names_from = term,
-#              values_from = estimate) %>%
-#  group_by(region_short) %>%
-#  as.data.table()
-
-# Plot Spearman rank correlation between coefficients of regression   
-#plot_model_fit_df %>% select(`log(coverage)`,
-#                             `log(coverage_minus_1)`,
-#                             `log(coverage_minus_2)`,
-#                             `log(coverage_minus_3)`,
-#                             `log(coverage_minus_4)`,
-                             #gini,
-#                             HDI,
-#                             `(Intercept)`
-                             # attended_births
-#) %>% 
-#  ggpairs()
-
-#ggpairs(plot_model_fit_df, columns = c(3,5,6), ggplot2::aes(colour=region_short)) 
-
-# Plot density of coefficients of predictors by region
-#ggpairs(plot_model_fit_df,               
-#       columns = c(3,6:10),       
-#        aes(colour = region_short,  
-#            alpha = 0.5))   
-#browser()
-# Plot data vs. fitted for a single country 
-#plot_df = augment(model_1) %>%
-#  filter(country == "THA")
-
-#ggplot(data = plot_df, aes(x = target, y = .fitted)) +
-#  geom_point() +
- # labs(
-#    y = "Fitted (predicted values)",
- #   x = "Data (actual values)",
-#    title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
-#  ) +
- # geom_abline(intercept = 0, slope = 1)
-
-# Plot data vs. fitted for all countries
-#plot_df = augment(best_model) 
-
-#ggplot(data = plot_df, aes(x = target, y = .fitted)) +
-#  geom_point() +
- # labs(
-#    y = "Fitted (predicted values)",
- #   x = "Data (actual values)",
-#    title = paste("Vaccine impact of", d_v_a_name)
-#  ) +
- # geom_abline(intercept = 0, slope = 1) +
-#  facet_wrap(~country, ncol = 21)
-
-
-
-# Plot model fit for a single country 
-#plot_df = augment(best_model) %>%
-#  filter(country == "AGO")
-
-#ggplot(data = plot_df, aes(x = year)) +
-#  geom_point(aes(y = target, colour = "Data")) +
-#  geom_line(aes(y = .fitted, colour = "Fitted")) +
-#  labs(y = NULL,
- #      title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
-#  ) +
- # scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-#  guides(colour = guide_legend(title = NULL))
-
-# Plot model fit for all countries
-#plot_df = augment(best_model) 
-
-#ggplot(data = plot_df, aes(x = year)) +
-#  geom_point(aes(y = target, colour = "Data")) +
- # geom_line(aes(y = .fitted, colour = "Fitted")) +
-#  labs(y = NULL,
- #      title = paste("Vaccine impact of", d_v_a_name)
-#  ) +
- # scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-#  guides(colour = guide_legend(title = NULL))  +
- # facet_wrap(~country, ncol = 21)
-
-# Manually explore associations between predictor variables for different geographical regions and time points
-#  explore_dt =  data_dt %>% as.data.table() %>% # Transform to data table to remove country as categorical variable
-#                  filter(#year > 2000 & year <= 2020 &
-#region_short == "AFR" &
-#                  target > 2e-20
-#                  ) %>%
-#                select(-country) %>%
-#                select(target, gini, health_spending, coverage, coverage_minus_1,coverage_minus_2,coverage_minus_3,sdi) 
-
-# explore_dt %>%   ggpairs(upper = list(continuous = wrap("cor", method = "spearman"))) # Use Spearman rank correlation to account for outliers
-
-# Explore model selection by region
-#ggplot(data = model_choice, aes(x = model_number)) +
-#  geom_histogram() +
-#  facet_wrap(~region_short)
-
-# Explore prob. density of coefficients of predictors
-#plot_df = model_fit %>% filter(term == "pop_0to14")
-
-#ggplot(data = plot_df, aes(x=estimate) ) +
-#  geom_density() +
- # facet_wrap(~region_short, ncol=1)
-
-#--------------------------------------------------
-#--------------------------------------------------
 # ---------------------------------------------------------
 # Plot age targets as defined by WIISE and VIMC coverage data
 # ---------------------------------------------------------
@@ -1284,7 +1233,7 @@ plot_covariates = function() {
 plot_impute_quality = function() {
   
   message("  > Plotting imputation quality of fit")
-  
+ 
   # ---- Load results from fitting ----
   
   # Function to load imputation results
@@ -1305,25 +1254,19 @@ plot_impute_quality = function() {
   # Prepare datatable for plotting
   plot_dt = results_dt %>%
     filter(!is.na(target)) %>%
+    filter(!is.na(estimate)) %>%
+    filter(target != 0) %>%
     select(-country) %>%
     append_d_v_a_name() %>%
-    # Remove target outliers for better normalisation...
-   # group_by(d_v_a_name) %>%
-  #  mutate(lower = mean(target) - 3 * sd(target), 
-  #         upper = mean(target) + 3 * sd(target), 
-  #         outlier = target < lower | target > upper) %>%
-  #  ungroup() %>%
-  #  filter(outlier == FALSE) %>%
-  #  select(-outlier, -lower, -upper) %>%
     as.data.table()
   
-  # Maximum value in each facet (target or predict)
+  # Maximum value in each facet (target or estimate)
   blank_dt = plot_dt %>%
-    mutate(max_value = pmax(target, predict)) %>%
+    mutate(max_value = pmax(target, estimate)) %>%
     group_by(d_v_a_name) %>%
     summarise(max_value = max(max_value)) %>%
     ungroup() %>%
-    expand_grid(type = c("target", "predict")) %>%
+    expand_grid(type = c("target", "estimate")) %>%
     pivot_wider(names_from  = type, 
                 values_from = max_value) %>%
     as.data.table()
@@ -1333,7 +1276,7 @@ plot_impute_quality = function() {
   # Single plot with multiple facets
   g = ggplot(plot_dt) +
     aes(x = target, 
-        y = predict, 
+        y = estimate, 
         color = d_v_a_name) +
     # Plot truth vs predicted...
     geom_point(alpha = 0.35, 
@@ -1388,7 +1331,7 @@ plot_impute_quality = function() {
 plot_impute_countries = function() {
   
   message("  > Plotting country-aggregated imputation errors")
-  
+  browser()
   # ---- Load results from fitting ----
   
   # Function to load imputation results
@@ -1407,11 +1350,11 @@ plot_impute_countries = function() {
   
   # ---- Plot 1: annual error by country ----
   
-  # Truth vs predicted over time for training data
+  # Truth vs estimateed over time for training data
   annual_dt = results_dt %>%
     select(country, d_v_a_name, year, 
            vimc   = target, 
-           impute = predict) %>%
+           impute = estimate) %>%
     filter(!is.na(vimc)) %>%
     mutate(lower = pmin(vimc, impute), 
            upper = pmax(vimc, impute))
@@ -1442,28 +1385,29 @@ plot_impute_countries = function() {
     # Take cumulative values for each country...
     group_by(country, d_v_a_name) %>%
     summarise(truth   = max(impact_cum), 
-              predict = max(impact_impute)) %>%
+              estimate = max(impact_impute)) %>%
     ungroup() %>%
-    # VIMC as truth-predict scatter, imputed along diagonal...
+    filter(!is.na(d_v_a_name)) %>%
+    # VIMC as truth-estimate scatter, imputed along diagonal...
     mutate(source = ifelse(is.na(truth), "impute", "vimc"), 
-           truth  = ifelse(is.na(truth), predict, truth)) %>%
+           truth  = ifelse(is.na(truth), estimate, truth)) %>%
     arrange(d_v_a_name, desc(source), country) %>%
     as.data.table()
   
-  # Maximum value in each facet (target or predict)
+  # Maximum value in each facet (target or estimate)
   blank_dt = total_dt %>%
-    mutate(max_value = pmax(truth, predict)) %>%
+    mutate(max_value = pmax(truth, estimate)) %>%
     group_by(d_v_a_name) %>%
     summarise(max_value = max(max_value)) %>%
     ungroup() %>%
-    expand_grid(type = c("truth", "predict")) %>%
+    expand_grid(type = c("truth", "estimate")) %>%
     pivot_wider(names_from  = type, 
                 values_from = max_value) %>%
     as.data.table()
   
-  # Plot truth vs predicted along with imputed countries
-  g = ggplot(total_dt, aes(x = truth, y = predict)) +
-    geom_abline(colour = "black") +  # To see quality of truth vs predict
+  # Plot truth vs estimateed along with imputed countries
+  g = ggplot(total_dt, aes(x = truth, y = estimate)) +
+    geom_abline(colour = "black") +  # To see quality of truth vs estimate
     geom_blank(data = blank_dt) +    # For square axes
     geom_point(aes(colour = source)) + 
     facet_wrap(~d_v_a_name, scales = "free")
@@ -1585,6 +1529,10 @@ plot_impact_data = function() {
 # Plot function selection statistics
 # ---------------------------------------------------------
 plot_model_selection = function() {
+  
+  browser()
+  
+  results_dt
   
   message("  > Plotting impact model selection")
   
