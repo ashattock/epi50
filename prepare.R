@@ -373,10 +373,15 @@ prepare_gapminder = function() {
   hdi_dt = fread(paste0(o$pth$input, "ddf--datapoints--hdi_human_development_index--by--geo--time.csv")) %>%
             rename(HDI = hdi_human_development_index)
   
+  # Attended births
+  attended_births_dt = fread(paste0(o$pth$input, "ddf--datapoints--births_attended_by_skilled_health_staff_percent_of_total--by--geo--time.csv")) %>%
+    rename(attended_births = births_attended_by_skilled_health_staff_percent_of_total)
+  
   # Create table of Gapminder covariates
   gapminder_dt = gini_dt %>%
                   full_join(pop_0_to_14_dt, by=c("geo", "time")) %>%
                   full_join(hdi_dt, by=c("geo", "time")) %>%
+                  full_join(attended_births_dt, by=c("geo", "time")) %>%
                   mutate(country_code = toupper(geo)) %>%
                   select(-geo) %>%
                   relocate(country_code) %>%

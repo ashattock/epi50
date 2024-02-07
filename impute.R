@@ -143,8 +143,7 @@ perform_impute = function(d_v_a_id, target) {
      group_by(country) %>%
      filter(n() > 4) %>% # remove if fewer than 4 non-zero values for a given country (insufficient for fitting)
      ungroup()
-   
-
+ 
    
   # Stepwise regression
   # TODO LATER: Update to lasso regularisation for optimal predictor selection
@@ -289,6 +288,7 @@ perform_impute = function(d_v_a_id, target) {
   model_fit_8 = model_8 %>% 
                  tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
                  mutate(model_number = 8) 
+  
   
   # Model 9: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14, attended_births, gini
   model_9 = data_dt %>%
