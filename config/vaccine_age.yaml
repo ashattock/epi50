@@ -1,0 +1,47 @@
+---
+
+# Creates datatable: vaccine_age_table
+table:
+- vaccine: HepB
+  age: 0
+- vaccine: HepB_BD
+  age: 0
+- vaccine: Hib3
+  age: 0
+- vaccine: PCV3
+  age: 0
+- vaccine: RCV2
+  age: 0
+- vaccine: Rota
+  age: 0
+- vaccine: Rubella
+  age: 0
+- vaccine: Dip3
+  age: 0
+- vaccine: Dip_BX
+  age: "1:15"
+- vaccine: Tet3
+  age: 0
+- vaccine: Tet_BX
+  age: "1:15"
+- vaccine: wPer3
+  age: 0
+- vaccine: aPer3
+  age: 0
+- vaccine: aPer_BX
+  age: "1:15"
+- vaccine: BCG
+  age: 0
+- vaccine: MCV1
+  age: 1
+- vaccine: MCV2
+  age: "4:6"
+- vaccine: Measles
+  age: "4:6"
+- vaccine: IPV
+  age: 0
+- vaccine: OPV
+  age: 0
+
+# Source for DTP-containing booster dose age groups:
+#   https://terrance.who.int/mediacentre/data/sage/SAGE_Docs_Ppt_Apr2017/10_session_diptheria/Apr2017_session10_diphtheria_vax_effectiveness.pdf
