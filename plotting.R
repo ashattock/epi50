@@ -10,13 +10,15 @@
 # ---------------------------------------------------------
 plot_scope = function() {
   
+  # NOTE: Some inefficiencies in this function
+  
   message("  > Plotting country-disease scope")
   
   # Manually set tidy y axis limit
   y_max = 10  # In billions
   
   # Linear time interpolation for less pixilated figures
-  smoothness = 1  # Higher value for smoother plot
+  smoothness = 10  # Higher value for smoother plot
   
   # Dictionary for full impact source descriptions
   impact_dict = c(
@@ -54,7 +56,7 @@ plot_scope = function() {
     ungroup() %>%
     # Cumulative over time...
     group_by(disease) %>%
-    mutate(cum = cumsum(total)) %>%
+    mutate(cum_total = cumsum(total)) %>%
     ungroup() %>%
     as.data.table()
   
@@ -83,9 +85,10 @@ plot_scope = function() {
     mutate(class = "vimc")
   
   # VIMC country imputation settings
-  impute_dt = table("disease") %>%
+  impute_dt = table("d_v_a") %>%
     filter(source == "vimc") %>%
     select(disease) %>%
+    unique() %>%
     expand_grid(
       country = all_countries(), 
       year    = unique(vimc_dt$year)) %>%
@@ -98,7 +101,7 @@ plot_scope = function() {
   # ---- Construct plotting datatable ----
   
   # Combine all impact sources
-  plot_dt = rbind(static_dt, extern_dt, vimc_dt, impute_dt) %>%
+  plot_dt = rbind(extern_dt, static_dt, vimc_dt, impute_dt) %>%
     # Append FVPs...
     right_join(y  = fvps_dt, 
                by = c("disease", "country", "year")) %>%
@@ -113,19 +116,31 @@ plot_scope = function() {
               by = c("disease", "year")) %>%
     # Share of cumulative FVPs by class over time...
     mutate(share = fvps / total, 
-           value = share * cum / 1e9) %>%
+           value = share * cum_total / 1e9) %>%
+    # Expand for a more granular timescale...
+    expand_grid(time = seq(
+      from = 0 , 
+      to   = 1 - 1 / smoothness, 
+      by   = 1 / smoothness)) %>%
+    mutate(time = year + time) %>%
+    filter(time <= max(o$years)) %>%
+    # Interpolate annual values for smoother plot...
+    mutate(value = ifelse(time == year, value, NA)) %>%
+    group_by(disease, class) %>%
+    mutate(value = na_interpolation(value)) %>%
+    ungroup() %>%
+    # Use full disease names...
+    left_join(y  = table("disease_name"), 
+              by = "disease") %>%
+    select(disease = disease_name, class, time, value) %>%
     # Use impact source descriptions...
     mutate(class = recode(class, !!!impact_dict), 
            class = factor(class, rev(impact_dict))) %>%
-    # Use full disease names...
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
-    # And use this to set disease order...
-    arrange(desc(cum)) %>%
-    select(disease = disease_name, class, year, value) %>%
+    # Set disease order...
+    arrange(desc(value)) %>%
     mutate(disease = fct_inorder(disease)) %>%
     # Tidy up...
-    arrange(disease, year, class) %>%
+    arrange(disease, class, time) %>%
     as.data.table()
   
   # ---- Construct label datatable ----
@@ -133,13 +148,13 @@ plot_scope = function() {
   # Year range of analysis
   year1 = min(o$years)
   year2 = max(o$years)
-  
+
   # Label description string
   label = paste0("Total (", year1, "-", year2, "):")
-  
+
   # Construct labels: total FVPs over analysis timeframe
   label_dt = plot_dt %>%
-    filter(year == year2) %>%
+    filter(time == year2) %>%
     # Total cumulative FVPs by disease...
     group_by(disease) %>%
     summarise(value = sum(value)) %>%
@@ -148,7 +163,7 @@ plot_scope = function() {
     mutate(value = round(value, 2),
            label = paste(label, value, "billion")) %>%
     # Set coordinates...
-    mutate(year = year1 + 0.01 * (year2 - year1), 
+    mutate(time = year1 + 0.01 * (year2 - year1),
            fvps = y_max * 0.9) %>%
     as.data.table()
   
@@ -156,7 +171,7 @@ plot_scope = function() {
   
   # Plot FVP over time per pathogen and impact source
   g = ggplot(plot_dt) +
-    aes(x = year, 
+    aes(x = time, 
         y = value) +
     geom_bar(
       mapping  = aes(fill = class), 
@@ -172,7 +187,7 @@ plot_scope = function() {
       vjust   = 1) + 
     # Some intricate faceting...
     facet_rep_wrap(
-      facets = ~disease, 
+      facets = vars(disease), 
       ncol   = 1, 
       labeller = label_wrap_gen(width = 20), 
       strip.position = "right", 
@@ -216,8 +231,6 @@ plot_scope = function() {
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
-  browser()
-  
   # Save to file
   save_fig(g, "Analysis scope", dir = "data_visualisation")
   save_fig(g, "Figure 1", dir = "manuscript")
@@ -230,29 +243,22 @@ plot_total_fvps = function() {
   
   message("  > Plotting total number of FVP")
   
-  # ---- Plot 1: by d_v_a ----
-  
   # Flag for whether to plot FVPs cumulatively over time
   cumulative = TRUE
   
   # Number of FVPs by source of data
   source_dt = table("coverage_source") %>%
     # Summarise over countries and age...
-    group_by(v_a_id, source, year) %>%
+    group_by(d_v_a_id, source, year) %>%
     summarise(fvps = sum(fvps) / 1e9) %>%
     ungroup() %>%
     # Cumulative FVPs...
-    group_by(v_a_id, source) %>%
+    group_by(d_v_a_id, source) %>%
     mutate(fvps_cum = cumsum(fvps)) %>%
     ungroup() %>%
-    # Report for each d_v_a...
-    left_join(y  = table("v_a"), 
-              by = "v_a_id") %>%
-    full_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity")) %>%
-    select(d_v_a_name, source, year, fvps, fvps_cum) %>%
     # Tidy up...
     format_d_v_a_name() %>%
+    filter(!is.na(d_v_a_name)) %>%
     arrange(d_v_a_name, source, year) %>%
     as.data.table()
   
@@ -262,19 +268,13 @@ plot_total_fvps = function() {
   #       SIA are assumed to be only partially targeted
   total_dt = table("coverage") %>%
     # Summarise over countries and age...
-    group_by(v_a_id, year) %>%
+    group_by(d_v_a_id, year) %>%
     summarise(fvps = sum(fvps) / 1e9) %>%
     ungroup() %>%
     # Cumulative FVPs...
-    group_by(v_a_id) %>%
+    group_by(d_v_a_id) %>%
     mutate(fvps_cum = cumsum(fvps)) %>%
     ungroup() %>%
-    # Report for each d_v_a...
-    left_join(y  = table("v_a"), 
-              by = "v_a_id") %>%
-    full_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity")) %>%
-    select(d_v_a_id, year, fvps, fvps_cum) %>%
     # Tidy up...
     format_d_v_a_name() %>%
     arrange(d_v_a_id, year) %>%
@@ -334,81 +334,6 @@ plot_total_fvps = function() {
   # Save to file
   save_dir = "data_visualisation"
   save_fig(g, "FVPs by source", dir = save_dir)
-  
-  # ---- Plot 2: by disease & vaccine ----
-  
-  # Produce plot for both disease and vaccine
-  for (d_v in c("disease", "vaccine")) {
-    
-    # Sum FVPs for each disease or vaccine
-    d_v_dt = source_dt %>%
-      left_join(y  = table("d_v_a"), 
-                by = "d_v_a_name") %>%
-      select(d_v = !!d_v, activity, year, fvps) %>%
-      group_by(d_v, activity, year) %>%
-      summarise(fvps = sum(fvps)) %>%
-      ungroup() %>%
-      group_by(d_v, activity) %>%
-      mutate(fvps_cum = cumsum(fvps)) %>%
-      ungroup() %>%
-      as.data.table()
-    
-    # Extend back/forth for attractive plotting
-    plot_dt = 
-      expand_grid(
-        d_v      = unique(d_v_dt$d_v), 
-        activity = unique(d_v_dt$activity), 
-        year     = o$years) %>%
-      left_join(y  = d_v_dt, 
-                by = c("d_v", "activity", "year")) %>%
-      group_by(d_v, activity) %>%
-      fill(fvps_cum, .direction = "down")  %>%
-      replace_na(list(fvps_cum = 0)) %>%
-      ungroup() %>%
-      as.data.table()
-    
-    # Plot FVPs over time for each disease or vaccine
-    g = ggplot(plot_dt) + 
-      aes(x = year, 
-          y = !!sym(y), 
-          fill = activity) + 
-      geom_area() + 
-      facet_wrap(~d_v) + 
-      # Prettify x axis...
-      scale_x_continuous(
-        limits = c(min(o$years), max(o$years)), 
-        expand = expansion(mult = c(0, 0)), 
-        breaks = seq(min(o$years), max(o$years), by = 10)) +  
-      # Prettify y axis...
-      scale_y_continuous(
-        name   = "Total receiving full primary or booster schedule (in millions)", 
-        labels = comma,
-        expand = expansion(mult = c(0, NA)))
-    
-    # Prettify theme
-    g = g + theme_classic() + 
-      theme(axis.title.x  = element_blank(),
-            axis.title.y  = element_text(
-              size = 20, margin = margin(l = 10, r = 20)),
-            axis.text     = element_text(size = 9),
-            axis.text.x   = element_text(hjust = 1, angle = 50), 
-            axis.line     = element_blank(),
-            strip.text    = element_text(size = 12),
-            strip.background = element_blank(), 
-            panel.border  = element_rect(
-              linewidth = 0.5, fill = NA),
-            panel.spacing = unit(1, "lines"),
-            panel.grid.major.y = element_line(linewidth = 0.5),
-            legend.title  = element_blank(),
-            legend.text   = element_text(size = 12),
-            legend.key    = element_blank(),
-            legend.position = "right", 
-            legend.key.height = unit(2, "lines"),
-            legend.key.width  = unit(2, "lines"))
-    
-    # Save to file
-    save_fig(g, paste0("FVPs by ", d_v), dir = save_dir)
-  }
 }
 
 # ---------------------------------------------------------
@@ -533,10 +458,8 @@ plot_coverage = function() {
     # Classify by age group...
     mutate(age_group = ifelse(age == 0, "infant", "other")) %>%
     # Classify by disease...
-    left_join(y  = table("v_a"), 
-              by = "v_a_id") %>%
     left_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity")) %>%
+              by = "d_v_a_id") %>%
     # Tidy up...
     select(disease, vaccine, age_group, coverage) %>%
     arrange(disease, vaccine, age_group)
@@ -609,7 +532,8 @@ plot_coverage_age_density = function() {
   # Construct plotting datatable
   plot_dt = table("coverage_source") %>%
     mutate(trans_age = pmax(age, 1), .after = age) %>%
-    append_v_a_name()
+    format_d_v_a_name() %>%
+    filter(!is.na(d_v_a_name))
   
   # Plot age density of coverage data by source
   g = ggplot(plot_dt) +
@@ -620,7 +544,7 @@ plot_coverage_age_density = function() {
     geom_density(alpha = 0.2) +
     # Facet with strip text wrapping...
     facet_wrap(
-      facets   = vars(v_a_name), 
+      facets   = vars(d_v_a_name), 
       labeller = label_wrap_gen(width = 24)) + 
     # Prettify x axis...
     scale_x_continuous(
@@ -782,7 +706,7 @@ plot_gbd_estimates = function() {
   
   # Load GBD estimates and categorise into age groups
   gbd_dt = table("gbd_estimates") %>%
-    left_join(y  = table("gbd_dict"), 
+    left_join(y  = table("disease_name"), 
               by = "disease") %>%
     left_join(y  = age_group_dt,
               by = "age") %>%
@@ -865,7 +789,7 @@ plot_gbd_estimates = function() {
     left_join(y  = coverage_dt, 
               by = c("disease", "country")) %>%
     replace_na(list(status = "trivial")) %>%
-    left_join(y  = table("gbd_dict"), 
+    left_join(y  = table("disease_name"), 
               by = "disease") %>%
     group_by(disease_name, year, status) %>%
     summarise(deaths = sum(deaths)) %>%
@@ -1198,6 +1122,8 @@ plot_static = function() {
   
   # Load previously calculated total coverage file
   averted_dt = read_rds("static", "deaths_averted_vaccine")
+  
+  browser() # Use table("vaccine_name")
   
   # Summarise results over country
   vaccine_dt = averted_dt %>%
@@ -2387,6 +2313,8 @@ plot_child_mortality = function() {
   # Life expectancy over time
   life_exp_dt = NULL
   
+  browser() # Use table("vaccine_name")
+  
   # Vaccine coverage over time - global average
   coverage_dt = table("coverage_global") %>%
     filter(coverage > 0, 
@@ -3330,7 +3258,6 @@ plot_tornado = function() {
   
   g = g + theme_classic()
 }
-
 
 # ---------------------------------------------------------
 # Full descriptive names for disease, vaccine, or vaccine type

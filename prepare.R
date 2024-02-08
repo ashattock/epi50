@@ -211,11 +211,8 @@ prepare_gbd_estimates = function() {
   
   # Dictionary of GBD disease names
   gbd_dict = table("gbd_dict") %>%
-    mutate(name = ifelse(
-      test = is.na(gbd_alt_name), 
-      yes  = disease_name, 
-      no   = gbd_alt_name)) %>%
-    select(name, value = disease) %>%
+    rename(name  = gbd_name, 
+           value = disease) %>%
     pivot_wider() %>%
     as.list()
   

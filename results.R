@@ -33,7 +33,7 @@ run_results = function() {
 
     # Coverage data density by age
     plot_coverage_age_density()
-    
+
     # Missing coverage data by country
     plot_missing_data()
 

@@ -231,7 +231,7 @@ coverage_wiise = function(vimc_countries_dt) {
   
   # Expanded datatable of ages per vaccine
   age_dt = d_v_a_dt %>%
-    left_join(y  = table("vaccine"), 
+    left_join(y  = table("vaccine_age"), 
               by = "vaccine") %>%
     select(d_v_a_id, age) %>%
     dtapply(expand_age_fn) %>%
