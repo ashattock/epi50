@@ -31,13 +31,11 @@ run_external = function() {
   # Format external modelling results for EPI50 use
   format_measles()
   format_polio()
-  
+
   # Extract results from all extern models
   extract_extern_results()
   
   # ---- Diagnostic plots ----
-  
-  browser() # Check figure still works after table("coverage") update...
   
   # Missing coverage data by country
   plot_missing_data()
@@ -529,6 +527,8 @@ extract_extern_results = function() {
   # Function for extracting model outcomes
   extract_fn = function(model) {
     
+    message("   ~ ", model)
+    
     # Name of formatted table for this model
     model_table = paste1("extern", model, "results")
     
@@ -555,6 +555,7 @@ extract_extern_results = function() {
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_name") %>%
     # Summarise by d_v_a (mean across all models)...
+    lazy_dt() %>%
     group_by(d_v_a_id, scenario, country, year, age, metric) %>%
     summarise(value = mean(value, na.rm = TRUE)) %>%
     ungroup() %>%
@@ -563,7 +564,7 @@ extract_extern_results = function() {
   # ---- Historical deaths and DALYs ----
   
   message("  > Summarising historical estimates")
-
+  
   # Historical deaths in each scenario
   #
   # NOTE: Used for final plotting purposes
@@ -572,7 +573,7 @@ extract_extern_results = function() {
     pivot_wider(names_from  = scenario,
                 values_from = value) %>%
     as.data.table()
-
+  
   # Save in table cache
   save_table(extern_deaths_dt, "extern_deaths")
   
@@ -596,7 +597,7 @@ extract_extern_results = function() {
     pivot_wider(names_from  = metric,
                 values_from = value) %>%
     as.data.table()
-
+  
   # Save in table cache
   save_table(extern_averted_dt, "extern_estimates")
   
@@ -624,9 +625,9 @@ extract_extern_results = function() {
   
   message("  > Extracting vaccine coverage")
   
-  base_coverage_dt = table("coverage")
-  
-  browser() # TODO: I think we need to split impact across the vaccines for this...
+  # Coverage data prior to appending external pathogen coverage
+  base_coverage_dt = table("coverage") %>%
+    filter(!d_v_a_id %in% unique(historical_dt$d_v_a_id))
   
   # Extract vaccine coverage from external model outcomes
   extern_coverage_dt = historical_dt %>%
@@ -641,23 +642,26 @@ extract_extern_results = function() {
     # Append cohort and calculate coverage...
     left_join(y  = table("wpp_pop"), 
               by = c("country", "year", "age")) %>%
+    rename(cohort = pop) %>%
     mutate(fvps = pmin(fvps, cohort * o$max_coverage),
            coverage = fvps / cohort) %>%
-    
-    # We are still disaggregated by vaccine here
-    
     # Tidy up...
-    select(all_names(base_coverage_dt))
-    
-  browser()
+    select(all_names(base_coverage_dt)) %>%
+    arrange(d_v_a_id, country, year, age)
   
   # Append external coverage to coverage table
   base_coverage_dt %>%
     rbind(extern_coverage_dt) %>%
     arrange(d_v_a_id, country, year, age) %>%
     save_table("coverage")
+}
+
+# ---------------------------------------------------------
+# Accredit impact across vaccine types
+# ---------------------------------------------------------
+split_impact = function() {
   
-  browser()
+  browser() # TODO
 }
 
 # ---------------------------------------------------------

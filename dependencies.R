@@ -46,6 +46,7 @@ for (file in src_files)
 packages = c(
   "tidyverse",      # Includes ggplot2, dplyr, tidyr (www.tidyverse.org/packages/)
   "data.table",     # Next generation dataframes
+  "dtplyr",         # Syntax of dplyr with datatable speed
   "gsubfn",         # Output multiple variables from functions
   "magrittr",       # Additional pipe operators, such as %<>%
   "wrapr",          # Convenience functions (eg qc)

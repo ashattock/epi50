@@ -627,7 +627,7 @@ plot_missing_data = function() {
     as.data.table()
   
   # Extract population limits for the data
-  limits  = range(plot_dt$value, na.rm = TRUE)
+  limits  = c(0, max(plot_dt$value, na.rm = TRUE))
   colours = colour_scheme("pals::brewer.reds", n = 10)
   
   # Plot missing data
