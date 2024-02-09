@@ -550,12 +550,12 @@ extract_extern_results = function() {
   historical_dt = names(all_models) %>%
     lapply(extract_fn) %>%
     rbindlist() %>%
+    lazy_dt() %>%
     # Define d_v_a classification...
     mutate(d_v_a_name = all_models[model]) %>%
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_name") %>%
     # Summarise by d_v_a (mean across all models)...
-    lazy_dt() %>%
     group_by(d_v_a_id, scenario, country, year, age, metric) %>%
     summarise(value = mean(value, na.rm = TRUE)) %>%
     ungroup() %>%

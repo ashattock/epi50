@@ -210,6 +210,8 @@ impute_sia_dates = function(sia_dt) {
     as_named_dt("month")
   
   # All months to distibute doses across (for which campaign has been 'run')
+  #
+  # NOTE: dtplyr would be handy here, but isn't yet implemented for rowwise() operations
   run_months_dt = impute_dt %>%
     mutate(start_date = floor_date(start_date, "month"),  # Beginning of month
            end_date   = floor_date(end_date,   "month"),  # Beginning of month
@@ -238,6 +240,7 @@ impute_sia_dates = function(sia_dt) {
   
   # Remove these trivial dose entries and sum over year
   sia_year_dt = sia_month_dt %>%
+    lazy_dt() %>%
     filter(doses > 0) %>%
     mutate(year = year(month)) %>%
     group_by(intervention, country, year, age_group) %>%
@@ -350,6 +353,7 @@ parse_age_groups = function(sia_dt) {
   
   # Convert to long form and distribute across age bins
   age_dt = sia_dt %>%
+    lazy_dt() %>%
     rename(total_doses = doses) %>%
     # Expand with parsed age bins...
     left_join(y  = age_dict, 

@@ -41,6 +41,7 @@ prepare_coverage = function() {
   
   # Summarise - assuming partially targeted SIAs - for all d-v-a
   everything_dt = source_dt %>%
+    lazy_dt() %>%
     group_by(d_v_a_id, country, year, age) %>%
     summarise(fvps     = max(fvps),  # Essentially a placeholder until next calculation
               cohort   = mean(cohort), 
@@ -170,6 +171,7 @@ coverage_wiise = function(vimc_countries_dt) {
     mutate(wuenic   = ifelse(source == "wuenic", coverage, NA), 
            coverage = ifelse(source != "wuenic", coverage, NA)) %>%
     # Compare against average of all other sources...
+    lazy_dt() %>%
     group_by(country, intervention, year) %>%
     summarise(wuenic = mean(wuenic,   na.rm = TRUE),
               other  = mean(coverage, na.rm = TRUE)) %>%
@@ -273,6 +275,7 @@ calculate_fvps = function(coverage_dt) {
   
   # For primary schedule, assume all new FVPs
   primary_dt = coverage_dt %>% 
+    lazy_dt() %>%
     filter(!grepl("_BX$", vaccine)) %>%
     group_by(d_v_a_id, country, year, age) %>%
     summarise(fvps   = sum(sheduled_doses),  # Using sum
@@ -282,6 +285,7 @@ calculate_fvps = function(coverage_dt) {
   
   # For boosters, consecutive doses are for the same person
   booster_dt = coverage_dt %>% 
+    lazy_dt() %>%
     filter(grepl("_BX$", vaccine)) %>%
     group_by(d_v_a_id, country, year, age) %>%
     summarise(fvps   = max(sheduled_doses),  # Using max
