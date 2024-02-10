@@ -665,7 +665,7 @@ plot_model_choice = function(){
             legend.position = "right", 
             legend.key.height = unit(2, "lines"),
             legend.key.width  = unit(2, "lines"))
-    
+   
     # Save to file
     save_fig(g, save_name, dir = save_dir)
 
@@ -1325,18 +1325,98 @@ plot_impute_quality = function() {
   save_fig(g, "Imputation fit", dir = "imputation")
 }
 
-# ---------------------------------------------------------
-# Plot country-aggregated imputation errors
-# ---------------------------------------------------------
-plot_impute_countries = function() {
+# --------------------------------------------------------
+# Plot predictive performance for each country
+# --------------------------------------------------------
+plot_impute_perform = function(){
+message("  > Plotting predictive performance by country")
   
-  message("  > Plotting country-aggregated imputation errors")
+# ---- Load models from fitting ----
+# Function to load best model for each country and show results
+  load_results_fn = function(id){
+  model = read_rds("impute", "impute", id)$model 
+  results_dt = augment(model) %>%
+            rename(estimate = .fitted)
+  
+  plot_dt = results_dt %>% append_d_v_a_name()
   browser()
-  # ---- Load results from fitting ----
   
-  # Function to load imputation results
-  load_results_fn = function(id)
-    result = read_rds("impute", "impute", id)$result
+  # Maximum value in each facet (target or estimate)
+  blank_dt = plot_dt %>%
+    mutate(max_value = pmax(target, estimate)) %>%
+    group_by(country) %>%
+    summarise(max_value = max(max_value)) %>%
+    ungroup() %>%
+    expand_grid(type = c("target", "estimate")) %>%
+    pivot_wider(names_from  = type, 
+                values_from = max_value) %>%
+    as.data.table()
+  
+  
+  # ---- Produce plot ----
+  
+  # Single plot with multiple facets
+  g = ggplot(plot_dt) +
+    aes(x = target, 
+        y = estimate) +
+    # Plot truth vs predicted...
+    geom_point(alpha = 0.35, 
+               shape = 16, 
+               show.legend = FALSE) +
+    # For square axes...
+    geom_blank(data = blank_dt) +
+    # x=y
+    geom_abline(colour = "black", 
+                intercept = 0,
+                slope = 1) + 
+    # Simple faceting with wrap labelling...
+    facet_wrap(
+      facets   = ~country, 
+      labeller = label_wrap_gen(width = 30), 
+      ncol = 21,
+      scales = "free") + 
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Imputation target", 
+      labels = NULL,#scientific,
+      limits = c(0, NA), 
+      expand = c(0, 0), 
+      breaks = pretty_breaks()) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Imputation prediction", 
+      labels = NULL,#scientific,
+      limits = c(0, NA),
+      expand = c(0, 0), 
+      breaks = pretty_breaks()) +
+    # Title 
+      labs(title = paste("Predictive performance for", plot_dt$d_v_a_name))
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.text     = element_text(size = 8),
+          axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.title.x  = element_text(
+            size = 16, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(
+            size = 16, margin = margin(b = 10, t = 20)),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 12),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(0.5, "lines"))
+  
+  
+  # Details for file destination
+  save_name = "Predictive performance by country"
+  save_dir  = "imputation"
+  
+  # Save figure to file
+  save_fig(g, save_name, id, dir = save_dir)
+  
+  return(results_dt)
+  }
   
   # Load imputation results for all d-v-a
   results_dt = table("d_v_a") %>%
@@ -1345,76 +1425,114 @@ plot_impute_countries = function() {
     filter(source == "vimc") %>%
     pull(d_v_a_id) %>%
     lapply(load_results_fn) %>%
-    rbindlist() %>%
-    append_d_v_a_name()
-  
-  # ---- Plot 1: annual error by country ----
-  
-  # Truth vs estimateed over time for training data
-  annual_dt = results_dt %>%
-    select(country, d_v_a_name, year, 
-           vimc   = target, 
-           impute = estimate) %>%
-    filter(!is.na(vimc)) %>%
-    mutate(lower = pmin(vimc, impute), 
-           upper = pmax(vimc, impute))
-  
-  # Plot annual errors by country
-  g = ggplot(annual_dt, aes(x = year)) +
-    geom_ribbon(aes(ymin = lower, 
-                    ymax = upper, 
-                    fill = country),
-                alpha = 0.3) +
-    geom_line(aes(y = vimc, colour = country), 
-              linewidth = 0.5) +
-    geom_line(aes(y = impute, colour = country), 
-              linewidth = 0.5, 
-              linetype  = "dashed") +
-    facet_wrap(~d_v_a_name, scales = "free_y")
-  
-  # Remove legend
-  g = g + theme(legend.position = "none")
-  
-  # Save figure to file
-  save_fig(g, "Imputation error annual", dir = "imputation")
-  
-  # ---- Plot 2: total error by country ----
-  
-  # Where imputed countries lie in terms of magnitude
-  total_dt = results_dt %>%
-    # Take cumulative values for each country...
-    group_by(country, d_v_a_name) %>%
-    summarise(truth   = max(impact_cum), 
-              estimate = max(impact_impute)) %>%
-    ungroup() %>%
-    filter(!is.na(d_v_a_name)) %>%
-    # VIMC as truth-estimate scatter, imputed along diagonal...
-    mutate(source = ifelse(is.na(truth), "impute", "vimc"), 
-           truth  = ifelse(is.na(truth), estimate, truth)) %>%
-    arrange(d_v_a_name, desc(source), country) %>%
-    as.data.table()
-  
-  # Maximum value in each facet (target or estimate)
-  blank_dt = total_dt %>%
-    mutate(max_value = pmax(truth, estimate)) %>%
-    group_by(d_v_a_name) %>%
-    summarise(max_value = max(max_value)) %>%
-    ungroup() %>%
-    expand_grid(type = c("truth", "estimate")) %>%
-    pivot_wider(names_from  = type, 
-                values_from = max_value) %>%
-    as.data.table()
-  
-  # Plot truth vs estimateed along with imputed countries
-  g = ggplot(total_dt, aes(x = truth, y = estimate)) +
-    geom_abline(colour = "black") +  # To see quality of truth vs estimate
-    geom_blank(data = blank_dt) +    # For square axes
-    geom_point(aes(colour = source)) + 
-    facet_wrap(~d_v_a_name, scales = "free")
-  
-  # Save figure to file
-  save_fig(g, "Imputation error total", dir = "imputation")
+    rbindlist()
 }
+  
+  # --------------------------------------------------------
+  # Plot fitted model for each country
+  # --------------------------------------------------------
+  plot_impute_fit = function(){
+    message("  > Plotting predictive performance by country")
+    
+    # ---- Load models from fitting ----
+    # Function to load best model for each country and show results
+    load_results_fn = function(id){
+      model = read_rds("impute", "impute", id)$model 
+      results_dt = augment(model) %>%
+        rename(estimate = .fitted)
+      
+      plot_dt = results_dt %>% append_d_v_a_name()
+    browser()
+      # Maximum value in each facet (target or estimate)
+      blank_dt = plot_dt %>%
+        mutate(max_value = pmax(target, estimate)) %>%
+        group_by(country) %>%
+        summarise(max_value = max(max_value)) %>%
+        ungroup() %>%
+        expand_grid(type = c("target", "estimate")) %>%
+        pivot_wider(names_from  = type, 
+                    values_from = max_value) %>%
+        as.data.table()
+      
+      
+      # ---- Produce plot ----
+     
+      # Single plot with multiple facets
+      g = ggplot(plot_dt) +
+        aes(x = year) +
+        # Plot fitting data
+        geom_point(aes(y = target,
+                       fill = "#6CA2EA",
+                       show.legend = FALSE)) +
+        
+        # Plot model output
+          geom_line(aes(y = estimate,
+                        colour = "black",
+                        show.legend = FALSE)) +
+        
+        # For square axes...
+        geom_blank(data = blank_dt) +
+ 
+        # Simple faceting with wrap labelling...
+        facet_wrap(
+          facets   = ~country, 
+          labeller = label_wrap_gen(width = 30), 
+          ncol = 21,
+          scales = "free") + 
+        # Prettify x axis...
+        scale_x_continuous(
+          name   = "Year", 
+          labels = waiver(),
+          limits = c(1990, 2024), 
+          expand = c(0, 0), 
+          breaks = pretty_breaks()) +  
+        # Prettify y axis...
+        scale_y_continuous(
+          name   = "Impact", 
+          labels = NULL,#scientific,
+          limits = c(0, NA),
+          expand = c(0, 0), 
+          breaks = pretty_breaks()) +
+        # Title 
+        labs(title = paste("Fitted model for", plot_dt$d_v_a_name))
+      
+      # Prettify theme
+      g = g + theme_classic() + 
+        theme(axis.text     = element_text(size = 8),
+              axis.text.x   = element_text(hjust = 1, angle = 50),
+              axis.title.x  = element_text(
+                size = 16, margin = margin(l = 10, r = 20)),
+              axis.title.y  = element_text(
+                size = 16, margin = margin(b = 10, t = 20)),
+              axis.line     = element_blank(),
+              strip.text    = element_text(size = 12),
+              strip.background = element_blank(), 
+              panel.border  = element_rect(
+                linewidth = 0.5, fill = NA),
+              panel.spacing = unit(0.5, "lines"))
+      
+      
+      # Details for file destination
+      save_name = "Model fit by country"
+      save_dir  = "imputation"
+      
+      # Save figure to file
+      save_fig(g, save_name, id, dir = save_dir)
+      
+      return(results_dt)
+    }
+    
+    # Load imputation results for all d-v-a
+    results_dt = table("d_v_a") %>%
+      left_join(y  = table("disease"), 
+                by = "disease") %>%
+      filter(source == "vimc") %>%
+      pull(d_v_a_id) %>%
+      lapply(load_results_fn) %>%
+      rbindlist()
+    
+}
+
 
 # ---------------------------------------------------------
 # Exploratory plots of data used to fit impact functions
@@ -1531,9 +1649,7 @@ plot_impact_data = function() {
 plot_model_selection = function() {
   
   browser()
-  
-  results_dt
-  
+ 
   message("  > Plotting impact model selection")
   
   # Load stuff: best fit functions and associtaed coefficients

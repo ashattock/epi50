@@ -34,26 +34,26 @@ run_impute = function() {
   impute_dt = table("d_v_a") %>%
     
   # TODO: For debugging only!!  
-    filter(d_v_a_id %in% c(1)) %>%
+ #   filter(d_v_a_id %in% c(1)) %>%
     
     # Filter for VIMC pathogens only...
-    left_join(y  = table("disease"),
-             by = "disease") %>%
-    filter(source == "vimc") %>%
+  #  left_join(y  = table("disease"),
+   #          by = "disease") %>%
+    #filter(source == "vimc") %>%
     # Apply geographical imputation model...
-    pull(d_v_a_id) %>%
-    lapply(perform_impute, target = target_dt) %>%
-    rbindlist() %>%
+  #  pull(d_v_a_id) %>%
+  #  lapply(perform_impute, target = target_dt) %>%
+  #  rbindlist() %>%
     # Merge VIMC estimates with those just imputed...
-    mutate(impact = ifelse(
-      test = is.na(target),
-      yes  = impact_impute,
-      no   = impact_cum)) %>%
-    select(country, d_v_a_id, year,
-           fvps = fvps_cum, impact)
+   # mutate(impact = ifelse(
+  #    test = is.na(target),
+  #    yes  = impact_impute,
+  #    no   = impact_cum)) %>%
+  #  select(country, d_v_a_id, year,
+  #         fvps = fvps_cum, impact)
   
   # Save imputed results to file
-  save_rds(impute_dt, "impute", "impute_result")
+  #save_rds(impute_dt, "impute", "impute_result")
   
   # ---- Plot results ----
   browser()
@@ -65,12 +65,15 @@ run_impute = function() {
   # Plot model choice
   plot_model_choice()
   
-  # Plot imputation quality of fit
-  plot_impute_quality()
+    # Plot predictive performance for each country
+  plot_impute_perform()
   
-  # Plot train-predict countries
-  plot_impute_countries()
-}
+  # Plot fitted imputation model for each country
+  plot_impute_fit()
+  
+  # Plot imputation quality of fit for all countries
+  plot_impute_quality()
+  }
 
 # ---------------------------------------------------------
 # Perform imputation
@@ -454,55 +457,6 @@ perform_impute = function(d_v_a_id, target) {
    model_choice = inner_join(x=regions, y=model_choice, by='country')
    
  
-   ## TODO: Plot to move to plotting.R
-   # Explore model selection by region
-   ggplot(data = model_choice, aes(x = model_number)) +
-     geom_histogram(binwidth = 1) +
-        facet_wrap(~region_short)
-   
-   #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
-   # Plot data vs. fitted for all countries (model fit)
-   plot_df = augment(best_model) 
-   
- #  ggplot(data = plot_df, aes(x = target, y = .fitted)) +
-#     geom_point() +
-#    labs(
-#       y = "Fitted (predicted values)",
-#      x = "Data (actual values)",
-#       title = paste("Vaccine impact of", d_v_a_name)
-#     ) +
-#    geom_abline(intercept = 0, slope = 1) +
-#     facet_wrap(~country, ncol = 21)
-   
-   #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
-     # Plot model fit for a single country 
-   #  plot_df = augment(best_model) %>%
-  #     filter(country == "HND")
-     
-  #   ggplot(data = plot_df, aes(x = year)) +
-  #     geom_point(aes(y = target, colour = "Data")) +
-  #     geom_line(aes(y = .fitted, colour = "Fitted")) +
-  #     labs(y = NULL,
-  #         title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
-  #   ) +
-  #  scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-  #   guides(colour = guide_legend(title = NULL))
-   
-     #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
-     # Plot model fit for all countries
-   #plot_df = augment(best_model)
-   
-   #ggplot(data = plot_df, aes(x = year)) +
-  #   geom_point(aes(y = target, colour = "Data")) +
-  #  geom_line(aes(y = .fitted, colour = "Fitted")) +
-  #   labs(y = NULL,
-  #       title = paste("Vaccine impact of", d_v_a_name)
-  #   ) +
-  #  scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-  #   guides(colour = guide_legend(title = NULL))  +
-  #  facet_wrap(~country, ncol = 21)
-   
- 
   # Select countries for imputation
   impute_dt = target_dt %>% filter(! country %in% data_dt$country)
   
@@ -527,8 +481,7 @@ perform_impute = function(d_v_a_id, target) {
                 select(-c(names(model_13_region))) %>%
                 inner_join(y = regions, by = "country") 
   
-  # Plot model fit for all countries
-  # Store fitted values for VIMC countries
+   # Store fitted values for VIMC countries
   best_model_output = augment(best_model) %>%
                         mutate(estimate = .fitted) %>%
                         select(-c(model_number, AICc, .model, .resid, .innov, .fitted))
@@ -539,20 +492,7 @@ perform_impute = function(d_v_a_id, target) {
                                  filter(!is.na(d_v_a_id))
   
   estimate_dt = bind_rows(best_model_output, impute_output)
-  
-  #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
- # plot_df = estimate_dt
-  
-#  ggplot(data = plot_df, aes(x = year)) +
-#    geom_point(aes(y = target, colour = "Data")) +
-#    geom_line(aes(y = .fitted, colour = "Fitted")) +
-#    labs(y = NULL,
-#         title = paste("Vaccine impact of", d_v_a_name)
-#    ) +
-#    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-#    guides(colour = guide_legend(title = NULL))  +
-#    facet_wrap(~country, ncol = 21)
-  
+
   # Recombine estimated impact with predictor data
   recombine_dt = full_join(data_dt, best_model_output, by = c("country", "d_v_a_id", "year")) %>% 
                   rename(target = target.x)
