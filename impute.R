@@ -31,29 +31,31 @@ run_impute = function() {
   # ---- Perform imputation ----
   
   # Impute missing countries for all d-v-a combinations
-  impute_dt = table("d_v_a") %>%
+  #impute_dt = table("d_v_a") %>%
     
   # TODO: For debugging only!!  
- #   filter(d_v_a_id %in% c(1)) %>%
+   # filter(d_v_a_id %in% c(7:8)) %>%
     
     # Filter for VIMC pathogens only...
-  #  left_join(y  = table("disease"),
-   #          by = "disease") %>%
+    #left_join(y  = table("disease"),
+     #        by = "disease") %>%
     #filter(source == "vimc") %>%
-    # Apply geographical imputation model...
-  #  pull(d_v_a_id) %>%
-  #  lapply(perform_impute, target = target_dt) %>%
-  #  rbindlist() %>%
-    # Merge VIMC estimates with those just imputed...
-   # mutate(impact = ifelse(
-  #    test = is.na(target),
-  #    yes  = impact_impute,
-  #    no   = impact_cum)) %>%
-  #  select(country, d_v_a_id, year,
-  #         fvps = fvps_cum, impact)
+    
+  # Apply geographical imputation model...
+    #pull(d_v_a_id) %>%
+    #lapply(perform_impute, target = target_dt) %>%
+    #rbindlist() %>%
+    
+  # Merge VIMC estimates with those just imputed...
+    #mutate(impact = ifelse(
+    #  test = is.na(target),
+    #  yes  = impact_impute,
+     # no   = impact_cum)) %>%
+    #select(country, d_v_a_id, year,
+     #      fvps = fvps_cum, impact)
   
   # Save imputed results to file
-  #save_rds(impute_dt, "impute", "impute_result")
+#  save_rds(impute_dt, "impute", "impute_result")
   
   # ---- Plot results ----
   browser()

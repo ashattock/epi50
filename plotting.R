@@ -1335,11 +1335,21 @@ message("  > Plotting predictive performance by country")
 # Function to load best model for each country and show results
   load_results_fn = function(id){
   model = read_rds("impute", "impute", id)$model 
-  results_dt = augment(model) %>%
-            rename(estimate = .fitted)
+  }
   
-  plot_dt = results_dt %>% append_d_v_a_name()
-  browser()
+  # Load imputation results for all d-v-a
+   diseases_dt = table("d_v_a") %>%
+      left_join(y  = table("disease"), 
+                by = "disease") %>%
+      filter(source == "vimc") %>%
+      pull(d_v_a_id)
+
+  for(id in diseases_dt){
+  model = load_results_fn(id)
+  
+  plot_dt = augment(model) %>%
+    rename(estimate = .fitted) %>%
+    append_d_v_a_name()
   
   # Maximum value in each facet (target or estimate)
   blank_dt = plot_dt %>%
@@ -1414,35 +1424,37 @@ message("  > Plotting predictive performance by country")
   
   # Save figure to file
   save_fig(g, save_name, id, dir = save_dir)
-  
-  return(results_dt)
   }
   
-  # Load imputation results for all d-v-a
-  results_dt = table("d_v_a") %>%
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
-    filter(source == "vimc") %>%
-    pull(d_v_a_id) %>%
-    lapply(load_results_fn) %>%
-    rbindlist()
-}
+  return()
+  }
   
   # --------------------------------------------------------
   # Plot fitted model for each country
   # --------------------------------------------------------
   plot_impute_fit = function(){
-    message("  > Plotting predictive performance by country")
-    
+    message("  > Plotting model fit by country")
+   
     # ---- Load models from fitting ----
     # Function to load best model for each country and show results
     load_results_fn = function(id){
       model = read_rds("impute", "impute", id)$model 
-      results_dt = augment(model) %>%
-        rename(estimate = .fitted)
+    }
+    
+    # Load imputation results for all d-v-a
+    diseases_dt = table("d_v_a") %>%
+      left_join(y  = table("disease"), 
+                by = "disease") %>%
+      filter(source == "vimc") %>%
+      pull(d_v_a_id)
+    
+    for(id in diseases_dt){
+      model = load_results_fn(id)
       
-      plot_dt = results_dt %>% append_d_v_a_name()
-    browser()
+      plot_dt = augment(model) %>%
+        rename(estimate = .fitted) %>%
+        append_d_v_a_name()
+      
       # Maximum value in each facet (target or estimate)
       blank_dt = plot_dt %>%
         mutate(max_value = pmax(target, estimate)) %>%
@@ -1519,19 +1531,9 @@ message("  > Plotting predictive performance by country")
       # Save figure to file
       save_fig(g, save_name, id, dir = save_dir)
       
-      return(results_dt)
+      return()
     }
     
-    # Load imputation results for all d-v-a
-    results_dt = table("d_v_a") %>%
-      left_join(y  = table("disease"), 
-                by = "disease") %>%
-      filter(source == "vimc") %>%
-      pull(d_v_a_id) %>%
-      lapply(load_results_fn) %>%
-      rbindlist()
-    
-}
 
 
 # ---------------------------------------------------------
