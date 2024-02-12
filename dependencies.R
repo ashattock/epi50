@@ -64,12 +64,14 @@ packages = c(
   "ggnewscale",     # Plotting functionality
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
+  "GGally",         # Plotting functionality
+  "ggridges",         # Plotting functionality
+  "dotwhisker",     # Plotting functionality
   "pals",           # Colour palettes
   "colorspace",     # Colour palettes
   "rsample",        # Resampling
   "fpp3",           # Time series forecasting
   "tsibble",        # Time series data format
-  "GGally",         # Plotting correlation
   "Hmisc")          # Correlation functions
 
 # List of all packages only available from github

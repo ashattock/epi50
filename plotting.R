@@ -1371,8 +1371,7 @@ message("  > Plotting predictive performance by country")
         y = estimate) +
     # Plot truth vs predicted...
     geom_point(alpha = 0.35, 
-               shape = 16, 
-               show.legend = FALSE) +
+               shape = 16) +
     # For square axes...
     geom_blank(data = blank_dt) +
     # x=y
@@ -1474,13 +1473,11 @@ message("  > Plotting predictive performance by country")
         aes(x = year) +
         # Plot fitting data
         geom_point(aes(y = target,
-                       fill = "#6CA2EA",
-                       show.legend = FALSE)) +
+                       fill = "#6CA2EA")) +
         
         # Plot model output
           geom_line(aes(y = estimate,
-                        colour = "black",
-                        show.legend = FALSE)) +
+                        colour = "black")) +
         
         # For square axes...
         geom_blank(data = blank_dt) +
@@ -1530,6 +1527,7 @@ message("  > Plotting predictive performance by country")
       
       # Save figure to file
       save_fig(g, save_name, id, dir = save_dir)
+    }
       
       return()
     }
@@ -1875,24 +1873,184 @@ plot_model_fits = function() {
 }
 
 
-#----------------------------------------#
-# Tornado plot of predictor coefficients #
-#----------------------------------------#
+#-------------------------------------------------
+# Tornado plot of predictor coefficients by d_v_a 
+#-------------------------------------------------
 
-#TODO: Split by decade, facet by region OR d_v_a_id OR predictor
+plot_tornado_d_v_a = function(){
+  message("  > Plotting tornado plots of predictors by d_v_a")
+ 
+  # ---- Load models from fitting ----
+  # Function to load best model for each country and show results
+  load_results_fn = function(id)
+    report = read_rds("impute", "impute", id)$report
 
-# Explore density of coefficients of predictors
-#plot_dt = impute_1$model_fit %>% 
-#  select(-c(country, d_v_a_id.x, d_v_a_id.y, model_number, .model, AICc)) %>%
-#  filter(#!term == "HDI" &
-#    !region_short == "NA" &
-#      p.value <= 0.05) %>%
-#  mutate(model = region_short)
+   # Load imputation results for all d-v-a
+  results_dt = table("d_v_a") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id) %>%
+    lapply(load_results_fn) %>%
+    rbindlist()
+    
+    plot_dt = results_dt %>%
+      mutate(d_v_a_id = d_v_a_id.x,
+             model = d_v_a_id) %>%
+      select(-c(country, d_v_a_id.x, d_v_a_id.y, model_number, .model, AICc)) %>%
+      filter(!region_short == "NA" &
+              estimate >= -20 &
+              estimate <= 20 &
+               term == "HDI" &
+       p.value <= 0.05) %>%
+      append_d_v_a_name()
 
-#plot_dt %>% dwplot() + theme_classic() + 
-#  geom_vline(xintercept = 0, linetype = 2) +
-#  ggtitle(paste0("Predicting ", d_v_a_name, " vaccine impact"))
+    # ---- Produce plot ----
+    #browser()
+    # Single plot with multiple facets
+    g = dwplot(plot_dt) +
+      
+      # Simple faceting with wrap labelling...
+      facet_wrap(
+        facets   = ~region_short, 
+       # labeller = label_wrap_gen(width = 30), 
+        ncol = 1) +
+        #scales.y = "free"
+       
+      # Zero line
+      geom_vline(aes(xintercept = 0)) +
+      
+      # Prettify x axis...
+      scale_x_continuous(
+        name   = "Coefficient of correlation", 
+        labels = waiver(),
+        expand = c(0, 0), 
+        breaks = pretty_breaks())   
+     
+      # Title 
+      #labs(title = paste0("Predicting ", d_v_a_name, " vaccine impact"))
+    
+    # Prettify theme
+    g = g + theme_classic() + 
+      theme(axis.text     = element_text(size = 8),
+            axis.text.x   = element_text(hjust = 1, angle = 50),
+            axis.title.x  = element_text(
+              size = 16, margin = margin(l = 10, r = 20)),
+            axis.title.y  = element_text(
+              size = 16, margin = margin(b = 10, t = 20)),
+            axis.line     = element_blank(),
+            strip.text    = element_text(size = 12),
+            strip.background = element_blank(), 
+            panel.border  = element_rect(
+              linewidth = 0.5, fill = NA),
+            panel.spacing = unit(0.5, "lines"))
+    
+    
+    # Details for file destination
+    save_name = "Correlation coefficients by d_v_a"
+    save_dir  = "imputation"
+    
+    # Save figure to file
+    save_fig(g, save_name, dir = save_dir)
+  
+  
+  return(results_dt)
+}
 
+#--------------------------------------------------
+# Tornado plot of predictor coefficients by region
+#--------------------------------------------------
+
+plot_tornado_region = function(){
+  message("  > Plotting tornado plots of predictors by region")
+  
+  # ---- Load models from fitting ----
+  # Function to load best model for each country and show results
+  load_results_fn = function(id)
+    report = read_rds("impute", "impute", id)$report
+  
+  # Load imputation results for all d-v-a
+  results_dt = table("d_v_a") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id) %>%
+    lapply(load_results_fn) %>%
+    rbindlist()
+  
+  results_dt = results_dt %>%
+    mutate(model = region_short,
+           d_v_a_id = d_v_a_id.x) %>%
+    select(-c(country, d_v_a_id.x, d_v_a_id.y, model_number, .model, AICc)) %>%
+    filter(!region_short == "NA" &
+            # estimate >= -20 &
+            # estimate <= 20 &
+             p.value <= 0.05) %>%
+    append_d_v_a_name()
+  
+  # Extract predictors for specific plotting
+  terms_dt = results_dt %>% 
+              select(term) %>%
+              unique() %>%
+              mutate(id = row_number(), .before = term)
+
+  for(i in terms_dt$id){
+  # ---- Produce plot ----
+  this_term = terms_dt %>%
+          filter(id == i) 
+    
+  plot_dt = results_dt %>%
+            filter(term == this_term$term)
+
+  # Single plot with multiple facets
+  g = ggplot(plot_dt, aes(x= estimate, y = region_short)) +
+    
+   geom_density_ridges() +
+    
+    # Simple faceting with wrap labelling...
+    facet_wrap(
+      facets   = ~d_v_a_id, 
+      ncol = 3) + 
+    
+    # Zero line
+    geom_vline(aes(xintercept = 0)) +
+    
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Coefficient of correlation", 
+      labels = waiver(),
+      expand = c(0, 0), 
+      breaks = pretty_breaks())   
+  
+  # Title 
+  #labs(title = paste0("Predicting ", d_v_a_name, " vaccine impact"))
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.text     = element_text(size = 8),
+          axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.title.x  = element_text(
+            size = 16, margin = margin(l = 10, r = 20)),
+          axis.title.y  = element_text(
+            size = 16, margin = margin(b = 10, t = 20)),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 12),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(0.5, "lines"))
+  
+  
+  # Details for file destination
+  save_name = paste("Correlation coefficients by region -" , this_term$term)
+  save_dir  = "imputation"
+  
+  # Save figure to file
+  save_fig(g, save_name, dir = save_dir)
+}
+  
+  return(results_dt)
+}
 
 # ---------------------------------------------------------
 # Plot impact ratios - either all or initial only

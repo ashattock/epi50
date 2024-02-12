@@ -58,23 +58,30 @@ run_impute = function() {
 #  save_rds(impute_dt, "impute", "impute_result")
   
   # ---- Plot results ----
-  browser()
+
   # NOTE: All plotting functionality lives in plotting.R
   
   # Plot predictor-response relationships
  # plot_covariates()
   
   # Plot model choice
-  plot_model_choice()
+  #plot_model_choice()
   
-    # Plot predictive performance for each country
-  plot_impute_perform()
+  # Plot predictive performance for each country
+  #plot_impute_perform()
   
   # Plot fitted imputation model for each country
-  plot_impute_fit()
+  #plot_impute_fit()
   
   # Plot imputation quality of fit for all countries
-  plot_impute_quality()
+  #plot_impute_quality()
+  
+  # Plot tornado plots of predictors by d_v_a
+  plot_tornado_d_v_a()
+  
+  # Plot tornado plots of predictors by region
+ # plot_tornado_region()
+  
   }
 
 # ---------------------------------------------------------
