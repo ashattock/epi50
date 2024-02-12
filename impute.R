@@ -234,7 +234,7 @@ perform_impute = function(d_v_a_id, target) {
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
                         log(coverage_minus_2) +
-                        log(coverage_minus_3)  +
+                        log(coverage_minus_3) +
                         log(coverage_minus_4) 
     )) %>%
     mutate(model_number = 5)
@@ -251,10 +251,8 @@ perform_impute = function(d_v_a_id, target) {
   model_6 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
-                        log(coverage_minus_2) +
-                        log(coverage_minus_3) +
-                        log(coverage_minus_4) +
-                        hdi
+                        log(coverage_minus_2) 
+                        
     )) %>%
     mutate(model_number = 6)
   
@@ -265,7 +263,7 @@ perform_impute = function(d_v_a_id, target) {
   model_fit_6 = model_6 %>% 
                 tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
                 mutate(model_number = 6) 
-  browser()
+  
   # Model 7: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14
   model_7 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
@@ -273,7 +271,7 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_2) +
                         log(coverage_minus_3) +
                         log(coverage_minus_4) +
-                        gdp +
+                        pop_0to14 +
                         gini
     )) %>%
     mutate(model_number = 7)
@@ -293,9 +291,9 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_2) +
                         log(coverage_minus_3) +
                         log(coverage_minus_4) +
-                        gdp +
+                        pop_0to14 +
                         gini +
-                        water
+                        attended_births
     )) %>%
     mutate(model_number = 8)
   
@@ -315,10 +313,9 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_2) +
                         log(coverage_minus_3) +
                         log(coverage_minus_4) +
-                        gdp +
+                        attended_births +
                         gini +
-                        water +
-                        sanitation
+                        pop_0to14 
     )) %>%
     mutate(model_number = 9)
   
@@ -427,7 +424,7 @@ perform_impute = function(d_v_a_id, target) {
                  slice_min(AICc, with_ties = FALSE) %>% # if two models are equally the best, keep the first
                  select(-c(.model, df, log_lik, p_value))
   
-  browser()
+
    
    # Extract parameters of best fitting model for each country (according to AICc)
    model_fit = rbind(model_fit_1,
