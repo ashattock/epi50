@@ -19,7 +19,8 @@
 run_impute = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(c(4, 7), o$do_step)) return()
+  if (!is.element(4, o$do_step))
+  if (!is.element(7, o$do_step)) return()
   
   message("* Running country imputation")
   
