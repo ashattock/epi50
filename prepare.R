@@ -27,22 +27,25 @@ run_prepare = function() {
   prepare_vaccine_efficacy()
   
   # Prepare GBD estimates of deaths for non-VIMC pathogens
-  prepare_gbd_estimates()
+ # prepare_gbd_estimates()
   
   # Prepare GBD covariates for extrapolating to non-VIMC countries
-  prepare_gbd_covariates()
+ # prepare_gbd_covariates()
+  
+  # Prepare UNICEF stunting combined estimates for imputing non_VIMC countries
+  prepare_unicef()
   
   # Prepare Gapminder covariates for imputing non_VIMC countries
   prepare_gapminder()
   
   # Prepare country income status classification over time
-  prepare_income_status()
+ # prepare_income_status()
   
   # Prepare demography-related estimates from WPP
   prepare_demography()
   
   # Prepare historical vaccine coverage
-  prepare_coverage()  # See coverage.R
+ # prepare_coverage()  # See coverage.R
 }
 
 # ---------------------------------------------------------
@@ -351,6 +354,47 @@ prepare_gbd_covariates = function() {
 }
 
 # ---------------------------------------------------------
+# Prepare UNICEF stunting combined estimates
+# ---------------------------------------------------------
+prepare_unicef = function() {
+  
+  message(" - UNICEF")
+  
+  # Read in WHO region data
+  WHO_regions_dt = fread(paste0(o$pth$input, "WHO_country_codes.csv")) 
+  
+  # Read in UNICEF stunting data
+  stunting_dt = fread(paste0(o$pth$input, "JME_Country_Estimates_May_2023.csv")) %>%
+                filter(Indicator == "Stunting" &
+                       Estimate == "Point Estimate") %>%
+                select(-c("Country and areas", "Note", "Indicator", "Measure", "Estimate")) %>% 
+                pivot_longer(cols = -'ISO code',
+                             names_to = "year",
+                             values_to = "stunting") %>% 
+                rename(country_code = 'ISO code') %>%
+                full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
+                select(-country) %>%
+                rename(country = country_code) %>%
+                mutate(year = as.integer(year)) %>%
+                as.data.table()
+  
+  # Create table of UNICEF covariates
+  unicef_dt = stunting_dt
+  
+  # Check for UNICEF countries not linked to WHO regions
+  unicef_dt %>% filter(is.na(region_short)) %>%
+    select(country, region_short) %>%
+    unique()
+  
+  unicef_dt = unicef_dt %>%
+    filter(!is.na(region_short))
+  
+  # Save in tables cache
+  save_table(unicef_dt, "unicef_covariates")
+  
+}
+
+# ---------------------------------------------------------
 # Prepare Gapminder covariates for extrapolating to non-modelled countries
 # ---------------------------------------------------------
 prepare_gapminder = function() {
@@ -363,37 +407,115 @@ prepare_gapminder = function() {
   # Prepare Gapminder data for use as predictors
   # Gini coefficient
   gini_dt = fread(paste0(o$pth$input, "ddf--datapoints--gapminder_gini--by--geo--time.csv")) %>%
-              rename(gini = gapminder_gini)
-   
+    rename(gini = gapminder_gini)
+  
+  # GPD per capita US$ inflation-adjusted
+  gdp_dt = fread(paste0(o$pth$input, "ddf--datapoints--gdppercapita_us_inflation_adjusted--by--geo--time.csv")) %>%
+    rename(gdp = gdppercapita_us_inflation_adjusted)
+  
+  # Literacy rate (female) aged 15+ years
+  literacy_female_15_dt = fread(paste0(o$pth$input, "ddf--datapoints--literacy_rate_adult_female_percent_of_females_ages_15_above--by--geo--time.csv")) %>%
+    rename(lit_female = literacy_rate_adult_female_percent_of_females_ages_15_above)
+  
+  # Literacy rate (male) aged 15+ years
+  literacy_male_15_dt = fread(paste0(o$pth$input, "ddf--datapoints--literacy_rate_adult_male_percent_of_males_ages_15_and_above--by--geo--time.csv")) %>%
+    rename(lit_male = literacy_rate_adult_male_percent_of_males_ages_15_and_above)
+  
+  # Doctors per 1000 population
+  doctors_per_1000_dt = fread(paste0(o$pth$input, "ddf--datapoints--medical_doctors_per_1000_people--by--geo--time.csv")) %>%
+    rename(doctors_per_1000 = medical_doctors_per_1000_people)
+  
+  # Underweight children
+  underweight_children_dt = fread(paste0(o$pth$input, "ddf--datapoints--underweight_children--by--geo--time.csv")) %>%
+    rename(underwt_children = underweight_children)
+  
   # Population aged 0 to 14
   pop_0_to_14_dt = fread(paste0(o$pth$input, "ddf--datapoints--population_aged_0_14_years_both_sexes_percent--by--geo--time.csv")) %>%
     rename(pop_0to14 = population_aged_0_14_years_both_sexes_percent)
-    
-   # Human development index
+  
+  # Population density
+  pop_density_dt = fread(paste0(o$pth$input, "ddf--datapoints--population_density_per_square_km--by--geo--time.csv")) %>%
+    rename(pop_density = population_density_per_square_km)
+  
+  # Urban population (%)
+  urban_dt = fread(paste0(o$pth$input, "ddf--datapoints--urban_population_percent_of_total--by--geo--time.csv")) %>%
+    rename(urban_percent = urban_population_percent_of_total)
+  
+  # Rural poverty (% rural people below poverty line)
+  rural_poverty_dt = fread(paste0(o$pth$input, "ddf--datapoints--rural_poverty_percent_rural_people_below_national_rural--by--geo--time.csv")) %>%
+    rename(rural_poverty = rural_poverty_percent_rural_people_below_national_rural)
+ 
+  # HIV prevalence
+  hiv_prev_dt = fread(paste0(o$pth$input, "ddf--datapoints--adults_with_hiv_percent_age_15_49--by--geo--time.csv")) %>%
+    rename(hiv_prev = adults_with_hiv_percent_age_15_49)
+  
+  # HIV mortality
+  hiv_mortality_dt = fread(paste0(o$pth$input, "ddf--datapoints--annual_hiv_deaths_number_all_ages--by--geo--time.csv")) %>%
+    rename(hiv_mortality = annual_hiv_deaths_number_all_ages)
+  
+  # Maternal mortality
+  maternal_mortality_dt = fread(paste0(o$pth$input, "ddf--datapoints--maternal_mortality_ratio_who--by--geo--time.csv")) %>%
+    rename(maternal_mortality = maternal_mortality_ratio_who)
+  
+  # Health spending ($)
+  health_spending_dt = fread(paste0(o$pth$input, "ddf--datapoints--total_health_spending_per_person_us--by--geo--time.csv")) %>%
+   rename(health_spending = total_health_spending_per_person_us)
+  
+  # Private health spending (%)
+  private_health_spending_dt = fread(paste0(o$pth$input, "ddf--datapoints--private_share_of_total_health_spending_percent--by--geo--time.csv")) %>%
+    rename(private_health = private_share_of_total_health_spending_percent)
+  
+  # At least basic sanitation (%)
+  sanitation_dt = fread(paste0(o$pth$input, "ddf--datapoints--at_least_basic_sanitation_overall_access_percent--by--geo--time.csv")) %>%
+    rename(basic_sanitation = at_least_basic_sanitation_overall_access_percent)
+  
+  # At least basic water source (%)
+  water_dt = fread(paste0(o$pth$input, "ddf--datapoints--at_least_basic_water_source_overall_access_percent--by--geo--time.csv")) %>%
+    rename(basic_water = at_least_basic_water_source_overall_access_percent)
+  
+  # Human development index (life expectancy, education, per-person income)
   hdi_dt = fread(paste0(o$pth$input, "ddf--datapoints--hdi_human_development_index--by--geo--time.csv")) %>%
-            rename(HDI = hdi_human_development_index)
+    rename(HDI = hdi_human_development_index)
   
   # Attended births
   attended_births_dt = fread(paste0(o$pth$input, "ddf--datapoints--births_attended_by_skilled_health_staff_percent_of_total--by--geo--time.csv")) %>%
     rename(attended_births = births_attended_by_skilled_health_staff_percent_of_total)
   
+  # Internet users
+  internet_users_dt = fread(paste0(o$pth$input, "ddf--datapoints--internet_users--by--geo--time.csv")) 
+  
+  
   # Create table of Gapminder covariates
   gapminder_dt = gini_dt %>%
-                  full_join(pop_0_to_14_dt, by=c("geo", "time")) %>%
-                  full_join(hdi_dt, by=c("geo", "time")) %>%
-                  full_join(attended_births_dt, by=c("geo", "time")) %>%
-                  mutate(country_code = toupper(geo)) %>%
-                  select(-geo) %>%
-                  relocate(country_code) %>%
-                  rename(year = time) %>%
-                  full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
-                  select(-country) %>%
-                  rename(country = country_code) %>%
-                  arrange(country, year) %>%
-                  filter(year >= 1974 & year <= 2024)  %>%
-                  as.data.table()              
-    
-  # TODO Check list of countries
+    full_join(gdp_dt, by=c("geo", "time")) %>%
+    full_join(literacy_male_15_dt, by=c("geo", "time")) %>%
+    full_join(literacy_female_15_dt, by=c("geo", "time")) %>%
+    full_join(doctors_per_1000_dt, by=c("geo", "time")) %>%
+    full_join(health_spending_dt, by=c("geo", "time")) %>%
+    full_join(private_health_spending_dt, by=c("geo", "time")) %>%
+    full_join(pop_0_to_14_dt, by=c("geo", "time")) %>%
+    full_join(pop_density_dt, by=c("geo", "time")) %>%
+    full_join(urban_dt, by=c("geo", "time")) %>%
+    full_join(hiv_prev_dt, by=c("geo", "time")) %>%
+    full_join(hiv_mortality_dt, by=c("geo", "time")) %>%
+    full_join(maternal_mortality_dt, by=c("geo", "time")) %>%
+    full_join(internet_users_dt, by=c("geo", "time")) %>%
+    full_join(rural_poverty_dt, by=c("geo", "time")) %>%
+    full_join(underweight_children_dt, by=c("geo", "time")) %>%
+    full_join(attended_births_dt, by=c("geo", "time")) %>%
+    full_join(water_dt, by=c("geo", "time")) %>%
+    full_join(sanitation_dt, by=c("geo", "time")) %>%
+    full_join(hdi_dt, by=c("geo", "time")) %>%
+    mutate(country_code = toupper(geo)) %>%
+    select(-geo) %>%
+    relocate(country_code) %>%
+    rename(year = time) %>%
+    full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
+    select(-country) %>%
+    rename(country = country_code) %>%
+    arrange(country, year) %>%
+    filter(year >= 1964 & year <= 2024)  %>%# include ten years before EPI to allow for historical effect of covariates
+    as.data.table()              
   
   # Check for Gapminder countries not linked to WHO regions
   gapminder_dt %>% filter(is.na(region_short)) %>%
