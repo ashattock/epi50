@@ -153,7 +153,8 @@ perform_impute = function(d_v_a_id, target) {
                                year >= 2014 & year < 2024 ~ 5)) %>%
      
      # Prepare to fit a model to each country / d_v_a_id combination
-     as_tsibble(index = year, key = c(country,d_v_a_id)) %>%
+     as_tsibble(index = year,
+                key = c(country,d_v_a_id)) %>%
      
      # TODO: Here is the option to fit models for each decade, for each country, for each d_v_a. There may be issues with data completeness for some combinations
      #as_tsibble(index = year, key = c(country,d_v_a_id, period)) %>%

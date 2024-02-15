@@ -373,21 +373,48 @@ prepare_unicef = function() {
                              values_to = "stunting") %>% 
                 rename(country_code = 'ISO code') %>%
                 full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
-                select(-country) %>%
+                select(-c(country, region_no, region_long)) %>%
                 rename(country = country_code) %>%
                 mutate(year = as.integer(year)) %>%
                 as.data.table()
   
+
+  maternal_mortality_dt = fread(paste0(o$pth$input, "unicef_maternal_mortality.csv"), header = TRUE) %>%
+                           select(-Country) %>%
+                           pivot_longer(cols = -'ISO Code',
+                             names_to = "year",
+                             values_to = "maternal_mortality") %>%
+                           rename(country_code = 'ISO Code') %>%
+                           full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
+                           select(-c(country, region_no, region_long)) %>%
+                           rename(country = country_code) %>%
+                           mutate(year = as.integer(year)) %>%
+                           filter(!is.na(year)) %>% 
+                           unique() %>% # remove duplicates for COD and TZN
+                           complete(country, year = 2000:2024, 
+                                     fill = list(maternal_mortality = NA)) %>%
+                           as_tsibble(index = year,
+                                       key = country) 
+  
+  # Interpolate missing values
+  maternal_mortality_dt = maternal_mortality_dt %>%
+         model(lm = TSLM(log(maternal_mortality) ~ trend())) %>%
+         interpolate(maternal_mortality_dt)
+  
+  
+ # browser()
   # Create table of UNICEF covariates
-  unicef_dt = stunting_dt
+  unicef_dt = stunting_dt  %>%
+    full_join(maternal_mortality_dt, by=c("country", "year"))
+
   
   # Check for UNICEF countries not linked to WHO regions
-  unicef_dt %>% filter(is.na(region_short)) %>%
-    select(country, region_short) %>%
-    unique()
+  #unicef_dt %>% filter(is.na(region_short)) %>%
+  #  select(country, region_short) %>%
+  #  unique()
   
-  unicef_dt = unicef_dt %>%
-    filter(!is.na(region_short))
+  #unicef_dt = unicef_dt %>%
+   # filter(!is.na(region_short))
   
   # Save in tables cache
   save_table(unicef_dt, "unicef_covariates")
