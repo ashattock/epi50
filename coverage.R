@@ -273,6 +273,8 @@ calculate_fvps = function(coverage_dt) {
   #  - Using mean for pop as all values should all equal
   #  - Coverage bounded by o$max_coverage
   
+  browser() # Special consideration needed for PX?
+  
   # For primary schedule, assume all new FVPs
   primary_dt = coverage_dt %>% 
     lazy_dt() %>%

@@ -33,6 +33,8 @@ plot_scope = function() {
   
   # ---- Number of FVPs by pathogen ----
   
+  browser() # Special consideration needed for PX?
+  
   # Number of FVPs by country
   fvps_dt = table("coverage") %>%
     filter(coverage > 0) %>%
@@ -688,7 +690,7 @@ plot_gbd_estimates = function() {
   
   # Define age groups and associated upper bounds
   age_groups = c(
-    "Neonates"      = "neonate",
+    "Neonates"      = -1,
     "Other infants" = 0,
     "1-4 years"     = 5,
     "5-14"          = 15,
@@ -697,12 +699,12 @@ plot_gbd_estimates = function() {
     "70+ years"     = max(o$ages))
   
   # Map each age bin to respective age group
-  age_group_dt = data.table(age = c("neonate", o$ages)) %>%
+  age_group_dt = data.table(age = c(-1, o$ages)) %>%
     mutate(group_idx = match(age, age_groups),
            group = names(age_groups[group_idx])) %>%
     fill(group, .direction = "up") %>%
-    select(age, age_group = group) %>%
-    mutate(age = fct_inorder(age))
+    select(age, age_group = group) # %>%
+    # mutate(age = fct_inorder(age))
   
   # Load GBD estimates and categorise into age groups
   gbd_dt = table("gbd_estimates") %>%
@@ -850,6 +852,11 @@ plot_vaccine_efficacy = function() {
   
   message("  > Plotting vaccine efficacy profiles")
   
+  schedule_dict = c(
+    x  = "Primary schedule",
+    BX = "Booster schedule", 
+    PX = "Pregnancy schedule")
+  
   # Function to extract vaccine efficacy data
   extract_data_fn = function(dt) {
 
@@ -871,13 +878,22 @@ plot_vaccine_efficacy = function() {
     # Append descriptive columns
     shedule_dt = dt %>%
       # Primary schedule or booster dose...
-      mutate(schedule = ifelse(
-        !str_detect(vaccine, "_BX$"), "primary", "booster")) %>%
-      mutate(schedule = factor(schedule, c("primary", "booster"))) %>%
-      # Append disease-vaccine name
-      mutate(vaccine = str_remove(vaccine, "[0-9]|(_BX)"), 
-             name = paste0(disease, " (", vaccine, ")"), 
-             name = fct_inorder(name))
+      separate(col  = vaccine, 
+               into = c("type", "schedule"), 
+               sep  = "_", 
+               fill = "right", 
+               remove = FALSE) %>%
+      replace_na(list(schedule = "x")) %>%
+      mutate(schedule = recode(schedule, !!!schedule_dict), 
+             schedule = factor(schedule, schedule_dict)) %>%
+      # Append vaccine type name
+      mutate(type = str_remove(type, "[0-9]")) %>%
+      left_join(y  = table("vaccine_type"), 
+                by = c("type" = "vaccine_type")) %>%
+      select(-type) %>%
+      rename(type = vaccine_type_name) %>%
+      mutate(type = fct_inorder(type)) %>%
+      as.data.table()
     
     return(shedule_dt)
   }
@@ -889,12 +905,12 @@ plot_vaccine_efficacy = function() {
     inner_join(y  = table("d_v_a"), 
                by = "vaccine") %>%
     schedule_fn() %>%
-    select(name, schedule, time = x, value = y)
+    select(type, schedule, time = x, value = y)
   
   # Load vaccine efficacy profiles
   profile_dt = table("vaccine_efficacy_profiles") %>%
     schedule_fn() %>%
-    select(name, schedule, time, value = profile)
+    select(type, schedule, time, value = profile)
   
   # Plot vaccine efficacy with waning immunity (if any)
   g = ggplot(profile_dt) + 
@@ -907,12 +923,13 @@ plot_vaccine_efficacy = function() {
     # Plot coloured data points...
     geom_point(
       data    = data_dt, 
-      mapping = aes(colour = name),
+      mapping = aes(colour = type),
       size    = 2.5) + 
     # Facet by vaccine and schedule...
     facet_grid(
-      rows = vars(name), 
-      cols = vars(schedule)) +
+      rows     = vars(type), 
+      cols     = vars(schedule),
+      labeller = label_wrap_gen(width = 20)) + 
     # Prettify x axis...
     scale_x_continuous(
       name   = "Years after completion of full schedule",
@@ -930,25 +947,20 @@ plot_vaccine_efficacy = function() {
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.text     = element_text(size = 11),
+    theme(axis.text     = element_text(size = 9),
           axis.title.x  = element_text(
-            size = 20, margin = margin(b = 10, t = 20)),
+            size = 16, margin = margin(b = 10, t = 20)),
           axis.title.y  = element_text(
-            size = 20, margin = margin(l = 10, r = 20)),
+            size = 16, margin = margin(l = 10, r = 20)),
           axis.line     = element_blank(),
-          strip.text    = element_text(size = 16),
+          strip.text.x  = element_text(size = 13),
+          strip.text.y  = element_text(size = 11),
           strip.background = element_blank(), 
           panel.border  = element_rect(
             linewidth = 0.5, fill = NA),
-          panel.spacing = unit(1, "lines"),
+          panel.spacing = unit(0.5, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.25),
-          legend.title  = element_blank(),
-          legend.text   = element_text(size = 11),
-          legend.key    = element_blank(),
-          legend.position = "right", 
-          legend.spacing.y  = unit(1, "lines"),
-          legend.key.height = unit(2, "lines"),
-          legend.key.width  = unit(2, "lines"))
+          legend.position = "none")
   
   # Save figure to file
   save_fig(g, "Vaccine efficacy profiles", dir = "static_models")
@@ -977,12 +989,14 @@ plot_effective_coverage = function() {
     plot_dt = effective_dt %>%
       append_d_v_t_name() %>%
       select(country, by = !!by, year, age, coverage) %>%
-      filter(age <= age_max) %>%
+      filter(age >= 0,  # For simplicity, do not plot neonate immunity  
+             age <= age_max) %>%
       # Append population size...
       left_join(y  = table("wpp_pop"),
                 by = c("country", "year", "age")) %>%
       mutate(n = pop * coverage) %>%
       # Population weighted coverage...
+      lazy_dt() %>%
       group_by(by, year, age) %>%
       summarise(effective_coverage = sum(n / sum(pop))) %>%
       ungroup() %>%
@@ -1123,31 +1137,40 @@ plot_static = function() {
   # Load previously calculated total coverage file
   averted_dt = read_rds("static", "deaths_averted_vaccine")
   
-  browser() # Use table("vaccine_name")
+  # Full vaccine names
+  name_dt = table("d_v_a") %>%
+    filter(source == "static") %>%
+    left_join(y  = table("vaccine_name"), 
+              by = "vaccine") %>%
+    select(d_v_a_id, name = vaccine_name)
   
   # Summarise results over country
   vaccine_dt = averted_dt %>%
-    # Convert from d_v_a to v_a...
-    left_join(y  = table("d_v_a"), 
-              by = "d_v_a_id") %>%
-    left_join(y  = table("vaccine"), 
-              by = "vaccine") %>%
+    lazy_dt() %>%
     # Summarise over countries...
-    group_by(vaccine_name, year) %>%
+    group_by(d_v_a_id, year) %>%
     summarise(deaths_averted = sum(impact)) %>%
     ungroup() %>%
-    arrange(vaccine_name, year) %>%
+    # Convert from d_v_a to v_a...
+    left_join(y  = name_dt, 
+              by = "d_v_a_id") %>%
+    select(vaccine = name, year, deaths_averted) %>%
+    # Suitable vaccine order...
+    mutate(vaccine = factor(vaccine, name_dt$name)) %>%
+    arrange(vaccine, year) %>%
     as.data.table()
   
-  # Plot deaths and deaths averted by disease
+  # Plot deaths and deaths averted by vaccine
   g = ggplot(vaccine_dt) + 
     aes(x = year, 
         y = deaths_averted, 
-        colour = vaccine_name) + 
+        colour = vaccine) + 
     geom_line(linewidth   = 2, 
               show.legend = FALSE) + 
-    facet_wrap(~vaccine_name,
-               scales = "free_y") + 
+    # Facet by vaccine...
+    facet_wrap(
+      facets = vars(vaccine),
+      scales = "free_y") + 
     # Prettify x axis...
     scale_x_continuous(
       # limits = c(min(o$years), max(o$years)), 
@@ -3269,36 +3292,28 @@ append_d_v_t_name = function(name_dt) {
     x = names(name_dt), 
     y = qc(disease, vaccine, type))
   
-  # Convert column name type -> vaccine_type
-  if ("type" %in% d_v_t)
-    name_dt %<>% rename(vaccine_type = type)
-  
   # Iterate through columns to update
   for (x in d_v_t) {
-    
-    # Vaccine type is a special case
-    if (x == "type")
-      x = "vaccine_type"
     
     # Column name of full description
     x_name = paste1(x, "name")
     
     # Plotting order
-    x_ord = table(x)[[x_name]]
+    x_ord = table(x_name)[[x_name]]
     
     # Append full name description
     name_dt %<>%
-      left_join(table(x), by = x) %>%
+      lazy_dt() %>%
+      left_join(y  = table(x_name), 
+                by = x) %>%
       select(-all_of(x)) %>%
+      # Rename and reorder columns...
       rename(.x := all_of(x_name)) %>%
       mutate(.x = factor(.x, x_ord)) %>%
       rename(!!x := .x) %>%
-      select(all_names(name_dt))
+      select(all_names(name_dt)) %>%
+      as.data.table()
   }
-  
-  # Convert back vaccine_type -> type
-  if ("type" %in% d_v_t)
-    name_dt %<>% rename(type = vaccine_type)
   
   return(name_dt)
 }

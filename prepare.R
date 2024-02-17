@@ -19,6 +19,8 @@ run_prepare = function() {
   
   # Convert config yaml files to datatables
   prepare_config_tables()
+  
+  browser()
 
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
@@ -96,8 +98,8 @@ prepare_vimc_estimates = function() {
     filter(!is.na(d_v_a_id), 
            source == "vimc") %>%
     # Tidy up...
-    select(country, d_v_a_id, year, age, deaths_averted) %>%
-    arrange(country, d_v_a_id, age, year) %>%
+    select(d_v_a_id, country, year, age, deaths_averted) %>%
+    arrange(d_v_a_id, country, year, age) %>%
     save_table("vimc_estimates")
   
   # Simply store VIMC in it's current form
@@ -205,9 +207,9 @@ prepare_gbd_estimates = function() {
   
   # Parse specific age strings
   age_dict = c(
-    "<28 days"    = "neonate", 
-    "28-364 days" = "0-1", 
-    "80+ years"   = "80-95")
+    "<28 days"     = "-1", 
+    "28..364 days" = "0..1", 
+    "80+ years"    = "80..95")
   
   # Dictionary of GBD disease names
   gbd_dict = table("gbd_dict") %>%
@@ -229,8 +231,10 @@ prepare_gbd_estimates = function() {
     filter(disease %in% table("d_v_a")$disease, 
            country %in% all_countries()) %>%
     # Parse age groups...
-    mutate(age     = recode(age, !!!age_dict), 
-           age_bin = str_extract(age, "^[0-9,(neonate)]+")) %>%
+    mutate(age = str_replace(age, "-", ".."), 
+           age = recode(age, !!!age_dict), 
+           age_bin = str_extract(age, "^-*[0-9]+"), 
+           age_bin = as.numeric(age_bin)) %>%
     # Tidy up...
     select(disease, country, year, age_bin, value = val) %>%
     arrange(disease, country, year, age_bin)
@@ -246,6 +250,7 @@ prepare_gbd_estimates = function() {
       year    = o$years) %>%
     left_join(y  = deaths_dt, 
               by = names(.)) %>%
+    arrange(disease, country, age_bin) %>%
     group_by(disease, country, age_bin) %>%
     fill(value, .direction = "down") %>%
     ungroup() %>%
@@ -253,11 +258,11 @@ prepare_gbd_estimates = function() {
     as.data.table()
   
   # Age bins in data before and after transformation
-  age_bins = unique(deaths_dt$age_bin)
-  age_fct  = c("neonate", o$ages)
+  age_bins = sort(unique(deaths_dt$age_bin))
+  # age_span = c(-1, o$ages)
   
   # Construct age datatable to expand age bins to single years
-  age_dt = data.table(age = age_fct) %>%
+  age_dt = data.table(age = c(-1, o$ages)) %>%
     mutate(age_bin = ifelse(age %in% age_bins, age, NA)) %>%
     fill(age_bin, .direction = "down") %>%
     group_by(age_bin) %>%
@@ -272,7 +277,7 @@ prepare_gbd_estimates = function() {
               relationship = "many-to-many") %>%
     mutate(deaths_disease = value / n) %>%
     select(disease, country, year, age, deaths_disease) %>%
-    mutate(age = factor(age, age_fct)) %>%
+    # mutate(age = factor(age, age_span)) %>%
     arrange(disease, country, year, age) %>%
     save_table("gbd_estimates")
   

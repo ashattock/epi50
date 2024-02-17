@@ -585,6 +585,7 @@ extract_extern_results = function() {
   extern_averted_dt = historical_dt %>%
     filter(metric %in% c("deaths", "dalys")) %>%
     # Burden in baseline minus burden in vaccine scenario...
+    lazy_dt() %>%
     group_by(d_v_a_id, country, year, age, metric) %>%
     mutate(value = value[scenario == "no_vaccine"] - value) %>%
     ungroup() %>%
