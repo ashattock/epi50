@@ -4,16 +4,19 @@
 
 # Creates datatable: vaccine_efficacy_table
 table:
+
 - vaccine: Dip3
   fn: "function(a, b) a * exp(-t * b)" # Exponenital decay
   data: 
   - [0.95, 0]   # Initial efficacy [1]
   - [0.48, 19]  # Half life [2]
   - [0.48, 27]  # Half life [3]
+  
 - vaccine: Dip_BX
   fn: "function(a) a" # Constant
   data: 
   - [0.95, 0]  # Assumption
+  
 - vaccine: Tet3
   fn: "function(a, b) a * exp(-t * b)" # Exponenital decay
   data: 
@@ -25,41 +28,50 @@ table:
   fn: "function(a) a" # Constant
   data: 
   - [0.95, 0]  # Assumption
+
+- vaccine: Tet_PX
+  fn: "function(a) ifelse(t < 1, a, 0)" # Step function
+  data: 
+  - [0.45, 0]  # xxxxxxx efficacy [6]
+  
 - vaccine: wPer3
   fn: "function(a, b) a * exp(-t * b)" # Exponenital decay
   data: 
-  - [0.92, 0]   # Initial efficacy [6]
-  - [0.94, 0]   # Initial efficacy [8]
+  - [0.92, 0]   # Initial efficacy [7]
+  - [0.94, 0]   # Initial efficacy [9]
   - [0.46, 15]  # Assumption
+  
 - vaccine: aPer3
   fn: "function(a, b) a * exp(-t * b)" # Exponenital decay
   data: 
-  - [0.80, 0]  # Initial efficacy [7]
-  - [0.84, 0]  # Initial efficacy [8]
-  - [0.49, 5]  # 75% efficacy drops 35% after 5 years [9]
-  - [0.41, 8]  # Vaccine efficacy of 41% after 8 years [10]
+  - [0.80, 0]  # Initial efficacy [8]
+  - [0.84, 0]  # Initial efficacy [9]
+  - [0.49, 5]  # 75% efficacy drops 35% after 5 years [10]
+  - [0.41, 8]  # Vaccine efficacy of 41% after 8 years [11]
+  
 - vaccine: aPer_BX
   fn: "function(a) a" # Constant
   data: 
   - [0.80, 0]  # Assumption
+  
 - vaccine: BCG
   fn: "function(a, b, c, d = 10) a + (b - a) / (1 + (t / c) ^ -d)" # Sigmoidal
   data: 
-  - [0.66, 0]   # Initial efficacy [11]
+  - [0.66, 0]   # Initial efficacy [12]
   - [0.66, 15]  # Various sources
   - [0.33, 20]  # Assumption
   - [0.10, 40]  # Assumption
-  
+
 # Sources:
 # [1]  https://apps.who.int/iris/bitstream/handle/10665/258681/WER9231.pdf?sequence=1
 # [2]  https://www.sciencedirect.com/science/article/pii/S2666636723000593#:~:text=Tetanus%20and%20diphtheria%20immunity%20decrease,years%2C%20respectively%20%5B22%5D.
 # [3]  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4826453/
 # [4]  https://apps.who.int/iris/bitstream/handle/10665/233093/WER8120_198-208.PDF
 # [5]  https://www.sciencedirect.com/science/article/pii/S2666636723000593#:~:text=Tetanus%20and%20diphtheria%20immunity%20decrease,years%2C%20respectively%20%5B22%5D.  
-# [6]  https://iris.who.int/bitstream/handle/10665/241645/WER8540_385-400.PDF
-# [7]  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5088088/
-# [8]  https://karger.com/mpp/article/31/4/313/825084/Whole-Cell-and-Acellular-Pertussis-Vaccine
-# [9]  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547082/
-# [10] https://pubmed.ncbi.nlm.nih.gov/27672225/
-# [11] https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-016-0685-4
-
+# [6]  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3494717/
+# [7]  https://iris.who.int/bitstream/handle/10665/241645/WER8540_385-400.PDF
+# [8]  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5088088/
+# [9]  https://karger.com/mpp/article/31/4/313/825084/Whole-Cell-and-Acellular-Pertussis-Vaccine
+# [10] https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6547082/
+# [11] https://pubmed.ncbi.nlm.nih.gov/27672225/
+# [12] https://bmcmedicine.biomedcentral.com/articles/10.1186/s12916-016-0685-4

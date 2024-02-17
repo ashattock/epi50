@@ -2,11 +2,15 @@
 
 # Creates datatable: income_dict_table
 table:
+
 - income: hic
   income_name: "High income country"
+  
 - income: umic
   income_name: "Upper-middle income country"
+  
 - income: lmic
   income_name: "Lower-middle income country"
+  
 - income: lic
   income_name: "Low income country"
