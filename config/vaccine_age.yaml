@@ -28,16 +28,16 @@ table:
   age: 0
   
 - vaccine: Dip_BX
-  age: "1:15"
+  age: 7
   
 - vaccine: Tet3
   age: 0
   
 - vaccine: Tet_BX
-  age: "1:15"
+  age: 7
 
 - vaccine: Tet_PX
-  age: "18:35"  # Proxy for pregnant women
+  age: NA  # Average age of child birth - extracted from data
   
 - vaccine: wPer3
   age: 0
@@ -46,7 +46,7 @@ table:
   age: 0
   
 - vaccine: aPer_BX
-  age: "1:15"
+  age: 7
   
 - vaccine: BCG
   age: 0
@@ -55,10 +55,10 @@ table:
   age: 1
   
 - vaccine: MCV2
-  age: "4:6"
+  age: 4
   
 - vaccine: Measles
-  age: "4:6"
+  age: 4
   
 - vaccine: IPV
   age: 0

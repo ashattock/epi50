@@ -34,7 +34,7 @@ set_options = function(do_step = NA) {
   # Annual of 5-year bins for population data
   o$pop_bin = 1  # OPTIONS: 1 or 5
   
-  # ---- Coverage settings ----
+  # ---- Data and coverage settings ----
   
   # Bound coverage values below x%
   o$max_coverage = 0.99
@@ -46,6 +46,9 @@ set_options = function(do_step = NA) {
   #
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
+  
+  # Standard deviation around maternal mean age at birth
+  o$birth_age_sd = 3
   
   # ---- External models ----
   
@@ -104,7 +107,7 @@ set_options = function(do_step = NA) {
   # ---- Plotting flags ----
 
   # Turn figures on or off
-  o$plot_inputs     = FALSE
+  o$plot_inputs     = TRUE
   o$plot_static     = TRUE
   o$plot_imputation = FALSE
   o$plot_impact     = FALSE

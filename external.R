@@ -35,7 +35,16 @@ run_external = function() {
   # Extract results from all extern models
   extract_extern_results()
   
-  # ---- Diagnostic plots ----
+  # ---- Data visualisation plots ----
+  
+  # Plot total number of FVP over time
+  plot_total_fvps()
+  
+  # Plot coverage density by disease
+  plot_coverage()
+  
+  # Coverage data density by age
+  plot_coverage_age_density()
   
   # Missing coverage data by country
   plot_missing_data()

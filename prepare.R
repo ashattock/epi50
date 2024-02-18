@@ -20,8 +20,6 @@ run_prepare = function() {
   # Convert config yaml files to datatables
   prepare_config_tables()
   
-  browser()
-
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
 
@@ -42,6 +40,9 @@ run_prepare = function() {
 
   # Prepare demography-related estimates from WPP
   prepare_demography()
+  
+  # Prepare age at birth by country and year
+  prepare_birth_age()
   
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
@@ -586,6 +587,88 @@ prepare_demography = function() {
     # Save in tables cache
     save_table(data_dt, paste1("wpp", name))
   }
+}
+
+# ---------------------------------------------------------
+# Prepare age at birth by country and year
+# ---------------------------------------------------------
+prepare_birth_age = function() {
+  
+  # Construct path to data file
+  #
+  # SOURCE: https://w3.unece.org/PXWeb/en/Table?IndicatorCode=34
+  data_file = paste0(o$pth$input, "age_at_birth.csv")
+  
+  # Load raw data
+  data_dt = fread(data_file) %>%
+    select(country = Alpha3Code, 
+           year    = PeriodCode, 
+           value   = Value) %>%
+    # Remove any unknown countries...
+    filter(country %in% all_countries(), 
+           year    %in% o$years) %>%
+    # Format values into numeric...
+    mutate(value = str_remove(value, "\\.\\."), 
+           value = as.numeric(value)) %>%
+    filter(!is.na(value)) %>%
+    # Take the national mean over time...
+    group_by(country) %>%
+    summarise(avg = mean(value)) %>%
+    ungroup() %>%
+    # Expand to all countries...
+    right_join(y  = all_countries(as_dt = TRUE),
+               by = "country") %>%
+    # Impute missing countries with global mean...
+    mutate(avg = ifelse(
+      test = is.na(avg), 
+      yes  = mean(avg, na.rm = TRUE), 
+      no   = avg)) %>%
+    # Convert to integer...
+    mutate(avg = round(avg)) %>%
+    arrange(country) %>% 
+    as.data.table()
+  
+  # Construct age x country matrix
+  birth_age_mat = matrix(
+    data = 0, 
+    nrow = length(o$ages),
+    ncol = nrow(data_dt))
+  
+  # Range of viable ages around the mean
+  range = -(o$birth_age_sd * 2) : (o$birth_age_sd * 2)
+  
+  # Iterate through countries
+  for (i in seq_row(data_dt)) {
+    
+    # Average age at birth
+    avg = data_dt[i, avg]
+    
+    # Distribution around this mean
+    dist = dnorm(
+      x    = avg + range, 
+      mean = avg, 
+      sd   = o$birth_age_sd)
+    
+    # Insert these values into matrix
+    birth_age_mat[avg + range, i] = dist / sum(dist)
+  }
+  
+  # COnvert matrix into long datatable
+  birth_age_dt = birth_age_mat %>%
+    as_named_dt(data_dt$country) %>%
+    mutate(age = o$ages) %>%
+    # Melt to tidy format...
+    pivot_longer(cols = -age, 
+                 names_to  = "country", 
+                 values_to = "weight") %>%
+    # Remove trivial values...
+    filter(weight > 0) %>%
+    select(country, age, weight) %>%
+    arrange(country, age) %>%
+    as.data.table()
+  
+  # Save to file for easier loading
+  save_table(birth_age_dt, "birth_age")
 }
 
 # ---------------------------------------------------------

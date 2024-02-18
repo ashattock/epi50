@@ -39,6 +39,7 @@ run_results = function() {
 
     # GBD death estimates
     plot_gbd_estimates()
+    plot_gbd_missing()
   }
 
   # ---- Static model plots ----

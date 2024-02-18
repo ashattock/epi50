@@ -225,23 +225,15 @@ coverage_wiise = function(vimc_countries_dt) {
   # Save table in cache
   save_table(global_dt, "coverage_global")
   
-  # ---- Append age targets ----
-  
-  # Function for parsing and expanding to single age bins
-  expand_age_fn = function(x)
-    y = expand_grid(x, expand_age = eval_str(x$age))
-  
-  # Expanded datatable of ages per vaccine
-  age_dt = d_v_a_dt %>%
-    left_join(y  = table("vaccine_age"), 
-              by = "vaccine") %>%
-    select(d_v_a_id, age) %>%
-    dtapply(expand_age_fn) %>%
-    rbindlist() %>%
-    select(d_v_a_id, age = expand_age)
-  
+  # ---- Calculate FVPs (non pregnancy vaccines) ----
+
+  # Age at vaccination (deal with pregnancy vaccines after)
+  age_dt = table("vaccine_age") %>%
+    filter(age != "NA") %>%
+    mutate(age = as.numeric(age))
+
   # Append age and calculate FVPs
-  wiise_dt = intervention_dt %>%
+  wiise_age_dt = intervention_dt %>%
     # Remove countries and years already covered by VIMC...
     left_join(y  = vimc_countries_dt, 
               by = c("d_v_a_id", "country", "year")) %>%
@@ -249,31 +241,74 @@ coverage_wiise = function(vimc_countries_dt) {
     select(-intervention, -source) %>%
     # Append ages...
     left_join(y  = age_dt, 
-              by = "d_v_a_id", 
-              relationship = "many-to-many") %>%
+              by = "vaccine") %>%
+    filter(!is.na(age)) %>%
     # Calculate fully vaccinated people...
     left_join(y  = table("wpp_pop"), 
               by = c("country", "year", "age")) %>%
     mutate(sheduled_doses = coverage * pop) %>%
     calculate_fvps() %>%
-    # Tidy up...
-    arrange(d_v_a_id, country, year, age) %>%
-    mutate(source = "wiise") %>%
     as.data.table()
+  
+  # ---- Calculate FVPs (pregnancy vaccines) ----
+  
+  # Age at vaccination for pregnancy vaccines
+  age_birth_dt = table("vaccine_age") %>%
+    filter(age == "NA") %>% 
+    select(vaccine) %>%
+    expand_grid(table("birth_age")) %>%
+    left_join(y  = d_v_a_dt, 
+              by = "vaccine") %>%
+    select(d_v_a_id, country, age, weight) %>%
+    as.data.table()
+  
+  # Append age and calculate FVPs
+  wiise_pregnancy_dt = intervention_dt %>%
+    select(-intervention) %>%
+    # Reduce down to pregnancy vaccines...
+    left_join(y  = age_dt, 
+              by = "vaccine") %>%
+    filter(is.na(age)) %>%
+    # Coverage in this context is of newborns...
+    mutate(age = 0) %>%
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    mutate(sheduled_doses = coverage * pop) %>%
+    calculate_fvps() %>%
+    # But we want coverage in terms of mothers...
+    select(-age, -cohort, -coverage) %>%
+    left_join(y  = age_birth_dt,
+              by = c("d_v_a_id", "country"), 
+              relationship = "many-to-many") %>%
+    mutate(fvps = fvps * weight) %>%
+    # Append parental demographics...
+    left_join(y  = table("wpp_pop"), 
+              by = c("country", "year", "age")) %>%
+    rename(cohort = pop) %>%
+    # Calculate coverage (of mothers)...
+    mutate(fvps = pmin(fvps, cohort * o$max_coverage),
+           coverage = fvps / cohort) %>%
+    # Tidy up...
+    select(all_names(wiise_age_dt)) %>%
+    as.data.table()
+  
+  # Combine into signle datatable
+  wiise_dt = wiise_age_dt %>%
+    rbind(wiise_pregnancy_dt) %>%
+    arrange(d_v_a_id, country, year, age) %>%
+    mutate(source = "wiise")
   
   return(wiise_dt)
 }
 
 # ---------------------------------------------------------
-# Effect of multiple booster doses for DTP
+# FVP calculation considering boosters
 # ---------------------------------------------------------
 calculate_fvps = function(coverage_dt) {
   
   # NOTES: 
   #  - Using mean for pop as all values should all equal
   #  - Coverage bounded by o$max_coverage
-  
-  browser() # Special consideration needed for PX?
   
   # For primary schedule, assume all new FVPs
   primary_dt = coverage_dt %>% 
@@ -285,16 +320,26 @@ calculate_fvps = function(coverage_dt) {
     ungroup() %>%
     as.data.table()
   
-  # For boosters, consecutive doses are for the same person
+  # All booster doses
   booster_dt = coverage_dt %>% 
-    lazy_dt() %>%
-    filter(grepl("_BX$", vaccine)) %>%
-    group_by(d_v_a_id, country, year, age) %>%
-    summarise(fvps   = max(sheduled_doses),  # Using max
-              cohort = mean(pop)) %>%
-    ungroup() %>%
-    as.data.table()
+    filter(grepl("_BX$", vaccine))
   
+  # Check whether trivial
+  if (nrow(booster_dt) == 0) {
+    booster_dt = NULL 
+    
+    } else {  # Otherwise, summarise...
+    
+    # For boosters, consecutive doses are for the same person
+    booster_dt %<>%
+      lazy_dt() %>%
+      group_by(d_v_a_id, country, year, age) %>%
+      summarise(fvps   = max(sheduled_doses),  # Using max
+                cohort = mean(pop)) %>%
+      ungroup() %>%
+      as.data.table()
+  }
+    
   # Re-bind everything together and calculate coverage
   fvps_dt = rbind(primary_dt, booster_dt) %>%
     mutate(fvps = pmin(fvps, cohort * o$max_coverage),

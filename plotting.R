@@ -33,8 +33,6 @@ plot_scope = function() {
   
   # ---- Number of FVPs by pathogen ----
   
-  browser() # Special consideration needed for PX?
-  
   # Number of FVPs by country
   fvps_dt = table("coverage") %>%
     filter(coverage > 0) %>%
@@ -42,8 +40,7 @@ plot_scope = function() {
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_id") %>%
     # Concept here is FVP, so remove birth dose & boosters...
-    filter(!grepl("_BX$", vaccine), 
-           !grepl("_BD$", vaccine)) %>% 
+    filter(!grepl("_(BD|BX|PX)$", vaccine)) %>% 
     # Summarise over age...
     group_by(disease, country, year) %>%
     summarise(fvps = sum(fvps)) %>%
@@ -150,10 +147,10 @@ plot_scope = function() {
   # Year range of analysis
   year1 = min(o$years)
   year2 = max(o$years)
-
+  
   # Label description string
   label = paste0("Total (", year1, "-", year2, "):")
-
+  
   # Construct labels: total FVPs over analysis timeframe
   label_dt = plot_dt %>%
     filter(time == year2) %>%
@@ -684,8 +681,6 @@ plot_missing_data = function() {
 # ---------------------------------------------------------
 plot_gbd_estimates = function() {
   
-  # ---- Figure 1: GBD burden by age group ----
-  
   message("  > Plotting GBD death estimates by age")
   
   # Define age groups and associated upper bounds
@@ -703,8 +698,7 @@ plot_gbd_estimates = function() {
     mutate(group_idx = match(age, age_groups),
            group = names(age_groups[group_idx])) %>%
     fill(group, .direction = "up") %>%
-    select(age, age_group = group) # %>%
-    # mutate(age = fct_inorder(age))
+    select(age, age_group = group)
   
   # Load GBD estimates and categorise into age groups
   gbd_dt = table("gbd_estimates") %>%
@@ -719,9 +713,9 @@ plot_gbd_estimates = function() {
     # Set factors for meaningful plotting order...
     mutate(age_group = factor(age_group, names(age_groups))) %>%
     as.data.table()
-    
+  
   # Plot deaths over time by age group
-  g1 = ggplot(gbd_dt) +
+  g = ggplot(gbd_dt) +
     aes(x = year, 
         y = deaths, 
         fill = age_group) +
@@ -744,7 +738,7 @@ plot_gbd_estimates = function() {
       breaks = pretty_breaks())
   
   # Prettify theme
-  g1 = g1 + theme_classic() + 
+  g = g + theme_classic() + 
     theme(axis.title.x  = element_blank(),
           axis.title.y  = element_text(
             size = 20, margin = margin(l = 10, r = 20)),
@@ -763,9 +757,13 @@ plot_gbd_estimates = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save to file
-  save_fig(g1, "GBD deaths by age group", dir = "data_visualisation")
-  
-  # ---- Figure 2: GBD burden by vaccine coverage status ----
+  save_fig(g, "GBD deaths by age group", dir = "data_visualisation")
+}
+
+# ---------------------------------------------------------
+# Plot proportion of GBD burden we have coverage data for
+# ---------------------------------------------------------
+plot_gbd_missing = function() {
   
   message("  > Plotting GBD burden by vaccine coverage status")
   
@@ -801,7 +799,7 @@ plot_gbd_estimates = function() {
     as.data.table()
   
   # Plot burden over time by vaccine coverage status
-  g2 = ggplot(status_dt) +
+  g = ggplot(status_dt) +
     aes(x = year, 
         y = deaths, 
         fill = status) +
@@ -822,7 +820,7 @@ plot_gbd_estimates = function() {
       breaks = pretty_breaks())
   
   # Prettify theme
-  g2 = g2 + theme_classic() + 
+  g = g + theme_classic() + 
     theme(axis.title.x  = element_blank(),
           axis.title.y  = element_text(
             size = 20, margin = margin(l = 10, r = 20)),
@@ -841,7 +839,7 @@ plot_gbd_estimates = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save to file
-  save_fig(g2, "GBD deaths by vaccine coverage status", 
+  save_fig(g, "GBD deaths by vaccine coverage status", 
            dir = "data_visualisation")
 }
 
@@ -859,7 +857,7 @@ plot_vaccine_efficacy = function() {
   
   # Function to extract vaccine efficacy data
   extract_data_fn = function(dt) {
-
+    
     # Extract and format into datatable
     data = dt$data %>%
       unlist() %>%
@@ -888,10 +886,10 @@ plot_vaccine_efficacy = function() {
              schedule = factor(schedule, schedule_dict)) %>%
       # Append vaccine type name
       mutate(type = str_remove(type, "[0-9]")) %>%
-      left_join(y  = table("vaccine_type"), 
-                by = c("type" = "vaccine_type")) %>%
+      left_join(y  = table("type_name"), 
+                by = "type") %>%
       select(-type) %>%
-      rename(type = vaccine_type_name) %>%
+      rename(type = type_name) %>%
       mutate(type = fct_inorder(type)) %>%
       as.data.table()
     
@@ -2399,13 +2397,13 @@ plot_child_mortality = function() {
     limits = c(0, NA),
     expand = expansion(mult = c(0, 0.05)), 
     breaks = pretty_breaks())
-
+  
   y3 = scale_y_continuous(
     labels = percent, 
     limits = c(0, 1),
     expand = c(0, 0), 
     breaks = pretty_breaks())
-
+  
   y_list = list(
     metric == fct_fn("avert") ~ y1,
     metric == fct_fn("rate")  ~ y2, 
@@ -3023,7 +3021,7 @@ plot_measles_in_context = function() {
     abs  = sprintf(metric_dict$abs,  age_bound),
     norm = sprintf(metric_dict$norm, age_bound),
     cov  = sprintf(metric_dict$cov,  min(o$years), max(o$years)))
-
+  
   # Lines for measles and all cause
   line_dt = context_dt %>%
     filter(cause != "other") %>%
