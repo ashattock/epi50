@@ -27,11 +27,8 @@ run_impute = function() {
   
   # ---- Perform imputation ----
   
-  # Impute missing countries for all d-v-a combinations
+  # Call country imputation function
   impute_dt = table("d_v_a") %>%
-    # Filter for VIMC pathogens only...
-    left_join(y  = table("disease"),
-              by = "disease") %>%
     filter(source == "vimc") %>%
     # Apply geographical imputation model...
     pull(d_v_a_id) %>%
@@ -42,7 +39,7 @@ run_impute = function() {
       test = is.na(target),
       yes  = impact_impute,
       no   = impact_cum)) %>%
-    select(country, d_v_a_id, year,
+    select(d_v_a_id, country, year,
            fvps = fvps_cum, impact)
   
   # TODO: Reduce down to only years of interest
@@ -51,8 +48,6 @@ run_impute = function() {
   save_rds(impute_dt, "impute", "impute_result")
   
   # ---- Plot results ----
-  
-  # NOTE: All plotting functionality lives in plotting.R
   
   # Plot predictor-response relationships
   plot_covariates()
@@ -747,6 +742,7 @@ get_impute_data = function() {
   
   # Population size of each country over time
   pop_dt = table("wpp_pop") %>%
+    lazy_dt() %>%
     group_by(country, year) %>%
     summarise(pop = sum(pop)) %>%
     ungroup() %>%
@@ -754,8 +750,9 @@ get_impute_data = function() {
   
   # Wrangle VIMC impact estimates
   impact_dt = table("vimc_estimates") %>%
+    lazy_dt() %>%
     # Sum impact over age...
-    group_by(country, d_v_a_id, year) %>%
+    group_by(d_v_a_id, country, year) %>%
     summarise(impact_abs = sum(deaths_averted)) %>%
     ungroup() %>%
     mutate(impact_abs = pmax(impact_abs, 0)) %>%
@@ -765,24 +762,20 @@ get_impute_data = function() {
     mutate(impact_rel = impact_abs / pop) %>%
     select(-pop) %>%
     # Cumulative sum impact...
-    arrange(country, d_v_a_id, year) %>%
-    group_by(country, d_v_a_id) %>%
+    arrange(d_v_a_id, country, year) %>%
+    group_by(d_v_a_id, country) %>%
     mutate(impact_cum = cumsum(impact_rel)) %>%
     ungroup() %>%
     as.data.table()
   
   # Extract FVPs
   fvps_dt = table("coverage") %>%
-    # Append d_v_a details...
-    left_join(y  = table("v_a"),
-              by = "v_a_id") %>%
-    left_join(y  = table("d_v_a"),
-              by = c("vaccine", "activity")) %>%
+    lazy_dt() %>%
     # Only impute pathogens and years for which we've VIMC estimates...
     filter(d_v_a_id %in% unique(impact_dt$d_v_a_id), 
            year     %in% unique(impact_dt$year)) %>%
     # Summarise over age...
-    group_by(country, d_v_a_id, year) %>%
+    group_by(d_v_a_id, country, year) %>%
     summarise(fvps_abs = sum(fvps)) %>%
     ungroup() %>%
     # Scale results to per capita...
@@ -791,8 +784,8 @@ get_impute_data = function() {
     mutate(fvps_rel = fvps_abs / pop) %>%
     select(-pop) %>%
     # Cumulative sum FVPs...
-    arrange(country, d_v_a_id, year) %>%
-    group_by(country, d_v_a_id) %>%
+    arrange(d_v_a_id, country, year) %>%
+    group_by(d_v_a_id, country) %>%
     mutate(fvps_cum = cumsum(fvps_rel)) %>%
     ungroup() %>%
     as.data.table()
@@ -800,7 +793,7 @@ get_impute_data = function() {
   # Combine into single datatable
   target_dt = fvps_dt %>%
     left_join(y  = impact_dt, 
-              by = c("country", "d_v_a_id", "year")) %>%
+              by = c("d_v_a_id", "country", "year")) %>%
     # Impact per FVP...
     mutate(target = impact_cum / fvps_cum)
   

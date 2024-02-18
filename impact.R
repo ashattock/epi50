@@ -4,10 +4,6 @@
 # An alternative to impact factor for representing impact as
 # a function of vaccine coverage.
 #
-# TODO: Think about age age here... can we justify summarising?
-# I think we can, but d-v-a must consistently have targeted
-# the same age groups over time.
-#
 ###########################################################
 
 # ---------------------------------------------------------
@@ -51,28 +47,29 @@ run_impact = function() {
     select(-d_v_a_str)
 
   # Initiate progress bar
-  pb = progress_init(nrow(run_dt))
+  pb = start_progress_bar(nrow(run_dt))
 
   # Run get_best_model in parallel
   if (o$parallel)
-    mclapply(X    = run_dt$run_id,
-             FUN  = get_best_model,
-             run  = run_dt,
-             data = data_dt,
-             pb   = pb,
-             mc.cores = n_cores,
-             mc.preschedule = FALSE)
+    mclapply(
+      X    = run_dt$run_id,
+      FUN  = get_best_model,
+      run  = run_dt,
+      data = data_dt,
+      mc.cores = n_cores,
+      mc.preschedule = FALSE)
 
   # Run get_best_model consecutively
   if (!o$parallel)
-    lapply(X    = run_dt$run_id,
-           FUN  = get_best_model,
-           run  = run_dt,
-           data = data_dt,
-           pb   = pb)
-
+    lapply(
+      X    = run_dt$run_id,
+      FUN  = get_best_model,
+      run  = run_dt,
+      data = data_dt,
+      pb   = pb)
+  
   # Close progress bar
-  progress_close(pb)
+  close(pb)
 
   # ---- Model selection ----
 
@@ -101,6 +98,7 @@ get_impact_data = function() {
   
   # Population size of each country over time
   pop_dt = table("wpp_pop") %>%
+    lazy_dt() %>%
     group_by(country, year) %>%
     summarise(pop = sum(pop)) %>%
     ungroup() %>%
@@ -114,6 +112,7 @@ get_impact_data = function() {
   # Load static model impact estimates
   static_dt = 
     read_rds("static", "deaths_averted_vaccine", err = FALSE) %>%
+    lazy_dt() %>%
     # Scale results to per capita...
     left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
@@ -161,19 +160,21 @@ fn_set = function(dict = FALSE) {
 # ---------------------------------------------------------
 # Parent function to determine best fitting function
 # ---------------------------------------------------------
-get_best_model = function(id, run, data, pb) {
+get_best_model = function(id, run, data, pb = NULL) {
   
   # Details of this run
   this_run = run[run_id == id]
   
   # Reduce data down to what we're interested in
   fit_data_dt = data %>%
+    lazy_dt() %>%
     filter(country  == this_run$country,
            d_v_a_id == this_run$d_v_a_id) %>%
     select(x = fvps,
            y = impact) %>%
     # Multiply impact for more consistent x-y scales...
-    mutate(y = y * o$impact_scaler)
+    mutate(y = y * o$impact_scaler) %>%
+    as.data.table()
   
   # Append the origin (zero vaccine, zero impact)
   fit_data_dt = data.table(x = 1e-12, y = 0) %>%
@@ -200,8 +201,8 @@ get_best_model = function(id, run, data, pb) {
   }
   
   # Update progress bar
-  progress_idx = which(run$run_id == id)
-  progress_update(pb, progress_idx)
+  if (!is.null(pb))
+    setTxtProgressBar(pb, which(run$run_id == id))
 }
 
 # ---------------------------------------------------------
@@ -253,8 +254,8 @@ credible_start = function(fns, x, y, plot = FALSE) {
       fn   = asd_fn[[fn]],
       x0   = rep(1, n_pars),
       lb   = rep(1e-10, n_pars),
-      ub   = rep(Inf,   n_pars),
-      max_iters = 10000)
+      ub   = rep(Inf, n_pars),
+      max_iters = 1e3)
     
     # Overwrite starting point with optimal parameters
     start[[fn]] = c(s0, optim$x) %>%
@@ -387,11 +388,12 @@ model_quality = function(fns, fit, x, y, run_id) {
   
   # Coefficients for each successful model
   coef = unlist(lapply(fit, function(a) a@coef[-1]))
-  coef = data.table(var   = names(coef), 
-                    value = coef) %>%
+  coef = tibble(var   = names(coef), 
+                value = coef) %>%
     separate(var, c("fn", "coef")) %>%
     mutate(run_id = run_id, 
-           .before = 1)
+           .before = 1) %>%
+    as.data.table()
   
   # Save to file
   save_name = paste1(run_id, "coef")
@@ -481,6 +483,7 @@ model_selection = function() {
   
   # Extract best fitting function based on AICc
   best_dt = read_rds("impact", "aicc") %>%
+    lazy_dt() %>%
     # Select function with lowest AICc...
     group_by(country, d_v_a_id) %>%
     slice_min(aicc, n = 1, with_ties = FALSE) %>%

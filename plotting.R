@@ -1229,8 +1229,6 @@ plot_covariates = function() {
   
   # Load imputation data for all d-v-a
   data_dt = table("d_v_a") %>%
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
     filter(source == "vimc") %>%
     pull(d_v_a_id) %>%
     lapply(load_data_fn) %>%
@@ -1314,8 +1312,6 @@ plot_impute_quality = function() {
   
   # Load imputation results for all d-v-a
   results_dt = table("d_v_a") %>%
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
     filter(source == "vimc") %>%
     pull(d_v_a_id) %>%
     lapply(load_results_fn) %>%
@@ -1418,8 +1414,6 @@ plot_impute_countries = function() {
   
   # Load imputation results for all d-v-a
   results_dt = table("d_v_a") %>%
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
     filter(source == "vimc") %>%
     pull(d_v_a_id) %>%
     lapply(load_results_fn) %>%
@@ -2203,10 +2197,11 @@ plot_historical_impact = function() {
   
   # Prepare final results
   results_dt = read_rds("results", "deaths_averted") %>%
+    lazy_dt() %>%
     # Append full disease names...
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_id") %>%
-    left_join(y  = table("disease"), 
+    left_join(y  = table("disease_name"), 
               by = "disease") %>%
     # Cumulative results for each disease...
     group_by(disease_name, year) %>%
@@ -2224,6 +2219,7 @@ plot_historical_impact = function() {
   
   # Construct labels: total FVPs over analysis timeframe
   label_dt = results_dt %>%
+    lazy_dt() %>%
     filter(metric == impact_dict[["impact_cum"]]) %>%
     group_by(disease) %>%
     summarise(total = round(max(value), 1)) %>%
@@ -2334,8 +2330,6 @@ plot_child_mortality = function() {
   # Life expectancy over time
   life_exp_dt = NULL
   
-  browser() # Use table("vaccine_name")
-  
   # Vaccine coverage over time - global average
   coverage_dt = table("coverage_global") %>%
     filter(coverage > 0, 
@@ -2349,7 +2343,7 @@ plot_child_mortality = function() {
     summarise(coverage = mean(coverage)) %>%
     ungroup() %>%
     # Append descriptive vaccine names...
-    left_join(y  = table("vaccine"), 
+    left_join(y  = table("vaccine_name"), 
               by = "vaccine") %>%
     replace_na(list(vaccine_name = "DTP third dose")) %>%
     mutate(metric = "cov", 
@@ -2937,7 +2931,7 @@ plot_measles_in_context = function() {
   measles_id = "Measles"
   
   # ID of coverage values to plot
-  coverage_ids = c(4, 5)
+  coverage_ids = c(101, 102)
   
   # Colour schemes
   colours = list(
@@ -3049,14 +3043,14 @@ plot_measles_in_context = function() {
   
   # Gloabl measles coverage over time
   coverage_dt = table("coverage_global") %>%
-    select(-vaccine) %>%
-    filter(v_a_id %in% coverage_ids) %>%
+    filter(d_v_a_id %in% coverage_ids) %>%
     # Append metric details...
-    append_v_a_name() %>%
+    left_join(y  = table("vaccine_name"), 
+              by = "vaccine") %>%
     mutate(metric = metric_dict$cov, 
            metric = factor(metric, metric_dict)) %>%
     # Tidy up...
-    select(metric, v_a_name, year, value = coverage) %>%
+    select(metric, vaccine_name, year, value = coverage) %>%
     as.data.table()
   
   # ---- Produce plot ----
@@ -3091,7 +3085,7 @@ plot_measles_in_context = function() {
     ggnewscale::new_scale_color() + 
     geom_line(
       data    = coverage_dt,
-      mapping = aes(colour = v_a_name)) +
+      mapping = aes(colour = vaccine_name)) +
     # Set doses colour scheme...
     scale_colour_manual(
       name   = "Vaccine", 
@@ -3349,18 +3343,22 @@ format_d_v_a_name = function(name_dt) {
 # ---------------------------------------------------------
 get_palette = function(variable) {
   
-  n_colours = list(
-    disease = n_unique(table("disease")$disease), 
-    region  = n_unique(table("country")$region), 
-    income  = n_unique(table("income_status")$income))
-  
+  # Input argument must be specified in o$palette
   if (!variable %in% names(o$palette))
     stop("Input '", variable, "' must be one of: ", 
          paste(names(o$palette), collapse = ", "))
   
+  # Number of colours to generate based on input argument
+  n_colours = list(
+    disease = n_unique(table("d_v_a")$disease), 
+    region  = n_unique(table("country")$region), 
+    income  = n_unique(table("income_status")$income))
+  
+  # Shorthand for palette and number of colours
   p = o$palette[[variable]]
   n = n_colours[[variable]]
   
+  # Generate vector of colours
   colours = colour_scheme(p, n = n)
   
   return(colours)

@@ -113,8 +113,10 @@ run_results = function() {
     # Measles deaths in context of all cause deaths
     plot_measles_in_context()
     
+    #
     plot_prob_death_age()
     
+    #
     plot_survival_increase()
   }
 }
