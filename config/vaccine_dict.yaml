@@ -1,6 +1,6 @@
 ---
 
-# Creates datatable: vaccine_sia_table
+# Creates datatable: vaccine_dict_table
 table:
 
 - intervention: bcg
@@ -147,6 +147,14 @@ table:
   vaccine: 
   - IPV
   
+- intervention: japenc
+  vaccine: 
+  - JE
+  
+- intervention: japenc_c
+  vaccine: 
+  - JE
+  
 - intervention: m_mmr
   vaccine:
   - Measles
@@ -168,6 +176,22 @@ table:
 - intervention: measles
   vaccine: 
   - Measles
+  
+# TODO: Check each of these carefully
+- intervention: men_a
+  vaccine: MenA
+- intervention: men_a_conj
+  vaccine: MenA
+- intervention: men_ac
+  vaccine: MenA
+- intervention: men_acw
+  vaccine: MenA
+- intervention: men_acwy
+  vaccine: MenA
+- intervention: men_acyw_135conj
+  vaccine: MenA
+- intervention: men_acyw_conj
+  vaccine: MenA
   
 - intervention: mmr
   vaccine:
@@ -294,6 +318,14 @@ table:
 - intervention: ttcv4
   vaccine: 
   - Tet_BX
+  
+- intervention: yf
+  vaccine: 
+  - YF
+  
+- intervention: yfv
+  vaccine: 
+  - YF
 
 # Vaccines not modelled
 - intervention: "15hpv1_f"
@@ -330,23 +362,14 @@ table:
 - intervention: ipv1_frac
 - intervention: ipv2
 - intervention: ipv2_frac
+- intervention: japenc_1
 - intervention: mcv
-- intervention: men_a
-- intervention: men_a_conj
-- intervention: men_ac
-- intervention: men_acw
-- intervention: men_acwy
-- intervention: men_acyw_135conj
-- intervention: men_acyw_conj
 - intervention: men_b
 - intervention: men_bc
 - intervention: men_c_conj
 - intervention: mopv1
 - intervention: mopv2
 - intervention: mumps
-- intervention: japenc
-- intervention: japenc_1
-- intervention: japenc_c
 - intervention: pcv1
 - intervention: pcv2
 - intervention: percv_pw
@@ -362,5 +385,3 @@ table:
 - intervention: typhoid
 - intervention: typhoid_conj
 - intervention: vad1
-- intervention: yf
-- intervention: yfv

@@ -271,18 +271,20 @@ parse_age_groups = function(sia_dt) {
   # ---- Parse age group stings ----
   
   # Regular expression to remove
-  exp_rm = c(",.+", "\n.+", "\\+", "=", "[a-z, ]")
+  exp_rm = c(",.+", "\n.+", "\\+", "\\=", "[a-z, ]")
   
   # Regular expression to substitute
   exp_sub = c(
-    "&"  = "and",
-    "^<" = "0&", 
-    "^>" = "100&", 
-    "-<" = "&", 
-    "->" = "&", 
-    "-"  = "&", 
-    " y" = "#", 
-    " m" = "@") 
+    "&"   = "and",
+    "^<"  = "0&", 
+    "^=<" = "0&",
+    "^>"  = "100&", 
+    "^>=" = "100&",
+    "-<"  = "&", 
+    "->"  = "&", 
+    "-"   = "&", 
+    " y"  = "#", 
+    " m"  = "@") 
   
   # Several named special cases
   exp_txt = c(
@@ -292,6 +294,7 @@ parse_age_groups = function(sia_dt) {
     "children"    = "1-12",
     "elderly"     = "60-95",
     "school"      = "5-16",
+    "travellers"  = "18-60",
     "women"       = "18-60")
   
   # Parse key characters
@@ -311,6 +314,8 @@ parse_age_groups = function(sia_dt) {
   
   # Construct age group - age range dictionary
   age_dict = group_dt %>%
+    mutate(n   = str_count(age, "&"), 
+           age = ifelse(n > 1, "", age)) %>%
     # Split at denominator if it exists...
     separate_wider_delim(
       cols  = age, 

@@ -19,7 +19,7 @@ run_prepare = function() {
   
   # Convert config yaml files to datatables
   prepare_config_tables()
-  
+
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
 
@@ -40,7 +40,7 @@ run_prepare = function() {
 
   # Prepare demography-related estimates from WPP
   prepare_demography()
-  
+
   # Prepare age at birth by country and year
   prepare_birth_age()
   

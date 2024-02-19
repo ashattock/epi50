@@ -1,6 +1,6 @@
 ---
 
-# Creates datatable: vaccine_type_table
+# Creates datatable: type_name_table
 table:
 
 - type: Dip

@@ -12,13 +12,13 @@ prepare_coverage = function() {
   
   # Extract coverage for VIMC pathogens
   vimc_dt = coverage_vimc()
-  
+
   # However not every country is covered by VIMC for these pathogens
   vimc_countries_dt = vimc_dt %>%
     select(d_v_a_id, country, year, source) %>%
     arrange(d_v_a_id, country, year) %>%
     unique()
-  
+
   # For other countries and years, extract coverage from WIISE database
   wiise_dt = coverage_wiise(vimc_countries_dt) %>%
     # Smooth estimates to produce sensible impact estimates...

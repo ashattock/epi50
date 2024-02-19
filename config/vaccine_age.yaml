@@ -12,6 +12,12 @@ table:
 - vaccine: Hib3
   age: 0
   
+- vaccine: JE
+  age: 0
+  
+- vaccine: MenA
+  age: 0
+  
 - vaccine: PCV3
   age: 0
   
@@ -22,6 +28,9 @@ table:
   age: 0
   
 - vaccine: Rubella
+  age: 0
+  
+- vaccine: YF
   age: 0
   
 - vaccine: Dip3

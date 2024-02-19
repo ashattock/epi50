@@ -9,6 +9,12 @@ table:
 - disease: Hib
   disease_name: "Haemophilus influenzae type b"
   
+- disease: JE
+  disease_name: "Japanese encephalitis"
+
+- disease: MenA
+  disease_name: "Meningitis A"
+  
 - disease: PCV
   disease_name: "Pneumococcal"
   
@@ -17,6 +23,9 @@ table:
   
 - disease: Rubella
   disease_name: "Rubella"
+  
+- disease: YF
+  disease_name: "Yellow fever"
   
 - disease: Dip
   disease_name: "Diphtheria"

@@ -31,6 +31,8 @@ plot_scope = function() {
   # Associated colours
   impact_colours = c("#EB7D5B", "#FED23F", "#B5D33D", "#6CA2EA", "#442288")
   
+  browser()
+  
   # ---- Number of FVPs by pathogen ----
   
   # Number of FVPs by country
@@ -2188,6 +2190,11 @@ plot_historical_impact = function() {
   
   message("  > Plotting historical impact")
   
+  # Diseases to combine into one colour (set to NULL to turn off)
+  grouping = qc(Dip, HepB, JE, MenA, PCV, Rota, Rubella, YF) 
+  
+  other = "Other pathogens"
+  
   # Dictionary for temporal and cumulative subplots
   impact_dict = c(
     impact_cum = "Cumulative deaths averted (in millions)", 
@@ -2203,18 +2210,22 @@ plot_historical_impact = function() {
               by = "d_v_a_id") %>%
     left_join(y  = table("disease_name"), 
               by = "disease") %>%
+    # Combine subset of diseases...
+    mutate(group = ifelse(
+      test = disease %in% grouping, 
+      yes  = other, 
+      no   = disease_name)) %>%
     # Cumulative results for each disease...
-    group_by(disease_name, year) %>%
+    group_by(group, year) %>%
     summarise(impact = sum(impact) / 1e6) %>%
     mutate(impact_cum = cumsum(impact)) %>%
     ungroup() %>%
-    rename(disease = disease_name) %>%
+    rename(disease = group) %>%
     # Tidy format for single plot...
     pivot_longer(cols = c(impact, impact_cum), 
                  names_to = "metric") %>%
     mutate(metric = recode(metric, !!!impact_dict), 
            metric = factor(metric, impact_dict)) %>%
-    arrange(metric, disease, year) %>%
     as.data.table()
   
   # Construct labels: total FVPs over analysis timeframe
@@ -2226,14 +2237,38 @@ plot_historical_impact = function() {
     ungroup() %>%
     mutate(total = paste0("Total: ", total, " million"), 
            label = paste0(disease, "\n", total)) %>%
-    select(disease, disease_label = label) %>%
+    select(disease, label) %>%
     as.data.table()
+  
+  # Plotting order of diseases
+  diseases = results_dt %>%
+    group_by(disease) %>%
+    slice_max(value, with_ties = FALSE) %>%
+    ungroup() %>%
+    arrange(-value) %>%
+    pull(disease) %>%
+    setdiff(other) %>%
+    c(other)
   
   # Append total labels to plotting data
   plot_dt = results_dt %>%
     left_join(y  = label_dt, 
               by = "disease") %>%
-    select(disease_label, year, metric, value)
+    # Pathogen order...
+    mutate(disease = factor(disease, diseases)) %>%
+    arrange(disease) %>%
+    mutate(label = fct_inorder(label)) %>%
+    select(label, metric, year, value)
+  
+  # ---- Colours ----
+  
+  # No grouping - use disease colours
+  if (is.null(grouping))
+    colours = get_palette("disease")
+  
+  # With grouping
+  if (!is.null(grouping))
+    colours = colours_who("category", length(diseases))
   
   # ---- Produce plot ----
   
@@ -2241,13 +2276,13 @@ plot_historical_impact = function() {
   g = ggplot(plot_dt) +
     aes(x = year, 
         y = value, 
-        fill = disease_label) + 
+        fill = label) + 
     geom_col() +
     # Facet by temporal-cumulative metric...
     facet_wrap(~metric, scales = "free_y") +
     # Set colours...
     scale_fill_manual(
-      values = get_palette("disease")) + 
+      values = colours) + 
     # Prettify y axis...
     scale_y_continuous(
       labels = comma, 
@@ -2295,6 +2330,9 @@ plot_child_mortality = function() {
   message("  > Plotting child mortality rates")
   
   # ---- Figure properties ----
+  
+  # Set colour scheme for vaccine coverage
+  colour_map = "viridis::viridis" # pals::kovesi.rainbow "viridis::viridis"
   
   metric_dict = list(
     avert = "Deaths of children under 5 averted", 
@@ -2358,12 +2396,17 @@ plot_child_mortality = function() {
     bind_rows(rate_dt) %>%
     bind_rows(life_exp_dt) %>%
     bind_rows(coverage_dt) %>%
+    # Vaccine coverage order...
     replace_na(list(vaccine_name = "-")) %>%
+    arrange(vaccine_name) %>%
+    mutate(vaccine_name = fct_inorder(vaccine_name)) %>%
+    # Metric subplot order...
     mutate(metric = recode(metric, !!!metric_dict),
            metric = factor(metric, metric_dict), 
-           case   = recode(case,   !!!case_dict), 
-           case   = factor(case,   case_dict))
-  
+           case   = recode(case, !!!case_dict), 
+           case   = factor(case, case_dict))
+
+    
   area_dt = averted_dt %>%
     rbind(rate_dt) %>%
     rbind(life_exp_dt) %>%
@@ -2371,6 +2414,7 @@ plot_child_mortality = function() {
     replace_na(list(no_vaccine = 0)) %>%
     mutate(y_min = pmin(vaccine, no_vaccine), 
            y_max = pmax(vaccine, no_vaccine)) %>%
+    # Metric subplot order...
     mutate(metric = recode(metric, !!!metric_dict),
            metric = factor(metric, metric_dict)) %>%
     select(metric, year, y_min, y_max) %>%
@@ -2404,8 +2448,11 @@ plot_child_mortality = function() {
     metric == fct_fn("exp")   ~ y1, 
     metric == fct_fn("cov")   ~ y3)
   
+  legend_entries = unique(lines_dt$vaccine_name)
+  
   n_cols  = n_unique(coverage_dt$vaccine_name)
-  colours = colour_scheme("viridis::viridis", n = n_cols)
+  colours = colour_scheme(colour_map, n = n_cols)
+  colours = setNames(c("black", colours), legend_entries)
   
   # ---- Produce plot ----
   
@@ -2434,7 +2481,8 @@ plot_child_mortality = function() {
       ncol   = 1) +
     # Set colour scheme...
     scale_color_manual(
-      values = c("black", colours)) + 
+      breaks = legend_entries[-1], 
+      values = c("black", colours)) +
     # Prettify y axis...
     facetted_pos_scales(y = y_list) + 
     # Prettiy x axis...
@@ -2442,8 +2490,9 @@ plot_child_mortality = function() {
       limits = c(min(o$years), max(o$years)), 
       expand = expansion(mult = c(0, 0)), 
       breaks = seq(min(o$years), max(o$years), by = 5)) +
-    # Prettify legend...
-    guides(colour = "none")
+    # Prettify legends...
+    guides(linetype = guide_legend(order = 1), 
+           colour   = guide_legend(order = 2))
   
   # Prettify theme
   g = g + theme_classic() + 
@@ -2457,10 +2506,12 @@ plot_child_mortality = function() {
             linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
           legend.title  = element_blank(),
-          legend.text   = element_text(size = 14),
-          legend.position = "right", 
-          legend.key.height = unit(2, "lines"),
-          legend.key.width  = unit(2, "lines"))
+          legend.text   = element_text(size = 11),
+          legend.position      = "right",
+          legend.justification = "bottom",
+          legend.spacing.y  = unit(4, "lines"),
+          legend.key.height = unit(1.1, "lines"),
+          legend.key.width  = unit(1.1, "lines"))
   
   # Save figure to file
   save_fig(g, "Child mortality rates", dir = "historical_impact")
@@ -2830,7 +2881,7 @@ plot_survival_increase = function() {
   g = ggplot(fvps_dt) +
     aes(x = age, 
         y = value) +
-    geom_col(alpha = 0.4) +
+    # geom_col(alpha = 0.4) +
     geom_line(
       data    = world_dt, 
       mapping = aes(
@@ -2851,13 +2902,14 @@ plot_survival_increase = function() {
     scale_y_continuous(
       name   = "Relative increase in survival probability", 
       labels = percent, 
+      limit  = c(0, NA),
       expand = expansion(mult = c(0, 0.05)), 
-      breaks = pretty_breaks(), 
-      sec.axis = sec_axis(
-        trans = ~ .,
-        name  = "Age at vaccination (all vaccines)",
-        labels = percent, 
-        breaks = pretty_breaks())) +
+      breaks = pretty_breaks()) +  
+      # sec.axis = sec_axis(
+      #   trans = ~ .,
+      #   name  = "Age at vaccination (all vaccines)",
+      #   labels = percent, 
+      #   breaks = pretty_breaks())) +
     # Prettify legend...
     guides(linetype  = "none", 
            linewidth = "none", 
@@ -2914,7 +2966,7 @@ plot_measles_in_context = function() {
     cum  = "Cumulative number of deaths in children under %i",
     abs  = "Annual number of deaths in children under %i",
     norm = "Normalised cause of death for children under %i",
-    cov  = "Number of vaccine doses delivered (%i-%i)")
+    cov  = "Measles vaccine coverage (%i-%i)")
   
   # Cause of death
   cause_dict = list(
@@ -3066,7 +3118,7 @@ plot_measles_in_context = function() {
       show.legend = FALSE) +
     # Plot all cause deaths...
     geom_line(
-      data    = line_dt,
+      data    = line_dt[case == case_dict[[1]], ],
       mapping = aes(
         colour = cause, 
         linetype = case), 

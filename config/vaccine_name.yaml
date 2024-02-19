@@ -12,17 +12,26 @@ table:
 - vaccine: Hib3
   vaccine_name: "Haemophilus influenzae type b"
   
+- vaccine: JE
+  vaccine_name: "Japanese encephalitis"
+  
+- vaccine: MenA
+  vaccine_name: "Meningitis A"
+  
 - vaccine: PCV3
   vaccine_name: "Pneumococcal"
-  
-- vaccine: RCV2
-  vaccine_name: "Rubella-containing"
   
 - vaccine: Rota
   vaccine_name: "Rotavirus"
   
 - vaccine: Rubella
   vaccine_name: "Rubella"
+  
+- vaccine: RCV2
+  vaccine_name: "Rubella-containing"
+  
+- vaccine: YF
+  vaccine_name: "Yellow fever"
   
 - vaccine: Dip3
   vaccine_name: "Diphtheria primary"

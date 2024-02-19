@@ -12,6 +12,12 @@ table:
 - vaccine: Hib3
   schedule: 3
   
+- vaccine: JE
+  schedule: 2
+  
+- vaccine: MenA
+  schedule: 2
+  
 - vaccine: PCV3
   schedule: 3
   
@@ -20,6 +26,9 @@ table:
   
 - vaccine: Rubella
   schedule: 2
+  
+- vaccine: YF
+  schedule: 1
   
 - vaccine: Dip3
   schedule: 3
