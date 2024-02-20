@@ -193,6 +193,14 @@ eval_str = function(...)
   eval(parse(text = paste0(...)), envir = parent.frame(n = 1))
 
 # ---------------------------------------------------------
+# Exponential growth that goes through the origin
+# ---------------------------------------------------------
+exponential_growth = function(x, a, b) {
+  y = a * exp(b * x) - a
+  return(y)
+}
+
+# ---------------------------------------------------------
 # Biphasic exponential function
 # ---------------------------------------------------------
 exp_biphasic = function(x, peak, p, d1, d2, vmax, alpha, beta) {
@@ -282,35 +290,19 @@ list2dt = function(x, ...) {
 }
 
 # ---------------------------------------------------------
+# Logistic growth that goes through the origin
+# ---------------------------------------------------------
+logarithmic_growth = function(x, a, b) {
+  y = a / (1 + exp(-b * x)) - a / 2
+  return(y)
+}
+
+# ---------------------------------------------------------
 # Logistic function
 # ---------------------------------------------------------
 logistic = function(x, slope, mid, lower = 0, upper = 1) {
-  y = upper + (lower - upper) / (1 + (x / mid) ^ slope)
+  y = lower + (upper - lower) / (1 + (x / mid) ^ slope)
   return(y)
-}
-
-# ---------------------------------------------------------
-# Inverse logistic function
-# ---------------------------------------------------------
-logistic_inv = function(x, slope, mid, lb, ub) {
-  y = 1 - logistic(x, slope, mid, lower = 1 - ub, upper = 1 - lb)
-  return(y)
-}
-
-# ---------------------------------------------------------
-# Parameter transformation: put a probability on the real number line
-# ---------------------------------------------------------
-logit = function(p) {
-  z = log(p / (1 - p))
-  return(z)
-}
-
-# ---------------------------------------------------------
-# Parameter transformation: inverse of the above
-# ---------------------------------------------------------
-logit_inv = function(p_logit) {
-  z = exp(p_logit) / (exp(p_logit) + 1)
-  return(z)
 }
 
 # ---------------------------------------------------------
@@ -616,6 +608,14 @@ scale_fill_fermenter_custom = function(cols, guide = "coloursteps", na.value = "
 # Simple wrapper for sequence along dataframe rows
 # ---------------------------------------------------------
 seq_row = function(x) seq_len(nrow(x))
+
+# ---------------------------------------------------------
+# Sigmodial growth going through the origin (inverse of logistic)
+# ---------------------------------------------------------
+sigmoidal_growth = function(x, slope, mid, max) {
+  y = 1 - logistic(x, slope, mid, lower = 1 - max, upper = 1)
+  return(y)
+}
 
 # ---------------------------------------------------------
 # Initiate progress bar with normal-use options

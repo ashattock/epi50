@@ -73,6 +73,13 @@ set_options = function(do_step = NA) {
   # Use multiple cores to speed up impact function fitting
   o$parallel = FALSE
   
+  # Impact function model selection metric
+  #
+  # OPTIONS:
+  #  aicc := Akaike information criterion score
+  #    ll := Log likelihood score
+  o$selection_metric = "ll"
+  
   # Multiply impact when fitting for more consistent FVP-impact scales
   o$impact_scaler = 1000
 

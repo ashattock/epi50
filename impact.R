@@ -25,7 +25,7 @@ run_impact = function() {
 
   # Exploratory plots of data used to fit impact functions
   plot_impact_data()
-  
+
   # Plot all-time impact per FVPs
   plot_impact_fvps(scope = "all_time")
 
@@ -40,7 +40,7 @@ run_impact = function() {
 
   # Country-disease-vaccine-activity combinations
   run_dt = data_dt %>%
-    select(country, d_v_a_id) %>%
+    select(d_v_a_id, country) %>%
     unique() %>%
     mutate(d_v_a_str = str_pad(d_v_a_id, 2, pad = "0"),
            run_id    = paste1(country, d_v_a_str)) %>%
@@ -143,16 +143,18 @@ fn_set = function(dict = FALSE) {
   
   # Set of statistical models / functions we want to test
   out = list(
-    linear1   = function(x, a)       y = a * x,
-    logistic2 = function(x, a, b)    y = a / (1 + exp(-b * (x - a/2))), 
-    logistic3 = function(x, a, b, c) y = logistic(x, a, b, upper = c))
+    lin = function(x, a)       y = a * x,
+    log = function(x, a, b)    y = logarithmic_growth(x, a, b),
+    exp = function(x, a, b)    y = exponential_growth(x, a, b),
+    sig = function(x, a, b, c) y = sigmoidal_growth(x, a, b, c))
   
   # Alternative functionality - return dictionary
   if (dict == TRUE)
     out = c(
-      linear1   = "Gradiant (1 parameter)", 
-      logistic2 = "Logistic (2 parameters)",
-      logistic3 = "Sigmodal (3 parameters)")
+      lin = "Linear gradiant (1 parameter)", 
+      log = "Logarithmic growth (2 parameters)",
+      exp = "Exponential growth (2 parameters)", 
+      sig = "Sigmoidal growth (3 parameters)")
   
   return(out)
 }
@@ -215,9 +217,10 @@ credible_start = function(fns, x, y, plot = FALSE) {
   
   # Let's start with any old points
   start = list(
-    linear1   = list(s = s0, a = 1),
-    logistic2 = list(s = s0, a = 1, b = 1), 
-    logistic3 = list(s = s0, a = 1, b = 1, c = 1))
+    lin = list(s = s0, a = 1),
+    log = list(s = s0, a = 1, b = 1), 
+    exp = list(s = s0, a = 1, b = 1), 
+    sig = list(s = s0, a = 1, b = 1, c = 1))
   
   # Define an objective function to minimise - sum of squares
   obj_fn = function(fn, ...) {
@@ -233,9 +236,10 @@ credible_start = function(fns, x, y, plot = FALSE) {
   
   # Define model-specific calls to objective function
   asd_fn = list(
-    linear1   = function(p, args) obj_fn("linear1",   a = p[1]),
-    logistic2 = function(p, args) obj_fn("logistic2", a = p[1], b = p[2]),
-    logistic3 = function(p, args) obj_fn("logistic3", a = p[1], b = p[2], c = p[3]))
+    lin = function(p, args) obj_fn("lin", a = p[1]),
+    log = function(p, args) obj_fn("log", a = p[1], b = p[2]),
+    exp = function(p, args) obj_fn("exp", a = p[1], b = p[2]),
+    sig = function(p, args) obj_fn("sig", a = p[1], b = p[2], c = p[3]))
   
   # Initiate list for storing plotting datatables
   plot_list = list()
@@ -299,9 +303,10 @@ run_mle = function(fns, start, x, y, plot = FALSE) {
   
   # Annoyingly we need to name likelihood inputs, hence wrapper functions
   model = list(
-    linear1   = function(s, a)       likelihood(s, fns$linear1(x, a)),
-    logistic2 = function(s, a, b)    likelihood(s, fns$logistic2(x, a, b)), 
-    logistic3 = function(s, a, b, c) likelihood(s, fns$logistic3(x, a, b, c)))
+    lin = function(s, a)       likelihood(s, fns$lin(x, a)),
+    log = function(s, a, b)    likelihood(s, fns$log(x, a, b)), 
+    exp = function(s, a, b)    likelihood(s, fns$exp(x, a, b)), 
+    sig = function(s, a, b, c) likelihood(s, fns$sig(x, a, b, c)))
   
   # Initiate list for storing plotting datatables
   fit = plot_list = list()
@@ -346,12 +351,17 @@ run_mle = function(fns, start, x, y, plot = FALSE) {
     # Store results if we've had success
     if (!is.null(fit_result)) {
       
-      # Store fit and extract coefficients for plotting
-      fit[[fn]] = fit_result
-      coef      = fit_result@coef[-1]
+      # Calculate final log likelihood
+      ll = do.call(model[[fn]], as.list(fit_result@coef))
+      
+      # Store fit with associated log likelihood 
+      fit[[fn]] = list(mle = fit_result, ll = ll)
       
       # Store diagnostic plotting data if desired
       if (plot == TRUE) {
+        
+        # Extract coefficients for plotting
+        coef = fit_result@coef[-1]
         
         # Construct plotting datatable for this model
         plot_args = c(list(x_eval), as.list(coef))
@@ -387,9 +397,8 @@ model_quality = function(fns, fit, x, y, run_id) {
     return()
   
   # Coefficients for each successful model
-  coef = unlist(lapply(fit, function(a) a@coef[-1]))
-  coef = tibble(var   = names(coef), 
-                value = coef) %>%
+  coef = unlist(lapply(fit, function(a) a$mle@coef[-1]))
+  coef = tibble(var = names(coef), value = coef) %>%
     separate(var, c("fn", "coef")) %>%
     mutate(run_id = run_id, 
            .before = 1) %>%
@@ -397,16 +406,26 @@ model_quality = function(fns, fit, x, y, run_id) {
   
   # Save to file
   save_name = paste1(run_id, "coef")
-  save_rds(coef, "impact_runs", save_name) 
+  save_rds(coef, "impact_runs", save_name)
+  
+  # Extract log likelihood...
+  ll = lapply(fit, function(a) a$ll) %>%
+    as.data.table() %>%
+    pivot_longer(cols = everything(), 
+                 values_to = "ll") %>%
+    as.data.table()
   
   # Calculate AIC - adjusted for sample size
   aicc = sapply(fit, AICc) %>%
     as.list() %>%
     as.data.table() %>%
-    mutate(run_id = run_id) %>%
-    pivot_longer(cols = -run_id, 
-                 names_to  = "fn", 
+    pivot_longer(cols = everything(), 
                  values_to = "aicc") %>%
+    # Append log likelihood...
+    left_join(ll, by = "name") %>%
+    rename(fn = name) %>%
+    mutate(run_id = run_id, 
+           .before = 1) %>%
     as.data.table()
   
   # Save to file
@@ -422,13 +441,13 @@ AICc = function(x) {
   # See en.wikipedia.org/wiki/Akaike_information_criterion
   
   # Sample size
-  n = x@nobs
+  n = x$mle@nobs
   
   # Number of parameters
-  k = length(x@details$par) - 1
+  k = length(x$mle@details$par) - 1
   
   # The usual AIC term
-  aic_term = stats::AIC(x)
+  aic_term = stats::AIC(x$mle)
   
   # An additional penalty term for small sample size
   pen_term = (2*k^2 + 2*k) / (n - k - 1)
@@ -484,12 +503,13 @@ model_selection = function() {
   # Extract best fitting function based on AICc
   best_dt = read_rds("impact", "aicc") %>%
     lazy_dt() %>%
-    # Select function with lowest AICc...
-    group_by(country, d_v_a_id) %>%
-    slice_min(aicc, n = 1, with_ties = FALSE) %>%
+    rename(value = !!o$selection_metric) %>%
+    # Select function with lowest AICc (or LL)...
+    group_by(d_v_a_id, country) %>%
+    slice_min(value, n = 1, with_ties = FALSE) %>%
     ungroup() %>%
     # Tidy up...
-    select(country, d_v_a_id, fn) %>%
+    select(d_v_a_id, country, fn) %>%
     as.data.table()
   
   # Save to file
