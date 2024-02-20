@@ -27,7 +27,7 @@ run_impact = function() {
   plot_impact_data()
 
   # Plot all-time impact per FVPs
-  plot_impact_fvps(scope = "all_time")
+  #plot_impact_fvps(scope = "all_time")
 
   # ---- Model fitting ----
 

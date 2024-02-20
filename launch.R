@@ -38,12 +38,13 @@ run_impact()  # See impact.R
 # Step 6) Apply impact functions to historical coverage
 run_history()  # See history.R
 
-# TODO: Rerun imputation functionality (called run_predictors) on full history and all pathogens
+# Step 7) Re-fit time series regression models to infer predictors
+# run_regression()  # See impute.R (second call)
 
-# Step 7) Generate uncertainty draws
+# Step 8) Generate uncertainty draws
 run_uncertainty()  # See uncertainty.R
 
-# Step 8) Produce results
+# Step 9) Produce results
 run_results()  # See results.R
 
 # Finish up

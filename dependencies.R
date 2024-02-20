@@ -71,6 +71,9 @@ packages = c(
   "ggh4x",          # Plotting functionality
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
+  "GGally",         # Plotting functionality
+  "ggridges",         # Plotting functionality
+  "dotwhisker",     # Plotting functionality
   "pals",           # Colour palettes
   "colorspace")     # Colour palettes
 
