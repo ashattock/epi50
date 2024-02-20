@@ -45,7 +45,6 @@ prepare_dirs = function(o) {
   pth$static_d = file.path(pth$static, "disease")
   pth$static_v = file.path(pth$static, "vaccine")
   pth$static_t = file.path(pth$static, "vaccine_type")
-  pth$static_w = file.path(pth$static, "weights")
   
   # Path to imputatation and impact calculation files
   pth$impute      = file.path(pth$output, "2_impute")

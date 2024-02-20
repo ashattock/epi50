@@ -1,0 +1,76 @@
+---
+
+# Creates datatable: vaccine_name_table
+table:
+
+- vaccine: HepB
+  vaccine_name: "Hepatitis B"
+  
+- vaccine: HepB_BD
+  vaccine_name: "Hep B birth dose"
+  
+- vaccine: Hib3
+  vaccine_name: "Haemophilus influenzae type b"
+  
+- vaccine: JE
+  vaccine_name: "Japanese encephalitis"
+  
+- vaccine: MenA
+  vaccine_name: "Meningitis A"
+  
+- vaccine: PCV3
+  vaccine_name: "Pneumococcal"
+  
+- vaccine: Rota
+  vaccine_name: "Rotavirus"
+  
+- vaccine: Rubella
+  vaccine_name: "Rubella"
+  
+- vaccine: RCV2
+  vaccine_name: "Rubella-containing"
+  
+- vaccine: YF
+  vaccine_name: "Yellow fever"
+  
+- vaccine: Dip3
+  vaccine_name: "Diphtheria primary"
+  
+- vaccine: Dip_BX
+  vaccine_name: "Diphtheria booster"
+  
+- vaccine: Tet3
+  vaccine_name: "Tetanus primary"
+  
+- vaccine: Tet_BX
+  vaccine_name: "Tetanus booster"
+  
+- vaccine: Tet_PX
+  vaccine_name: "Tetanus pregnancy"
+  
+- vaccine: wPer3
+  vaccine_name: "Whole-cell pertussis"
+  
+- vaccine: aPer3
+  vaccine_name: "Acellular pertussis primary"
+  
+- vaccine: aPer_BX
+  vaccine_name: "Acellular pertussis booster"
+  
+- vaccine: BCG
+  vaccine_name: "Bacille Calmette-Guerin"
+  
+- vaccine: MCV1
+  vaccine_name: "Measles first dose"
+  
+- vaccine: MCV2
+  vaccine_name: "Measles second dose"
+  
+- vaccine: Measles
+  vaccine_name: "Measles"
+  
+- vaccine: IPV
+  vaccine_name: "Poliomyelitis inactivated"
+  
+- vaccine: OPV
+  vaccine_name: "Poliomyelitis oral"

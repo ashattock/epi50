@@ -35,8 +35,12 @@ run_results = function() {
     # Coverage data density by age
     plot_coverage_age_density()
 
+    # Missing coverage data by country
+    plot_missing_data()
+
     # GBD death estimates
     plot_gbd_estimates()
+    plot_gbd_missing()
   }
 
   # ---- Static model plots ----
@@ -79,7 +83,7 @@ run_results = function() {
     
     # Exploratory plots of data used to fit impact functions
     plot_impact_data()
-    
+
     # Plot all-time impact per FVPs
     plot_impact_fvps(scope = "all_time")
     
@@ -102,18 +106,25 @@ run_results = function() {
     # plot_impact_fvps(scope = "initial")
 
     # Main results plot - historical impact over time
-    # plot_historical_impact()
+    plot_historical_impact()
 
     # Child mortality rates over time with and without vaccination
-    # plot_child_mortality()
-    
-    plot_prob_death_age()
+    plot_child_mortality()
 
     # Regional differences in child mortality changes
-    # plot_mortality_change()
+    plot_mortality_change()
 
     # Measles deaths in context of all cause deaths
-    # plot_measles_in_context()
+    plot_measles_in_context()
+
+    #
+    plot_prob_death_age()
+
+    #
+    plot_survival_increase()
+    
+    # Plot comparison of EPI50 outcomes vs VIMC outcomes
+    plot_vimc_comparison()
   }
 }
 

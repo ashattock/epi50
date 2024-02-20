@@ -11,8 +11,6 @@
 
 # Set working directory to sourced file
 if (interactive()) setwd(getSrcDirectory(function() {}))
-setwd("C:\\Users\\helen\\Documents\\GitHub\\epi50-vaccine-impact")
-
 
 # Load all required packages and functions
 source("dependencies.R")
@@ -20,7 +18,7 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = c(1))
+o = set_options(do_step = 8)
 
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
@@ -41,7 +39,7 @@ run_impact()  # See impact.R
 run_history()  # See history.R
 
 # Step 7) Re-fit time series regression models to infer predictors
-#run_regression()  # See impute.R (second call)
+# run_regression()  # See impute.R (second call)
 
 # Step 8) Generate uncertainty draws
 run_uncertainty()  # See uncertainty.R

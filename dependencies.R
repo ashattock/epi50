@@ -8,7 +8,7 @@
 # ---- R version check ----
 
 # R versions for which this project has been tested and is stable
-stable_versions = "4.3.0"
+stable_versions = c("4.3.0", "4.3.2")
 
 # R versions for which this project is stable (as a string)
 stable_str = paste(stable_versions, collapse = ", ")
@@ -46,33 +46,36 @@ for (file in src_files)
 packages = c(
   "tidyverse",      # Includes ggplot2, dplyr, tidyr (www.tidyverse.org/packages/)
   "data.table",     # Next generation dataframes
+  "dtplyr",         # Syntax of dplyr with datatable speed
   "gsubfn",         # Output multiple variables from functions
   "magrittr",       # Additional pipe operators, such as %<>%
   "wrapr",          # Convenience functions (eg qc)
   "stats",          # Statistical calculations and random number generation
   "stats4",         # MLE algorithm
   "matrixStats",    # Matrix row and column operations
-  "tgp",            # Latin hypercube sampler
-  "splines",        # Spline fitting functions
+  "fpp3",           # Time series forecasting
+  "tsibble",        # Time series data format
   "imputeTS",       # Linear interpolation in dplyr pipes
+  "Hmisc",          # Correlation functions
+  "tgp",            # Latin hypercube sampler
+  "rsample",        # Resampling
+  "splines",        # Spline fitting functions
   "countrycode",    # Country name <-> code transformation
   "yaml",           # Data loading functionality
   "parallel",       # Local parallelisation
   "lubridate",      # Data formatting functionality
   "naniar",         # Data formatting functionality
+  "GGally",         # Plotting correlation
   "ggpubr",         # Plotting functionality
   "ggnewscale",     # Plotting functionality
+  "ggh4x",          # Plotting functionality
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
   "GGally",         # Plotting functionality
   "ggridges",         # Plotting functionality
   "dotwhisker",     # Plotting functionality
   "pals",           # Colour palettes
-  "colorspace",     # Colour palettes
-  "rsample",        # Resampling
-  "fpp3",           # Time series forecasting
-  "tsibble",        # Time series data format
-  "Hmisc")          # Correlation functions
+  "colorspace")     # Colour palettes
 
 # List of all packages only available from github
 gh_packages = c(

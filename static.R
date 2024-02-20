@@ -16,22 +16,28 @@ run_static = function() {
   
   message("* Estimating static model vaccine impact")
   
-  # Pathogens diseases of interest
-  diseases = table("disease") %>%
-    filter(source == "gbd") %>%
-    pull(disease)
+  # Pathogens diseases of interest (those statically modelled)
+  diseases = unique(table("d_v_a")[source == "static", disease])
+  
+  # Associated full names
+  names = table("disease_name") %>%
+    filter(disease %in% diseases) %>%
+    select(d = disease, 
+           x = disease_name)
   
   # Iterate through these diseases
   for (disease in diseases) {
     
+    message(" - ", names[d == disease, x])
+    
     # Effective coverage considering waning immunity and boosters
     effective_coverage(disease)
-    
+
     # Deaths averted considering effective coverage and GBD disease burden
     deaths_averted(disease)
     
     # Use deaths averted to calculate DALYs
-    # dalys_averted(disease)  # See dalys.R
+    # dalys_averted(id)  # See dalys.R
   }
   
   # Compile all results
@@ -56,94 +62,186 @@ effective_coverage = function(disease) {
   # 2) Number of people covered with different vaccine / schedules
   # 3) Weight immunity by primary & booster dosing
   
+  schedule_id = c(
+    x  = "primary",
+    BX = "booster", 
+    PX = "pregnancy")
+  
   # ---- Set up ----
   
   # Vaccines targeting this disease
   vaccine_dt = table("d_v_a") %>% 
     filter(disease == !!disease) %>%
-    mutate(type = str_remove(vaccine, "([0-9]+|_BX)$")) %>% 
-    select(vaccine, type)
+    separate(
+      col  = vaccine, 
+      into = qc(type, schedule), 
+      sep  = "_", 
+      fill = "right", 
+      remove = FALSE) %>%
+    replace_na(list(schedule = "x")) %>%
+    mutate(schedule = recode(schedule, !!!schedule_id)) %>%
+    mutate(type = str_remove(vaccine, "([0-9]+|_.+)$")) %>% 
+    select(type, vaccine, schedule) %>% 
+    as.data.table()
   
-  # Shorthand for vaccines for this disease
-  vaccines = vaccine_dt$vaccine
+  # Associated full names
+  names = table("vaccine_name") %>%
+    filter(vaccine %in% vaccine_dt$vaccine) %>%
+    select(v = vaccine, 
+           x = vaccine_name)
   
   # Vaccine immunity efficacy profiles
   profile_dt = table("vaccine_efficacy_profiles") %>%
+    filter(vaccine %in% vaccine_dt$vaccine) %>%
     pivot_wider(id_cols = time, 
                 names_from  = vaccine,
                 values_from = profile) %>%
-    select(time, all_of(vaccines)) %>%
     as.data.table()
   
   # Vaccine coverage
   coverage_dt = table("coverage") %>%
-    left_join(y  = table("v_a"), 
-              by = "v_a_id") %>%
-    filter(vaccine %in% vaccines) %>%
-    select(country, v_a_id, vaccine, year, age, fvps)
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    filter(vaccine %in% vaccine_dt$vaccine) %>%
+    select(vaccine, country, year, age, fvps)
   
-  # Full factorial country-year-age grid (we join results to this)
-  full_dt = expand_grid(
-    country = all_countries(),
-    year    = o$years, 
-    age     = o$ages) %>%
-    as.data.table()
-  
-  # ---- Waning immunity per vaccine / shedule ----
+  # ---- Waning immunity per vaccine / schedule ----
   
   # Initiate list for effective immunity
   immunity_list = list()
   
+  # First deal with non-pregnancy vaccines
+  vaccines_nonpx = vaccine_dt[schedule != "pregnancy", vaccine]
+  
   # Iterate through these vaccines
-  for (vaccine in vaccines) {
-    
-    message(" - ", disease, ", ", vaccine)
-    
+  for (vaccine in vaccines_nonpx) {
+
+    message("  > ", names[v == vaccine, x])
+
     # Immunity effiacy profile for this vaccine
     profile = profile_dt[[vaccine]]
-    
-    # Whether vaccine is primary series or booster dose
-    schedule = ifelse(
-      test = grepl("_BX$", vaccine), 
-      yes  = "booster", 
-      no   = "primary")
-    
+
     # For each entry, apply waning immunity over time
     immunity_list[[vaccine]] = coverage_dt %>%
       filter(vaccine == !!vaccine) %>%
       dtapply(waning_immunity, profile) %>%
       rbindlist() %>%
-      # Summarise where multiple sources of immunity...
-      group_by(country, year, age) %>%
-      summarise(covered   = sum(covered), 
-                effective = sum(effective)) %>%
+      mutate(vaccine = vaccine)
+  }
+  
+  # Then deal with vaccines given during pregnancy
+  vaccines_px = vaccine_dt[schedule == "pregnancy", vaccine]
+  
+  # # Iterate through these vaccines
+  for (vaccine in vaccines_px) {
+    
+    message("  > ", names[v == vaccine, x])
+    
+    # First effect: on the pregnant woman...
+    message("   ~ Effect on pregnant women")
+    
+    # Maternal doses assumed to be boosters
+    booster_ref = vaccine_dt %>%
+      filter(vaccine == !!vaccine) %>%
+      select(type) %>%
+      paste1("BX")
+    
+    # Mothers covered
+    mother_coverage = coverage_dt %>%
+      filter(vaccine == !!vaccine) %>%
+      select(country, year, age, fvps)
+    
+    # Immunity effiacy profile for mothers
+    mother_profile = profile_dt[[booster_ref]]
+    
+    # Apply this immunity
+    mother_immunity = mother_coverage %>%
+      dtapply(waning_immunity, mother_profile) %>%
+      rbindlist()
+    
+    # Second effect: on the neonate(s)...
+    message("   ~ Effect on neo-nates")
+    
+    # Neonates covered
+    neonate_coverage = mother_coverage %>%
+      lazy_dt() %>%
+      group_by(country, year) %>%
+      summarise(fvps = sum(fvps)) %>%
       ungroup() %>%
-      # Join with full factorial grid...
-      full_join(y  = full_dt, 
-                by = names(full_dt)) %>%
-      replace_na(list(covered   = 0, 
-                      effective = 0)) %>%
-      # Append vaccine details...
-      mutate(vaccine  = vaccine, 
-             schedule = schedule) %>%
-      left_join(y  = vaccine_dt, 
-                by = "vaccine") %>%
-      arrange(country, year, age) %>%
+      mutate(age = -1, .before = fvps) %>%
+      as.data.table()
+    
+    # Immunity among neonates as defined in vaccine_efficacy table
+    neonate_profile = profile_dt[[vaccine]]
+    
+    # Apply this immunity
+    neonate_immunity = neonate_coverage %>%
+      dtapply(waning_immunity, neonate_profile) %>%
+      rbindlist() %>%
+      filter(effective > 0)
+    
+    # Combine effective coverage
+    immunity_list[[vaccine]] = neonate_immunity %>%
+      rbind(mother_immunity) %>%
+      mutate(vaccine = vaccine) %>%
       as.data.table()
   }
   
-  # Bind results of each vaccine / schedule
-  immunity_dt = rbindlist(immunity_list)
+  message("  > Concatenating waning immunity")
+  
+  # Concatenate results of each vaccine / schedule
+  immunity_dt = expand_grid(
+    vaccine = vaccine_dt$vaccine, 
+    country = all_countries(),
+    year    = o$years, 
+    age     = c(-1, o$ages)) %>%
+    # Append results...
+    left_join(y  = rbindlist(immunity_list), 
+              by = names(.)) %>%
+    replace_na(list(
+      covered   = 0,
+      effective = 0)) %>%
+    # Summarise where multiple sources of immunity...
+    lazy_dt() %>%
+    group_by(vaccine, country, year, age) %>%
+    summarise(covered   = sum(covered),
+              effective = sum(effective)) %>%
+    ungroup() %>%
+    # Append vaccine details...
+    left_join(y  = vaccine_dt,
+              by = "vaccine") %>%
+    select(type, vaccine, schedule, country,
+           year, age, covered, effective) %>%
+    arrange(type, vaccine, country, year, age) %>%
+    as.data.table()
   
   # And save the result in it's own right
   save_rds(immunity_dt, "static_d", "immunity", disease)
   
   # ---- Overall effective coverage ----
   
-  message(" - Calculating effective coverage")
+  message("  > Calculating effective coverage")
   
-  # TODO: Can we avoid this conversion back to coverage?
-  
+  # Assume all pregnant doses are boosters (in terms of the mother)
+  immunity_dt %<>%
+    # Assume doses for pregnant women are boosters...
+    mutate(schedule = ifelse(
+      test = schedule == "pregnancy" & age >= 0,
+      yes  = "booster",
+      no   = schedule)) %>%
+    # In terms of neonates, this would be primary...
+    mutate(schedule = ifelse(
+      test = schedule == "pregnancy" & age == -1,
+      yes  = "primary",
+      no   = schedule)) %>%
+    # Summarise over primary-boosters...
+    lazy_dt() %>%
+    group_by(type, schedule, country, year, age) %>%
+    summarise(covered   = sum(covered),
+              effective = sum(effective)) %>%
+    ungroup() %>%
+    as.data.table()
+
   # Inititate list for effective coverage
   effective_list = list()
   
@@ -153,9 +251,8 @@ effective_coverage = function(disease) {
     # Convert effective FVPs to effective coverage
     effective_v_dt = immunity_dt %>%
       filter(type == vaccine_type) %>%
-      select(-vaccine, -type) %>%
-      # Weight between primary & booster...
-      weight_booster(vaccine_type) %>%
+      # Weight between schedules...
+      weight_booster() %>%
       # Convert to effective coverage...
       left_join(y  = table("wpp_pop"),
                 by = c("country", "year", "age")) %>%
@@ -164,9 +261,9 @@ effective_coverage = function(disease) {
       # Append vaccine and disease details and tidy up...
       mutate(disease = disease, 
              type    = vaccine_type) %>%
-      select(country, disease, type, 
-             year, age, effective, pop, coverage) %>%
-      arrange(country, disease, type, year, age) %>%
+      select(disease, type, country, year, 
+             age, effective, pop, coverage) %>%
+      arrange(disease, type, country, year, age) %>%
       as.data.table()
     
     # Store result for this vaccine type in list
@@ -178,7 +275,7 @@ effective_coverage = function(disease) {
   
   # Combine vaccine types (considered additive)
   effective_d_dt = rbindlist(effective_list) %>%
-    group_by(country, disease, year, age) %>%
+    group_by(disease, country, year, age) %>%
     summarise(effective = sum(effective), 
               pop       = mean(pop)) %>%
     ungroup() %>%
@@ -196,9 +293,12 @@ effective_coverage = function(disease) {
 # ---------------------------------------------------------
 waning_immunity = function(data, profile) {
   
+  # Extend ages to include neo-nates
+  all_ages = c(-1, o$ages)
+  
   # Indicies for years and ages
-  year_idx = match(data$year, o$years) : length(o$years)
-  age_idx  = match(data$age,  o$ages)  : length(o$ages)
+  year_idx = match(data$year, o$years)  : length(o$years)
+  age_idx  = match(data$age,  all_ages) : length(o$ages)
   
   # Index upto only the smallest of these two vectors
   vec_idx = 1 : min(length(year_idx), length(age_idx))
@@ -210,7 +310,7 @@ waning_immunity = function(data, profile) {
   waning_immunity_dt = data.table(
     country   = data$country, 
     year      = o$years[year_idx[vec_idx]],
-    age       = o$ages[age_idx[vec_idx]], 
+    age       = all_ages[age_idx[vec_idx]], 
     covered   = data$fvps, 
     effective = effective_fvps[vec_idx])
   
@@ -220,10 +320,7 @@ waning_immunity = function(data, profile) {
 # ---------------------------------------------------------
 # Weight between primary & booster for total effective FVPs
 # ---------------------------------------------------------
-weight_booster = function(immunity_dt, type) {
-  
-  # Flag for whether vaccine has booster
-  has_booster = "booster" %in% immunity_dt$schedule
+weight_booster = function(immunity_dt) {
   
   # Number covered by schedule (primary and booster)
   covered_dt = immunity_dt %>%
@@ -231,7 +328,8 @@ weight_booster = function(immunity_dt, type) {
     pivot_wider(names_from  = schedule, 
                 values_from = covered) %>%
     # Append trivial column if no booster doses...
-    {if (!has_booster) mutate(., booster = 0) else .} %>%
+    bind_rows(data.table(booster = double())) %>%
+    replace_na(list(booster = 0)) %>%
     as.data.table()
   
   # Proportion of primary cases that have booster (capped at 100%)
@@ -242,26 +340,20 @@ weight_booster = function(immunity_dt, type) {
     select(country, year, age, weight) %>%
     as.data.table()
   
-  # Save this weighting to file
-  save_rds(weighting_dt, "static_w", "booster_weight", type)
-  
-  # TODO: I'm now questioning this, I think it should be:
-  #       effective = primary * (1 - weight) + booster
-  #       The idea is those being boosted should not be double counted
-  
   # Effective number of FVP after booster considerations
   weighted_dt = immunity_dt %>%
     select(country, year, age, effective, schedule) %>%
     pivot_wider(names_from  = schedule, 
                 values_from = effective) %>%
     # Append trivial column if no booster doses...
-    {if (!has_booster) mutate(., booster = 0) else .} %>%
+    bind_rows(data.table(booster = double())) %>%
+    replace_na(list(booster = 0)) %>%
     # Append booster weighting details...
     left_join(y  = weighting_dt, 
               by = c("country", "year", "age")) %>%
     replace_na(list(weight = 0)) %>%
     # Weight efficacies based on number covered...
-    mutate(effective = primary * (1 - weight) + booster) %>% # * weight) %>%  # ?? See comment above ??
+    mutate(effective = primary * (1 - weight) + booster) %>% 
     select(country, year, age, effective) %>%
     as.data.table()
   
@@ -273,6 +365,8 @@ weight_booster = function(immunity_dt, type) {
 # ---------------------------------------------------------
 deaths_averted = function(disease) {
   
+  message("  > Calculating deaths averted")
+  
   # ---- Deaths averted for this disease ----
   
   # Load effective coverage for this disease from file
@@ -280,12 +374,18 @@ deaths_averted = function(disease) {
   
   # Load disease deaths, append coverage, and estimate deaths averted
   averted_disease = effective_dt %>%
+    lazy_dt() %>%
     inner_join(y  = table("gbd_estimates"),
                by = c("disease", "country", "year", "age")) %>%
     # Estimate deaths without a vaccine and deaths averted...
     mutate(deaths_without = deaths_disease / (1 - coverage), 
            deaths_averted = deaths_without - deaths_disease) %>%
-    select(country, disease, year, age, deaths_disease, deaths_averted) %>%
+    # Summairse neo-nate and other infant deaths...
+    mutate(age = pmax(age, 0)) %>%
+    group_by(disease, country, year, age) %>%
+    summarise(deaths_disease = sum(deaths_disease), 
+              deaths_averted = sum(deaths_averted)) %>%
+    ungroup() %>%
     as.data.table()
   
   # Save this result to file
@@ -295,6 +395,7 @@ deaths_averted = function(disease) {
   
   # Relative weighting of effective coverage for each vaccine
   weight_dt = read_rds("static_d", "immunity", disease) %>%
+    lazy_dt() %>%
     left_join(y  = table("d_v_a"),
               by = "vaccine") %>%
     group_by(country, year, age) %>%
@@ -306,10 +407,10 @@ deaths_averted = function(disease) {
   
   # We'll split impact across schedules by previously calculated weighting
   averted_vaccine = averted_disease %>%
+    lazy_dt() %>%
     # Attribute impact to each shedule...
     inner_join(y  = weight_dt, 
                by = c("country", "year", "age")) %>%
-    # mutate(deaths_averted = deaths_averted * weight) %>%
     # Summarise over age ...
     group_by(country, d_v_a_id, year) %>%
     summarise(impact = sum(deaths_averted * weight)) %>%
@@ -321,13 +422,12 @@ deaths_averted = function(disease) {
   
   # Number of 'FVP' by vaccine - yeah, confusing concept in the context of boosters
   fvps_dt = table("coverage") %>%
-    left_join(y  = table("v_a"), 
-              by = "v_a_id") %>%
+    lazy_dt() %>%
     left_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity")) %>%
+              by = c("d_v_a_id")) %>%
     filter(disease == !!disease) %>%
     # Summarise over age ...
-    group_by(country, d_v_a_id, year) %>%
+    group_by(d_v_a_id, country, year) %>%
     summarise(fvps = sum(fvps)) %>%
     ungroup() %>%
     as.data.table()
@@ -335,8 +435,8 @@ deaths_averted = function(disease) {
   # Full vaccine-specific results 
   result_list = averted_vaccine %>%
     inner_join(y  = fvps_dt, 
-               by = c("country", "d_v_a_id", "year")) %>%
-    select(country, d_v_a_id, year, fvps, impact) %>%
+               by = c("d_v_a_id", "country", "year")) %>%
+    select(d_v_a_id, country, year, fvps, impact) %>%
     split(.$d_v_a_id)
   
   # Function for saving vaccine-specific results
@@ -362,7 +462,7 @@ compile_outputs = function(diseases) {
   # Vaccine types targeting these disease
   vaccine_types = table("d_v_a") %>% 
     filter(disease %in% diseases) %>%
-    mutate(type = str_remove(vaccine, "([0-9]+|_BX)$")) %>% 
+    mutate(type = str_remove(vaccine, "([0-9]+|_.+)$")) %>% 
     pull(type) %>% 
     unique()
   

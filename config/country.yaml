@@ -2,801 +2,995 @@
 
 # Creates datatable: country_table
 table:
+
 - country: AFG
   country_code: 4
   country_name: "Afghanistan"
   region: EMRO
+  
 - country: AGO
   country_code: 24
   country_name: "Angola"
   region: AFRO
+  
 - country: ALB
   country_code: 8
   country_name: "Albania"
   region: EURO
+  
 - country: AND
   country_code: 20
   country_name: "Andorra"
   region: EURO
+  
 - country: ARE
   country_code: 784
   country_name: "United Arab Emirates"
   region: EMRO
+  
 - country: ARG
   country_code: 32
   country_name: "Argentina"
   region: PAHO
+  
 - country: ARM
   country_code: 51
   country_name: "Armenia"
   region: EURO
+  
 - country: ATG
   country_code: 28
   country_name: "Antigua and Barbuda"
   region: PAHO
+  
 - country: AUS
   country_code: 36
   country_name: "Australia"
   region: WPRO
+  
 - country: AUT
   country_code: 40
   country_name: "Austria"
   region: EURO
+  
 - country: AZE
   country_code: 31
   country_name: "Azerbaijan"
   region: EURO
+  
 - country: BDI
   country_code: 108
   country_name: "Burundi"
   region: AFRO
+  
 - country: BEL
   country_code: 56
   country_name: "Belgium"
   region: EURO
+  
 - country: BEN
   country_code: 204
   country_name: "Benin"
   region: AFRO
+  
 - country: BFA
   country_code: 854
   country_name: "Burkina Faso"
   region: AFRO
+  
 - country: BGD
   country_code: 50
   country_name: "Bangladesh"
   region: SEARO
+  
 - country: BGR
   country_code: 100
   country_name: "Bulgaria"
   region: EURO
+  
 - country: BHR
   country_code: 48
   country_name: "Bahrain"
   region: EMRO
+  
 - country: BHS
   country_code: 44
   country_name: "Bahamas"
   gbd_alt_name: "The Bahamas"
   region: PAHO
+  
 - country: BIH
   country_code: 70
   country_name: "Bosnia and Herzegovina"
   region: EURO
+  
 - country: BLR
   country_code: 112
   country_name: "Belarus"
   region: EURO
+  
 - country: BLZ
   country_code: 84
   country_name: "Belize"
   region: PAHO
+  
 - country: BOL
   country_code: 68
   country_name: "Bolivia (Plurinational State of)"
   gbd_alt_name: "Bolivia"
   region: PAHO
+  
 - country: BRA
   country_code: 76
   country_name: "Brazil"
   region: PAHO
+  
 - country: BRB
   country_code: 52
   country_name: "Barbados"
   region: PAHO
+  
 - country: BRN
   country_code: 96
   country_name: "Brunei Darussalam"
   gbd_alt_name: "Brunei"
   region: WPRO
+  
 - country: BTN
   country_code: 64
   country_name: "Bhutan"
   region: SEARO
+  
 - country: BWA
   country_code: 72
   country_name: "Botswana"
   region: AFRO
+  
 - country: CAF
   country_code: 140
   country_name: "Central African Republic"
   region: AFRO
+  
 - country: CAN
   country_code: 124
   country_name: "Canada"
   region: PAHO
+  
 - country: CHE
   country_code: 756
   country_name: "Switzerland"
   region: EURO
+  
 - country: CHL
   country_code: 152
   country_name: "Chile"
   region: PAHO
+  
 - country: CHN
   country_code: 156
   country_name: "China"
   region: WPRO
+  
 - country: CIV
   country_code: 384
   country_name: "Côte d'Ivoire"
   region: AFRO
+  
 - country: CMR
   country_code: 120
   country_name: "Cameroon"
   region: AFRO
+  
 - country: COD
   country_code: 180
   country_name: "Democratic Republic of the Congo"
   gbd_alt_name: "DR Congo"
   region: AFRO
+  
 - country: COG
   country_code: 178
   country_name: "Congo"
   gbd_alt_name: "Congo (Brazzaville)"
   region: AFRO
+  
 - country: COK
   country_code: 184
   country_name: "Cook Islands"
   region: WPRO
+  
 - country: COL
   country_code: 170
   country_name: "Colombia"
   region: PAHO
+  
 - country: COM
   country_code: 174
   country_name: "Comoros"
   region: AFRO
+  
 - country: CPV
   country_code: 132
   country_name: "Cabo Verde"
   gbd_alt_name: "Cape Verde"
   region: AFRO
+  
 - country: CRI
   country_code: 188
   country_name: "Costa Rica"
   region: PAHO
+  
 - country: CUB
   country_code: 192
   country_name: "Cuba"
   region: PAHO
+  
 - country: CYP
   country_code: 196
   country_name: "Cyprus"
   region: EURO
+  
 - country: CZE
   country_code: 203
   country_name: "Czechia"
   gbd_alt_name: "Czech Republic"
   region: EURO
+  
 - country: DEU
   country_code: 276
   country_name: "Germany"
   region: EURO
+  
 - country: DJI
   country_code: 262
   country_name: "Djibouti"
   region: EMRO
+  
 - country: DMA
   country_code: 212
   country_name: "Dominica"
   region: PAHO
+  
 - country: DNK
   country_code: 208
   country_name: "Denmark"
   region: EURO
+  
 - country: DOM
   country_code: 214
   country_name: "Dominican Republic"
   region: PAHO
+  
 - country: DZA
   country_code: 12
   country_name: "Algeria"
   region: AFRO
+  
 - country: ECU
   country_code: 218
   country_name: "Ecuador"
   region: PAHO
+  
 - country: EGY
   country_code: 818
   country_name: "Egypt"
   region: EMRO
+  
 - country: ERI
   country_code: 232
   country_name: "Eritrea"
   region: AFRO
+  
 - country: ESP
   country_code: 724
   country_name: "Spain"
   region: EURO
+  
 - country: EST
   country_code: 233
   country_name: "Estonia"
   region: EURO
+  
 - country: ETH
   country_code: 231
   country_name: "Ethiopia"
   region: AFRO
+  
 - country: FIN
   country_code: 246
   country_name: "Finland"
   region: EURO
+  
 - country: FJI
   country_code: 242
   country_name: "Fiji"
   region: WPRO
+  
 - country: FRA
   country_code: 250
   country_name: "France"
   region: EURO
+  
 - country: FSM
   country_code: 583
   country_name: "Micronesia (Federated States of)"
   gbd_alt_name: "Federated States of Micronesia"
   region: WPRO
+  
 - country: GAB
   country_code: 266
   country_name: "Gabon"
   region: AFRO
+  
 - country: GBR
   country_code: 826
   country_name: "United Kingdom"
   gbd_alt_name: "UK"
   region: EURO
+  
 - country: GEO
   country_code: 268
   country_name: "Georgia"
   region: EURO
+  
 - country: GHA
   country_code: 288
   country_name: "Ghana"
   region: AFRO
+  
 - country: GIN
   country_code: 324
   country_name: "Guinea"
   region: AFRO
+  
 - country: GMB
   country_code: 270
   country_name: "Gambia"
   gbd_alt_name: "The Gambia"
   region: AFRO
+  
 - country: GNB
   country_code: 624
   country_name: "Guinea-Bissau"
   region: AFRO
+  
 - country: GNQ
   country_code: 226
   country_name: "Equatorial Guinea"
   region: AFRO
+  
 - country: GRC
   country_code: 300
   country_name: "Greece"
   region: EURO
+  
 - country: GRD
   country_code: 308
   country_name: "Grenada"
   region: PAHO
+  
 - country: GTM
   country_code: 320
   country_name: "Guatemala"
   region: PAHO
+  
 - country: GUY
   country_code: 328
   country_name: "Guyana"
   region: PAHO
+  
 - country: HND
   country_code: 340
   country_name: "Honduras"
   region: PAHO
+  
 - country: HRV
   country_code: 191
   country_name: "Croatia"
   region: EURO
+  
 - country: HTI
   country_code: 332
   country_name: "Haiti"
   region: PAHO
+  
 - country: HUN
   country_code: 348
   country_name: "Hungary"
   region: EURO
+  
 - country: IDN
   country_code: 360
   country_name: "Indonesia"
   region: SEARO
+  
 - country: IND
   country_code: 356
   country_name: "India"
   region: SEARO
+  
 - country: IRL
   country_code: 372
   country_name: "Ireland"
   region: EURO
+  
 - country: IRN
   country_code: 364
   country_name: "Iran (Islamic Republic of)"
   gbd_alt_name: "Iran"
   region: EMRO
+  
 - country: IRQ
   country_code: 368
   country_name: "Iraq"
   region: EMRO
+  
 - country: ISL
   country_code: 352
   country_name: "Iceland"
   region: EURO
+  
 - country: ISR
   country_code: 376
   country_name: "Israel"
   region: EURO
+  
 - country: ITA
   country_code: 380
   country_name: "Italy"
   region: EURO
+  
 - country: JAM
   country_code: 388
   country_name: "Jamaica"
   region: PAHO
+  
 - country: JOR
   country_code: 400
   country_name: "Jordan"
   region: EMRO
+  
 - country: JPN
   country_code: 392
   country_name: "Japan"
   region: WPRO
+  
 - country: KAZ
   country_code: 398
   country_name: "Kazakhstan"
   region: EURO
+  
 - country: KEN
   country_code: 404
   country_name: "Kenya"
   region: AFRO
+  
 - country: KGZ
   country_code: 417
   country_name: "Kyrgyzstan"
   region: EURO
+  
 - country: KHM
   country_code: 116
   country_name: "Cambodia"
   region: WPRO
+  
 - country: KIR
   country_code: 296
   country_name: "Kiribati"
   region: WPRO
+  
 - country: KNA
   country_code: 659
   country_name: "Saint Kitts and Nevis"
   region: PAHO
+  
 - country: KOR
   country_code: 410
   country_name: "Republic of Korea"
   gbd_alt_name: "South Korea"
   region: WPRO
+  
 - country: KWT
   country_code: 414
   country_name: "Kuwait"
   region: EMRO
+  
 - country: LAO
   country_code: 418
   country_name: "Lao People's Democratic Republic"
   gbd_alt_name: "Laos"
   region: WPRO
+  
 - country: LBN
   country_code: 422
   country_name: "Lebanon"
   region: EMRO
+  
 - country: LBR
   country_code: 430
   country_name: "Liberia"
   region: AFRO
+  
 - country: LBY
   country_code: 434
   country_name: "Libya"
   region: EMRO
+  
 - country: LCA
   country_code: 662
   country_name: "Saint Lucia"
   region: PAHO
+  
 - country: LKA
   country_code: 144
   country_name: "Sri Lanka"
   region: SEARO
+  
 - country: LSO
   country_code: 426
   country_name: "Lesotho"
   region: AFRO
+  
 - country: LTU
   country_code: 440
   country_name: "Lithuania"
   region: EURO
+  
 - country: LUX
   country_code: 442
   country_name: "Luxembourg"
   region: EURO
+  
 - country: LVA
   country_code: 428
   country_name: "Latvia"
   region: EURO
+  
 - country: MAR
   country_code: 504
   country_name: "Morocco"
   region: EMRO
+  
 - country: MCO
   country_code: 492
   country_name: "Monaco"
   region: EURO
+  
 - country: MDA
   country_code: 498
   country_name: "Republic of Moldova"
   gbd_alt_name: "Moldova"
   region: EURO
+  
 - country: MDG
   country_code: 450
   country_name: "Madagascar"
   region: AFRO
+  
 - country: MDV
   country_code: 462
   country_name: "Maldives"
   region: SEARO
+  
 - country: MEX
   country_code: 484
   country_name: "Mexico"
   region: PAHO
+  
 - country: MHL
   country_code: 584
   country_name: "Marshall Islands"
   region: WPRO
+  
 - country: MKD
   country_code: 807
   country_name: "North Macedonia"
   region: EURO
+  
 - country: MLI
   country_code: 466
   country_name: "Mali"
   region: AFRO
+  
 - country: MLT
   country_code: 470
   country_name: "Malta"
   region: EURO
+  
 - country: MMR
   country_code: 104
   country_name: "Myanmar"
   region: SEARO
+  
 - country: MNE
   country_code: 499
   country_name: "Montenegro"
   region: EURO
+  
 - country: MNG
   country_code: 496
   country_name: "Mongolia"
   region: WPRO
+  
 - country: MOZ
   country_code: 508
   country_name: "Mozambique"
   region: AFRO
+  
 - country: MRT
   country_code: 478
   country_name: "Mauritania"
   region: AFRO
+  
 - country: MUS
   country_code: 480
   country_name: "Mauritius"
   region: AFRO
+  
 - country: MWI
   country_code: 454
   country_name: "Malawi"
   region: AFRO
+  
 - country: MYS
   country_code: 458
   country_name: "Malaysia"
   region: WPRO
+  
 - country: NAM
   country_code: 516
   country_name: "Namibia"
   region: AFRO
+  
 - country: NER
   country_code: 562
   country_name: "Niger"
   region: AFRO
+  
 - country: NGA
   country_code: 566
   country_name: "Nigeria"
   region: AFRO
+  
 - country: NIC
   country_code: 558
   country_name: "Nicaragua"
   region: PAHO
+  
 - country: NIU
   country_code: 570
   country_name: "Niue"
   region: WPRO
+  
 - country: NLD
   country_code: 528
   country_name: "Netherlands"
   region: EURO
+  
 - country: NOR
   country_code: 578
   country_name: "Norway"
   region: EURO
+  
 - country: NPL
   country_code: 524
   country_name: "Nepal"
   region: SEARO
+  
 - country: NRU
   country_code: 520
   country_name: "Nauru"
   region: WPRO
+  
 - country: NZL
   country_code: 554
   country_name: "New Zealand"
   region: WPRO
+  
 - country: OMN
   country_code: 512
   country_name: "Oman"
   region: EMRO
+  
 - country: PAK
   country_code: 586
   country_name: "Pakistan"
   region: EMRO
+  
 - country: PAN
   country_code: 591
   country_name: "Panama"
   region: PAHO
+  
 - country: PER
   country_code: 604
   country_name: "Peru"
   region: PAHO
+  
 - country: PHL
   country_code: 608
   country_name: "Philippines"
   region: WPRO
+  
 - country: PLW
   country_code: 585
   country_name: "Palau"
   region: WPRO
+  
 - country: PNG
   country_code: 598
   country_name: "Papua New Guinea"
   region: WPRO
+  
 - country: POL
   country_code: 616
   country_name: "Poland"
   region: EURO
+  
 - country: PRK
   country_code: 408
   country_name: "Democratic People's Republic of Korea"
   gbd_alt_name: "North Korea"
   region: SEARO
+  
 - country: PRT
   country_code: 620
   country_name: "Portugal"
   region: EURO
+  
 - country: PRY
   country_code: 600
   country_name: "Paraguay"
   region: PAHO
+  
 - country: QAT
   country_code: 634
   country_name: "Qatar"
   region: EMRO
+  
 - country: ROU
   country_code: 642
   country_name: "Romania"
   region: EURO
+  
 - country: RUS
   country_code: 643
   country_name: "Russian Federation"
   gbd_alt_name: "Russia"
   region: EURO
+  
 - country: RWA
   country_code: 646
   country_name: "Rwanda"
   region: AFRO
+  
 - country: SAU
   country_code: 682
   country_name: "Saudi Arabia"
   region: EMRO
+  
 - country: SDN
   country_code: 729
   country_name: "Sudan"
   region: EMRO
+  
 - country: SEN
   country_code: 686
   country_name: "Senegal"
   region: AFRO
+  
 - country: SGP
   country_code: 702
   country_name: "Singapore"
   region: WPRO
+  
 - country: SLB
   country_code: 90
   country_name: "Solomon Islands"
   region: WPRO
+  
 - country: SLE
   country_code: 694
   country_name: "Sierra Leone"
   region: AFRO
+  
 - country: SLV
   country_code: 222
   country_name: "El Salvador"
   region: PAHO
+  
 - country: SMR
   country_code: 674
   country_name: "San Marino"
   region: EURO
+  
 - country: SOM
   country_code: 706
   country_name: "Somalia"
   region: EMRO
+  
 - country: SRB
   country_code: 688
   country_name: "Serbia"
   region: EURO
+  
 - country: SSD
   country_code: 728
   country_name: "South Sudan"
   region: EMRO
+  
 - country: STP
   country_code: 678
   country_name: "Sao Tome and Principe"
   gbd_alt_name: "São Tomé and PrÍncipe"
   region: AFRO
+  
 - country: SUR
   country_code: 740
   country_name: "Suriname"
   region: PAHO
+  
 - country: SVK
   country_code: 703
   country_name: "Slovakia"
   region: EURO
+  
 - country: SVN
   country_code: 705
   country_name: "Slovenia"
   region: EURO
+  
 - country: SWE
   country_code: 752
   country_name: "Sweden"
   region: EURO
+  
 - country: SWZ
   country_code: 748
   country_name: "Eswatini"
   gbd_alt_name: "eSwatini"
   region: AFRO
+  
 - country: SYC
   country_code: 690
   country_name: "Seychelles"
   region: AFRO
+  
 - country: SYR
   country_code: 760
   country_name: "Syrian Arab Republic"
   gbd_alt_name: "Syria"
   region: EMRO
+  
 - country: TCD
   country_code: 148
   country_name: "Chad"
   region: AFRO
+  
 - country: TGO
   country_code: 768
   country_name: "Togo"
   region: AFRO
+  
 - country: THA
   country_code: 764
   country_name: "Thailand"
   region: SEARO
+  
 - country: TJK
   country_code: 762
   country_name: "Tajikistan"
   region: EURO
+  
 - country: TKM
   country_code: 795
   country_name: "Turkmenistan"
   region: EURO
+  
 - country: TLS
   country_code: 626
   country_name: "Timor-Leste"
   region: SEARO
+  
 - country: TON
   country_code: 776
   country_name: "Tonga"
   region: WPRO
+  
 - country: TTO
   country_code: 780
   country_name: "Trinidad and Tobago"
   region: PAHO
+  
 - country: TUN
   country_code: 788
   country_name: "Tunisia"
   region: EMRO
+  
 - country: TUR
   country_code: 792
   country_name: "Turkey"
   region: EURO
+  
 - country: TUV
   country_code: 798
   country_name: "Tuvalu"
   region: WPRO
+  
 - country: TZA
   country_code: 834
   country_name: "United Republic of Tanzania"
   gbd_alt_name: "Tanzania"
   region: AFRO
+  
 - country: UGA
   country_code: 800
   country_name: "Uganda"
   region: AFRO
+  
 - country: UKR
   country_code: 804
   country_name: "Ukraine"
   region: EURO
+  
 - country: URY
   country_code: 858
   country_name: "Uruguay"
   region: PAHO
+  
 - country: USA
   country_code: 840
   country_name: "United States of America"
   gbd_alt_name: "USA"
   region: PAHO
+  
 - country: UZB
   country_code: 860
   country_name: "Uzbekistan"
   region: EURO
+  
 - country: VCT
   country_code: 670
   country_name: "Saint Vincent and the Grenadines"
   region: PAHO
+  
 - country: VEN
   country_code: 862
   country_name: "Venezuela (Bolivarian Republic of)"
   gbd_alt_name: "Venezuela"
   region: PAHO
+  
 - country: VNM
   country_code: 704
   country_name: "Viet Nam"
   gbd_alt_name: "Vietnam"
   region: WPRO
+  
 - country: VUT
   country_code: 548
   country_name: "Vanuatu"
   region: WPRO
+  
 - country: WSM
   country_code: 882
   country_name: "Samoa"
   region: WPRO
+  
 - country: YEM
   country_code: 887
   country_name: "Yemen"
   region: EMRO
+  
 - country: ZAF
   country_code: 710
   country_name: "South Africa"
   region: AFRO
+  
 - country: ZMB
   country_code: 894
   country_name: "Zambia"
   region: AFRO
+  
 - country: ZWE
   country_code: 716
   country_name: "Zimbabwe"

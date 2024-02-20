@@ -19,13 +19,13 @@ run_prepare = function() {
   
   # Convert config yaml files to datatables
   prepare_config_tables()
-  
+
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
-  
+
   # Parse vaccine efficacy profile for non-VIMC pathogens
   prepare_vaccine_efficacy()
-  
+
   # Prepare GBD estimates of deaths for non-VIMC pathogens
  # prepare_gbd_estimates()
   
@@ -34,15 +34,18 @@ run_prepare = function() {
   
   # Prepare UNICEF stunting combined estimates for imputing non_VIMC countries
   prepare_unicef()
-  
+
   # Prepare Gapminder covariates for imputing non_VIMC countries
   prepare_gapminder()
-  
+
   # Prepare country income status classification over time
- # prepare_income_status()
-  
+  prepare_income_status()
+
   # Prepare demography-related estimates from WPP
   prepare_demography()
+
+  # Prepare age at birth by country and year
+  prepare_birth_age()
   
   # Prepare historical vaccine coverage
  # prepare_coverage()  # See coverage.R
@@ -72,29 +75,11 @@ prepare_config_tables = function() {
     # Convert to datatable
     config_dt = yaml_data %>%
       lapply(as.data.table) %>%
-      rbindlist(fill=TRUE)
+      rbindlist(fill = TRUE)
     
     # Save in tables cache
     save_table(config_dt, file)
   }
-  
-  # ---- Other config-related tables ----
-  
-  # Disease-vaccine table
-  table("d_v_a") %>%
-    select(disease, vaccine) %>%
-    unique() %>%
-    mutate(d_v_id = 1 : n(), 
-           .before = 1) %>%
-    save_table("d_v")
-  
-  # Vaccine-activity table
-  table("d_v_a") %>%
-    select(vaccine, activity) %>%
-    unique() %>%
-    mutate(v_a_id = 1 : n(), 
-           .before = 1) %>%
-    save_table("v_a")
 }
 
 # ---------------------------------------------------------
@@ -114,10 +99,11 @@ prepare_vimc_estimates = function() {
     # Disease, vaccines, and activities of interest...
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
-    filter(!is.na(d_v_a_id)) %>%
+    filter(!is.na(d_v_a_id), 
+           source == "vimc") %>%
     # Tidy up...
-    select(country, d_v_a_id, year, age, deaths_averted) %>%
-    arrange(country, d_v_a_id, age, year) %>%
+    select(d_v_a_id, country, year, age, deaths_averted) %>%
+    arrange(d_v_a_id, country, year, age) %>%
     save_table("vimc_estimates")
   
   # Simply store VIMC in it's current form
@@ -132,56 +118,84 @@ prepare_vaccine_efficacy = function() {
   
   message(" - Vaccine efficacy")
   
-  # Vaccine efficacy details
-  pars_dt = table("vaccine_efficacy") %>%
-    left_join(y  = table("d_v"), 
-              by = "vaccine") %>%
-    select(disease, vaccine, 
-           a = efficacy, 
-           x = decay_x, 
-           y = decay_y)
+  # ---- Optimisation functions ----
   
-  # We'll use these to represent waning immunity profile
-  #
-  # NOTE: We represent immunity decay using an exponential y = ae^(-rx)
-  profile_list = list()
-  
-  # Points at which to evaluate exponential function
-  #
-  # NOTE: These represent immunity in the years following vaccination
-  x_eval = seq_along(o$years) - 1
-  
-  # Iterate through diseases
-  for (i in seq_row(pars_dt)) {
-    pars = pars_dt[i, ]
+  # Function to determine optimal immunity profiles parameters
+  optimisation_fn = function(vaccine) {
     
-    # If values are NA, interpret as no immunity decay
-    has_decay = !any(is.na(pars[, .(x, y)]))
+    # Efficacy details (incl data) for this vaccine
+    efficacy_info = table("vaccine_efficacy") %>%
+      filter(vaccine == !!vaccine)
     
-    # In this case, constant efficacy for n years
-    if (!has_decay)
-      profile = rep(pars$a, length(x_eval))
+    # Extract the data points (efficacy, year)
+    data = efficacy_info %>%
+      pull(data) %>%
+      unlist() %>%
+      matrix(nrow = 2) %>%
+      t()
     
-    # Otherwise represent this decay
-    if (has_decay) {
-      
-      # Solve exponential function for r
-      r = -log(pars$y / pars$a) / pars$x
-      
-      # Evaluate exponential using this rate
-      profile = pars$a * exp(-r * x_eval)
-    }
+    # Extract user-defined functional form for vaccine efficacy
+    fn = eval_str(unique(efficacy_info$fn))
+    
+    # Number of function input arguments (without default values)
+    #
+    # NOTE: These are the set of values to be optimised
+    n_args = sum(!unlist(lapply(formals(fn), is.numeric)))
+    
+    # Fit all required parameters to the data available
+    optim = asd(
+      fn   = obj_fn,
+      x0   = runif(n_args),
+      args = list(
+        data   = data, 
+        fn     = fn, 
+        n_args = n_args),
+      lb   = 1e-6, 
+      ub   = 1e6,
+      max_iters = 1e3)
+    
+    # Evaluate function using optimal parameters
+    profile = do.call(fn, as.list(optim$x))
     
     # Form profile into a datatable
-    profile_list[[i]] = pars %>%
-      select(disease, vaccine) %>%
-      expand_grid(time = x_eval) %>%
-      mutate(profile = profile) %>%
-      as.data.table()
+    profile_dt = data.table(
+      vaccine = vaccine,
+      time    = t,
+      profile = profile)
+    
+    return(profile_dt)
   }
   
-  # Bind into single datatable and save
-  rbindlist(profile_list) %>%
+  # Objective function to minimise
+  obj_fn = function(x, args) {
+    
+    # Evalulate immunity function
+    y = do.call(args$fn, as.list(x))
+    
+    # Data points we want to hit
+    data_x = args$data[, 2] + 1
+    data_y = args$data[, 1]
+    
+    # Calculate sum of squared error
+    obj_val = sum((y[data_x] - data_y) ^ 2)
+    
+    return(list(y = obj_val))
+  }
+  
+  # ---- Perform optimisation for each vaccine ----
+  
+  # Points at which to evaluate efficacy functions
+  t = seq_along(o$years) - 1  # Immunity in the years following vaccination
+  
+  # Vaccines we want efficacy profiles for (all static modelled vaccines)
+  vaccines = table("d_v_a")[source == "static", vaccine]
+  
+  # Apply optimisation to determine optimal immunity parameters
+  lapply(vaccines, optimisation_fn) %>%
+    rbindlist() %>%
+    left_join(y  = table("d_v_a"), 
+              by = "vaccine") %>%
+    select(disease, vaccine, time, profile) %>%
     save_table("vaccine_efficacy_profiles")
   
   # Plot these profiles
@@ -195,57 +209,64 @@ prepare_gbd_estimates = function() {
   
   message(" - GBD estimates")
   
-  # NOTE: We are using GBD's 'number' metric here, where IA2030
-  #       pipeline uses 'rate' (which is number per 100k people)
-  
   # Parse specific age strings
   age_dict = c(
-    "<1 year" = "0 to 1", 
-    "80 plus" = "80 to 95")
+    "<28 days"     = "-1", 
+    "28..364 days" = "0..1", 
+    "80+ years"    = "80..95")
   
-  # Parse diseases
-  disease_dict = c(
-    "Diphtheria"     = "Dip",
-    "Tetanus"        = "Tet",
-    "Whooping cough" = "Per", 
-    "Tuberculosis"   = "TB")
+  # Dictionary of GBD disease names
+  gbd_dict = table("gbd_dict") %>%
+    rename(name  = gbd_name, 
+           value = disease) %>%
+    pivot_wider() %>%
+    as.list()
   
   # Load GBD estimates of deaths for relevant diseases
   deaths_dt = fread(paste0(o$pth$input, "gbd19_deaths.csv")) %>%
+    filter(year %in% o$gbd_estimate_years) %>%
     # Parse disease and countries...
-    mutate(disease = recode(cause, !!!disease_dict), 
+    mutate(disease = recode(cause, !!!gbd_dict), 
            country = countrycode(
              sourcevar   = location,
              origin      = "country.name", 
              destination = "iso3c")) %>%
-    filter(country %in% all_countries()) %>%
+    # Retain only what we're interesting in...
+    filter(disease %in% table("d_v_a")$disease, 
+           country %in% all_countries()) %>%
     # Parse age groups...
-    mutate(age     = recode(age, !!!age_dict), 
-           age_bin = str_extract(age, "^[0-9]+"), 
+    mutate(age = str_replace(age, "-", ".."), 
+           age = recode(age, !!!age_dict), 
+           age_bin = str_extract(age, "^-*[0-9]+"), 
            age_bin = as.numeric(age_bin)) %>%
     # Tidy up...
-    select(country, disease, year, age_bin, value = val) %>%
-    arrange(country, disease, year, age_bin)
+    select(disease, country, year, age_bin, value = val) %>%
+    arrange(disease, country, year, age_bin)
   
   warning("Improvements to GBD death extrapolations required...")
   
   # TEMP: Until we do a proper future projection of GBD estimates
   deaths_dt = 
-    expand_grid(country = all_countries(), 
-                disease = unique(deaths_dt$disease),
-                age_bin = unique(deaths_dt$age_bin), 
-                year    = o$years) %>%
+    expand_grid(
+      disease = unique(deaths_dt$disease),
+      country = all_countries(), 
+      age_bin = unique(deaths_dt$age_bin), 
+      year    = o$years) %>%
     left_join(y  = deaths_dt, 
               by = names(.)) %>%
-    group_by(country, disease, age_bin) %>%
+    arrange(disease, country, age_bin) %>%
+    group_by(disease, country, age_bin) %>%
     fill(value, .direction = "down") %>%
     ungroup() %>%
     filter(!is.na(value)) %>%
     as.data.table()
   
-  # Construct age datatable to expand age bins to single years
+  # Age bins in data before and after transformation
   age_bins = sort(unique(deaths_dt$age_bin))
-  age_dt   = data.table(age = o$ages) %>%
+  # age_span = c(-1, o$ages)
+  
+  # Construct age datatable to expand age bins to single years
+  age_dt = data.table(age = c(-1, o$ages)) %>%
     mutate(age_bin = ifelse(age %in% age_bins, age, NA)) %>%
     fill(age_bin, .direction = "down") %>%
     group_by(age_bin) %>%
@@ -258,9 +279,10 @@ prepare_gbd_estimates = function() {
     full_join(y  = age_dt, 
               by = "age_bin", 
               relationship = "many-to-many") %>%
-    arrange(country, disease, year, age) %>%
     mutate(deaths_disease = value / n) %>%
-    select(country, disease, year, age, deaths_disease) %>%
+    select(disease, country, year, age, deaths_disease) %>%
+    # mutate(age = factor(age, age_span)) %>%
+    arrange(disease, country, year, age) %>%
     save_table("gbd_estimates")
   
   # Plot GBD death estimates by age
@@ -546,18 +568,18 @@ prepare_gapminder = function() {
   
   # Check for Gapminder countries not linked to WHO regions
   gapminder_dt %>% filter(is.na(region_short)) %>%
-                    select(country, region_short) %>%
-                    unique()
+    select(country, region_short) %>%
+    unique()
   
   gapminder_dt = gapminder_dt %>%
-                      filter(!is.na(region_short))
+    filter(!is.na(region_short))
   
   
   # Save in tables cache
   save_table(gapminder_dt, "gapminder_covariates")
   
-    }
-  
+}
+
 # ---------------------------------------------------------
 # Prepare country income status classification over time
 # ---------------------------------------------------------
@@ -603,7 +625,7 @@ prepare_income_status = function() {
     replace_na(list(income = "H")) %>%
     mutate(income = paste0(tolower(income), "ic")) %>%
     as.data.table()
-    
+  
   # Save in tables cache
   save_table(income_dt, "income_status")
 }
@@ -613,66 +635,156 @@ prepare_income_status = function() {
 # ---------------------------------------------------------
 prepare_demography = function() {
   
-  # TODO: Could we instead use the 'wpp2022' package?
-  
   message(" - Demography data")
   
-  # SOURCE: https://population.un.org/wpp/Download/Standard
+  # Details of data sets to load
+  data_sets = list(
+    pop = list(name = "pop",    var = "pop"),
+    mx  = list(name = "deaths", var = "mxB"))
   
-  # File names parts for WPP data
-  file_names = list(
-    pop   = "Population1January",
-    death = "Deaths")
-  
-  # Files name years - past and future
-  file_years = c("1950-2021", "2022-2100")
-  
-  # Loop through data types
-  for (type in names(file_names)) {
+  # Iterate through data sets to load
+  for (id in names(data_sets)) {
     
-    # Filename part of this datataype
-    metric = file_names[[type]]
+    # Index data set name and variable reference
+    name = data_sets[[id]]$name
+    var  = data_sets[[id]]$var
     
-    # Initiate list to store data
-    data_list = list()
-    
-    # Loop through past and future data
-    for (year in file_years) {
+    # Load population size data
+    if (id == "pop") {
       
-      # Construct full file name
-      name = paste0("WPP2022_", metric, "BySingleAgeSex_Medium_", year, ".csv")
-      file = paste0(o$pth$input, file.path("wpp", name))
+      # Names of WPP2022 data files to load
+      past   = paste0("popAge",     o$pop_bin, "dt")
+      future = paste0("popprojAge", o$pop_bin, "dt") 
       
-      # Stop here if file missing - ask user to download raw data
-      if (!file.exists(file))
-        stop("Please first download the file '", name, "' from",
-             " https://population.un.org/wpp/Download/Standard",  
-             " and copy to the /input/wpp/ directory")
+      # Load pop data from WPP github package
+      data_list = data_package(past, future, package = "wpp2022")
       
-      # Construct name of key data column
-      data_name = paste0(first_cap(type), "Total")
-      
-      # Load the file and wrangle what we need
-      data_list[[name]] = fread(file) %>%
-        select(country = ISO3_code,
-               year    = Time,
-               age     = AgeGrp,
-               metric  = !!data_name) %>%
-        # Scale metrics by factor of 1k...
-        mutate(metric = metric * 1e3) %>%
-        rename_with(~type, metric) %>%
-        # Only countries and years of interest...
-        filter(country %in% all_countries(),
-               year    %in% o$years) %>%
-        mutate(age = ifelse(age == "100+", 100, age),
-               age = as.integer(age))
+      # Scale metrics by factor of 1k
+      scaler_dt = expand_grid(
+        country = all_countries(), 
+        year    = o$years, 
+        age     = 0 : 100, 
+        scaler  = 1e3) %>%
+        as.data.table()
     }
     
-    # Combine past and future data and save to file
-    rbindlist(data_list) %>%
-      arrange(country, year, age) %>%
-      save_table(paste1("wpp", type))
+    # Load any other data type
+    if (id != "pop") {
+      
+      # Name of WPP2022 data file - history and projection in one
+      all_time = paste0(id, o$pop_bin, "dt") 
+      
+      # Load data from WPP github package
+      data_list = data_package(all_time, package = "wpp2022")
+      
+      # We'll need to scale per 1k population
+      scaler_dt = table("wpp_pop") %>%
+        rename(scaler = pop)
+    }
+    
+    # Combine past and future data
+    data_dt = rbindlist(data_list, fill = TRUE) %>%
+      # Select countries of interst...
+      inner_join(y  = table("country"),  
+                 by = "country_code") %>%
+      select(country, year, age, value = !!var) %>%
+      # Shift year by one (see github.com/PPgp/wpp2022 for details)...
+      mutate(year = as.integer(year) + 1) %>%
+      filter(year %in% o$years) %>%
+      # Scale metrics...
+      left_join(y = scaler_dt, 
+                by = c("country", "year", "age")) %>%
+      mutate(value = value * scaler) %>%
+      select(-scaler) %>%
+      # Tidy up...
+      rename(!!name := value) %>%
+      arrange(country, year, age)
+    
+    # Save in tables cache
+    save_table(data_dt, paste1("wpp", name))
   }
+}
+
+# ---------------------------------------------------------
+# Prepare age at birth by country and year
+# ---------------------------------------------------------
+prepare_birth_age = function() {
+  
+  # Construct path to data file
+  #
+  # SOURCE: https://w3.unece.org/PXWeb/en/Table?IndicatorCode=34
+  data_file = paste0(o$pth$input, "age_at_birth.csv")
+  
+  # Load raw data
+  data_dt = fread(data_file) %>%
+    select(country = Alpha3Code, 
+           year    = PeriodCode, 
+           value   = Value) %>%
+    # Remove any unknown countries...
+    filter(country %in% all_countries(), 
+           year    %in% o$years) %>%
+    # Format values into numeric...
+    mutate(value = str_remove(value, "\\.\\."), 
+           value = as.numeric(value)) %>%
+    filter(!is.na(value)) %>%
+    # Take the national mean over time...
+    group_by(country) %>%
+    summarise(avg = mean(value)) %>%
+    ungroup() %>%
+    # Expand to all countries...
+    right_join(y  = all_countries(as_dt = TRUE),
+               by = "country") %>%
+    # Impute missing countries with global mean...
+    mutate(avg = ifelse(
+      test = is.na(avg), 
+      yes  = mean(avg, na.rm = TRUE), 
+      no   = avg)) %>%
+    # Convert to integer...
+    mutate(avg = round(avg)) %>%
+    arrange(country) %>% 
+    as.data.table()
+  
+  # Construct age x country matrix
+  birth_age_mat = matrix(
+    data = 0, 
+    nrow = length(o$ages),
+    ncol = nrow(data_dt))
+  
+  # Range of viable ages around the mean
+  range = -(o$birth_age_sd * 2) : (o$birth_age_sd * 2)
+  
+  # Iterate through countries
+  for (i in seq_row(data_dt)) {
+    
+    # Average age at birth
+    avg = data_dt[i, avg]
+    
+    # Distribution around this mean
+    dist = dnorm(
+      x    = avg + range, 
+      mean = avg, 
+      sd   = o$birth_age_sd)
+    
+    # Insert these values into matrix
+    birth_age_mat[avg + range, i] = dist / sum(dist)
+  }
+  
+  # COnvert matrix into long datatable
+  birth_age_dt = birth_age_mat %>%
+    as_named_dt(data_dt$country) %>%
+    mutate(age = o$ages) %>%
+    # Melt to tidy format...
+    pivot_longer(cols = -age, 
+                 names_to  = "country", 
+                 values_to = "weight") %>%
+    # Remove trivial values...
+    filter(weight > 0) %>%
+    select(country, age, weight) %>%
+    arrange(country, age) %>%
+    as.data.table()
+  
+  # Save to file for easier loading
+  save_table(birth_age_dt, "birth_age")
 }
 
 # ---------------------------------------------------------
@@ -704,12 +816,14 @@ save_table = function(x, table) {
 # ---------------------------------------------------------
 table = function(table) {
   
+  # TODO: If 'table' contains 'extern' report step 2 back to user 
+  
   # Construct file path
   file = paste0(o$pth$tables, table, "_table.rds")
   
   # Throw an error if this file doesn't exist
   if (!file.exists(file))
-    stop("Table ", table, " has not been cached - have you run step 0?")
+    stop("Table ", table, " has not been cached - have you run step 1?")
   
   # Load rds file
   y = read_rds(file)

@@ -1,0 +1,13 @@
+---
+
+# Creates datatable: extern_models_table
+table:
+
+- model: dynamice
+  disease: "Measles"
+  
+# - model: measles
+#   disease: "Measles"
+
+- model: polio
+  disease: "Poliomyelitis"

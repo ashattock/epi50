@@ -34,7 +34,7 @@ set_options = function(do_step = NA) {
   # Annual of 5-year bins for population data
   o$pop_bin = 1  # OPTIONS: 1 or 5
   
-  # ---- Coverage settings ----
+  # ---- Data and coverage settings ----
   
   # Bound coverage values below x%
   o$max_coverage = 0.99
@@ -47,7 +47,13 @@ set_options = function(do_step = NA) {
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
   
+  # Standard deviation around maternal mean age at birth
+  o$birth_age_sd = 3
+  
   # ---- External models ----
+  
+  # Create/recreate dummy polio results
+  o$dummy_polio = FALSE  # TODO: Remove when polio results are available
   
   # Directly simulate Dynamice model
   #
@@ -56,11 +62,23 @@ set_options = function(do_step = NA) {
   
   # GitHub repo for simulating DynaMICE model for EPI50 analysis
   o$github_dynamice = "ashattock/dynamice"
+  
+  # ---- Global Burden of Disease settings ----
+  
+  # Use GBD estimates starting from a given year
+  o$gbd_estimate_years = 1990 : 2019
 
   # ---- Impact function settings ----
   
   # Use multiple cores to speed up impact function fitting
   o$parallel = FALSE
+  
+  # Impact function model selection metric
+  #
+  # OPTIONS:
+  #  aicc := Akaike information criterion score
+  #    ll := Log likelihood score
+  o$selection_metric = "ll"
   
   # Multiply impact when fitting for more consistent FVP-impact scales
   o$impact_scaler = 1000
@@ -100,7 +118,7 @@ set_options = function(do_step = NA) {
   o$plot_static     = FALSE
   o$plot_imputation = TRUE
   o$plot_impact     = FALSE
-  o$plot_history    = TRUE  # Primary results
+  o$plot_history    = TRUE
 
   # ---- Plotting settings ----
   
@@ -109,6 +127,9 @@ set_options = function(do_step = NA) {
     disease = "pals::kovesi.rainbow",  # 11 values needed
     region  = "brewer::paired",        # 6 values needed
     income  = "brewer::dark2")         # 4 values needed
+  
+  # WHO colour scheme (vibrant blue, navy blue)
+  o$palette_who = c("#009CDE", "#001F58")
 
   # Font sizes: title, axis, tick, strip, legend, key
   o$font_size = c(34, 28, 16, 24, 20, 18)
