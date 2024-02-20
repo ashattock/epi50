@@ -27,15 +27,15 @@ run_prepare = function() {
   prepare_vaccine_efficacy()
 
   # Prepare GBD estimates of deaths for non-VIMC pathogens
- # prepare_gbd_estimates()
-  
+  prepare_gbd_estimates()
+
   # Prepare GBD covariates for extrapolating to non-VIMC countries
- # prepare_gbd_covariates()
-  
-  # Prepare UNICEF stunting combined estimates for imputing non_VIMC countries
+  prepare_gbd_covariates()
+
+  # Prepare UNICEF stunting combined estimates for imputing non-VIMC countries
   prepare_unicef()
 
-  # Prepare Gapminder covariates for imputing non_VIMC countries
+  # Prepare Gapminder covariates for imputing non-VIMC countries
   prepare_gapminder()
 
   # Prepare country income status classification over time
@@ -48,7 +48,7 @@ run_prepare = function() {
   prepare_birth_age()
   
   # Prepare historical vaccine coverage
- # prepare_coverage()  # See coverage.R
+  prepare_coverage()  # See coverage.R
 }
 
 # ---------------------------------------------------------
@@ -263,7 +263,6 @@ prepare_gbd_estimates = function() {
   
   # Age bins in data before and after transformation
   age_bins = sort(unique(deaths_dt$age_bin))
-  # age_span = c(-1, o$ages)
   
   # Construct age datatable to expand age bins to single years
   age_dt = data.table(age = c(-1, o$ages)) %>%
@@ -281,7 +280,6 @@ prepare_gbd_estimates = function() {
               relationship = "many-to-many") %>%
     mutate(deaths_disease = value / n) %>%
     select(disease, country, year, age, deaths_disease) %>%
-    # mutate(age = factor(age, age_span)) %>%
     arrange(disease, country, year, age) %>%
     save_table("gbd_estimates")
   
@@ -387,48 +385,48 @@ prepare_unicef = function() {
   
   # Read in UNICEF stunting data
   stunting_dt = fread(paste0(o$pth$input, "JME_Country_Estimates_May_2023.csv")) %>%
-                filter(Indicator == "Stunting" &
-                       Estimate == "Point Estimate") %>%
-                select(-c("Country and areas", "Note", "Indicator", "Measure", "Estimate")) %>% 
-                pivot_longer(cols = -'ISO code',
-                             names_to = "year",
-                             values_to = "stunting") %>% 
-                rename(country_code = 'ISO code') %>%
-                full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
-                select(-c(country, region_no, region_long)) %>%
-                rename(country = country_code) %>%
-                mutate(year = as.integer(year)) %>%
-                as.data.table()
+    filter(Indicator == "Stunting" &
+             Estimate == "Point Estimate") %>%
+    select(-c("Country and areas", "Note", "Indicator", "Measure", "Estimate")) %>% 
+    pivot_longer(cols = -'ISO code',
+                 names_to = "year",
+                 values_to = "stunting") %>% 
+    rename(country_code = 'ISO code') %>%
+    full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
+    select(-c(country, region_no, region_long)) %>%
+    rename(country = country_code) %>%
+    mutate(year = as.integer(year)) %>%
+    as.data.table()
   
-
+  
   maternal_mortality_dt = fread(paste0(o$pth$input, "unicef_maternal_mortality.csv"), header = TRUE) %>%
-                           select(-Country) %>%
-                           pivot_longer(cols = -'ISO Code',
-                             names_to = "year",
-                             values_to = "maternal_mortality") %>%
-                           rename(country_code = 'ISO Code') %>%
-                           full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
-                           select(-c(country, region_no, region_long)) %>%
-                           rename(country = country_code) %>%
-                           mutate(year = as.integer(year)) %>%
-                           filter(!is.na(year)) %>% 
-                           unique() %>% # remove duplicates for COD and TZN
-                           complete(country, year = 2000:2024, 
-                                     fill = list(maternal_mortality = NA)) %>%
-                           as_tsibble(index = year,
-                                       key = country) 
+    select(-Country) %>%
+    pivot_longer(cols = -'ISO Code',
+                 names_to = "year",
+                 values_to = "maternal_mortality") %>%
+    rename(country_code = 'ISO Code') %>%
+    full_join(WHO_regions_dt, by="country_code", relationship = "many-to-many") %>%
+    select(-c(country, region_no, region_long)) %>%
+    rename(country = country_code) %>%
+    mutate(year = as.integer(year)) %>%
+    filter(!is.na(year)) %>% 
+    unique() %>% # remove duplicates for COD and TZN
+    complete(country, year = 2000:2024, 
+             fill = list(maternal_mortality = NA)) %>%
+    as_tsibble(index = year,
+               key = country) 
   
   # Interpolate missing values
   maternal_mortality_dt = maternal_mortality_dt %>%
-         model(lm = TSLM(log(maternal_mortality) ~ trend())) %>%
-         interpolate(maternal_mortality_dt)
+    model(lm = TSLM(log(maternal_mortality) ~ trend())) %>%
+    interpolate(maternal_mortality_dt)
   
   
- # browser()
+  # browser()
   # Create table of UNICEF covariates
   unicef_dt = stunting_dt  %>%
     full_join(maternal_mortality_dt, by=c("country", "year"))
-
+  
   
   # Check for UNICEF countries not linked to WHO regions
   #unicef_dt %>% filter(is.na(region_short)) %>%
@@ -436,11 +434,10 @@ prepare_unicef = function() {
   #  unique()
   
   #unicef_dt = unicef_dt %>%
-   # filter(!is.na(region_short))
+  # filter(!is.na(region_short))
   
   # Save in tables cache
   save_table(unicef_dt, "unicef_covariates")
-  
 }
 
 # ---------------------------------------------------------
@@ -493,7 +490,7 @@ prepare_gapminder = function() {
   # Rural poverty (% rural people below poverty line)
   rural_poverty_dt = fread(paste0(o$pth$input, "ddf--datapoints--rural_poverty_percent_rural_people_below_national_rural--by--geo--time.csv")) %>%
     rename(rural_poverty = rural_poverty_percent_rural_people_below_national_rural)
- 
+  
   # HIV prevalence
   hiv_prev_dt = fread(paste0(o$pth$input, "ddf--datapoints--adults_with_hiv_percent_age_15_49--by--geo--time.csv")) %>%
     rename(hiv_prev = adults_with_hiv_percent_age_15_49)
@@ -508,7 +505,7 @@ prepare_gapminder = function() {
   
   # Health spending ($)
   health_spending_dt = fread(paste0(o$pth$input, "ddf--datapoints--total_health_spending_per_person_us--by--geo--time.csv")) %>%
-   rename(health_spending = total_health_spending_per_person_us)
+    rename(health_spending = total_health_spending_per_person_us)
   
   # Private health spending (%)
   private_health_spending_dt = fread(paste0(o$pth$input, "ddf--datapoints--private_share_of_total_health_spending_percent--by--geo--time.csv")) %>%
@@ -574,10 +571,8 @@ prepare_gapminder = function() {
   gapminder_dt = gapminder_dt %>%
     filter(!is.na(region_short))
   
-  
   # Save in tables cache
   save_table(gapminder_dt, "gapminder_covariates")
-  
 }
 
 # ---------------------------------------------------------

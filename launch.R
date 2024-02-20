@@ -5,8 +5,7 @@
 #
 # Note that this software requires an internet connection.
 #
-# Author: A.J.Shattock
-# Contact: shattocka@who.int, andrewjames.shattock@unibas.ch
+# Authors: A.J.Shattock & H.C.Johnson
 ###########################################################
 
 # Set working directory to sourced file
@@ -18,7 +17,7 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = 8)
+o = set_options(do_step = 1)
 
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
