@@ -19,7 +19,8 @@
 run_impute = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(4, o$do_step)) return()
+  if (!is.element(4, o$do_step))
+  if (!is.element(7, o$do_step)) return()
   
   message("* Running country imputation")
   
@@ -34,19 +35,21 @@ run_impute = function() {
   impute_dt = table("d_v_a") %>%
     
   # TODO: For debugging only!!  
-    filter(d_v_a_id %in% c(1)) %>%
+    filter(d_v_a_id %in% c(4)) %>%
     
     # Filter for VIMC pathogens only...
     left_join(y  = table("disease"),
              by = "disease") %>%
     filter(source == "vimc") %>%
-    # Apply geographical imputation model...
+    
+  # Apply geographical imputation model...
     pull(d_v_a_id) %>%
     lapply(perform_impute, target = target_dt) %>%
     rbindlist() %>%
-    # Merge VIMC estimates with those just imputed...
+    
+  # Merge VIMC estimates with those just imputed...
     mutate(impact = ifelse(
-      test = is.na(target),
+    test = is.na(target),
       yes  = impact_impute,
       no   = impact_cum)) %>%
     select(country, d_v_a_id, year,
@@ -56,18 +59,31 @@ run_impute = function() {
   save_rds(impute_dt, "impute", "impute_result")
   
   # ---- Plot results ----
-  
+
   # NOTE: All plotting functionality lives in plotting.R
   
   # Plot predictor-response relationships
-  plot_covariates()
+ # plot_covariates()
   
-  # Plot imputation quality of fit
-  plot_impute_quality()
+  # Plot model choice
+  plot_model_choice()
   
-  # Plot train-predict countries
-  plot_impute_countries()
-}
+  # Plot predictive performance for each country
+  #plot_impute_perform()
+  
+  # Plot fitted imputation model for each country
+  plot_impute_fit()
+  
+  # Plot imputation quality of fit for all countries
+  #plot_impute_quality()
+  
+  # Plot tornado plots of predictors by d_v_a
+  plot_tornado_d_v_a()
+  
+  # Plot tornado plots of predictors by region
+ # plot_tornado_region()
+  
+  }
 
 # ---------------------------------------------------------
 # Perform imputation
@@ -94,11 +110,13 @@ perform_impute = function(d_v_a_id, target) {
     # Append covariates to target
   target_dt = target %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
-    # Append vaccination coverage, GBD covariates and Gapminder covariates
+    # Append vaccination coverage, GBD covariates, UNICEF covariates and Gapminder covariates
         full_join(y = coverage_dt,  
               by = c("country", "year")) %>%
         full_join(y  = table("gbd_covariates"),
               by = c("country", "year")) %>%
+     #   full_join(y  = table("unicef_covariates"),
+     #         by = c("country", "year"), relationship = "many-to-many") %>%
         full_join(y  = table("gapminder_covariates"),    #TODO: multiple entries for COD(Congo, Kinshasa)
               by = c("country", "year"), relationship = "many-to-many") %>%
     arrange(country, year) %>%
@@ -113,24 +131,9 @@ perform_impute = function(d_v_a_id, target) {
     mutate(coverage_minus_1 = lag(coverage, 1),
            coverage_minus_2 = lag(coverage, 2),
            coverage_minus_3 = lag(coverage, 3),
-           coverage_minus_4 = lag(coverage, 4),
-           coverage_minus_5 = lag(coverage, 5),
-           coverage_minus_6 = lag(coverage, 6),
-           coverage_minus_7 = lag(coverage, 7),
-           coverage_minus_8 = lag(coverage, 8),
-           coverage_minus_3 = lag(coverage, 3)) %>%
+           coverage_minus_4 = lag(coverage, 4)) %>%
   
-    # Create dummy variables for historic health_spending (NA prior to our data)
-    mutate(health_spending_minus_1 = lag(health_spending, 1),
-           health_spending_minus_2 = lag(health_spending, 2),
-           health_spending_minus_3 = lag(health_spending, 3),
-           health_spending_minus_4 = lag(health_spending, 4),
-           health_spending_minus_5 = lag(health_spending, 5),
-           health_spending_minus_6 = lag(health_spending, 6),
-           health_spending_minus_7 = lag(health_spending, 7),
-           health_spending_minus_8 = lag(health_spending, 8)) %>%
-    
-    as_tsibble(index = year, key = c(country,d_v_a_id)) 
+   as_tsibble(index = year, key = c(country,d_v_a_id)) 
   
    # Convert to tsibble format for time series regression by country
    data_dt = target_dt %>%
@@ -150,7 +153,8 @@ perform_impute = function(d_v_a_id, target) {
                                year >= 2014 & year < 2024 ~ 5)) %>%
      
      # Prepare to fit a model to each country / d_v_a_id combination
-     as_tsibble(index = year, key = c(country,d_v_a_id)) %>%
+     as_tsibble(index = year,
+                key = c(country,d_v_a_id)) %>%
      
      # TODO: Here is the option to fit models for each decade, for each country, for each d_v_a. There may be issues with data completeness for some combinations
      #as_tsibble(index = year, key = c(country,d_v_a_id, period)) %>%
@@ -158,8 +162,7 @@ perform_impute = function(d_v_a_id, target) {
      group_by(country) %>%
      filter(n() > 4) %>% # remove if fewer than 4 non-zero values for a given country (insufficient for fitting)
      ungroup()
-   
-
+ 
    
   # Stepwise regression
   # TODO LATER: Update to lasso regularisation for optimal predictor selection
@@ -193,12 +196,12 @@ perform_impute = function(d_v_a_id, target) {
                  tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
                  mutate(model_number = 2) 
   
-  # Model 3: log(coverage), log(coverage_minus_1), log(coverage_minus_2)
+  # Model 3: log(coverage), log(coverage_minus_1), stunting
   model_3 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
                         log(coverage_minus_2) 
-    )) %>%
+                      )) %>%
     mutate(model_number = 3)
   
   model_report_3 = report(model_3) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
@@ -215,7 +218,7 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_1) +
                         log(coverage_minus_2) +
                         log(coverage_minus_3) 
-                        )) %>%
+    )) %>%
     mutate(model_number = 4)
   
   model_report_4 = report(model_4) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
@@ -249,10 +252,8 @@ perform_impute = function(d_v_a_id, target) {
   model_6 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
-                        log(coverage_minus_2) +
-                        log(coverage_minus_3) +
-                        log(coverage_minus_4) +
-                        HDI 
+                        log(coverage_minus_2) 
+                        
     )) %>%
     mutate(model_number = 6)
   
@@ -271,8 +272,8 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_2) +
                         log(coverage_minus_3) +
                         log(coverage_minus_4) +
-                        HDI +
-                        pop_0to14 
+                        pop_0to14 +
+                        gini
     )) %>%
     mutate(model_number = 7)
   
@@ -291,9 +292,9 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_2) +
                         log(coverage_minus_3) +
                         log(coverage_minus_4) +
-                        HDI +
                         pop_0to14 +
-                        gini
+                        gini +
+                        attended_births
     )) %>%
     mutate(model_number = 8)
   
@@ -305,6 +306,7 @@ perform_impute = function(d_v_a_id, target) {
                  tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
                  mutate(model_number = 8) 
   
+  
   # Model 9: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14, attended_births, gini
   model_9 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
@@ -312,10 +314,9 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_2) +
                         log(coverage_minus_3) +
                         log(coverage_minus_4) +
-                        HDI +
-                        pop_0to14 +
                         attended_births +
-                        gini
+                        gini +
+                        pop_0to14 
     )) %>%
     mutate(model_number = 9)
   
@@ -402,6 +403,7 @@ perform_impute = function(d_v_a_id, target) {
   model_fit_13 = model_13 %>%
                   tidy() %>%# Arrange in tidy format for easy access of estimates, p-values etc.
                   mutate(model_number = 13)
+
  
   # For each country, select the model with the best AICc (lowest number)
   model_choice = rbind(model_report_1,
@@ -422,6 +424,8 @@ perform_impute = function(d_v_a_id, target) {
                  filter(!is.infinite(AICc)) %>% # remove null models
                  slice_min(AICc, with_ties = FALSE) %>% # if two models are equally the best, keep the first
                  select(-c(.model, df, log_lik, p_value))
+  
+
    
    # Extract parameters of best fitting model for each country (according to AICc)
    model_fit = rbind(model_fit_1,
@@ -466,55 +470,6 @@ perform_impute = function(d_v_a_id, target) {
    model_choice = inner_join(x=regions, y=model_choice, by='country')
    
  
-   ## TODO: Plot to move to plotting.R
-   # Explore model selection by region
-   ggplot(data = model_choice, aes(x = model_number)) +
-     geom_histogram(binwidth = 1) +
-        facet_wrap(~region_short)
-   
-   #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
-   # Plot data vs. fitted for all countries (model fit)
-   plot_df = augment(best_model) 
-   
-   ggplot(data = plot_df, aes(x = target, y = .fitted)) +
-     geom_point() +
-    labs(
-       y = "Fitted (predicted values)",
-      x = "Data (actual values)",
-       title = paste("Vaccine impact of", d_v_a_name)
-     ) +
-    geom_abline(intercept = 0, slope = 1) +
-     facet_wrap(~country, ncol = 21)
-   
-   #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
-     # Plot model fit for a single country 
-     plot_df = augment(best_model) %>%
-       filter(country == "HND")
-     
-     ggplot(data = plot_df, aes(x = year)) +
-       geom_point(aes(y = target, colour = "Data")) +
-       geom_line(aes(y = .fitted, colour = "Fitted")) +
-       labs(y = NULL,
-           title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
-     ) +
-    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-     guides(colour = guide_legend(title = NULL))
-   
-     #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
-     # Plot model fit for all countries
-   plot_df = augment(best_model)
-   
-   ggplot(data = plot_df, aes(x = year)) +
-     geom_point(aes(y = target, colour = "Data")) +
-    geom_line(aes(y = .fitted, colour = "Fitted")) +
-     labs(y = NULL,
-         title = paste("Vaccine impact of", d_v_a_name)
-     ) +
-    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-     guides(colour = guide_legend(title = NULL))  +
-    facet_wrap(~country, ncol = 21)
-   
- 
   # Select countries for imputation
   impute_dt = target_dt %>% filter(! country %in% data_dt$country)
   
@@ -539,8 +494,7 @@ perform_impute = function(d_v_a_id, target) {
                 select(-c(names(model_13_region))) %>%
                 inner_join(y = regions, by = "country") 
   
-  # Plot model fit for all countries
-  # Store fitted values for VIMC countries
+   # Store fitted values for VIMC countries
   best_model_output = augment(best_model) %>%
                         mutate(estimate = .fitted) %>%
                         select(-c(model_number, AICc, .model, .resid, .innov, .fitted))
@@ -551,20 +505,7 @@ perform_impute = function(d_v_a_id, target) {
                                  filter(!is.na(d_v_a_id))
   
   estimate_dt = bind_rows(best_model_output, impute_output)
-  
-  #TODO: Plot to move to plotting.R, fix for d_v_a_name, prettify
-  plot_df = estimate_dt
-  
-  ggplot(data = plot_df, aes(x = year)) +
-    geom_point(aes(y = target, colour = "Data")) +
-    geom_line(aes(y = .fitted, colour = "Fitted")) +
-    labs(y = NULL,
-         title = paste("Vaccine impact of", d_v_a_name)
-    ) +
-    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-    guides(colour = guide_legend(title = NULL))  +
-    facet_wrap(~country, ncol = 21)
-  
+
   # Recombine estimated impact with predictor data
   recombine_dt = full_join(data_dt, best_model_output, by = c("country", "d_v_a_id", "year")) %>% 
                   rename(target = target.x)

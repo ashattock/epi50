@@ -13,7 +13,7 @@
 run_results = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(8, o$do_step)) return()
+  if (!is.element(9, o$do_step)) return()
   
   message("* Producing results")
   
@@ -21,6 +21,7 @@ run_results = function() {
 
   # Check plotting flag
   if (o$plot_inputs) {
+    
 
     # Methodology pathogen-country-scope figure
     plot_scope()
@@ -57,6 +58,9 @@ run_results = function() {
   
   # Check plotting flag
   if (o$plot_imputation) {
+    
+    # Plot model choice by region
+    plot_model_choice()
     
     # Plot predictor and response relationships
     plot_covariates()
