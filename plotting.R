@@ -31,8 +31,6 @@ plot_scope = function() {
   # Associated colours
   impact_colours = c("#EB7D5B", "#FED23F", "#B5D33D", "#6CA2EA", "#442288")
   
-  browser()
-  
   # ---- Number of FVPs by pathogen ----
   
   # Number of FVPs by country
@@ -1634,7 +1632,8 @@ plot_model_selection = function() {
       pivot_wider(names_from  = fn, 
                   values_from = val, 
                   values_fill = 0) %>%
-      arrange_at(rev(names(fn_dict))) %>%
+      arrange_at(rev(names(
+        intersect(fn_dict, names(.))))) %>%
       # Final formatting...
       pivot_longer(cols = -var, 
                    names_to  = "fn", 
@@ -3189,6 +3188,134 @@ plot_measles_in_context = function() {
   
   # Also save as main manuscript figure
   save_fig(g, "Figure 5", dir = "manuscript")
+}
+
+# ---------------------------------------------------------
+# Plot comparison of EPI50 outcomes vs VIMC outcomes
+# ---------------------------------------------------------
+plot_vimc_comparison = function() {
+  
+  message("  > Plotting comparison of EPI50 vs VIMC outcomes")
+  
+  # Dictionary for source of estimates
+  source_dict = c(
+    impact_epi50 = "Deaths averted: EPI50", 
+    impact_vimc  = "Deaths averted: VIMC", 
+    fvps_epi50   = "Fully vaccinated people: EPI50", 
+    fvps_vimc    = "Fully vaccinated people: VIMC")
+  
+  # Dictionary for metrics of interest
+  metric_dict = c(
+    impact = "Deaths averted", 
+    fvps   = "Fully vaccinated people")
+  
+  # ---- Load EPI50 and VIMC outcomes ----
+  
+  # Results from EPI50 analysis - impact and FVPs
+  epi50_dt = read_rds("results", "deaths_averted") %>%
+    lazy_dt() %>%
+    group_by(d_v_a_id) %>%
+    summarise(impact_epi50 = round(sum(impact)), 
+              fvps_epi50   = round(sum(fvps))) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # VIMC impact outcomes
+  vimc_impact_dt = table("vimc_estimates") %>%
+    lazy_dt() %>%
+    group_by(d_v_a_id) %>%
+    summarise(impact_vimc = sum(deaths_averted)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # VIMC FVPs
+  vimc_coverage_dt = table("coverage_source") %>%
+    filter(source == "vimc") %>%
+    lazy_dt() %>%
+    group_by(d_v_a_id) %>%
+    summarise(fvps_vimc = round(sum(fvps))) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # ---- Concatenate all outcomes ---- 
+  
+  # Combine impact estimates
+  impact_dt = epi50_dt %>%
+    select(d_v_a_id, impact_epi50) %>%
+    inner_join(y  = vimc_impact_dt, 
+               by = "d_v_a_id") %>%
+    mutate(metric = "impact") %>%
+    as.data.table()
+  
+  # Combine FVPs
+  fvps_dt = epi50_dt %>%
+    select(d_v_a_id, fvps_epi50) %>%
+    inner_join(y  = vimc_coverage_dt, 
+               by = "d_v_a_id") %>%
+    mutate(metric = "fvps") %>%
+    as.data.table()
+  
+  # Combine all plotting data
+  plot_dt = impact_dt %>%
+    bind_rows(fvps_dt) %>%
+    pivot_longer(cols = -c(d_v_a_id, metric), 
+                 names_to = "source") %>%
+    filter(!is.na(value)) %>%
+    # Append d_v_a names...
+    format_d_v_a_name() %>%
+    select(d_v_a_name, metric, source, value) %>%
+    # Set plotting order...
+    mutate(metric = recode(metric, !!!metric_dict), 
+           metric = factor(metric, metric_dict), 
+           source = recode(source, !!!source_dict), 
+           source = factor(source, source_dict)) %>%
+    as.data.table()
+  
+  # ---- Produce plot ----
+  
+  # Plot bars of EPI50 outcomes vs VIMC
+  g = ggplot(plot_dt) + 
+    aes(x = d_v_a_name, 
+        y = value, 
+        fill = source) + 
+    geom_col(position = "dodge") + 
+    # Facet by metric...
+    facet_wrap(
+      facets = vars(metric), 
+      scales = "free_y", 
+      ncol   = 1) + 
+    # Set paired colour scheme...
+    scale_fill_manual(
+      values = rev(colour_scheme(
+        map = "brewer::paired", 
+        n   = n_unique(plot_dt$source)))) + 
+    # Prettify y axis...
+    scale_y_continuous(
+      labels = comma)
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title    = element_blank(),
+          axis.text     = element_text(size = 11),
+          axis.text.x   = element_text(hjust = 1, angle = 50), 
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 14),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(1, "lines"),
+          panel.grid.major.y = element_line(linewidth = 0.25),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 11),
+          legend.key    = element_blank(),
+          legend.position = "right", 
+          legend.spacing.y  = unit(1, "lines"),
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
+  
+  # Save theis figure to file
+  save_fig(g, "Results comparison with VIMC", 
+           dir = "historical_impact")
 }
 
 # ---------------------------------------------------------

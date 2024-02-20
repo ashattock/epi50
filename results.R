@@ -79,7 +79,7 @@ run_results = function() {
     
     # Exploratory plots of data used to fit impact functions
     plot_impact_data()
-    
+
     # Plot all-time impact per FVPs
     plot_impact_fvps(scope = "all_time")
     
@@ -99,7 +99,7 @@ run_results = function() {
   if (o$plot_history) {
     
     # Inital impact ratios used to back project
-    plot_impact_fvps(scope = "initial")
+    # plot_impact_fvps(scope = "initial")
 
     # Main results plot - historical impact over time
     plot_historical_impact()
@@ -112,12 +112,15 @@ run_results = function() {
 
     # Measles deaths in context of all cause deaths
     plot_measles_in_context()
-    
+
     #
     plot_prob_death_age()
-    
+
     #
     plot_survival_increase()
+    
+    # Plot comparison of EPI50 outcomes vs VIMC outcomes
+    plot_vimc_comparison()
   }
 }
 
