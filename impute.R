@@ -12,8 +12,8 @@
 run_impute = function() {
   
   # Only continue if specified by do_step
-  if (!is.element(4, o$do_step))
-  if (!is.element(7, o$do_step)) return()
+  if (!is.element(4, o$do_step)) return()
+  # if (!is.element(7, o$do_step)) return()
   
   message("* Running country imputation")
   
@@ -28,24 +28,34 @@ run_impute = function() {
   
   # ---- Perform imputation ----
   
+  # TEMP: Use basic of full imputation method
+  method = "perform_impute" # "basic_impute" or "perform_impute"
+  
+  # TEMP: Ignoring problematic cases for now
+  ignore = c(7, 11, 14)
+  
   # Call country imputation function
   impute_dt = table("d_v_a") %>%
     filter(source == "vimc") %>%
-    
-  # Apply geographical imputation model...
+    # TEMP: Ignoring problematic cases for now...
+    filter(!d_v_a_id %in% ignore) %>%  
+    # Apply geographical imputation model...
     pull(d_v_a_id) %>%
-    lapply(basic_impute, target = target_dt) %>%  # perform_impute
+    lapply(get(method), target = target_dt) %>%
     rbindlist() %>%
-    
-  # Merge VIMC estimates with those just imputed...
+    # TEMP: Remove impossible values
+    filter(!is.na(impact_impute), 
+           is.finite(impact_impute),
+           impact_impute <= 1e7) %>%
+    # Reduce down to only years of interest...
+    filter(year %in% o$years) %>%
+    # Merge VIMC estimates with those just imputed...
     mutate(impact = ifelse(
-    test = is.na(target),
+      test = is.na(target),
       yes  = impact_impute,
       no   = impact_cum)) %>%
     select(d_v_a_id, country, year,
            fvps = fvps_cum, impact)
-  
-  # TODO: Reduce down to only years of interest
   
   # Save imputed results to file
   save_rds(impute_dt, "impute", "impute_result")
@@ -53,27 +63,26 @@ run_impute = function() {
   # ---- Plot results ----
   
   # Plot predictor-response relationships
- # plot_covariates()
+  # plot_covariates()
   
   # Plot model choice
-  plot_model_choice()
+  # plot_model_choice()
   
   # Plot predictive performance for each country
-  #plot_impute_perform()
+  # plot_impute_perform()
   
   # Plot fitted imputation model for each country
-  plot_impute_fit()
+  # plot_impute_fit()
   
   # Plot imputation quality of fit for all countries
-  #plot_impute_quality()
+  # plot_impute_quality()
   
   # Plot tornado plots of predictors by d_v_a
-  plot_tornado_d_v_a()
+  # plot_tornado_d_v_a()
   
   # Plot tornado plots of predictors by region
- # plot_tornado_region()
-  
-  }
+  # plot_tornado_region()
+}
 
 # ---------------------------------------------------------
 # Perform imputation (IA2030 style approach)
@@ -224,17 +233,14 @@ perform_impute = function(d_v_a_id, target) {
     filter(d_v_a_id == !!d_v_a_id) %>%
     pull(d_v_a_name)
   
+  # Display progress message to user
   message(" - ", d_v_a_name)
   
   # ---- Append covariates ----
   
   # Summarise vaccination coverage by country and year
   coverage_dt = table("coverage") %>%
-    # Convert from v-a ID to d-v-a ID
-    left_join(y  = table("v_a"), 
-              by = "v_a_id") %>%
-    left_join(y  = table("d_v_a"), 
-              by = c("vaccine", "activity")) %>%
+    lazy_dt() %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
     # This is coverage by age group. We recalculate for whole population
     group_by(country, year) %>%
@@ -242,19 +248,20 @@ perform_impute = function(d_v_a_id, target) {
               total_pop  = sum(cohort)) %>%
     ungroup() %>%
     mutate(coverage = total_fvps / total_pop) %>%
-    select(-total_fvps, -total_pop)
+    select(-total_fvps, -total_pop) %>%
+    as.data.table()
   
   # Append covariates to target
   target_dt = target %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
     # Append vaccination coverage, GBD covariates, UNICEF covariates and Gapminder covariates
-        full_join(y = coverage_dt,  
+    full_join(y = coverage_dt,  
               by = c("country", "year")) %>%
     full_join(y  = table("gbd_covariates"),
               by = c("country", "year")) %>%
-     #   full_join(y  = table("unicef_covariates"),
-     #         by = c("country", "year"), relationship = "many-to-many") %>%
-        full_join(y  = table("gapminder_covariates"),    #TODO: multiple entries for COD(Congo, Kinshasa)
+    #   full_join(y  = table("unicef_covariates"),
+    #         by = c("country", "year"), relationship = "many-to-many") %>%
+    full_join(y  = table("gapminder_covariates"),    #TODO: multiple entries for COD(Congo, Kinshasa)
               by = c("country", "year"), relationship = "many-to-many") %>%
     arrange(country, year) %>%
     # @HCJ - wasn't sure what was happening with this grouping, assuming we want d_v_a_id to be consistent?
@@ -272,8 +279,8 @@ perform_impute = function(d_v_a_id, target) {
            coverage_minus_6 = lag(coverage, 6),
            coverage_minus_7 = lag(coverage, 7),
            coverage_minus_8 = lag(coverage, 8)) %>%
-           # @HCJ - assuming this next line was a typo?
-           # coverage_minus_3 = lag(coverage, 3)) %>%
+    # @HCJ - assuming this next line was a typo?
+    # coverage_minus_3 = lag(coverage, 3)) %>%
     # Create dummy variables for historic health_spending (NA prior to our data)
     mutate(health_spending_minus_1 = lag(health_spending, 1),
            health_spending_minus_2 = lag(health_spending, 2),
@@ -288,13 +295,10 @@ perform_impute = function(d_v_a_id, target) {
   # Convert to tsibble format for time series regression by country
   data_dt = target_dt %>%
     filter(!is.na(target)) %>% 
-
     # Remove zeros to allow for log transformation
     filter(target != 0) %>%
-    
     # TODO: Activate this functionality (will need to select appropriate model downstream for comparing time periods)
     # Please extend to allow fitting to the temporally extrapolated data -> useful messages on determinants of vaccine impact over time 
-    
     # Set time periods
     mutate(period = case_when(year < 1984 ~ 1,
                               year >= 1984 & year < 1994 ~ 2,
@@ -304,10 +308,8 @@ perform_impute = function(d_v_a_id, target) {
     
     # Prepare to fit a model to each country / d_v_a_id combination
     as_tsibble(index = year, key = c(country,d_v_a_id)) %>%
-    
     # TODO: Here is the option to fit models for each decade, for each country, for each d_v_a. There may be issues with data completeness for some combinations
     #as_tsibble(index = year, key = c(country,d_v_a_id, period)) %>%
-    
     group_by(country) %>%
     filter(n() > 4) %>% # remove if fewer than 4 non-zero values for a given country (insufficient for fitting)
     ungroup()
@@ -318,69 +320,96 @@ perform_impute = function(d_v_a_id, target) {
   # TODO LATER: Update to lasso regularisation for optimal predictor selection
   # TODO LATER: Call sets of predictors from table and not write out this long way (see broom)
   
-  # Model 1: log(coverage)
+  # List of available covariates
+  covariates = list(
+    c0 = "log(coverage)",
+    c1 = "log(coverage_minus_1)", 
+    c2 = "log(coverage_minus_2)", 
+    c3 = "log(coverage_minus_3)", 
+    c4 = "log(coverage_minus_4)", 
+    p  = "pop_0to14", 
+    g  = "gini", 
+    h  = "HDI", 
+    a  = "attended_births")
+  
+  # Define models (using shorthand covariate references)
+  models = list(
+    m01 = "c0", 
+    m02 = "c0 + c1", 
+    m03 = "c0 + c1 + c2", 
+    m04 = "c0 + c1 + c2 + c3", 
+    m05 = "c0 + c1 + c2 + c3 + c4", 
+    m06 = "c0 + c1 + c2", 
+    m07 = "c0 + c1 + c2 + c3 + c4 + p + g", 
+    m08 = "c0 + c1 + c2 + c3 + c4 + p + g + a", 
+    m09 = "c0 + c1 + c2 + c3 + c4 + p + g + a", 
+    m10 = "c0 + c1 + c2 + c3 + h + p + g", 
+    m11 = "c0 + c1 + c2 + h + p + g", 
+    m12 = "c0 + c1 + h + p + g", 
+    m13 = "c0 + h + p + g")
+  
+  # Evaluate all these models
+  # x = evaluate_all_models(models, covariates)
+  
+  # Model 1: log(coverage) ----
   model_1 =  data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage))) %>%
-    mutate(model_number = 1) 
+    mutate(model_num = 1) 
   
   model_report_1 = report(model_1) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 1) %>%
+    mutate(model_num = 1) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_1 = model_1 %>% 
     tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 1) 
+    mutate(model_num = 1) 
   
-  # Model 2: log(coverage), log(coverage_minus_1)
+  # Model 2: log(coverage), log(coverage_minus_1) ----
   model_2 = data_dt %>%
-    model(tslm = TSLM(log(target) ~ log(coverage) +
-                        log(coverage_minus_1) 
-    )) %>%
-    mutate(model_number = 2)
+    model(tslm = TSLM(log(target) ~ log(coverage) + log(coverage_minus_1))) %>%
+    mutate(model_num = 2)
   
   model_report_2 = report(model_2) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 2) %>%
+    mutate(model_num = 2) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_2 = model_2 %>% 
     tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 2) 
+    mutate(model_num = 2) 
   
-  # Model 3: log(coverage), log(coverage_minus_1), stunting
+  # Model 3: log(coverage), log(coverage_minus_1), stunting ----
   model_3 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
-                        log(coverage_minus_2) 
-                      )) %>%
-    mutate(model_number = 3)
+                        log(coverage_minus_2))) %>%
+    mutate(model_num = 3)
   
   model_report_3 = report(model_3) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 3) %>%
+    mutate(model_num = 3) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_3 = model_3 %>% 
     tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 3) 
+    mutate(model_num = 3) 
   
-  # Model 4: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3)
+  # Model 4: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3) ----
   model_4 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
                         log(coverage_minus_2) +
-                        log(coverage_minus_3) 
-    )) %>%
-    mutate(model_number = 4)
+                        log(coverage_minus_3))) %>%
+    mutate(model_num = 4)
   
   model_report_4 = report(model_4) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 4) %>%
+    mutate(model_num = 4) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   
   model_fit_4 = model_4 %>% 
     tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 4) 
+    mutate(model_num = 4) 
   
-  # Model 5: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4)
+  # Model 5: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4) ----
   model_5 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
@@ -388,34 +417,32 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_3) +
                         log(coverage_minus_4) 
     )) %>%
-    mutate(model_number = 5)
+    mutate(model_num = 5)
   
   model_report_5 = report(model_5) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 5) %>%
+    mutate(model_num = 5) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_5 = model_5 %>% 
     tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 5) 
+    mutate(model_num = 5) 
   
-  # Model 6: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI
+  # Model 6: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI ----
   model_6 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
-                        log(coverage_minus_2) 
-                        
-    )) %>%
-    mutate(model_number = 6)
+                        log(coverage_minus_2))) %>%
+    mutate(model_num = 6)
   
   model_report_6 = report(model_6) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 6) %>%
+    mutate(model_num = 6) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_6 = model_6 %>% 
     tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 6) 
+    mutate(model_num = 6) 
   
-  # Model 7: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14
+  # Model 7: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14 ----
   model_7 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
@@ -423,19 +450,18 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_3) +
                         log(coverage_minus_4) +
                         pop_0to14 +
-                        gini
-    )) %>%
-    mutate(model_number = 7)
+                        gini)) %>%
+    mutate(model_num = 7)
   
   model_report_7 = report(model_7) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 7) %>%
+    mutate(model_num = 7) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_7 = model_7 %>% 
     tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 7) 
+    mutate(model_num = 7) 
   
-  # Model 8: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14, gini
+  # Model 8: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14, gini ----
   model_8 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
@@ -444,20 +470,18 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_4) +
                         pop_0to14 +
                         gini +
-                        attended_births
-    )) %>%
-    mutate(model_number = 8)
+                        attended_births)) %>%
+    mutate(model_num = 8)
   
   model_report_8 = report(model_8) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 8) %>%
+    mutate(model_num = 8) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_8 = model_8 %>% 
     tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 8) 
+    mutate(model_num = 8) 
   
-  
-  # Model 9: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14, attended_births, gini
+  # Model 9: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), log(coverage_minus_4), HDI, pop_0to14, attended_births, gini ----
   model_9 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
@@ -466,19 +490,18 @@ perform_impute = function(d_v_a_id, target) {
                         log(coverage_minus_4) +
                         attended_births +
                         gini +
-                        pop_0to14 
-    )) %>%
-    mutate(model_number = 9)
+                        pop_0to14)) %>%
+    mutate(model_num = 9)
   
   model_report_9 = report(model_9) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 9) %>%
+    mutate(model_num = 9) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_9 = model_9 %>% 
     tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 9) 
+    mutate(model_num = 9) 
   
-  # Model 10: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), HDI, pop_0to14,  gini
+  # Model 10: log(coverage), log(coverage_minus_1), log(coverage_minus_2), log(coverage_minus_3), HDI, pop_0to14,  gini ----
   model_10 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
@@ -489,17 +512,17 @@ perform_impute = function(d_v_a_id, target) {
                         #  attended_births +
                         gini
     )) %>%
-    mutate(model_number = 10)
+    mutate(model_num = 10)
   
   model_report_10 = report(model_10) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 10) %>%
+    mutate(model_num = 10) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_10 = model_10 %>%
     tidy() %>%# Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number =10)
+    mutate(model_num =10)
   
-  # Model 11: log(coverage), log(coverage_minus_1), log(coverage_minus_2), HDI, pop_0to14,  gini
+  # Model 11: log(coverage), log(coverage_minus_1), log(coverage_minus_2), HDI, pop_0to14,  gini ----
   model_11 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
@@ -507,52 +530,49 @@ perform_impute = function(d_v_a_id, target) {
                         HDI +
                         pop_0to14 +
                         #attended_births +
-                        gini
-    )) %>%
-    mutate(model_number = 11)
+                        gini)) %>%
+    mutate(model_num = 11)
   
   model_report_11 = report(model_11) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 11) %>%
+    mutate(model_num = 11) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_11 = model_11 %>% 
     tidy() %>%# Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 11)
+    mutate(model_num = 11)
   
-  # Model 12: log(coverage), log(coverage_minus_1), HDI, pop_0to14, gini
+  # Model 12: log(coverage), log(coverage_minus_1), HDI, pop_0to14, gini ----
   model_12 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         log(coverage_minus_1) +
                         HDI +
                         pop_0to14 +
-                        gini
-    )) %>%
-    mutate(model_number = 12)
+                        gini)) %>%
+    mutate(model_num = 12)
   
   model_report_12 = report(model_12) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 12) %>%
+    mutate(model_num = 12) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_12 = model_12 %>% 
     tidy() %>%# Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 12)
+    mutate(model_num = 12)
   
-  # Model 13: log(coverage), HDI, pop_0to14, gini
+  # Model 13: log(coverage), HDI, pop_0to14, gini ----
   model_13 = data_dt %>%
     model(tslm = TSLM(log(target) ~ log(coverage) +
                         HDI +
                         pop_0to14 +
-                        gini
-    )) %>%
-    mutate(model_number = 13)
+                        gini)) %>%
+    mutate(model_num = 13)
   
   model_report_13 = report(model_13) %>% # Glance of fit stats inc R-squared, p-value, AIC, AICc etc.
-    mutate(model_number = 13) %>%
+    mutate(model_num = 13) %>%
     select(-c(r_squared, adj_r_squared, sigma2, statistic, AIC, BIC, CV, deviance, df.residual, rank))
   
   model_fit_13 = model_13 %>%
-    tidy() %>%# Arrange in tidy format for easy access of estimates, p-values etc.
-    mutate(model_number = 13)
+    tidy() %>% # Arrange in tidy format for easy access of estimates, p-values etc.
+    mutate(model_num = 13)
   
   # ---- Model selection ----
   
@@ -570,34 +590,34 @@ perform_impute = function(d_v_a_id, target) {
                        model_report_11,
                        model_report_12,
                        model_report_13) %>%
-                 arrange(country) %>%
-                 group_by(country) %>%
-                 filter(!is.infinite(AICc)) %>% # remove null models
-                 slice_min(AICc, with_ties = FALSE) %>% # if two models are equally the best, keep the first
-                 select(-c(.model, df, log_lik, p_value))
+    arrange(country) %>%
+    group_by(country) %>%
+    filter(!is.infinite(AICc)) %>% # remove null models
+    slice_min(AICc, with_ties = FALSE) %>% # if two models are equally the best, keep the first
+    select(-c(.model, df, log_lik, p_value))
   
-
-   
-   # Extract parameters of best fitting model for each country (according to AICc)
-   model_fit = rbind(model_fit_1,
-                     model_fit_2,
-                     model_fit_3,
-                     model_fit_4,
-                     model_fit_5,
-                     model_fit_6,
-                     model_fit_7,
-                     model_fit_8,
-                     model_fit_9,
-                     model_fit_10,
-                     model_fit_11,
-                     model_fit_12,
-                     model_fit_13)
-   
-   model_fit = left_join(model_choice, model_fit, by=c("country", "model_number"))
- 
-
-   # Extract best fitting model for each country (according to AICc)
-   all_models = rbind(model_1,
+  
+  
+  # Extract parameters of best fitting model for each country (according to AICc)
+  model_fit = rbind(model_fit_1,
+                    model_fit_2,
+                    model_fit_3,
+                    model_fit_4,
+                    model_fit_5,
+                    model_fit_6,
+                    model_fit_7,
+                    model_fit_8,
+                    model_fit_9,
+                    model_fit_10,
+                    model_fit_11,
+                    model_fit_12,
+                    model_fit_13)
+  
+  model_fit = left_join(model_choice, model_fit, by=c("country", "model_num"))
+  
+  
+  # Extract best fitting model for each country (according to AICc)
+  all_models = rbind(model_1,
                      model_2,
                      model_3,
                      model_4,
@@ -610,17 +630,17 @@ perform_impute = function(d_v_a_id, target) {
                      model_11,
                      model_12,
                      model_13)
-   
-   best_model = left_join(model_choice, all_models, by=c("country", "model_number", "d_v_a_id")) %>%
-                 as_mable(key = c(country, d_v_a_id), model = tslm)
-   
-   
-   # Link model output back to WHO region
-   regions = as.data.frame(target_dt) %>% select(country, region_short) %>% unique()
-   model_fit = inner_join(x=regions, y=model_fit, by="country")
-   model_choice = inner_join(x=regions, y=model_choice, by='country')
-   
-
+  
+  best_model = left_join(model_choice, all_models, by=c("country", "model_num", "d_v_a_id")) %>%
+    as_mable(key = c(country, d_v_a_id), model = tslm)
+  
+  
+  # Link model output back to WHO region
+  regions = as.data.frame(target_dt) %>% select(country, region_short) %>% unique()
+  model_fit = inner_join(x=regions, y=model_fit, by="country")
+  model_choice = inner_join(x=regions, y=model_choice, by='country')
+  
+  
   # Select countries for imputation
   impute_dt = target_dt %>% filter(! country %in% data_dt$country)
   
@@ -645,10 +665,10 @@ perform_impute = function(d_v_a_id, target) {
     select(-c(names(model_13_region))) %>%
     inner_join(y = regions, by = "country") 
   
-   # Store fitted values for VIMC countries
+  # Store fitted values for VIMC countries
   best_model_output = augment(best_model) %>%
     mutate(estimate = .fitted) %>%
-    select(-c(model_number, AICc, .model, .resid, .innov)) #, .fitted))
+    select(-c(model_num, AICc, .model, .resid, .innov)) #, .fitted))
   
   
   impute_output = impute_dt %>% select(country, d_v_a_id, year, estimate) %>%
@@ -656,7 +676,7 @@ perform_impute = function(d_v_a_id, target) {
     filter(!is.na(d_v_a_id))
   
   estimate_dt = bind_rows(best_model_output, impute_output)
-
+  
   # Recombine estimated impact with predictor data
   recombine_dt = full_join(data_dt, best_model_output, by = c("country", "d_v_a_id", "year")) %>% 
     rename(target = target.x)
@@ -684,6 +704,57 @@ perform_impute = function(d_v_a_id, target) {
   save_rds(fit, "impute", "impute", d_v_a_id)
   
   return(result_dt)
+}
+
+# ---------------------------------------------------------
+# Evaluate all user-specified models 
+# ---------------------------------------------------------
+evaluate_all_models = function(models, covariates) {
+  
+  # Iterate through models (could do this in parallel)
+  for (model_id in names(models)) {
+    
+    # Associated model 'number'
+    model_num = as.numeric(str_extract(model_id, "[0-9]"))
+    
+    # Extract model string
+    model_str = models[[model_id]]
+    
+    # Interpret shorthand references
+    for (j in names(covariates))
+      model_str = str_replace_all(
+        string  = model_str, 
+        pattern = paste0("\\b", j, "\\b"), 
+        replacement = covariates[[j]])
+    
+    # Construct full model string to be evaluated
+    model_fn   = paste0("TSLM(log(target) ~ ", model_str, ")")
+    model_eval = paste0("model(data_dt, tslm = ", model_fn, ")")
+    
+    # Evaluate model and append model reference
+    model_df = eval_str(model_eval) %>%
+      mutate(model_num = model_num, 
+             # model_id  = model_id, 
+             .before = 1)
+    
+    # xxxx
+    #
+    # NOTE: Glance of fit stats inc R-squared, p-value, AIC, AICc etc
+    report_df = report(model_df) %>% 
+      select(d_v_a_id, country, .model, p_value, df, log_lik, AICc) %>%
+      mutate(model_num = model_num, 
+             .before = 1)
+    
+    # xxx
+    model_fit_df = model_df %>%
+      tidy() %>%
+      mutate(model_num = model_num, 
+             .before = 1)
+    
+    # TODO: store in list(s)
+  }
+  
+  # TODO: rbindlist and return
 }
 
 # ---------------------------------------------------------
