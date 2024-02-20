@@ -22,7 +22,6 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_inputs) {
     
-
     # Methodology pathogen-country-scope figure
     plot_scope()
 
@@ -38,8 +37,10 @@ run_results = function() {
     # Missing coverage data by country
     plot_missing_data()
 
-    # GBD death estimates
+    # Global Burden of Disease death estimates by age
     plot_gbd_estimates()
+    
+    # Proportion of GBD burden we have coverage data for
     plot_gbd_missing()
   }
 

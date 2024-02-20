@@ -1778,8 +1778,6 @@ plot_impact_data = function() {
 # Plot function selection statistics
 # ---------------------------------------------------------
 plot_model_selection = function() {
-  
-  browser()
  
   message("  > Plotting impact model selection")
   
