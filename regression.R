@@ -1,35 +1,34 @@
 ###########################################################
-# IMPUTE
+# REGRESSION
 #
-# Impute deaths averted for VIMC pathogens for countries
-# not modelled by VIMC.
+# Fit a user-defined series of models to cumulative impact 
+# per FVP. This process has two use cases:
+#  1) Impute impact for countries not modelled by VIMC
+#  2) To infer drivers of impact (on complete set of estimates)
 #
 ###########################################################
 
 # ---------------------------------------------------------
-# Parent function for imputing missing VIMC countries
+# Parent function for regression modelling
 # ---------------------------------------------------------
-run_impute = function() {
+run_regression = function(case) {
   
   # Only continue if specified by do_step
-  if (!is.element(4, o$do_step)) return()
-  # if (!is.element(7, o$do_step)) return()
+  if (case == "impute" & !is.element(4, o$do_step)) return()
+  if (case == "infer"  & !is.element(7, o$do_step)) return()
   
-  message("* Running country imputation")
-  
-  # TODO: Extend to allow fitting to temporally extrapolated data 
-  #       => useful messages on determinants of vaccine impact over time 
+  message("* Running regression process: ", case)
   
   # TODO: Repeat process for DALYs
   
   # Create set of models to evaluate
-  list[models, covars] = define_models()
+  list[models, covars] = define_models(case)
   
   # Load response variable (impact per FVP)
-  target_dt = get_impute_data()
+  target = get_regression_data(case)
   
   # Return out if no training data identified
-  if (nrow(target_dt) == 0)
+  if (nrow(target) == 0)
     return()
   
   # ---- Perform regression ----
@@ -37,17 +36,23 @@ run_impute = function() {
   # TEMP: Use basic or full imputation method
   #
   # OPTIONS:
-  #  basic_impute - IA2030 method using GBD covariates
-  #  perform_impute1 - Helen's time series regression method
-  #  perform_impute2 - Same as Helen's method, refactored code
-  method = "perform_impute2"
+  #  basic_regression - IA2030 method using GBD covariates
+  #  perform_regression1 - Helen's time series regression method
+  #  perform_regression2 - Same as Helen's method, refactored code
+  method = "perform_regression2"
+  
+  # Which sources of public health impact are to be modelled
+  if (case == "impute") use_sources = qc(vimc)
+  if (case == "infer")  use_sources = qc(vimc, static, extern)
   
   # TEMP: Ignoring problematic cases for now
-  ignore = c(7, 11, 14)
-  
+  ignore = c(7, 11, 14,   # Non-routine, small numbers
+             16, 18, 22,  # DTP boosters causing problems
+             25)          # Polio results not ready yet
+             
   # Call country imputation function
   predict_dt = table("d_v_a") %>%
-    filter(source == "vimc") %>%
+    filter(source %in% use_sources) %>%
     # TEMP: Ignoring problematic cases for now...
     filter(!d_v_a_id %in% ignore) %>%  
     # Apply geographical imputation model...
@@ -55,12 +60,15 @@ run_impute = function() {
     lapply(FUN = get(method), 
            models = models, 
            covars = covars, 
-           target = target_dt) %>%
+           target = target, 
+           case   = case) %>%
     rbindlist() %>%
     select(d_v_a_id, country, year, impact_impute)
   
   # Apply imputations where needed
-  impute_dt = target_dt %>%
+  # 
+  # NOTE: A trivial process in the infer case
+  impute_dt = target %>%
     select(d_v_a_id, country, year, fvps_cum, impact_cum) %>%
     # Append predictions...
     left_join(y  = predict_dt, 
@@ -75,10 +83,10 @@ run_impute = function() {
     # Assume any missing values are zero impact...
     replace_na(list(impact = 0)) %>%
     # TEMP: Bound impact above by 1...
-    mutate(impact = pmin(impact, 1))
+    mutate(impact = pmin(impact, 1))  # HCJ: This can be removed when fitting looks good
   
   # Save imputed results to file
-  save_rds(impute_dt, "impute", "impute_result")
+  save_rds(impute_dt, case, case, "result")
   
   # ---- Plot results ----
   
@@ -107,45 +115,55 @@ run_impute = function() {
 # ---------------------------------------------------------
 # Define set of regression models to evaluate
 # ---------------------------------------------------------
-define_models = function() {
+define_models = function(case) {
   
   # List of available covariates
   covars = list(
-    c0 = "log(coverage)",
-    c1 = "log(coverage_minus_1)", 
-    c2 = "log(coverage_minus_2)", 
-    c3 = "log(coverage_minus_3)", 
-    c4 = "log(coverage_minus_4)", 
-    p  = "pop_0to14", 
-    g  = "gini", 
-    h  = "HDI", 
-    a  = "attended_births")
+    cov0  = "log(coverage)",
+    cov1  = "log(coverage_minus_1)", 
+    cov2  = "log(coverage_minus_2)", 
+    cov3  = "log(coverage_minus_3)", 
+    cov4  = "log(coverage_minus_4)", 
+    pop14 = "pop_0to14", 
+    gini  = "gini", 
+    hdi   = "HDI", 
+    ab    = "attended_births", 
+    hs0   = "health_spending", 
+    hs1   = "health_spending_minus_1", 
+    hs2   = "health_spending_minus_2")
   
   # Define models (using shorthand covariate references)
   models = list(
-    m1  = "c0", 
-    m2  = "c0 + c1", 
-    m3  = "c0 + c1 + c2", 
-    m4  = "c0 + c1 + c2 + c3", 
-    m5  = "c0 + c1 + c2 + c3 + c4", 
-    m6  = "c0 + c1 + c2", 
-    m7  = "c0 + c1 + c2 + c3 + c4 + p + g", 
-    m8  = "c0 + c1 + c2 + c3 + c4 + p + g + a", 
-    m9  = "c0 + c1 + c2 + c3 + c4 + p + g + a", 
-    m10 = "c0 + c1 + c2 + c3 + h + p + g", 
-    m11 = "c0 + c1 + c2 + h + p + g", 
-    m12 = "c0 + c1 + h + p + g", 
-    m13 = "c0 + h + p + g")
+    
+    # Models for imputing missing countries
+    impute = list(
+      m1  = "cov0", 
+      m2  = "cov0 + cov1", 
+      m3  = "cov0 + cov1 + cov2", 
+      m4  = "cov0 + cov1 + cov2 + cov3", 
+      m5  = "cov0 + cov1 + cov2 + cov3 + cov4", 
+      # m6  = "cov0 + cov1 + cov2",
+      m7  = "cov0 + cov1 + cov2 + cov3 + cov4 + pop14 + gini", 
+      m8  = "cov0 + cov1 + cov2 + cov3 + cov4 + pop14 + gini + ab", 
+      # m9  = "cov0 + cov1 + cov2 + cov3 + cov4 + pop14 + gini + ab",
+      m10 = "cov0 + cov1 + cov2 + cov3 + hdi + pop14 + gini", 
+      m11 = "cov0 + cov1 + cov2 + hdi + pop14 + gini", 
+      m12 = "cov0 + cov1 + hdi + pop14 + gini", 
+      m13 = "cov0 + hdi + pop14 + gini"), 
+    
+    # Models for inferring key drivers of impact 
+    infer = list(
+      x1  = "cov0", 
+      x8  = "cov0 + cov1 + cov2 + cov3 + cov4 + pop14 + gini + ab", 
+      x13 = "cov0 + hdi + pop14 + gini"))
   
-  # health_spending
-  
-  return(list(models, covars))
+  return(list(models[[case]], covars))
 }
 
 # ---------------------------------------------------------
-# Load/calculate target (impact per FVP) for modelled pathogens
+# Load/calculate target variable (impact per FVP)
 # ---------------------------------------------------------
-get_impute_data = function() {
+get_regression_data = function(case) {
   
   # Population size of each country over time
   pop_dt = table("wpp_pop") %>%
@@ -155,12 +173,24 @@ get_impute_data = function() {
     ungroup() %>%
     as.data.table()
   
-  # Wrangle VIMC impact estimates
-  impact_dt = table("vimc_estimates") %>%
+  # Impact estimates in imputation case: VIMC pathogens, VIMC countries
+  if (case == "impute") {
+    outcomes_dt = table("vimc_estimates") %>%
+      rename(impact = deaths_averted)
+  }
+  
+  # Impact estimates in imputation case: all modelled results
+  if (case == "infer")
+    outcomes_dt = read_rds("history", "deaths_averted")
+  
+  # TODO: Probably best to remove previously imputed estimates in the infer case
+  
+  # Convert estimates to cumulative form
+  impact_dt = outcomes_dt %>%
     lazy_dt() %>%
     # Sum impact over age...
     group_by(d_v_a_id, country, year) %>%
-    summarise(impact_abs = sum(deaths_averted)) %>%
+    summarise(impact_abs = sum(impact)) %>%
     ungroup() %>%
     mutate(impact_abs = pmax(impact_abs, 0)) %>%
     # Scale results to per capita...
@@ -178,7 +208,7 @@ get_impute_data = function() {
   # Extract FVPs
   fvps_dt = table("coverage") %>%
     lazy_dt() %>%
-    # Only impute pathogens and years for which we've VIMC estimates...
+    # Subset pathogens and years...
     filter(d_v_a_id %in% unique(impact_dt$d_v_a_id), 
            year     %in% unique(impact_dt$year)) %>%
     # Summarise over age...
@@ -205,19 +235,19 @@ get_impute_data = function() {
     mutate(target = impact_cum / fvps_cum)
   
   # Save this datatable to file for plotting purposes
-  save_rds(target_dt, "impute", "target")
+  save_rds(target_dt, case, case, "target")
   
   # Throw a warning if no target data identified
   if (nrow(target_dt) == 0)
-    warning("No imputation training data identified")
+    warning("No training data identified")
   
   return(target_dt)
 }
 
 # ---------------------------------------------------------
-# Perform imputation
+# Perform regression
 # ---------------------------------------------------------
-perform_impute2 = function(d_v_a_id, models, covars, target) {
+perform_regression2 = function(d_v_a_id, models, covars, target, case) {
   
   # Stepwise regression
   # TODO: Update to lasso regularisation for optimal predictor selection
@@ -230,6 +260,7 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
   # Display progress message to user
   message(" - ", d_v_a_name)
   
+  # Append all required covariates - see separate function
   target_ts = append_covariates(d_v_a_id, models, covars, target)
   
   # ---- Evaluate all user-defined models ----
@@ -297,30 +328,35 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
            estimate, std.error, p.value) %>%
     as.data.table()
   
-  # Evaluate models on the training data
-  #
-  # @HCJ - why is this needed if model 13 does the predictions?
-  # So we can see how well the 'best' models fits the target?
-  # model_eval = augment(model_choice) %>%
-  #   select(country, year, target, 
-  #          prediction = .fitted) %>%
-  #   as.data.table()
-  
   # ---- Predictions ----
   
   message("  > Model predictions")
   
-  # TODO: Generalise: allow model selection for imputed country by e.g. region. For now, model 13 works well in general
-  # TODO: Choose most appropriate method for selecting coefficients e.g. nearest neighbours
+  # Impute case: predict missing data using regional best models 
+  if (case == "impute") {
+    
+    # TODO: Generalise: allow model selection for imputed country by e.g. region. For now, model 13 works well in general
+    # TODO: Choose most appropriate method for selecting coefficients e.g. nearest neighbours
+    
+    # TEMP: Use model 13 (a commonly selected model) for predictions
+    use_model = "m13"
+    
+    # Evaluate this model - see seperate function
+    predict_dt = evaluate_predictions(
+      id         = use_model, 
+      model_list = model_list, 
+      target     = target_ts, 
+      case       = case)
+  }
   
-  # TEMP: Use model 13 (a commonly selected model) for predictions
-  use_model = 13
-  
-  # Evaluate this model - see seperate function
-  predict_dt = evaluate_predictions(
-    id         = use_model, 
-    model_list = model_list, 
-    target     = target_ts)
+  # Infer case: just a case of evaluating on the training data
+  if (case == "infer") {
+    
+    # Evaluate models on the training data
+    predict_dt = augment(model_choice) %>%
+      select(country, year, prediction = .fitted) %>%
+      as.data.table()
+  }
   
   # ---- Format output ----
   
@@ -350,7 +386,7 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
     data   = data_dt)
   
   # Save to file
-  save_rds(fit, "impute", "impute", d_v_a_id)
+  save_rds(fit, case, case, d_v_a_id)
   
   return(result_dt)
 }
@@ -488,9 +524,15 @@ evaluate_model = function(id, models, covars, data) {
 # ---------------------------------------------------------
 # Evalulate chosen model for all settings
 # ---------------------------------------------------------
-evaluate_predictions = function(id, model_list, target) {
+evaluate_predictions = function(id, model_list, target, case) {
   
   # TODO: Set up predictions also by period
+  
+  # Full set of models available - we'll subset for this modal ID
+  list[models, covars] = define_models(case)
+  
+  # Index of this model in model list
+  idx = which(names(models) == id)
   
   # ---- Determine predictors by region and period ----
   
@@ -499,11 +541,12 @@ evaluate_predictions = function(id, model_list, target) {
     select(country, region)
   
   # Take the median coefficient across each region
-  coefficient_dt = model_list[[id]] %>%
+  coefficient_dt = model_list %>%
+    pluck(idx) %>%
     tidy() %>%
     lazy_dt() %>%
     # Append region...
-    left_join(y  = region_dt, 
+    left_join(y  = region_dt,
               by = "country") %>%
     # Median coefficient by region to avoid outliers...
     group_by(region, term) %>%
@@ -522,11 +565,8 @@ evaluate_predictions = function(id, model_list, target) {
   quote = function(x, q = '"') 
     paste0(q, x, q)
   
-  # Full set of models available - we'll subset for this modal ID
-  list[models, covars] = define_models()
-  
   # Column names of predictors
-  predict_covars = models[id] %>%
+  predict_covars = models[[id]] %>%
     interpret_covars(covars) %>%
     str_remove_all(" ") %>%
     str_split("\\+") %>%

@@ -170,7 +170,7 @@ run_history = function() {
     rbind(extern_dt)
   
   # Save results to file
-  save_rds(result_dt, "results", "deaths_averted") 
+  save_rds(result_dt, "history", "deaths_averted") 
   
   # ---- Plot results ----
   
@@ -299,7 +299,7 @@ mortality_rates = function(age_bound = 5, grouping = "none") {
   age_effect = impact_age_multiplier()
   
   # Estimated child deaths averted by vaccination
-  averted_dt = read_rds("results", "deaths_averted") %>%
+  averted_dt = read_rds("history", "deaths_averted") %>%
     expand_grid(age_effect) %>%
     filter(age <= age_bound) %>%
     left_join(y  = grouping_dt, 

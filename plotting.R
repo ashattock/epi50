@@ -2557,7 +2557,7 @@ plot_historical_impact = function() {
   # ---- Construct plotting data ----
   
   # Prepare final results
-  results_dt = read_rds("results", "deaths_averted") %>%
+  results_dt = read_rds("history", "deaths_averted") %>%
     lazy_dt() %>%
     # Append full disease names...
     left_join(y  = table("d_v_a"), 
@@ -3040,7 +3040,7 @@ plot_prob_death_age = function() {
     vaccine    = "Vaccination as obserevd")
   
   # Estimated child deaths averted by vaccination
-  averted_dt = read_rds("results", "deaths_averted") %>%
+  averted_dt = read_rds("history", "deaths_averted") %>%
     filter(year == max(o$years)) %>%
     # Append region...
     left_join(y  = table("country"), 
@@ -3157,7 +3157,7 @@ plot_survival_increase = function() {
   title = "Historical vaccination compared to hypothetical no vaccination"
   
   # Estimated child deaths averted by vaccination
-  averted_dt = read_rds("results", "deaths_averted") %>%
+  averted_dt = read_rds("history", "deaths_averted") %>%
     # ...
     filter(year == max(o$years)) %>%
     mutate(year = as.character(year)) %>%
@@ -3567,7 +3567,7 @@ plot_vimc_comparison = function() {
   # ---- Load EPI50 and VIMC outcomes ----
   
   # Results from EPI50 analysis - impact and FVPs
-  epi50_dt = read_rds("results", "deaths_averted") %>%
+  epi50_dt = read_rds("history", "deaths_averted") %>%
     lazy_dt() %>%
     group_by(d_v_a_id) %>%
     summarise(impact_epi50 = round(sum(impact)), 

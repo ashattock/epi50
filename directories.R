@@ -46,17 +46,20 @@ prepare_dirs = function(o) {
   pth$static_v = file.path(pth$static, "vaccine")
   pth$static_t = file.path(pth$static, "vaccine_type")
   
-  # Path to imputatation and impact calculation files
-  pth$impute      = file.path(pth$output, "2_impute")
-  pth$impact      = file.path(pth$output, "3_impact")
-  pth$impact_runs = file.path(pth$impact, "runs")
+  # Path to imputation and impact function files
+  pth$impute = file.path(pth$output, "2_impute")
+  pth$impact = file.path(pth$output, "3_impact")
+  pth$runs   = file.path(pth$impact, "runs")
+  
+  # Path to figures and other output results
+  pth$history = file.path(pth$output, "4_history")
+  pth$infer   = file.path(pth$output, "5_infer")
   
   # Path to relative risk and impact factor files
-  # pth$uncertainty = file.path(pth$output, "3_uncertainty")
+  # pth$uncertainty = file.path(pth$output, "6_uncertainty")
   
-  # Path to figures and other output resusts
-  pth$results = file.path(pth$output, "4_results")
-  pth$figures = file.path(pth$output, "5_figures")
+  # Path to all figures
+  pth$figures = file.path(pth$output, "6_figures")
   
   # Append paths to o list
   o = set_dirs(o, pth)

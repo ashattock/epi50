@@ -405,7 +405,7 @@ model_quality = function(fns, fit, x, y, run_id) {
   
   # Save to file
   save_name = paste1(run_id, "coef")
-  save_rds(coef, "impact_runs", save_name)
+  save_rds(coef, "runs", save_name)
   
   # Extract log likelihood...
   ll = lapply(fit, function(a) a$ll) %>%
@@ -429,7 +429,7 @@ model_quality = function(fns, fit, x, y, run_id) {
   
   # Save to file
   save_name = paste1(run_id, "aicc")
-  save_rds(aicc, "impact_runs", save_name) 
+  save_rds(aicc, "runs", save_name) 
 }
 
 # ---------------------------------------------------------
@@ -469,7 +469,7 @@ compile_results = function(run_dt) {
     
     # All file names for this type of result
     names = paste1(run_dt$run_id, type)
-    files = paste0(o$pth$impact_runs, names, ".rds")
+    files = paste0(o$pth$runs, names, ".rds")
     
     # Files that exist 
     #
