@@ -70,9 +70,6 @@ set_options = function(do_step = NA) {
 
   # ---- Impact function settings ----
   
-  # Use multiple cores to speed up impact function fitting
-  o$parallel = FALSE
-  
   # Impact function model selection metric
   #
   # OPTIONS:
@@ -110,6 +107,16 @@ set_options = function(do_step = NA) {
 
   # Quantiles for credibility intervals
   # o$quantiles = c(0.025, 0.975)
+  
+  # ---- Parallelisation settings ----
+  
+  # Use multiple cores to speed up several fitting processes
+  o$parallel = list(
+    impute = TRUE, 
+    impact = FALSE) 
+
+  # Detect number of cores available to this user
+  o$n_cores = detectCores()
 
   # ---- Plotting flags ----
 

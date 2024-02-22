@@ -447,6 +447,8 @@ prepare_gapminder = function() {
   
   message(" - Gapminder covariates")
   
+  # TODO: We can remove the region references, handled in table("countries")
+  
   # Read in WHO region data
   WHO_regions_dt = fread(paste0(o$pth$input, "WHO_country_codes.csv")) 
   

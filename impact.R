@@ -33,11 +33,10 @@ run_impact = function() {
 
   message(" - Evaluating impact functions")
 
-  # Detect cores to use (only 1 if not running in parallel)
-  n_cores = ifelse(o$parallel, detectCores(), 1)
-
-  message("  > Using ", n_cores, " cores")
-
+  # Display number of cores if running in parallel
+  if (o$parallel$impact)
+    message("  > Using ", o$n_cores, " cores")
+  
   # Country-disease-vaccine-activity combinations
   run_dt = data_dt %>%
     select(d_v_a_id, country) %>%
@@ -50,7 +49,7 @@ run_impact = function() {
   pb = start_progress_bar(nrow(run_dt))
 
   # Run get_best_model in parallel
-  if (o$parallel)
+  if (o$parallel$impact)
     mclapply(
       X    = run_dt$run_id,
       FUN  = get_best_model,
@@ -60,7 +59,7 @@ run_impact = function() {
       mc.preschedule = FALSE)
 
   # Run get_best_model consecutively
-  if (!o$parallel)
+  if (!o$parallel$impact)
     lapply(
       X    = run_dt$run_id,
       FUN  = get_best_model,
@@ -322,7 +321,7 @@ run_mle = function(fns, start, x, y, plot = FALSE) {
     l_bnds = c(1e-1, rep(0, n_pars))  # Small but non-zero for sigma
     
     # Catch errors when running in parallel
-    if (!o$parallel) {
+    if (!o$parallel$impact) {
       
       # Attempt to fit MLE model using prevriously determined start point
       fit_result = tryCatch(
@@ -338,7 +337,7 @@ run_mle = function(fns, start, x, y, plot = FALSE) {
     }
     
     # Do not catch errors when running in parallel
-    if (o$parallel) {
+    if (o$parallel$impact) {
       
       # Attempt to fit MLE model using prevriously determined start point
       fit_result = mle(
