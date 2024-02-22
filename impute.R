@@ -23,7 +23,7 @@ run_impute = function() {
   # TODO: Repeat process for DALYs
   
   # Create set of models to evaluate
-  list[models, covars] = get_models()
+  list[models, covars] = define_models()
   
   # Load response variable (impact per FVP)
   target_dt = get_impute_data()
@@ -105,9 +105,9 @@ run_impute = function() {
 }
 
 # ---------------------------------------------------------
-# Create set of regression models to evaluate
+# Define set of regression models to evaluate
 # ---------------------------------------------------------
-get_models = function() {
+define_models = function() {
   
   # List of available covariates
   covars = list(
@@ -136,6 +136,8 @@ get_models = function() {
     m11 = "c0 + c1 + c2 + h + p + g", 
     m12 = "c0 + c1 + h + p + g", 
     m13 = "c0 + h + p + g")
+  
+  # health_spending
   
   return(list(models, covars))
 }
@@ -228,28 +230,71 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
   # Display progress message to user
   message(" - ", d_v_a_name)
   
-  # ---- Append covariates ----
+  # target_ts = append_covariates(d_v_a_id, models, covars, target)
   
-  # Full list of covariates used by specified models
-  retain_covars = which_covars(models, covars)
+  # TODO: Are GBD covariates still used/needed?
+  
+  # ---- Identify covariates from model specification ----
+  
+  # Shorthand covariates used in specified models
+  covars_used = unlist(models) %>%
+    paste(collapse = " + ") %>%
+    str_split_1(pattern = " \\+ ") %>%
+    unique()
+  
+  # Associated names of covariate columns 
+  covars_retain = covars[covars_used] %>%
+    unlist(covars) %>%
+    str_remove("^.*\\(+") %>%
+    str_remove("\\)+$")
+  
+  # ---- Define covariates to be lagged ----
+  
+  # Details of covariates we wish to lag
+  lag_dt = covars_retain %>%
+    str_split("_minus_", simplify = TRUE) %>%
+    as_named_dt(c("covar", "idx")) %>%
+    filter(idx > 0)
+  
+  # Extract all to-be-lagged covariates
+  covars_lag  = unique(lag_dt$covar)
+  n_lag_years = max(as.numeric(lag_dt$idx))
+  
+  # Small function to apply lag to given covariate
+  covar_lag_fn = function(dt) {
+    
+    # Iterate through covariates and years to lag
+    for (i in covars_lag) {
+      for (j in seq_len(n_lag_years)) {
+        
+        # Incrementally offset by one year
+        dt[[paste1(i, "minus", j)]] = lag(dt[[i]], j)
+      }
+    }
+    
+    return(dt)
+  }
+  
+  # ---- Format coverage (a key predictor) ----
   
   # Summarise vaccination coverage by country and year
   coverage_dt = table("coverage") %>%
     lazy_dt() %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
-    # Recalculate for whole population...
+    # Summarise over age groups...
     group_by(country, year) %>%
     summarise(fvps   = sum(fvps),
               cohort = sum(cohort)) %>%
     ungroup() %>%
+    # Recalculate for whole population...
     mutate(coverage = fvps / cohort) %>%
+    select(country, year, coverage) %>%
     as.data.table()
   
-  # TODO: Are GBD covariates still used/needed?
+  # ---- Append all other covariates ----
   
   # Create time-series tibble with all covariates
   target_ts = target %>%
-    lazy_dt() %>%
     # Data for this d-v-a...
     filter(d_v_a_id == !!d_v_a_id) %>%
     select(-d_v_a_id) %>%
@@ -272,33 +317,18 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
     left_join(y  = get_period(), 
               by = "year") %>%
     # Summarise to single row for each country per year...
+    # TODO: This shouldn't be necessary
     arrange(country, year) %>%
     group_by(country, year) %>%
     slice_head(n = 1) %>%
     ungroup() %>%
-    # Create dummy variables for historic coverage (NA prior to our data)
-    mutate(coverage_minus_1 = lag(coverage, 1),
-           coverage_minus_2 = lag(coverage, 2),
-           coverage_minus_3 = lag(coverage, 3),
-           coverage_minus_4 = lag(coverage, 4),
-           coverage_minus_5 = lag(coverage, 5),
-           coverage_minus_6 = lag(coverage, 6),
-           coverage_minus_7 = lag(coverage, 7),
-           coverage_minus_8 = lag(coverage, 8)) %>%
-    # Create dummy variables for historic health_spending (NA prior to our data)
-    mutate(health_spending_minus_1 = lag(health_spending, 1),
-           health_spending_minus_2 = lag(health_spending, 2),
-           health_spending_minus_3 = lag(health_spending, 3),
-           health_spending_minus_4 = lag(health_spending, 4),
-           health_spending_minus_5 = lag(health_spending, 5),
-           health_spending_minus_6 = lag(health_spending, 6),
-           health_spending_minus_7 = lag(health_spending, 7),
-           health_spending_minus_8 = lag(health_spending, 8)) %>%
+    # Lag any necessary covariates...
+    group_by(country) %>%
+    covar_lag_fn() %>%
+    ungroup() %>%
     # Only retain covariates defined in models...
     select(country, year, target, 
-           all_of(retain_covars)) %>%
-    # Execute dtplyr...
-    as.data.table() %>%
+           all_of(covars_retain)) %>%
     # Convert to time-series tibble...
     as_tsibble(index = year, 
                key   = country) 
@@ -384,7 +414,7 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
   # TODO: Generalise: allow model selection for imputed country by e.g. region. For now, model 13 works well in general
   # TODO: Choose most appropriate method for selecting coefficients e.g. nearest neighbours
   
-  # TEMP: Use model 13 (a commonly selected model) to predict unseen countries
+  # TEMP: Use model 13 (a commonly selected model) for predictions
   use_model = 13
   
   # Evaluate this model - see seperate function
@@ -484,8 +514,8 @@ evaluate_predictions = function(id, model_list, target) {
   quote = function(x, q = '"') 
     paste0(q, x, q)
   
-  # Create set of models to evaluate
-  list[models, covars] = get_models()
+  # Full set of models available - we'll subset for this modal ID
+  list[models, covars] = define_models()
   
   # Column names of predictors
   predict_covars = models[id] %>%
@@ -533,26 +563,6 @@ interpret_covars = function(model, covars) {
       replacement = covars[[covar]])
   
   return(model)
-}
-
-# ---------------------------------------------------------
-# Extract covariates used by this model(s)
-# ---------------------------------------------------------
-which_covars = function(models, covars) {
-  
-  # Shorthand covariates used in specified models
-  covars_used = unlist(models) %>%
-    paste(collapse = " + ") %>%
-    str_split_1(pattern = " \\+ ") %>%
-    unique()
-  
-  # Associated names of covariate columns 
-  covar_names = covars[covars_used] %>%
-    unlist(covars) %>%
-    str_remove("^.*\\(+") %>%
-    str_remove("\\)+$")
-  
-  return(covar_names)
 }
 
 # ---------------------------------------------------------
