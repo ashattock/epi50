@@ -381,62 +381,17 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
   
   message("  > Model predictions")
   
-  # Prediction are performed at regional level
-  region_dt = table("country") %>%
-    select(country, region)
-  
-  # TODO: Determine results by region AND period
-  
-  # TEMP: Use model 13 (most commonly selected) to predict unseen countries, for now
   # TODO: Generalise: allow model selection for imputed country by e.g. region. For now, model 13 works well in general
   # TODO: Choose most appropriate method for selecting coefficients e.g. nearest neighbours
-  model_13_region = model_list[[13]] %>%
-    tidy() %>%
-    # Append region...
-    left_join(y  = region_dt, 
-              by = "country") %>%
-    # Median coefficient by region to avoid outliers...
-    group_by(region, term) %>%
-    summarise(estimate = median(estimate, na.rm = TRUE)) %>%
-    ungroup() %>%
-    # Spread to wide format...
-    pivot_wider(
-      names_from  = term,
-      names_glue  = "{term}_coefficient",
-      values_from = estimate) %>%
-    as.data.table()
   
-  # evaluate_predictions()
+  # TEMP: Use model 13 (a commonly selected model) to predict unseen countries
+  use_model = 13
   
-  quote = function(x, q = '"') 
-    paste0(q, x, q)
-  
-  predict_covars = models[13] %>%
-    interpret_covars(covars) %>%
-    str_remove_all(" ") %>%
-    str_split("\\+") %>%
-    pluck(1)
-  
-  predict_str = predict_covars %>%
-    paste1("coefficient") %>%
-    quote("`") %>%
-    paste(predict_covars, sep = " * ") %>%
-    paste(collapse = " + ")
-  
-  predict_fn   = paste0("prediction = exp(", predict_str, ")")
-  predict_eval = paste0("mutate(predictors, ", predict_fn, ")")
-  
-  # Select countries for imputation
-  predictors = target_ts %>% 
-    inner_join(y  = region_dt, 
-               by = "country") %>% 
-    left_join(y  = model_13_region, 
-              by = "region")
-  
-  # Impute target values using coefficients from WHO region
-  predict_dt = eval_str(predict_eval) %>%
-    select(country, year, prediction) %>% 
-    as.data.table()
+  # Evaluate this model - see seperate function
+  predict_dt = evaluate_predictions(
+    id         = use_model, 
+    model_list = model_list, 
+    target     = target_ts)
   
   # ---- Format output ----
   
@@ -493,11 +448,76 @@ evaluate_model = function(id, models, covars, data) {
 }
 
 # ---------------------------------------------------------
-# xxxxxxxxxxx
+# Evalulate chosen model for all settings
 # ---------------------------------------------------------
-evaluate_predictions = function() {
+evaluate_predictions = function(id, model_list, target) {
   
-  browser() 
+  # TODO: Set up predictions also by period
+  
+  # ---- Determine predictors by region and period ----
+  
+  # Prediction are performed at regional level
+  region_dt = table("country") %>%
+    select(country, region)
+  
+  # Take the median coefficient across each region
+  coefficient_dt = model_list[[id]] %>%
+    tidy() %>%
+    lazy_dt() %>%
+    # Append region...
+    left_join(y  = region_dt, 
+              by = "country") %>%
+    # Median coefficient by region to avoid outliers...
+    group_by(region, term) %>%
+    summarise(estimate = median(estimate, na.rm = TRUE)) %>%
+    ungroup() %>%
+    # Spread to wide format...
+    pivot_wider(
+      names_from  = term,
+      names_glue  = "{term}_coefficient",
+      values_from = estimate) %>%
+    as.data.table()
+  
+  # ---- Construct predictor function call ----
+  
+  # Small function to wrap a string in quotes
+  quote = function(x, q = '"') 
+    paste0(q, x, q)
+  
+  # Create set of models to evaluate
+  list[models, covars] = get_models()
+  
+  # Column names of predictors
+  predict_covars = models[id] %>%
+    interpret_covars(covars) %>%
+    str_remove_all(" ") %>%
+    str_split("\\+") %>%
+    pluck(1)
+  
+  # Construct linear product of predictors and coefficients
+  predict_str = predict_covars %>%
+    paste1("coefficient") %>%
+    quote("`") %>%
+    paste(predict_covars, sep = " * ") %>%
+    paste(collapse = " + ")
+  
+  # Construct complete function call to be evaluated
+  predict_fn   = paste0("prediction = exp(", predict_str, ")")
+  predict_eval = paste0("predictors %>% mutate(", predict_fn, ")")
+  
+  # Append coefficients to predictors
+  predictors = target %>% 
+    inner_join(y  = region_dt, 
+               by = "country") %>% 
+    left_join(y  = coefficient_dt, 
+              by = "region") %>% 
+    as.data.table()
+  
+  # Evaluate function call to predict all target values
+  predict_dt = eval_str(predict_eval) %>%
+    select(country, year, prediction)
+  
+  return(predict_dt)
 }
 
 # ---------------------------------------------------------
