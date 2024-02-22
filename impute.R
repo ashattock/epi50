@@ -18,7 +18,7 @@ run_impute = function() {
   message("* Running country imputation")
   
   # TODO: Extend to allow fitting to temporally extrapolated data 
-  #       -> useful messages on determinants of vaccine impact over time 
+  #       => useful messages on determinants of vaccine impact over time 
   
   # TODO: Repeat process for DALYs
   
@@ -267,6 +267,10 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
     full_join(y  = table("gapminder_covariates"),  # TODO: multiple entries for COD(Congo, Kinshasa)
               by = c("country", "year"), 
               relationship = "many-to-many") %>%
+    # Append period...
+    # HCJ - have I interpreted this correctly? period is a potential predictor?
+    left_join(y  = get_period(), 
+              by = "year") %>%
     # Summarise to single row for each country per year...
     arrange(country, year) %>%
     group_by(country, year) %>%
@@ -299,31 +303,18 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
     as_tsibble(index = year, 
                key   = country) 
   
+  # ---- Evaluate all user-defined models ----
+  
+  message("  > Evaluating models")
+  
   # Subset training data (which we have impact estimates for)
   data_ts = target_ts %>%
     # Remove zeros to allow for log transformation...
     filter(target > 0) %>%
-    # TODO: Activate this functionality (will need to select appropriate model downstream for comparing time periods)
-    # Set time periods
-    # @HCJ: Is this decade consideration not needed in target_ts too?
-    mutate(period = case_when(
-      year < 1984 ~ 1,
-      year >= 1984 & year < 1994 ~ 2,
-      year >= 1994 & year < 2004 ~ 3,
-      year >= 2004 & year < 2014 ~ 4,
-      year >= 2014 & year <= 2024 ~ 5)) %>%
-    # Prepare to fit a model to each country / d_v_a_id combination
-    as_tsibble(index = year, 
-               key   = country) %>%
-    # TODO: Here is the option to fit models for each decade, for each country. There may be issues with data completeness for some combinations
-    #as_tsibble(index = year, key = c(country, period)) %>%
+    # Remove country if insufficient data points for fitting...
     group_by(country) %>%
-    filter(n() > 4) %>% # remove if fewer than 4 non-zero values for a given country (insufficient for fitting)
+    filter(n() >= o$min_data_requirement) %>% 
     ungroup()
-  
-  # ---- Evaluate all user-defined models ----
-  
-  message("  > Evaluating models")
   
   # Evaluate all models in parallel
   if (o$parallel$impute)
@@ -393,6 +384,8 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
   # Prediction are performed at regional level
   region_dt = table("country") %>%
     select(country, region)
+  
+  # TODO: Determine results by region AND period
   
   # TEMP: Use model 13 (most commonly selected) to predict unseen countries, for now
   # TODO: Generalise: allow model selection for imputed country by e.g. region. For now, model 13 works well in general
@@ -540,5 +533,28 @@ which_covars = function(models, covars) {
     str_remove("\\)+$")
   
   return(covar_names)
+}
+
+# ---------------------------------------------------------
+# Easily convert between year and period
+# ---------------------------------------------------------
+get_period = function() {
+  
+  # Indices of period change
+  year_idx = seq(
+    from = o$period_length, 
+    to   = length(o$years), 
+    by   = o$period_length) + 1
+  
+  # Format into full year-period datatable
+  period_dt = tibble(year = o$years[year_idx]) %>%
+    mutate(period = 1 : n()) %>%
+    full_join(y  = tibble(year = o$year), 
+              by = "year") %>%
+    arrange(year) %>%
+    fill(period, .direction = "updown") %>%
+    as.data.table()
+  
+  return(period_dt)
 }
 

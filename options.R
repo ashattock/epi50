@@ -67,6 +67,14 @@ set_options = function(do_step = NA) {
   
   # Use GBD estimates starting from a given year
   o$gbd_estimate_years = 1990 : 2019
+  
+  # ---- Regression settings ----
+  
+  # Country must have at least n data points for fitting
+  o$min_data_requirement = 5
+  
+  # Length of each 'period' in years
+  o$period_length = 10
 
   # ---- Impact function settings ----
   
