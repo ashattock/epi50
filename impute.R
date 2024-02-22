@@ -76,7 +76,7 @@ run_impute = function() {
     replace_na(list(impact = 0)) %>%
     # TEMP: Bound impact above by 1...
     mutate(impact = pmin(impact, 1))
-    
+  
   # Save imputed results to file
   save_rds(impute_dt, "impute", "impute_result")
   
@@ -230,7 +230,135 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
   # Display progress message to user
   message(" - ", d_v_a_name)
   
-  # target_ts = append_covariates(d_v_a_id, models, covars, target)
+  target_ts = append_covariates(d_v_a_id, models, covars, target)
+  
+  # ---- Evaluate all user-defined models ----
+  
+  message("  > Evaluating models")
+  
+  # Subset training data (which we have impact estimates for)
+  data_ts = target_ts %>%
+    # Remove zeros to allow for log transformation...
+    filter(target > 0) %>%
+    # Remove country if insufficient data points for fitting...
+    group_by(country) %>%
+    filter(n() >= o$min_data_requirement) %>% 
+    ungroup()
+  
+  # Evaluate all models in parallel
+  if (o$parallel$impute)
+    model_list = mclapply(
+      X   = names(models),
+      FUN = evaluate_model, 
+      models = models, 
+      covars = covars, 
+      data   = data_ts,
+      mc.cores = o$n_cores,
+      mc.preschedule = FALSE)
+  
+  # Evaluate all models consecutively
+  if (!o$parallel$impute)
+    model_list = lapply(
+      X   = names(models),
+      FUN = evaluate_model, 
+      models = models, 
+      covars = covars, 
+      data   = data_ts)
+  
+  # ---- Model selection ----
+  
+  message("  > Model selection")
+  
+  # For each country, select the model with the best AICc
+  model_choice = model_list %>%
+    lapply(report) %>%
+    rbindlist() %>%
+    # Remove null models...
+    filter(!is.infinite(AICc)) %>% 
+    # Retain only best fit model (if equal, keep the first)...
+    group_by(country) %>%
+    slice_min(AICc, with_ties = FALSE) %>%
+    unique() %>%
+    # Reappend best model...
+    left_join(y  = rbindlist(model_list), 
+              by = c("country", "model_id")) %>%
+    # Reduce down to keep only model and AICc... 
+    select(country, model_id, tslm, AICc) %>%
+    mutate(d_v_a_id = d_v_a_id, 
+           .before = 1) %>%
+    # Convert to mable class...
+    as_mable(key   = country, 
+             model = tslm) %>%
+    suppressWarnings()
+  
+  # Extract parameters of best fitting model for each country
+  model_fit = tidy(model_choice) %>%
+    select(d_v_a_id, country, model_id, term, 
+           estimate, std.error, p.value) %>%
+    as.data.table()
+  
+  # Evaluate models on the training data
+  #
+  # @HCJ - why is this needed if model 13 does the predictions?
+  # So we can see how well the 'best' models fits the target?
+  # model_eval = augment(model_choice) %>%
+  #   select(country, year, target, 
+  #          prediction = .fitted) %>%
+  #   as.data.table()
+  
+  # ---- Predictions ----
+  
+  message("  > Model predictions")
+  
+  # TODO: Generalise: allow model selection for imputed country by e.g. region. For now, model 13 works well in general
+  # TODO: Choose most appropriate method for selecting coefficients e.g. nearest neighbours
+  
+  # TEMP: Use model 13 (a commonly selected model) for predictions
+  use_model = 13
+  
+  # Evaluate this model - see seperate function
+  predict_dt = evaluate_predictions(
+    id         = use_model, 
+    model_list = model_list, 
+    target     = target_ts)
+  
+  # ---- Format output ----
+  
+  # Apply predictions to impute missing impact estimates
+  result_dt = target %>%
+    filter(d_v_a_id == !!d_v_a_id) %>%
+    # Append predictions...
+    left_join(y  = predict_dt, 
+              by = c("country", "year")) %>%
+    select(d_v_a_id, country, year, fvps_cum, 
+           impact_cum, target, prediction) %>%
+    # Multiply through to obtain cumulative impact over time...
+    mutate(impact_impute = fvps_cum * prediction, 
+           .after = impact_cum)
+  
+  # Also format predictors for use in plotting
+  data_dt = data_ts %>%
+    mutate(d_v_a_id = d_v_a_id, 
+           .before = 1) %>%
+    as.data.table()
+  
+  # Store the data used, fitted model, and result
+  fit = list(
+    model  = model_choice,  # NOTE: Only for non-imputed
+    report = model_fit,
+    result = result_dt, 
+    data   = data_dt)
+  
+  # Save to file
+  save_rds(fit, "impute", "impute", d_v_a_id)
+  
+  return(result_dt)
+}
+
+# ---------------------------------------------------------
+# Append all required covariates
+# ---------------------------------------------------------
+append_covariates = function(d_v_a_id, models, covars, target) {
   
   # TODO: Are GBD covariates still used/needed?
   
@@ -333,127 +461,7 @@ perform_impute2 = function(d_v_a_id, models, covars, target) {
     as_tsibble(index = year, 
                key   = country) 
   
-  # ---- Evaluate all user-defined models ----
-  
-  message("  > Evaluating models")
-  
-  # Subset training data (which we have impact estimates for)
-  data_ts = target_ts %>%
-    # Remove zeros to allow for log transformation...
-    filter(target > 0) %>%
-    # Remove country if insufficient data points for fitting...
-    group_by(country) %>%
-    filter(n() >= o$min_data_requirement) %>% 
-    ungroup()
-  
-  # Evaluate all models in parallel
-  if (o$parallel$impute)
-    model_list = mclapply(
-      X   = names(models),
-      FUN = evaluate_model, 
-      models = models, 
-      covars = covars, 
-      data   = data_ts,
-      mc.cores = o$n_cores,
-      mc.preschedule = FALSE)
-  
-  # Evaluate all models consecutively
-  if (!o$parallel$impute)
-    model_list = lapply(
-      X   = names(models),
-      FUN = evaluate_model, 
-      models = models, 
-      covars = covars, 
-      data   = data_ts)
-  
-  # ---- Model selection ----
-  
-  message("  > Model selection")
-
-  # For each country, select the model with the best AICc
-  model_choice = model_list %>%
-    lapply(report) %>%
-    rbindlist() %>%
-    # Remove null models...
-    filter(!is.infinite(AICc)) %>% 
-    # Retain only best fit model (if equal, keep the first)...
-    group_by(country) %>%
-    slice_min(AICc, with_ties = FALSE) %>%
-    unique() %>%
-    # Reappend best model...
-    left_join(y  = rbindlist(model_list), 
-              by = c("country", "model_id")) %>%
-    # Reduce down to keep only model and AICc... 
-    select(country, model_id, tslm, AICc) %>%
-    mutate(d_v_a_id = d_v_a_id, 
-           .before = 1) %>%
-    # Convert to mable class...
-    as_mable(key   = country, 
-             model = tslm) %>%
-    suppressWarnings()
-  
-  # Extract parameters of best fitting model for each country
-  model_fit = tidy(model_choice) %>%
-    select(d_v_a_id, country, model_id, term, 
-           estimate, std.error, p.value) %>%
-    as.data.table()
-  
-  # Evaluate models on the training data
-  #
-  # @HCJ - why is this needed if model 13 does the predictions?
-  # So we can see how well the 'best' models fits the target?
-  # model_eval = augment(model_choice) %>%
-  #   select(country, year, target, 
-  #          prediction = .fitted) %>%
-  #   as.data.table()
-  
-  # ---- Predictions ----
-  
-  message("  > Model predictions")
-  
-  # TODO: Generalise: allow model selection for imputed country by e.g. region. For now, model 13 works well in general
-  # TODO: Choose most appropriate method for selecting coefficients e.g. nearest neighbours
-  
-  # TEMP: Use model 13 (a commonly selected model) for predictions
-  use_model = 13
-  
-  # Evaluate this model - see seperate function
-  predict_dt = evaluate_predictions(
-    id         = use_model, 
-    model_list = model_list, 
-    target     = target_ts)
-  
-  # ---- Format output ----
-  
-  # Apply predictions to impute missing impact estimates
-  result_dt = target %>%
-    filter(d_v_a_id == !!d_v_a_id) %>%
-    # Append predictions...
-    left_join(y  = predict_dt, 
-              by = c("country", "year")) %>%
-    select(d_v_a_id, country, year, fvps_cum, 
-           impact_cum, target, prediction) %>%
-    # Multiply through to obtain cumulative impact over time...
-    mutate(impact_impute = fvps_cum * prediction, 
-           .after = impact_cum)
-  
-  # Also format predictors for use in plotting
-  data_dt = data_ts %>%
-    mutate(d_v_a_id = d_v_a_id, 
-           .before = 1) %>%
-    as.data.table()
-  
-  # Store the data used, fitted model, and result
-  fit = list(
-    model  = model_choice,  # NOTE: Only for non-imputed
-    report = model_fit,
-    result = result_dt, 
-    data   = data_dt)
-  
-  # Save to file
-  save_rds(fit, "impute", "impute", d_v_a_id)
-  
-  return(result_dt)
+  return(target_ts)
 }
 
 # ---------------------------------------------------------
