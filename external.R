@@ -18,12 +18,12 @@ run_external = function() {
   
   # TODO: Split impact across each vaccine...
   
-  # Create templates for measles and polio models
-  template_measles()
-  template_polio()
-
-  # Simulate DynaMICE measles model
-  simulate_dynamice()
+  # # Create templates for measles and polio models
+  # template_measles()
+  # template_polio()
+  # 
+  # # Simulate DynaMICE measles model
+  # simulate_dynamice()
 
   # TEMP: Construct temporary dummy polio results
   dummy_polio()  # TODO: Remove when polio results available
@@ -276,8 +276,23 @@ dummy_polio = function() {
   # All metrics of intrerest (epi outcomes and number of doses)
   metrics = unique(template_dt$metric)
   
+  # Crudely, expect around 30k deaths per year in counterfactual scenario
+  annual_deaths = 30000
+  
+  # Split equally across regions and age groups
+  counterfactual = annual_deaths / 
+    (n_unique(template_dt$region) * 
+       n_unique(template_dt$age_group))
+  
+  # Create dummy counter-factual results
+  counterfactual_dt = template_dt %>%
+    filter(scenario == "no_vaccine",
+           metric   == "deaths") %>%
+    mutate(value = counterfactual)
+  
   # Polio doses based on crude data extraction
   doses_dt = table("coverage_everything") %>%
+    lazy_dt() %>%
     inner_join(y  = table("d_v_a_extern"), 
                by = "d_v_a_id") %>%
     left_join(y  = table("country"), 
@@ -299,36 +314,11 @@ dummy_polio = function() {
     arrange(scenario, region, year, age_group, metric) %>%
     as.data.table()
   
-  # Which cases have non-trivial doses and therefore impact
-  impact_dt = doses_dt %>%
-    group_by(region, year, age_group) %>%
-    summarise(doses = sum(value)) %>%
-    ungroup() %>%
-    filter(doses > 0) %>%
-    as.data.table()
-  
-  # Create dummy baseline results
-  baseline_dt = template_dt %>%
-    filter(scenario == "no_vaccine",
-           !grepl(".+_doses$", metric)) %>%
-    mutate(baseline = runif(n(), max = 1e5)) %>%
-    rbind(mutate(., scenario = "vaccine"))
-  
-  # Scale dummy values if doses given in that year
+  # Concatenate into single datatable
   dummy_dt = template_dt %>%
-    filter(scenario == "vaccine",
-           !grepl(".+_doses$", metric)) %>%
-    inner_join(y  = impact_dt, 
-               by = c("region", "year", "age_group")) %>%
-    mutate(impact = runif(n())) %>%
-    full_join(y  = baseline_dt, 
+    left_join(y  = rbind(doses_dt, counterfactual_dt),
               by = names(template_dt)) %>%
-    mutate(value = ifelse(
-      test = is.na(impact), 
-      yes  = baseline, 
-      no   = baseline * impact)) %>%
-    select(all_names(template_dt), value) %>%
-    rbind(doses_dt) %>%
+    replace_na(list(value = 0)) %>%
     arrange(scenario, region, year, age_group, metric)
   
   # Save dummy EPI50-formatted polio results
@@ -353,9 +343,9 @@ dummy_polio = function() {
   #   facet_grid(
   #     rows   = vars(metric),
   #     cols   = vars(age_group),
-  #     scales = "free_y") + 
+  #     scales = "free_y") +
   #   scale_y_continuous(
-  #     label = comma)
+  #     labels = comma)
 }
 
 # ---------------------------------------------------------
