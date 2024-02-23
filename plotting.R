@@ -3039,12 +3039,18 @@ plot_prob_death_age = function() {
     no_vaccine = "No historical vaccination",
     vaccine    = "Vaccination as obserevd")
   
+  # Construct a somewhat elaborate y axis label
+  y_label = bquote(
+    ~.("Probability of death in n")
+    ^.("th") 
+    ~.("year of life")
+    ~.(paste0("(", max(o$years), ")")))
+  
   # Estimated child deaths averted by vaccination
   averted_dt = read_rds("history", "deaths_averted") %>%
     filter(year == max(o$years)) %>%
-    # Append region...
-    left_join(y  = table("country"), 
-              by = "country") %>%
+    # Append region name...
+    append_region_name() %>%
     # xxx ...
     group_by(region) %>%
     summarise(total_averted = sum(impact)) %>%
@@ -3064,9 +3070,8 @@ plot_prob_death_age = function() {
     # xxx ...
     mutate(age = age + 1) %>%
     filter(age %in% 2 ^ (0 : age_bins)) %>%
-    # Append region...
-    left_join(y  = table("country"), 
-              by = "country") %>%
+    # Append region name...
+    append_region_name() %>%
     # Average prob of death by region and year...
     group_by(region, age) %>%
     summarise(pop    = sum(pop), 
@@ -3091,6 +3096,7 @@ plot_prob_death_age = function() {
     arrange(region, case, age) %>%
     as.data.table()
   
+  # Plot both scenarios as side-by-side bars
   g = ggplot(plot_dt) +
     aes(x = age, 
         y = value, 
@@ -3110,8 +3116,7 @@ plot_prob_death_age = function() {
       breaks = 2 ^ (0 : age_bins)) +
     # Prettify y axis...
     scale_y_continuous(
-      name   = paste("Probability of death before", 
-                     "n^th birthday in", max(o$years)),
+      name   = y_label,
       labels = percent, 
       limits = c(0, NA), 
       expand = expansion(mult = c(0, 0.05)), 
@@ -3124,7 +3129,7 @@ plot_prob_death_age = function() {
             margin = margin(t = 20, b = 10)),
           axis.title.y = element_text(
             margin = margin(l = 10, r = 20)),
-          axis.text    = element_text(size = 10),
+          axis.text    = element_text(size = 12),
           axis.ticks   = element_blank(), 
           axis.line    = element_line(linewidth = 0.25),
           strip.text   = element_text(size = 18),
@@ -3132,7 +3137,7 @@ plot_prob_death_age = function() {
           panel.spacing = unit(1, "lines"), 
           panel.grid.major.y = element_line(linewidth = 0.25),
           legend.title = element_blank(),
-          legend.text  = element_text(size = 14),
+          legend.text  = element_text(size = 16),
           legend.key   = element_blank(),
           legend.position = "bottom", 
           legend.key.height = unit(2, "lines"),
@@ -3280,10 +3285,10 @@ plot_survival_increase = function() {
             margin = margin(l = 10, r = 20)),
           axis.title.y.right = element_text(
             margin = margin(l = 20, r = 10), color = "grey"),
-          axis.text = element_text(size = 10),
+          axis.text = element_text(size = 12),
           axis.text.y.right = element_text(color = "grey"),
           axis.line  = element_blank(),
-          strip.text = element_text(size = 16),
+          strip.text = element_text(size = 18),
           strip.background = element_blank(), 
           plot.title    = element_text(
             margin = margin(t = 10, b = 20), 
@@ -3293,7 +3298,7 @@ plot_survival_increase = function() {
             linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"),
           legend.title  = element_blank(),
-          legend.text   = element_text(size = 14),
+          legend.text   = element_text(size = 16),
           legend.position = "bottom", 
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
@@ -3809,13 +3814,39 @@ plot_tornado = function() {
 }
 
 # ---------------------------------------------------------
+# Append full region names
+# ---------------------------------------------------------
+append_region_name = function(dt) {
+  
+  # Throw error if region already appended - too confusing
+  if ("region" %in% names(dt))
+    stop("Provide plotting datatable without 'region'")
+  
+  # Country - region name mapping
+  region_dt = table("country") %>%
+    left_join(y  = table("region_dict"), 
+              by = "region") %>%
+    select(region = region_name, country) %>%
+    # Convert to factors...
+    arrange(region, country) %>%
+    mutate(region = fct_inorder(region))
+  
+  # Append region names
+  name_dt = dt %>%
+    left_join(y  = region_dt, 
+              by = "country")
+  
+  return(name_dt)
+}
+
+# ---------------------------------------------------------
 # Full descriptive names for disease, vaccine, or vaccine type
 # ---------------------------------------------------------
-append_d_v_t_name = function(name_dt) {
+append_d_v_t_name = function(dt) {
   
   # All columns to update
   d_v_t = intersect(
-    x = names(name_dt), 
+    x = names(dt), 
     y = qc(disease, vaccine, type))
   
   # Iterate through columns to update
@@ -3828,7 +3859,7 @@ append_d_v_t_name = function(name_dt) {
     x_ord = table(x_name)[[x_name]]
     
     # Append full name description
-    name_dt %<>%
+    dt %<>%
       lazy_dt() %>%
       left_join(y  = table(x_name), 
                 by = x) %>%
@@ -3837,33 +3868,33 @@ append_d_v_t_name = function(name_dt) {
       rename(.x := all_of(x_name)) %>%
       mutate(.x = factor(.x, x_ord)) %>%
       rename(!!x := .x) %>%
-      select(all_names(name_dt)) %>%
+      select(all_names(dt)) %>%
       as.data.table()
   }
   
-  return(name_dt)
+  return(dt)
 }
 
 # ---------------------------------------------------------
 # Set natural order of d_v_a names - appending if necessary
 # ---------------------------------------------------------
-format_d_v_a_name = function(name_dt) {
+format_d_v_a_name = function(dt) {
   
   # Natural order of d_v_a_name (not necessarily alphabetical)
   d_v_a_dt = table("d_v_a") %>%
     select(d_v_a_id, d_v_a_name)
   
   # Check if d_v_a_name is already defined
-  if (!"d_v_a_name" %in% names(name_dt)) {
+  if (!"d_v_a_name" %in% names(dt)) {
     
     # Append name if it's not already in the data
-    name_dt %<>%
+    dt %<>%
       left_join(y  = d_v_a_dt, 
                 by = "d_v_a_id")
   }
   
   # Set order using factors according to d_v_a_dt
-  order_dt = name_dt %>%
+  order_dt = dt %>%
     mutate(d_v_a_name = factor(
       x      = d_v_a_name, 
       levels = d_v_a_dt$d_v_a_name)) %>%
