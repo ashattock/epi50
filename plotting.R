@@ -15,7 +15,7 @@ plot_scope = function() {
   message("  > Plotting country-disease scope")
   
   # Manually set tidy y axis limit
-  y_max = 10  # In billions
+  y_max = 8  # In billions
   
   # Linear time interpolation for less pixilated figures
   smoothness = 10  # Higher value for smoother plot
@@ -156,14 +156,14 @@ plot_scope = function() {
     filter(time == year2) %>%
     # Total cumulative FVPs by disease...
     group_by(disease) %>%
-    summarise(value = sum(value)) %>%
+    summarise(total = sum(value)) %>%
     ungroup() %>%
     # Construct labels...
-    mutate(value = round(value, 2),
-           label = paste(label, value, "billion")) %>%
+    mutate(total = round(total, 2),
+           label = paste(label, total, "billion")) %>%
     # Set coordinates...
-    mutate(time = year1 + 0.01 * (year2 - year1),
-           fvps = y_max * 0.9) %>%
+    mutate(time  = year1 + 0.01 * (year2 - year1),
+           value = y_max * 0.9) %>%
     as.data.table()
   
   # ---- Produce plot ----
@@ -207,6 +207,7 @@ plot_scope = function() {
       name   = paste("Cumulative number of people receiving",
                      "final primary dose (in billions)"), 
       limits = c(0, y_max),
+      breaks = seq(2, y_max, by = 2),
       labels = comma,
       expand = expansion(mult = c(0, 0)))
   
@@ -217,7 +218,7 @@ plot_scope = function() {
           strip.background = element_blank(), 
           axis.title.x  = element_blank(),
           axis.title.y  = element_text(
-            size = 20, margin = margin(l = 10, r = 20)),
+            size = 18, margin = margin(l = 10, r = 20)),
           axis.text     = element_text(size = 8),
           axis.ticks    = element_blank(), 
           axis.line     = element_line(linewidth = 0.25),
@@ -3159,16 +3160,17 @@ plot_survival_increase = function() {
   
   age_bound = 50
   
+  legend_rows = 2
+  
   title = "Historical vaccination compared to hypothetical no vaccination"
   
   # Estimated child deaths averted by vaccination
   averted_dt = read_rds("history", "deaths_averted") %>%
     # ...
     filter(year == max(o$years)) %>%
-    mutate(year = as.character(year)) %>%
+    # mutate(year = as.character(year)) %>%
     # Append region...
-    left_join(y  = table("country"), 
-              by = "country") %>%
+    append_region_name() %>%
     # ...
     group_by(region) %>%
     summarise(total_averted = sum(impact)) %>%
@@ -3186,8 +3188,7 @@ plot_survival_increase = function() {
     filter(year == max(o$years), 
            age  <= age_bound) %>%
     # Append region...
-    left_join(y  = table("country"), 
-              by = "country") %>%
+    append_region_name() %>%
     # Average prob of death by region and year...
     group_by(region, age) %>%
     summarise(pop    = sum(pop), 
@@ -3235,7 +3236,7 @@ plot_survival_increase = function() {
   
   # ---- Produce plot ----
   
-  colours = c(get_palette("region"), "#000000")
+  colours = unname(c(colours_who_region(), "#000000"))
   
   g = ggplot(fvps_dt) +
     aes(x = age, 
@@ -3261,7 +3262,7 @@ plot_survival_increase = function() {
     scale_y_continuous(
       name   = "Relative increase in survival probability", 
       labels = percent, 
-      limit  = c(0, NA),
+      limits = c(0, NA),
       expand = expansion(mult = c(0, 0.05)), 
       breaks = pretty_breaks()) +  
       # sec.axis = sec_axis(
@@ -3270,11 +3271,13 @@ plot_survival_increase = function() {
       #   labels = percent, 
       #   breaks = pretty_breaks())) +
     # Prettify legend...
-    guides(linetype  = "none", 
-           linewidth = "none", 
-           colour = guide_legend(
-             nrow = 1, 
-             override.aes = list(linewidth = 2)))
+    guides(
+      linetype  = "none", 
+      linewidth = "none", 
+      colour = guide_legend(
+        nrow  = legend_rows, 
+        byrow = TRUE,
+        override.aes = list(linewidth = 2)))
   
   # Prettify theme
   g = g + theme_classic() + 

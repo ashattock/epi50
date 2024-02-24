@@ -39,7 +39,7 @@ run_results = function() {
 
     # Global Burden of Disease death estimates by age
     plot_gbd_estimates()
-    
+
     # Proportion of GBD burden we have coverage data for
     plot_gbd_missing()
   }
