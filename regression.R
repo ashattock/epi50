@@ -11,27 +11,13 @@
 # ---------------------------------------------------------
 # Parent function for regression modelling
 # ---------------------------------------------------------
-run_regression = function(case) {
+run_regression = function(case, metric) {
   
   # Only continue if specified by do_step
   if (case == "impute" & !is.element(4, o$do_step)) return()
   if (case == "infer"  & !is.element(7, o$do_step)) return()
   
-  message("* Running regression process: ", case)
-  
-  # TODO: Repeat process for DALYs
-  
-  # Create set of models to evaluate
-  list[models, covars] = define_models(case)
-  
-  # Load response variable (impact per FVP)
-  target = get_regression_data(case)
-  
-  # Return out if no training data identified
-  if (nrow(target) == 0)
-    return()
-  
-  # ---- Perform regression ----
+  message("* Running regression: ", case, " ", metric)
   
   # TEMP: Use basic or full imputation method
   #
@@ -39,17 +25,28 @@ run_regression = function(case) {
   #  basic_regression - IA2030 method using GBD covariates
   #  perform_regression1 - Helen's time series regression method
   #  perform_regression2 - Same as Helen's method, refactored code
-  method = "basic_regression"
+  method = "perform_regression2"
+  
+  # TEMP: Ignoring problematic cases for now
+  ignore = c(7, 11, 14,   # Non-routine, small numbers
+             16, 18, 22,  # DTP boosters causing problems
+             25)          # Polio results not yet ready
+  
+  # ---- Load data ----
+  
+  # Load response variable (impact per FVP)
+  target = get_regression_data(case, metric)
+  
+  # Return out if no training data identified
+  if (nrow(target) == 0)
+    return()
+  
+  # ---- Perform regression ----
   
   # Which sources of public health impact are to be modelled
   if (case == "impute") use_sources = qc(vimc)
   if (case == "infer")  use_sources = qc(vimc, static, extern)
   
-  # TEMP: Ignoring problematic cases for now
-  ignore = c(7, 11, 14,   # Non-routine, small numbers
-             16, 18, 22,  # DTP boosters causing problems
-             25)          # Polio results not ready yet
-             
   # Call country imputation function
   predict_dt = table("d_v_a") %>%
     filter(source %in% use_sources) %>%
@@ -58,12 +55,13 @@ run_regression = function(case) {
     # Apply geographical imputation model...
     pull(d_v_a_id) %>%
     lapply(FUN = get(method), 
-           models = models, 
-           covars = covars, 
            target = target, 
-           case   = case) %>%
+           case   = case, 
+           metric = metric) %>%
     rbindlist() %>%
     select(d_v_a_id, country, year, impact_impute)
+  
+  # ---- Use regression to impute missing countries ----
   
   # Apply imputations where needed
   # 
@@ -86,7 +84,7 @@ run_regression = function(case) {
     mutate(impact = pmin(impact, 1))  # HCJ: This can be removed when fitting looks good
   
   # Save imputed results to file
-  save_rds(impute_dt, case, case, "result")
+  save_rds(impute_dt, case, case, metric, "result")
   
   # ---- Plot results ----
   
@@ -163,7 +161,7 @@ define_models = function(case) {
 # ---------------------------------------------------------
 # Load/calculate target variable (impact per FVP)
 # ---------------------------------------------------------
-get_regression_data = function(case) {
+get_regression_data = function(case, metric) {
   
   # Population size of each country over time
   pop_dt = table("wpp_pop") %>%
@@ -176,12 +174,12 @@ get_regression_data = function(case) {
   # Impact estimates in imputation case: VIMC pathogens, VIMC countries
   if (case == "impute") {
     outcomes_dt = table("vimc_estimates") %>%
-      rename(impact = deaths_averted)
+      rename(impact = !!paste1(metric, "averted"))
   }
   
   # Impact estimates in imputation case: all modelled results
   if (case == "infer")
-    outcomes_dt = read_rds("history", "deaths_averted")
+    outcomes_dt = read_rds("history", metric, "averted")
   
   # TODO: Probably best to remove previously imputed estimates in the infer case
   
@@ -234,7 +232,7 @@ get_regression_data = function(case) {
     mutate(target = impact_cum / fvps_cum)
   
   # Save this datatable to file for plotting purposes
-  save_rds(target_dt, case, case, "target")
+  save_rds(target_dt, case, case, metric, "target")
   
   # Throw a warning if no target data identified
   if (nrow(target_dt) == 0)
@@ -246,7 +244,7 @@ get_regression_data = function(case) {
 # ---------------------------------------------------------
 # Perform regression (IA2030 style approach)
 # ---------------------------------------------------------
-basic_regression = function(d_v_a_id, models, covars, target, case) {
+basic_regression = function(d_v_a_id, target, case, metric) {
   
   # Details of this d_v_a
   d_v_a_name = data.table(d_v_a_id = d_v_a_id) %>%
@@ -254,7 +252,7 @@ basic_regression = function(d_v_a_id, models, covars, target, case) {
     pull(d_v_a_name)
   
   # Display progress message to user
-  message(" - ", d_v_a_name)
+  message(" > ", d_v_a_name)
   
   # ---- Append covariates ----
   
@@ -315,7 +313,7 @@ basic_regression = function(d_v_a_id, models, covars, target, case) {
     fit = list(data = data_dt, result = NULL)
     
     # Save to file
-    save_rds(fit, "impute", "impute", d_v_a_id)
+    save_rds(fit, "impute", "impute", metric, d_v_a_id)
     
     return()
   }
@@ -377,7 +375,7 @@ basic_regression = function(d_v_a_id, models, covars, target, case) {
     result  = result_dt)
   
   # Save to file
-  save_rds(fit, "impute", "impute", d_v_a_id)
+  save_rds(fit, case, case, metric, d_v_a_id)
   
   return(result_dt)
 }
@@ -385,14 +383,14 @@ basic_regression = function(d_v_a_id, models, covars, target, case) {
 # ---------------------------------------------------------
 # Perform regression (Helen's original version)
 # ---------------------------------------------------------
-perform_regression = function(d_v_a_id, models, covars, target, case) {
+perform_regression = function(d_v_a_id, target, case, metric) {
   
   # Extract name of this d-v-a
   d_v_a_name = table("d_v_a") %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
     pull(d_v_a_name)
   
-  message(" - ", d_v_a_name)
+  message(" > ", d_v_a_name)
   
   # ---- Append covariates ----
   
@@ -910,7 +908,7 @@ perform_regression = function(d_v_a_id, models, covars, target, case) {
     result  = result_dt)
   
   # Save to file
-  save_rds(fit, "impute", "impute", d_v_a_id)
+  save_rds(fit, case, case, metric, d_v_a_id)
   
   return(result_dt)
 }
@@ -918,7 +916,7 @@ perform_regression = function(d_v_a_id, models, covars, target, case) {
 # ---------------------------------------------------------
 # Perform regression (Roo's refactored version)
 # ---------------------------------------------------------
-perform_regression2 = function(d_v_a_id, models, covars, target, case) {
+perform_regression2 = function(d_v_a_id, target, case, metric) {
   
   # Stepwise regression
   # TODO: Update to lasso regularisation for optimal predictor selection
@@ -929,14 +927,17 @@ perform_regression2 = function(d_v_a_id, models, covars, target, case) {
     pull(d_v_a_name)
   
   # Display progress message to user
-  message(" - ", d_v_a_name)
+  message(" > ", d_v_a_name)
+  
+  # Load set of models to evaluate
+  list[models, covars] = define_models(case)
   
   # Append all required covariates - see separate function
   target_ts = append_covariates(d_v_a_id, models, covars, target)
   
   # ---- Evaluate all user-defined models ----
   
-  message("  > Evaluating models")
+  message("  - Evaluating models")
   
   # Subset training data (which we have impact estimates for)
   data_ts = target_ts %>%
@@ -969,7 +970,7 @@ perform_regression2 = function(d_v_a_id, models, covars, target, case) {
   
   # ---- Model selection ----
   
-  message("  > Model selection")
+  message("  - Model selection")
   
   # For each country, select the model with the best AICc
   model_choice = model_list %>%
@@ -1001,7 +1002,7 @@ perform_regression2 = function(d_v_a_id, models, covars, target, case) {
   
   # ---- Predictions ----
   
-  message("  > Model predictions")
+  message("  - Model predictions")
   
   # Impute case: predict missing data using regional best models 
   if (case == "impute") {
@@ -1057,7 +1058,7 @@ perform_regression2 = function(d_v_a_id, models, covars, target, case) {
     data   = data_dt)
   
   # Save to file
-  save_rds(fit, case, case, d_v_a_id)
+  save_rds(fit, case, case, metric, d_v_a_id)
   
   return(result_dt)
 }

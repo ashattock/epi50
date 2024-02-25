@@ -25,7 +25,7 @@ run_uncertainty = function() {
   
   # ---- Draws for VIMC diseases ----
   
-  message(" - VIMC diseases")
+  message(" > VIMC diseases")
   
   # TODO: Look into raking, and tidy up this section...
   
@@ -52,7 +52,7 @@ run_uncertainty = function() {
   
   # ---- Draws for non-VIMC diseases ----
   
-  message(" - GBD diseases")
+  message(" > GBD diseases")
   
   browser() # gbd_efficacy is now efficacy
   
@@ -68,7 +68,7 @@ run_uncertainty = function() {
   
   # ---- Combine and align to modelled mean ----
   
-  message(" - Realigning means")
+  message(" > Realigning means")
   
   # Bind and shift all draws such that we don't move the modelled mean
   draws_dt = rbind(gbd_draws, vimc_draws) %>%                  # Concatenate all diseases

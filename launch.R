@@ -29,16 +29,18 @@ run_external()  # See external.R
 run_static()  # See static.R
 
 # Step 4) Impute missing countries for VIMC-modelled pathogens
-run_regression("impute")  # See regression.R
+run_regression("impute", "deaths")  # See regression.R
+run_regression("impute", "dalys")   # See regression.R
 
 # Step 5) Fit and select impact-FVP functions
-run_impact()  # See impact.R
+run_impact("deaths")  # See impact.R
+# run_impact("dalys")   # See impact.R
 
 # Step 6) Apply impact functions to historical coverage
 run_history()  # See history.R
 
 # Step 7) Re-fit time series regression models to infer predictors
-run_regression("infer")  # See regression.R (second call)
+run_regression("infer", "deaths")  # See regression.R
 
 # Step 8) Generate uncertainty draws
 run_uncertainty()  # See uncertainty.R

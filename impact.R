@@ -18,7 +18,7 @@ run_impact = function() {
   
   # ---- FVPs and impact estimates ----
 
-  message(" - Preparing FVP-impact data")
+  message(" > Preparing FVP-impact data")
 
   # Prepare impact-FVP data to fit to
   data_dt = get_impact_data()
@@ -31,11 +31,11 @@ run_impact = function() {
 
   # ---- Model fitting ----
 
-  message(" - Evaluating impact functions")
+  message(" > Evaluating impact functions")
 
   # Display number of cores if running in parallel
   if (o$parallel$impact)
-    message("  > Using ", o$n_cores, " cores")
+    message("  - Using ", o$n_cores, " cores")
   
   # Country-disease-vaccine-activity combinations
   run_dt = data_dt %>%
@@ -462,7 +462,7 @@ AICc = function(x) {
 # ---------------------------------------------------------
 compile_results = function(run_dt) {
   
-  message(" - Compiling all results")
+  message(" > Compiling all results")
   
   # Repeat for each type of output
   for (type in c("coef", "aicc")) {
@@ -497,7 +497,7 @@ compile_results = function(run_dt) {
 # ---------------------------------------------------------
 model_selection = function() {
   
-  message(" - Selecting best functions")
+  message(" > Selecting best functions")
   
   # Extract best fitting function based on AICc
   best_dt = read_rds("impact", "aicc") %>%

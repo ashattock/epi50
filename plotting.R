@@ -14,7 +14,7 @@ plot_scope = function() {
   
   # NOTE: Some inefficiencies in this function
   
-  message("  > Plotting country-disease scope")
+  message("  - Plotting country-disease scope")
   
   # Manually set tidy y axis limit
   y_max = 8  # In billions
@@ -243,7 +243,7 @@ plot_scope = function() {
 # ---------------------------------------------------------
 plot_total_fvps = function() {
   
-  message("  > Plotting total number of FVP")
+  message("  - Plotting total number of FVP")
   
   # Flag for whether to plot FVPs cumulatively over time
   cumulative = TRUE
@@ -343,7 +343,7 @@ plot_total_fvps = function() {
 # ---------------------------------------------------------
 plot_smooth_fvps = function() {
   
-  message("  > Plotting smoothed FVPs (static model pathogens)")
+  message("  - Plotting smoothed FVPs (static model pathogens)")
   
   # ---- Plot 1: data vs smoothing ----
   
@@ -529,7 +529,7 @@ plot_coverage = function() {
 # ---------------------------------------------------------
 plot_coverage_age_density = function() {
   
-  message("  > Plotting coverage data density by age")
+  message("  - Plotting coverage data density by age")
   
   # Construct plotting datatable
   plot_dt = table("coverage_source") %>%
@@ -591,7 +591,7 @@ plot_coverage_age_density = function() {
 # ---------------------------------------------------------
 plot_missing_data = function() {
   
-  message("  > Plotting countries with missing coverage data")
+  message("  - Plotting countries with missing coverage data")
   
   # Country population (most recent year)
   pop_dt = table("wpp_pop") %>%
@@ -682,11 +682,11 @@ plot_missing_data = function() {
 # **** Static models ****
 
 # ---------------------------------------------------------
-# Plot Global Burden of Disease death estimates by age
+# Plot Global Burden of Disease burden estimates by age
 # ---------------------------------------------------------
 plot_gbd_estimates = function() {
   
-  message("  > Plotting GBD death estimates by age")
+  message("  - Plotting GBD burden estimates by age")
   
   # Define age groups and associated upper bounds
   age_groups = c(
@@ -782,7 +782,7 @@ plot_gbd_estimates = function() {
 # ---------------------------------------------------------
 plot_gbd_missing = function() {
   
-  message("  > Plotting GBD burden by vaccine coverage status")
+  message("  - Plotting GBD burden by vaccine coverage status")
   
   # Dictionary for status groups
   status_dict = c(
@@ -865,7 +865,7 @@ plot_gbd_missing = function() {
 # ---------------------------------------------------------
 plot_vaccine_efficacy = function() {
   
-  message("  > Plotting vaccine efficacy profiles")
+  message("  - Plotting vaccine efficacy profiles")
   
   schedule_dict = c(
     x  = "Primary schedule",
@@ -986,7 +986,7 @@ plot_vaccine_efficacy = function() {
 # ---------------------------------------------------------
 plot_effective_coverage = function() {
   
-  message("  > Plotting effective coverage by year and age")
+  message("  - Plotting effective coverage by year and age")
   
   # Plot only up to a certain age
   age_max = 50
@@ -1071,7 +1071,7 @@ plot_effective_coverage = function() {
 # ---------------------------------------------------------
 plot_static = function() {
   
-  message("  > Plotting static model impact results")
+  message("  - Plotting static model impact results")
   
   # Disease burden / burden averted dictionary
   metric_dict = c(
@@ -1235,7 +1235,7 @@ plot_static = function() {
 # ---------------------------------------------------------
 plot_covariates = function() {
   
-  message("  > Plotting covariate-target relationships")
+  message("  - Plotting covariate-target relationships")
   
   # ---- Load data used for fitting ----
   
@@ -1332,7 +1332,7 @@ plot_covariates = function() {
 # ---------------------------------------------------------
 plot_impute_quality = function() {
   
-  message("  > Plotting imputation quality of fit")
+  message("  - Plotting imputation quality of fit")
   
   # ---- Load results from fitting ----
   
@@ -1428,7 +1428,7 @@ plot_impute_quality = function() {
 # --------------------------------------------------------
 plot_impute_perform = function() {
   
-  message("  > Plotting predictive performance by country")
+  message("  - Plotting predictive performance by country")
   
   # ---- Load models from fitting ----
   # Function to load best model for each country and show results
@@ -1532,7 +1532,7 @@ plot_impute_perform = function() {
 #-------------------------------------------------
 plot_model_choice = function() {
   
-  message("  > Plotting model choice by region")
+  message("  - Plotting model choice by region")
   
   # ---- Load results from imputation ----
   
@@ -1593,7 +1593,7 @@ plot_model_choice = function() {
 # Tornado plot of predictor coefficients by d_v_a 
 #-------------------------------------------------
 plot_tornado_d_v_a = function(){
-  message("  > Plotting tornado plots of predictors by d_v_a")
+  message("  - Plotting tornado plots of predictors by d_v_a")
   
   # ---- Load models from fitting ----
   # Function to load best model for each country and show results
@@ -1676,7 +1676,7 @@ plot_tornado_d_v_a = function(){
 # Tornado plot of predictor coefficients by region
 #--------------------------------------------------
 plot_tornado_region = function(){
-  message("  > Plotting tornado plots of predictors by region")
+  message("  - Plotting tornado plots of predictors by region")
   
   # ---- Load models from fitting ----
   # Function to load best model for each country and show results
@@ -1770,7 +1770,7 @@ plot_tornado_region = function(){
 # Plot fitted model for each country
 # --------------------------------------------------------
 plot_impute_fit = function(){
-  message("  > Plotting model fit by country")
+  message("  - Plotting model fit by country")
   
   # ---- Load models from fitting ----
   # Function to load best model for each country and show results
@@ -1875,7 +1875,7 @@ plot_impute_fit = function(){
 # ---------------------------------------------------------
 plot_impact_data = function() {
   
-  message("  > Plotting impact function fitting data")
+  message("  - Plotting impact function fitting data")
   
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "data") %>%
@@ -1987,7 +1987,7 @@ plot_impact_data = function() {
 # ---------------------------------------------------------
 plot_model_selection = function() {
   
-  message("  > Plotting impact model selection")
+  message("  - Plotting impact model selection")
   
   # Load stuff: best fit functions and associtaed coefficients
   best_dt = read_rds("impact", "best_model") %>%
@@ -2128,7 +2128,7 @@ plot_model_selection = function() {
 # ---------------------------------------------------------
 plot_model_fits = function() {
   
-  message("  > Plotting impact function fits")
+  message("  - Plotting impact function fits")
   
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "data") %>%
@@ -2225,7 +2225,7 @@ plot_impact_fvps = function(scope) {
   # All time plot
   if (scope == "all_time") {
     
-    message("  > Plotting all-time impact per FVP")
+    message("  - Plotting all-time impact per FVP")
     
     # Load initial ratio data
     impact_dt = read_rds("impact", "data")
@@ -2237,7 +2237,7 @@ plot_impact_fvps = function(scope) {
   # Initial year plot
   if (scope == "initial") {
     
-    message("  > Plotting initial impact per FVP")
+    message("  - Plotting initial impact per FVP")
     
     # Load initial ratio data
     impact_dt = read_rds("impact", "initial_ratio") %>%
@@ -2405,7 +2405,7 @@ plot_impact_fvps = function(scope) {
 # ---------------------------------------------------------
 plot_impact_coverage = function() {
   
-  message("  > Plotting impact against coverage")
+  message("  - Plotting impact against coverage")
   
   browser()
   
@@ -2573,7 +2573,7 @@ plot_impact_coverage = function() {
 # ---------------------------------------------------------
 plot_historical_impact = function() {
   
-  message("  > Plotting historical impact")
+  message("  - Plotting historical impact")
   
   # Diseases to combine into one colour (set to NULL to turn off)
   grouping = qc(Dip, HepB, JE, MenA, PCV, Rota, Rubella, YF) 
@@ -2712,7 +2712,7 @@ plot_historical_impact = function() {
 # ---------------------------------------------------------
 plot_child_mortality = function() {
   
-  message("  > Plotting child mortality rates")
+  message("  - Plotting child mortality rates")
   
   # ---- Figure properties ----
   
@@ -2910,7 +2910,7 @@ plot_child_mortality = function() {
 # ---------------------------------------------------------
 plot_mortality_change = function() {
   
-  message("  > Plotting regional changes in child mortality")
+  message("  - Plotting regional changes in child mortality")
   
   # Description of metric and year scope
   metric_str = "under 5 mortality rate"
@@ -3059,7 +3059,7 @@ plot_mortality_change = function() {
 # ---------------------------------------------------------
 plot_prob_death_age = function() {
   
-  message("  > Plotting probability of death by age")
+  message("  - Plotting probability of death by age")
   
   age_bins = 4
   
@@ -3186,7 +3186,7 @@ plot_prob_death_age = function() {
 # ---------------------------------------------------------
 plot_survival_increase = function() {
   
-  message("  > Plotting increase in childhood survival")
+  message("  - Plotting increase in childhood survival")
   
   age_bound = 50
   
@@ -3348,7 +3348,7 @@ plot_survival_increase = function() {
 # ---------------------------------------------------------
 plot_measles_in_context = function() {
   
-  message("  > Plotting measles in context")
+  message("  - Plotting measles in context")
   
   # Upper age bound for estimates
   age_bound = 5
@@ -3588,7 +3588,7 @@ plot_measles_in_context = function() {
 # ---------------------------------------------------------
 plot_vimc_comparison = function() {
   
-  message("  > Plotting comparison of EPI50 vs VIMC outcomes")
+  message("  - Plotting comparison of EPI50 vs VIMC outcomes")
   
   # Dictionary for source of estimates
   source_dict = c(

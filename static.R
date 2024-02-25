@@ -28,7 +28,7 @@ run_static = function() {
   # Iterate through these diseases
   for (disease in diseases) {
     
-    message(" - ", names[d == disease, x])
+    message(" > ", names[d == disease, x])
     
     # Effective coverage considering waning immunity and boosters
     effective_coverage(disease)
@@ -114,7 +114,7 @@ effective_coverage = function(disease) {
   # Iterate through these vaccines
   for (vaccine in vaccines_nonpx) {
 
-    message("  > ", names[v == vaccine, x])
+    message("  - ", names[v == vaccine, x])
 
     # Immunity effiacy profile for this vaccine
     profile = profile_dt[[vaccine]]
@@ -133,7 +133,7 @@ effective_coverage = function(disease) {
   # # Iterate through these vaccines
   for (vaccine in vaccines_px) {
     
-    message("  > ", names[v == vaccine, x])
+    message("  - ", names[v == vaccine, x])
     
     # First effect: on the pregnant woman...
     message("   ~ Effect on pregnant women")
@@ -185,7 +185,7 @@ effective_coverage = function(disease) {
       as.data.table()
   }
   
-  message("  > Concatenating waning immunity")
+  message("  - Concatenating waning immunity")
   
   # Concatenate results of each vaccine / schedule
   immunity_dt = expand_grid(
@@ -218,7 +218,7 @@ effective_coverage = function(disease) {
   
   # ---- Overall effective coverage ----
   
-  message("  > Calculating effective coverage")
+  message("  - Calculating effective coverage")
   
   # Assume all pregnant doses are boosters (in terms of the mother)
   immunity_dt %<>%
@@ -363,7 +363,7 @@ weight_booster = function(immunity_dt) {
 # ---------------------------------------------------------
 burden_averted = function(disease, metric) {
   
-  message("  > Calculating burden averted: ", metric)
+  message("  - Calculating burden averted: ", metric)
   
   # ---- Deaths averted for this disease ----
   
@@ -455,7 +455,7 @@ burden_averted = function(disease, metric) {
 # ---------------------------------------------------------
 compile_outputs = function(diseases) {
   
-  message(" - Compiling results")
+  message(" > Compiling results")
   
   # IDs targeting these disease
   d_v_a_id = table("d_v_a") %>% 

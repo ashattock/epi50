@@ -19,7 +19,7 @@ run_history = function() {
   
   # ---- Extract FVP data to be evaluated ----
   
-  message(" - Preparing historical coverage")
+  message(" > Preparing historical coverage")
   
   # Population size of each country over time
   pop_dt = table("wpp_pop") %>%
@@ -80,7 +80,7 @@ run_history = function() {
   
   # ---- Evaluate impact functions -----
   
-  message(" - Evaluating impact functions")
+  message(" > Evaluating impact functions")
   
   # Evaluate impact of relevant FVPs
   result_fit_dt = eval_dt %>%
@@ -101,7 +101,7 @@ run_history = function() {
   
   # ---- Back project using initial impact ratios -----
   
-  message(" - Back projecting")
+  message(" > Back projecting")
   
   # Initial impact per FVPs - used to back project
   #
@@ -151,7 +151,7 @@ run_history = function() {
   
   # ---- Append external models ----
   
-  message(" - Appending external models")
+  message(" > Appending external models")
   
   # Load up results from external models
   extern_dt = table("extern_estimates") %>%

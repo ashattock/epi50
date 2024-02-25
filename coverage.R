@@ -82,7 +82,7 @@ prepare_coverage = function() {
 # ---------------------------------------------------------
 coverage_vimc = function() {
   
-  message(" - Coverage data: VIMC")
+  message(" > Coverage data: VIMC")
   
   # Vaccines for which we'll use VIMC estimates
   vaccines_dt = table("d_v_a") %>%
@@ -119,7 +119,7 @@ coverage_vimc = function() {
 # ---------------------------------------------------------
 coverage_wiise = function(vimc_countries_dt) {
   
-  message(" - Coverage data: WIISE")
+  message(" > Coverage data: WIISE")
   
   # ---- Load data ----
   

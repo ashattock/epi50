@@ -55,7 +55,7 @@ run_external = function() {
 # ---------------------------------------------------------
 template_measles = function() {
   
-  message(" - Creating results template: measles")
+  message(" > Creating results template: measles")
   
   # All metrics of intrerest (epi outcomes and number of doses)
   metrics = qc(deaths, dalys, MCV1_doses, MCV2_doses, SIA_doses)
@@ -82,7 +82,7 @@ template_measles = function() {
 # ---------------------------------------------------------
 template_polio = function() {
   
-  message(" - Creating results template: polio")
+  message(" > Creating results template: polio")
   
   # All metrics of intrerest (epi outcomes and number of doses)
   metrics = qc(paralytic_cases, deaths, dalys, OPV_doses, IPV_doses)
@@ -266,7 +266,7 @@ dummy_polio = function() {
   if (dummy_exist && o$dummy_polio == FALSE)
     return()
   
-  message(" - Generating dummy polio outcomes")
+  message(" > Generating dummy polio outcomes")
   
   # Load template of regional results
   template_file = "template_polio_region.csv"
@@ -353,7 +353,7 @@ dummy_polio = function() {
 # ---------------------------------------------------------
 format_measles = function() {
   
-  message(" - Appending to measles outcomes")
+  message(" > Appending to measles outcomes")
   
   # Dictionary for converting dose names
   dose_dict = c(
@@ -408,7 +408,7 @@ format_measles = function() {
 # ---------------------------------------------------------
 format_polio = function() {
   
-  message(" - Interpolating polio outcomes")
+  message(" > Interpolating polio outcomes")
   
   # TODO: Convert doses into FVPs by dividing through...
   
@@ -519,7 +519,7 @@ format_polio = function() {
 # ---------------------------------------------------------
 extract_extern_results = function() {
   
-  message(" - Extracting results from all external models")
+  message(" > Extracting results from all external models")
   
   # ---- Extract outcomes ----
   
@@ -562,7 +562,7 @@ extract_extern_results = function() {
   
   # ---- Historical deaths and DALYs ----
   
-  message("  > Summarising historical estimates")
+  message("  - Summarising historical estimates")
   
   # Historical deaths in each scenario
   #
@@ -578,7 +578,7 @@ extract_extern_results = function() {
   
   # ---- Deaths and DALYs averted ----
   
-  message("  > Calculating deaths and DALYs averted")
+  message("  - Calculating deaths and DALYs averted")
   
   # Extract deaths and DALYs averted
   extern_averted_dt = historical_dt %>%
@@ -623,7 +623,7 @@ extract_extern_results = function() {
   
   # ---- Update coverage estimates using model outputs ----
   
-  message("  > Extracting vaccine coverage")
+  message("  - Extracting vaccine coverage")
   
   # Coverage data prior to appending external pathogen coverage
   base_coverage_dt = table("coverage") %>%

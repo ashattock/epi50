@@ -56,7 +56,7 @@ run_prepare = function() {
 # ---------------------------------------------------------
 prepare_config_tables = function() {
   
-  message(" - Config files")
+  message(" > Config files")
   
   # NOTE: Convert from yaml (/config) to rds (/tables) for fast loading
   
@@ -87,7 +87,7 @@ prepare_config_tables = function() {
 # ---------------------------------------------------------
 prepare_vimc_estimates = function() {
   
-  message(" - VIMC estimates")
+  message(" > VIMC estimates")
   
   # TODO: In raw form, we could instead use vimc_estimates.csv
   
@@ -97,18 +97,24 @@ prepare_vimc_estimates = function() {
     filter(country %in% all_countries(), 
            year    %in% o$years) %>%
     # Disease, vaccines, and activities of interest...
+    lazy_dt() %>%
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
     filter(!is.na(d_v_a_id), 
            source == "vimc") %>%
+    # TEMP: Mock DALY averted estimates...
+    mutate(dalys_averted = deaths_averted * 80) %>%
     # Tidy up...
-    select(d_v_a_id, country, year, age, deaths_averted) %>%
+    select(d_v_a_id, country, year, age, 
+           deaths_averted, dalys_averted) %>%
     arrange(d_v_a_id, country, year, age) %>%
+    as.data.table() %>%
+    # Save in tables cache...
     save_table("vimc_estimates")
   
   # Simply store VIMC in it's current form
-  read_rds("input", "vimc_uncertainty") %>%
-    save_table("vimc_uncertainty")
+  # read_rds("input", "vimc_uncertainty") %>%
+  #   save_table("vimc_uncertainty")
 }
 
 # ---------------------------------------------------------
@@ -116,7 +122,7 @@ prepare_vimc_estimates = function() {
 # ---------------------------------------------------------
 prepare_vaccine_efficacy = function() {
   
-  message(" - Vaccine efficacy")
+  message(" > Vaccine efficacy")
   
   # ---- Optimisation functions ----
   
@@ -207,7 +213,7 @@ prepare_vaccine_efficacy = function() {
 # ---------------------------------------------------------
 prepare_gbd_estimates = function() {
   
-  message(" - GBD estimates")
+  message(" > GBD estimates")
   
   # Dictionary of GBD disease names
   gbd_dict = table("gbd_dict") %>%
@@ -323,7 +329,7 @@ prepare_gbd_covariates = function() {
   # TODO: We need to project these estimates to avoid losing impact
   #       estimates in geo-imputation model
   
-  message(" - GBD covariates")
+  message(" > GBD covariates")
   
   # Prepare GBD 2019 HAQI for use as a covariate
   haqi_dt = fread(paste0(o$pth$input, "gbd19_haqi.csv")) %>%
@@ -404,7 +410,7 @@ prepare_gbd_covariates = function() {
 # ---------------------------------------------------------
 prepare_unicef = function() {
   
-  message(" - UNICEF")
+  message(" > UNICEF")
   
   # Read in WHO region data
   WHO_regions_dt = fread(paste0(o$pth$input, "WHO_country_codes.csv")) 
@@ -471,7 +477,7 @@ prepare_unicef = function() {
 # ---------------------------------------------------------
 prepare_gapminder = function() {
   
-  message(" - Gapminder covariates")
+  message(" > Gapminder covariates")
   
   # TODO: We can remove the region references, handled in table("countries")
   
@@ -608,7 +614,7 @@ prepare_gapminder = function() {
 # ---------------------------------------------------------
 prepare_income_status = function() {
   
-  message(" - Income status")
+  message(" > Income status")
   
   # Path to data file
   #
@@ -658,7 +664,7 @@ prepare_income_status = function() {
 # ---------------------------------------------------------
 prepare_demography = function() {
   
-  message(" - Demography data")
+  message(" > Demography data")
   
   # Details of data sets to load
   data_sets = list(
