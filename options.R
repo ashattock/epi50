@@ -42,7 +42,7 @@ set_options = function(do_step = NA) {
   # ---- Data and coverage settings ----
   
   # Bound coverage values below x%
-  o$max_coverage = 0.999
+  o$max_coverage = 0.995
   
   # Year that high-income countries switch to acellular pertussis vaccine
   o$wholecell_acellular_switch = 1995
@@ -135,10 +135,10 @@ set_options = function(do_step = NA) {
 
   # Turn figures on or off
   o$plot_inputs     = FALSE
-  o$plot_static     = FALSE
+  o$plot_static     = TRUE
   o$plot_imputation = FALSE
   o$plot_impact     = FALSE
-  o$plot_history    = TRUE
+  o$plot_history    = FALSE
 
   # ---- Plotting settings ----
   

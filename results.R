@@ -36,18 +36,18 @@ run_results = function() {
 
     # Missing coverage data by country
     plot_missing_data()
-
-    # Global Burden of Disease death estimates by age
-    plot_gbd_estimates()
-
-    # Proportion of GBD burden we have coverage data for
-    plot_gbd_missing()
   }
 
   # ---- Static model plots ----
 
   # Check plotting flag
   if (o$plot_static) {
+    
+    # Global Burden of Disease death estimates by age
+    plot_gbd_estimates()
+
+    # Proportion of GBD burden we have coverage data for
+    plot_gbd_missing()
 
     # Plot vaccine efficacy profiles for static model pathogens
     plot_vaccine_efficacy()

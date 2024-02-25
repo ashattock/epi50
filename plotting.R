@@ -5,7 +5,7 @@
 #
 ###########################################################
 
-# ==== Data visualisation ====
+# **** Data visualisation ****
 
 # ---------------------------------------------------------
 # Plot methodology figure to be used in paper
@@ -679,7 +679,7 @@ plot_missing_data = function() {
            dir = "data_visualisation")
 }
 
-# ==== Static models ====
+# **** Static models ****
 
 # ---------------------------------------------------------
 # Plot Global Burden of Disease death estimates by age
@@ -773,7 +773,8 @@ plot_gbd_estimates = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save to file
-  save_fig(g, "GBD deaths by age group", dir = "data_visualisation")
+  save_fig(g, "GBD deaths by age group", 
+           dir = "static_models")
 }
 
 # ---------------------------------------------------------
@@ -856,7 +857,7 @@ plot_gbd_missing = function() {
   
   # Save to file
   save_fig(g, "GBD deaths by vaccine coverage status", 
-           dir = "data_visualisation")
+           dir = "static_models")
 }
 
 # ---------------------------------------------------------
@@ -1072,151 +1073,162 @@ plot_static = function() {
   
   message("  > Plotting static model impact results")
   
-  # Deaths disease/averted dictionary
+  # Disease burden / burden averted dictionary
   metric_dict = c(
-    deaths_disease = "Estimated disease-specific deaths (GBD 2019)", 
-    deaths_averted = "Estimated deaths averted deaths from static model")
+    burden  = "Estimated disease-specific burden (GBD 2019)", 
+    averted = "Estimated burden averted from static model")
   
   # Associated colours
   metric_colours = c("darkred", "navyblue")
   
   # ---- Plot by disease ----
   
-  # Load previously calculated total coverage file
-  averted_dt = read_rds("static", "deaths_averted_disease")
-  
-  # Summarise results over country and age
-  disease_dt = averted_dt %>%
-    pivot_longer(cols = starts_with("deaths"), 
-                 names_to = "metric") %>%
-    # Summarise over countries...
-    group_by(disease, year, metric) %>%
-    summarise(value = sum(value) / 1e6) %>%
-    ungroup() %>%
-    arrange(metric, disease, year) %>%
-    # Recode deaths disease/averted...
-    append_d_v_t_name() %>%
-    mutate(metric = recode(metric, !!!metric_dict), 
-           metric = factor(metric, metric_dict)) %>%
-    as.data.table()
-  
-  # Plot deaths and deaths averted by disease
-  g = ggplot(disease_dt) + 
-    aes(x = year, 
-        y = value, 
-        colour = metric) + 
-    geom_line(linewidth = 2) + 
-    facet_wrap(~disease) + 
-    # Set colours and prettify legend...
-    scale_colour_manual(values = metric_colours) + 
-    guides(color = guide_legend(
-      byrow = TRUE, ncol = 1)) +
-    # Prettify x axis...
-    scale_x_continuous(
-      # limits = c(min(o$years), max(o$years)), 
-      expand = expansion(mult = c(0, 0)), 
-      breaks = pretty_breaks()) +  
-    # Prettify y axis...
-    scale_y_continuous(
-      name   = "Number of people (in millions)", 
-      labels = comma,
-      expand = expansion(mult = c(0, 0.05)))
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(axis.title.x  = element_blank(),
-          axis.title.y  = element_text(
-            size = 20, margin = margin(l = 10, r = 20)),
-          axis.text     = element_text(size = 10),
-          axis.text.x   = element_text(hjust = 1, angle = 50), 
-          axis.line     = element_blank(),
-          strip.text    = element_text(size = 14),
-          strip.background = element_blank(), 
-          panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
-          panel.spacing = unit(1, "lines"),
-          panel.grid.major.y = element_line(linewidth = 0.5),
-          legend.title  = element_blank(),
-          legend.text   = element_text(size = 14),
-          legend.key    = element_blank(),
-          legend.position = "bottom", 
-          legend.key.height = unit(2, "lines"),
-          legend.key.width  = unit(3, "lines"))
-  
-  # Save figure to file
-  save_fig(g, "Deaths averted by disease", dir = "static_models")
+  # Repeat for each metric
+  for (metric in o$metrics) {
+    
+    # Load previously calculated total coverage file
+    averted_dt = read_rds("static", metric, "averted_disease")
+    
+    # Summarise results over country and age
+    disease_dt = averted_dt %>%
+      lazy_dt() %>%
+      pivot_longer(cols = c(burden, averted), 
+                   names_to = "metric") %>%
+      # Summarise over countries...
+      group_by(disease, year, metric) %>%
+      summarise(value = sum(value) / 1e6) %>%
+      ungroup() %>%
+      arrange(metric, disease, year) %>%
+      # Recode deaths disease/averted...
+      append_d_v_t_name() %>%
+      mutate(metric = recode(metric, !!!metric_dict), 
+             metric = factor(metric, metric_dict)) %>%
+      as.data.table()
+    
+    # Plot deaths and deaths averted by disease
+    g = ggplot(disease_dt) + 
+      aes(x = year, 
+          y = value, 
+          colour = metric) + 
+      geom_line(linewidth = 2) + 
+      facet_wrap(~disease) + 
+      # Set colours and prettify legend...
+      scale_colour_manual(values = metric_colours) + 
+      guides(color = guide_legend(
+        byrow = TRUE, ncol = 1)) +
+      # Prettify x axis...
+      scale_x_continuous(
+        # limits = c(min(o$years), max(o$years)), 
+        expand = expansion(mult = c(0, 0)), 
+        breaks = pretty_breaks()) +  
+      # Prettify y axis...
+      scale_y_continuous(
+        name   = "Number of people (in millions)", 
+        labels = comma,
+        expand = expansion(mult = c(0, 0.05)))
+    
+    # Prettify theme
+    g = g + theme_classic() + 
+      theme(axis.title.x  = element_blank(),
+            axis.title.y  = element_text(
+              size = 20, margin = margin(l = 10, r = 20)),
+            axis.text     = element_text(size = 10),
+            axis.text.x   = element_text(hjust = 1, angle = 50), 
+            axis.line     = element_blank(),
+            strip.text    = element_text(size = 14),
+            strip.background = element_blank(), 
+            panel.border  = element_rect(
+              linewidth = 0.5, fill = NA),
+            panel.spacing = unit(1, "lines"),
+            panel.grid.major.y = element_line(linewidth = 0.5),
+            legend.title  = element_blank(),
+            legend.text   = element_text(size = 14),
+            legend.key    = element_blank(),
+            legend.position = "bottom", 
+            legend.key.height = unit(2, "lines"),
+            legend.key.width  = unit(3, "lines"))
+    
+    # Save figure to file
+    save_fig(g, "Burden averted by disease", metric,
+             dir = "static_models")
+  }
   
   # ---- Plot by vaccine ----
   
-  # Load previously calculated total coverage file
-  averted_dt = read_rds("static", "deaths_averted_vaccine")
-  
-  # Full vaccine names
-  name_dt = table("d_v_a") %>%
-    filter(source == "static") %>%
-    left_join(y  = table("vaccine_name"), 
-              by = "vaccine") %>%
-    select(d_v_a_id, name = vaccine_name)
-  
-  # Summarise results over country
-  vaccine_dt = averted_dt %>%
-    lazy_dt() %>%
-    # Summarise over countries...
-    group_by(d_v_a_id, year) %>%
-    summarise(deaths_averted = sum(impact)) %>%
-    ungroup() %>%
-    # Convert from d_v_a to v_a...
-    left_join(y  = name_dt, 
-              by = "d_v_a_id") %>%
-    select(vaccine = name, year, deaths_averted) %>%
-    # Suitable vaccine order...
-    mutate(vaccine = factor(vaccine, name_dt$name)) %>%
-    arrange(vaccine, year) %>%
-    as.data.table()
-  
-  # Plot deaths and deaths averted by vaccine
-  g = ggplot(vaccine_dt) + 
-    aes(x = year, 
-        y = deaths_averted, 
-        colour = vaccine) + 
-    geom_line(linewidth   = 2, 
-              show.legend = FALSE) + 
-    # Facet by vaccine...
-    facet_wrap(
-      facets = vars(vaccine),
-      scales = "free_y") + 
-    # Prettify x axis...
-    scale_x_continuous(
-      # limits = c(min(o$years), max(o$years)), 
-      expand = expansion(mult = c(0, 0)), 
-      breaks = pretty_breaks()) +  
-    # Prettify y axis...
-    scale_y_continuous(
-      name   = "Deaths averted by vaccine", 
-      labels = comma,
-      limits = c(0, NA), 
-      expand = expansion(mult = c(0, 0.05)))
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(axis.title.x  = element_blank(),
-          axis.title.y  = element_text(
-            size = 18, margin = margin(l = 10, r = 20)),
-          axis.text     = element_text(size = 9),
-          axis.text.x   = element_text(hjust = 1, angle = 50), 
-          axis.line     = element_blank(),
-          strip.text    = element_text(size = 12),
-          strip.background = element_blank(), 
-          panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
-          panel.spacing = unit(1, "lines"),
-          panel.grid.major.y = element_line(linewidth = 0.5))
-  
-  # Save figure to file
-  save_fig(g, "Deaths averted by vaccine", dir = "static_models")
+  # Repeat for each metric
+  for (metric in o$metrics) {
+    
+    # Load previously calculated total coverage file
+    averted_dt = read_rds("static", metric, "averted_vaccine")
+    
+    # Full vaccine names
+    name_dt = table("d_v_a") %>%
+      filter(source == "static") %>%
+      left_join(y  = table("vaccine_name"), 
+                by = "vaccine") %>%
+      select(d_v_a_id, name = vaccine_name)
+    
+    # Summarise results over country
+    vaccine_dt = averted_dt %>%
+      lazy_dt() %>%
+      # Summarise over countries...
+      group_by(d_v_a_id, year) %>%
+      summarise(averted = sum(impact)) %>%
+      ungroup() %>%
+      # Convert from d_v_a to v_a...
+      left_join(y  = name_dt, 
+                by = "d_v_a_id") %>%
+      select(vaccine = name, year, averted) %>%
+      # Suitable vaccine order...
+      mutate(vaccine = factor(vaccine, name_dt$name)) %>%
+      arrange(vaccine, year) %>%
+      as.data.table()
+    
+    # Plot deaths and deaths averted by vaccine
+    g = ggplot(vaccine_dt) + 
+      aes(x = year, 
+          y = averted, 
+          colour = vaccine) + 
+      geom_line(linewidth   = 2, 
+                show.legend = FALSE) + 
+      # Facet by vaccine...
+      facet_wrap(
+        facets = vars(vaccine),
+        scales = "free_y") + 
+      # Prettify x axis...
+      scale_x_continuous(
+        # limits = c(min(o$years), max(o$years)), 
+        expand = expansion(mult = c(0, 0)), 
+        breaks = pretty_breaks()) +  
+      # Prettify y axis...
+      scale_y_continuous(
+        name   = "Burden averted by vaccine", 
+        labels = comma,
+        limits = c(0, NA), 
+        expand = expansion(mult = c(0, 0.05)))
+    
+    # Prettify theme
+    g = g + theme_classic() + 
+      theme(axis.title.x  = element_blank(),
+            axis.title.y  = element_text(
+              size = 18, margin = margin(l = 10, r = 20)),
+            axis.text     = element_text(size = 9),
+            axis.text.x   = element_text(hjust = 1, angle = 50), 
+            axis.line     = element_blank(),
+            strip.text    = element_text(size = 12),
+            strip.background = element_blank(), 
+            panel.border  = element_rect(
+              linewidth = 0.5, fill = NA),
+            panel.spacing = unit(1, "lines"),
+            panel.grid.major.y = element_line(linewidth = 0.5))
+    
+    # Save figure to file
+    save_fig(g, "Burden averted by vaccine", metric,
+             dir = "static_models")
+  }
 }
 
-# ==== Regression (impute and infer) ====
+# **** Regression (impute and infer) ****
 
 # ---------------------------------------------------------
 # Plot (any) correlation between covariates and imputation target
@@ -1968,7 +1980,7 @@ plot_impact_data = function() {
            dir = "impact_functions")
 }
 
-# ==== Impact functions ====
+# **** Impact functions ****
 
 # ---------------------------------------------------------
 # Plot function selection statistics
@@ -2554,7 +2566,7 @@ plot_impact_coverage = function() {
   #   save_fig(g, "Figure 3", dir = "manuscript")
 }
 
-# ==== Historical impact ====
+# **** Historical impact ****
 
 # ---------------------------------------------------------
 # Main results plot - historical impact over time
@@ -3699,7 +3711,7 @@ plot_vimc_comparison = function() {
            dir = "historical_impact")
 }
 
-# ==== Other (to be reviewed) ====
+# **** Other (to be reviewed) ****
 
 # ---------------------------------------------------------
 # Helen's exploratory figures
@@ -3836,7 +3848,7 @@ plot_tornado = function() {
   g = g + theme_classic()
 }
 
-# ==== Helper functions ====
+# **** Helper functions ****
 
 # ---------------------------------------------------------
 # Append metric (deaths abd DALYs) descriptive names
