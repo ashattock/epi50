@@ -5,6 +5,8 @@
 #
 ###########################################################
 
+# ==== Data visualisation ====
+
 # ---------------------------------------------------------
 # Plot methodology figure to be used in paper
 # ---------------------------------------------------------
@@ -522,68 +524,6 @@ plot_coverage = function() {
   }
 }
 
-#-------------------------------------------------
-# Plot model choice per region
-#-------------------------------------------------
-plot_model_choice = function(){
-  
-  message("  > Plotting model choice by region")
-  
-  # ---- Load results from imputation ----
-  
-  # Function to load imputation results
-  load_results_fn = function(id)
-    result = read_rds("impute", "impute", id)$choice
-  
-  # Load imputation results for all d-v-a
-  choice_dt = table("d_v_a") %>%
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
-    filter(source == "vimc") %>%
-    pull(d_v_a_id) %>%
-    lapply(load_results_fn) %>%
-    rbindlist()
-  
-  # Details for file destination
-  save_name = "Model_choice_by_region"
-  save_dir  = "data_visualisation"
-  
-    # Omit country missing region
-    plot_dt = choice_dt %>% 
-              filter(!is.na(region_short))
-    
-    # Plot coverage value density
-    g = ggplot(plot_dt) + 
-      aes(x = model_number) + 
-      geom_histogram(binwidth = 1) +
-      facet_wrap(~region_short) 
- 
-    # Prettify theme
-    g = g + theme_classic() + 
-      theme(axis.text     = element_text(size = 10),
-            axis.title.x  = element_text(
-              size = 20, margin = margin(b = 10, t = 20)),
-            axis.title.y  = element_text(
-              size = 20, margin = margin(l = 10, r = 20)),
-            axis.line     = element_blank(),
-            strip.text    = element_text(size = 14),
-            strip.background = element_blank(), 
-            panel.border  = element_rect(
-              linewidth = 1, fill = NA),
-            panel.spacing = unit(1, "lines"),
-            legend.title  = element_blank(),
-            legend.text   = element_text(size = 14),
-            legend.key    = element_blank(),
-            legend.position = "right", 
-            legend.key.height = unit(2, "lines"),
-            legend.key.width  = unit(2, "lines"))
-   
-    # Save to file
-    save_fig(g, save_name, dir = save_dir)
-
- 
-}
-
 # ---------------------------------------------------------
 # Plot age targets as defined by WIISE and VIMC coverage data
 # ---------------------------------------------------------
@@ -738,6 +678,8 @@ plot_missing_data = function() {
   save_fig(g, "Missing data by country", 
            dir = "data_visualisation")
 }
+
+# ==== Static models ====
 
 # ---------------------------------------------------------
 # Plot Global Burden of Disease death estimates by age
@@ -1274,6 +1216,8 @@ plot_static = function() {
   save_fig(g, "Deaths averted by vaccine", dir = "static_models")
 }
 
+# ==== Regression (impute and infer) ====
+
 # ---------------------------------------------------------
 # Plot (any) correlation between covariates and imputation target
 # ---------------------------------------------------------
@@ -1377,7 +1321,7 @@ plot_covariates = function() {
 plot_impute_quality = function() {
   
   message("  > Plotting imputation quality of fit")
- 
+  
   # ---- Load results from fitting ----
   
   # Function to load imputation results
@@ -1470,78 +1414,224 @@ plot_impute_quality = function() {
 # --------------------------------------------------------
 # Plot predictive performance for each country
 # --------------------------------------------------------
-plot_impute_perform = function(){
-message("  > Plotting predictive performance by country")
+plot_impute_perform = function() {
   
-# ---- Load models from fitting ----
-# Function to load best model for each country and show results
+  message("  > Plotting predictive performance by country")
+  
+  # ---- Load models from fitting ----
+  # Function to load best model for each country and show results
   load_results_fn = function(id){
-  model = read_rds("impute", "impute", id)$model 
+    model = read_rds("impute", "impute", id)$model 
   }
   
   # Load imputation results for all d-v-a
-   diseases_dt = table("d_v_a") %>%
-      left_join(y  = table("disease"), 
-                by = "disease") %>%
-      filter(source == "vimc") %>%
-      pull(d_v_a_id)
-
-  for(id in diseases_dt){
-  model = load_results_fn(id)
+  diseases_dt = table("d_v_a") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id)
   
-  plot_dt = augment(model) %>%
-    rename(estimate = .fitted) %>%
+  for(id in diseases_dt){
+    model = load_results_fn(id)
+    
+    plot_dt = augment(model) %>%
+      rename(estimate = .fitted) %>%
+      append_d_v_a_name()
+    
+    # Maximum value in each facet (target or estimate)
+    blank_dt = plot_dt %>%
+      mutate(max_value = pmax(target, estimate)) %>%
+      group_by(country) %>%
+      summarise(max_value = max(max_value)) %>%
+      ungroup() %>%
+      expand_grid(type = c("target", "estimate")) %>%
+      pivot_wider(names_from  = type, 
+                  values_from = max_value) %>%
+      as.data.table()
+    
+    
+    # ---- Produce plot ----
+    
+    # Single plot with multiple facets
+    g = ggplot(plot_dt) +
+      aes(x = target, 
+          y = estimate) +
+      # Plot truth vs predicted...
+      geom_point(alpha = 0.35, 
+                 shape = 16) +
+      # For square axes...
+      geom_blank(data = blank_dt) +
+      # x=y
+      geom_abline(colour = "black", 
+                  intercept = 0,
+                  slope = 1) + 
+      # Simple faceting with wrap labelling...
+      facet_wrap(
+        facets   = ~country, 
+        labeller = label_wrap_gen(width = 30), 
+        ncol = 21,
+        scales = "free") + 
+      # Prettify x axis...
+      scale_x_continuous(
+        name   = "Imputation target", 
+        labels = NULL,#scientific,
+        limits = c(0, NA), 
+        expand = c(0, 0), 
+        breaks = pretty_breaks()) +  
+      # Prettify y axis...
+      scale_y_continuous(
+        name   = "Imputation prediction", 
+        labels = NULL,#scientific,
+        limits = c(0, NA),
+        expand = c(0, 0), 
+        breaks = pretty_breaks()) +
+      # Title 
+      labs(title = paste("Predictive performance for", plot_dt$d_v_a_name))
+    
+    # Prettify theme
+    g = g + theme_classic() + 
+      theme(axis.text     = element_text(size = 8),
+            axis.text.x   = element_text(hjust = 1, angle = 50),
+            axis.title.x  = element_text(
+              size = 16, margin = margin(l = 10, r = 20)),
+            axis.title.y  = element_text(
+              size = 16, margin = margin(b = 10, t = 20)),
+            axis.line     = element_blank(),
+            strip.text    = element_text(size = 12),
+            strip.background = element_blank(), 
+            panel.border  = element_rect(
+              linewidth = 0.5, fill = NA),
+            panel.spacing = unit(0.5, "lines"))
+    
+    
+    # Details for file destination
+    save_name = "Predictive performance by country"
+    save_dir  = "imputation"
+    
+    # Save figure to file
+    save_fig(g, save_name, id, dir = save_dir)
+  }
+  
+  return()
+}
+
+#-------------------------------------------------
+# Plot model choice per region
+#-------------------------------------------------
+plot_model_choice = function() {
+  
+  message("  > Plotting model choice by region")
+  
+  # ---- Load results from imputation ----
+  
+  # Function to load imputation results
+  load_results_fn = function(id)
+    result = read_rds("impute", "impute", id)$choice
+  
+  # Load imputation results for all d-v-a
+  choice_dt = table("d_v_a") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id) %>%
+    lapply(load_results_fn) %>%
+    rbindlist()
+  
+  # Details for file destination
+  save_name = "Model_choice_by_region"
+  save_dir  = "data_visualisation"
+  
+  # Omit country missing region
+  plot_dt = choice_dt %>% 
+    filter(!is.na(region_short))
+  
+  # Plot coverage value density
+  g = ggplot(plot_dt) + 
+    aes(x = model_number) + 
+    geom_histogram(binwidth = 1) +
+    facet_wrap(~region_short) 
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.text     = element_text(size = 10),
+          axis.title.x  = element_text(
+            size = 20, margin = margin(b = 10, t = 20)),
+          axis.title.y  = element_text(
+            size = 20, margin = margin(l = 10, r = 20)),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 14),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 1, fill = NA),
+          panel.spacing = unit(1, "lines"),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 14),
+          legend.key    = element_blank(),
+          legend.position = "right", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
+  
+  # Save to file
+  save_fig(g, save_name, dir = save_dir)
+  
+  
+}
+
+#-------------------------------------------------
+# Tornado plot of predictor coefficients by d_v_a 
+#-------------------------------------------------
+plot_tornado_d_v_a = function(){
+  message("  > Plotting tornado plots of predictors by d_v_a")
+  
+  # ---- Load models from fitting ----
+  # Function to load best model for each country and show results
+  load_results_fn = function(id)
+    report = read_rds("impute", "impute", id)$report
+  
+  # Load imputation results for all d-v-a
+  results_dt = table("d_v_a") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id) %>%
+    lapply(load_results_fn) %>%
+    rbindlist()
+  
+  plot_dt = results_dt %>%
+    mutate(d_v_a_id = d_v_a_id.x,
+           model = d_v_a_id) %>%
+    select(-c(country, d_v_a_id.x, d_v_a_id.y, model_number, .model, AICc)) %>%
+    filter(!region_short == "NA" &
+             estimate >= -20 &
+             estimate <= 20 &
+             term == "HDI" &
+             p.value <= 0.05) %>%
     append_d_v_a_name()
   
-  # Maximum value in each facet (target or estimate)
-  blank_dt = plot_dt %>%
-    mutate(max_value = pmax(target, estimate)) %>%
-    group_by(country) %>%
-    summarise(max_value = max(max_value)) %>%
-    ungroup() %>%
-    expand_grid(type = c("target", "estimate")) %>%
-    pivot_wider(names_from  = type, 
-                values_from = max_value) %>%
-    as.data.table()
-  
-  
   # ---- Produce plot ----
-  
+  #browser()
   # Single plot with multiple facets
-  g = ggplot(plot_dt) +
-    aes(x = target, 
-        y = estimate) +
-    # Plot truth vs predicted...
-    geom_point(alpha = 0.35, 
-               shape = 16) +
-    # For square axes...
-    geom_blank(data = blank_dt) +
-    # x=y
-    geom_abline(colour = "black", 
-                intercept = 0,
-                slope = 1) + 
+  g = dwplot(plot_dt) +
+    
     # Simple faceting with wrap labelling...
     facet_wrap(
-      facets   = ~country, 
-      labeller = label_wrap_gen(width = 30), 
-      ncol = 21,
-      scales = "free") + 
+      facets   = ~region_short, 
+      # labeller = label_wrap_gen(width = 30), 
+      ncol = 1) +
+    #scales.y = "free"
+    
+    # Zero line
+    geom_vline(aes(xintercept = 0)) +
+    
     # Prettify x axis...
     scale_x_continuous(
-      name   = "Imputation target", 
-      labels = NULL,#scientific,
-      limits = c(0, NA), 
+      name   = "Coefficient of correlation", 
+      labels = waiver(),
       expand = c(0, 0), 
-      breaks = pretty_breaks()) +  
-    # Prettify y axis...
-    scale_y_continuous(
-      name   = "Imputation prediction", 
-      labels = NULL,#scientific,
-      limits = c(0, NA),
-      expand = c(0, 0), 
-      breaks = pretty_breaks()) +
-    # Title 
-      labs(title = paste("Predictive performance for", plot_dt$d_v_a_name))
+      breaks = pretty_breaks())   
+  
+  # Title 
+  #labs(title = paste0("Predicting ", d_v_a_name, " vaccine impact"))
   
   # Prettify theme
   g = g + theme_classic() + 
@@ -1560,121 +1650,213 @@ message("  > Plotting predictive performance by country")
   
   
   # Details for file destination
-  save_name = "Predictive performance by country"
+  save_name = "Correlation coefficients by d_v_a"
   save_dir  = "imputation"
   
   # Save figure to file
-  save_fig(g, save_name, id, dir = save_dir)
+  save_fig(g, save_name, dir = save_dir)
+  
+  
+  return(results_dt)
+}
+
+#--------------------------------------------------
+# Tornado plot of predictor coefficients by region
+#--------------------------------------------------
+plot_tornado_region = function(){
+  message("  > Plotting tornado plots of predictors by region")
+  
+  # ---- Load models from fitting ----
+  # Function to load best model for each country and show results
+  load_results_fn = function(id)
+    report = read_rds("impute", "impute", id)$report
+  
+  # Load imputation results for all d-v-a
+  results_dt = table("d_v_a") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id) %>%
+    lapply(load_results_fn) %>%
+    rbindlist()
+  
+  results_dt = results_dt %>%
+    mutate(model = region_short,
+           d_v_a_id = d_v_a_id.x) %>%
+    select(-c(country, d_v_a_id.x, d_v_a_id.y, model_number, .model, AICc)) %>%
+    filter(!region_short == "NA" &
+             # estimate >= -20 &
+             # estimate <= 20 &
+             p.value <= 0.05) %>%
+    append_d_v_a_name()
+  
+  # Extract predictors for specific plotting
+  terms_dt = results_dt %>% 
+    select(term) %>%
+    unique() %>%
+    mutate(id = row_number(), .before = term)
+  
+  for(i in terms_dt$id){
+    # ---- Produce plot ----
+    this_term = terms_dt %>%
+      filter(id == i) 
+    
+    plot_dt = results_dt %>%
+      filter(term == this_term$term)
+    
+    # Single plot with multiple facets
+    g = ggplot(plot_dt, aes(x= estimate, y = region_short)) +
+      
+      geom_density_ridges() +
+      
+      # Simple faceting with wrap labelling...
+      facet_wrap(
+        facets   = ~d_v_a_id, 
+        ncol = 3) + 
+      
+      # Zero line
+      geom_vline(aes(xintercept = 0)) +
+      
+      # Prettify x axis...
+      scale_x_continuous(
+        name   = "Coefficient of correlation", 
+        labels = waiver(),
+        expand = c(0, 0), 
+        breaks = pretty_breaks())   
+    
+    # Title 
+    #labs(title = paste0("Predicting ", d_v_a_name, " vaccine impact"))
+    
+    # Prettify theme
+    g = g + theme_classic() + 
+      theme(axis.text     = element_text(size = 8),
+            axis.text.x   = element_text(hjust = 1, angle = 50),
+            axis.title.x  = element_text(
+              size = 16, margin = margin(l = 10, r = 20)),
+            axis.title.y  = element_text(
+              size = 16, margin = margin(b = 10, t = 20)),
+            axis.line     = element_blank(),
+            strip.text    = element_text(size = 12),
+            strip.background = element_blank(), 
+            panel.border  = element_rect(
+              linewidth = 0.5, fill = NA),
+            panel.spacing = unit(0.5, "lines"))
+    
+    
+    # Details for file destination
+    save_name = paste("Correlation coefficients by region -" , this_term$term)
+    save_dir  = "imputation"
+    
+    # Save figure to file
+    save_fig(g, save_name, dir = save_dir)
+  }
+  
+  return(results_dt)
+}
+
+# --------------------------------------------------------
+# Plot fitted model for each country
+# --------------------------------------------------------
+plot_impute_fit = function(){
+  message("  > Plotting model fit by country")
+  
+  # ---- Load models from fitting ----
+  # Function to load best model for each country and show results
+  load_results_fn = function(id){
+    model = read_rds("impute", "impute", id)$model 
+  }
+  
+  # Load imputation results for all d-v-a
+  diseases_dt = table("d_v_a") %>%
+    left_join(y  = table("disease"), 
+              by = "disease") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id)
+  
+  for(id in diseases_dt){
+    model = load_results_fn(id)
+    
+    plot_dt = augment(model) %>%
+      rename(estimate = .fitted) %>%
+      append_d_v_a_name()
+    
+    # Maximum value in each facet (target or estimate)
+    blank_dt = plot_dt %>%
+      mutate(max_value = pmax(target, estimate)) %>%
+      group_by(country) %>%
+      summarise(max_value = max(max_value)) %>%
+      ungroup() %>%
+      expand_grid(type = c("target", "estimate")) %>%
+      pivot_wider(names_from  = type, 
+                  values_from = max_value) %>%
+      as.data.table()
+    
+    
+    # ---- Produce plot ----
+    
+    # Single plot with multiple facets
+    g = ggplot(plot_dt) +
+      aes(x = year) +
+      # Plot fitting data
+      geom_point(aes(y = target,
+                     fill = "#6CA2EA")) +
+      
+      # Plot model output
+      geom_line(aes(y = estimate,
+                    colour = "black")) +
+      
+      # For square axes...
+      geom_blank(data = blank_dt) +
+      
+      # Simple faceting with wrap labelling...
+      facet_wrap(
+        facets   = ~country, 
+        labeller = label_wrap_gen(width = 30), 
+        ncol = 21,
+        scales = "free") + 
+      # Prettify x axis...
+      scale_x_continuous(
+        name   = "Year", 
+        labels = waiver(),
+        limits = c(1990, 2024), 
+        expand = c(0, 0), 
+        breaks = pretty_breaks()) +  
+      # Prettify y axis...
+      scale_y_continuous(
+        name   = "Impact", 
+        labels = NULL,#scientific,
+        limits = c(0, NA),
+        expand = c(0, 0), 
+        breaks = pretty_breaks()) +
+      # Title 
+      labs(title = paste("Fitted model for", plot_dt$d_v_a_name))
+    
+    # Prettify theme
+    g = g + theme_classic() + 
+      theme(axis.text     = element_text(size = 8),
+            axis.text.x   = element_text(hjust = 1, angle = 50),
+            axis.title.x  = element_text(
+              size = 16, margin = margin(l = 10, r = 20)),
+            axis.title.y  = element_text(
+              size = 16, margin = margin(b = 10, t = 20)),
+            axis.line     = element_blank(),
+            strip.text    = element_text(size = 12),
+            strip.background = element_blank(), 
+            panel.border  = element_rect(
+              linewidth = 0.5, fill = NA),
+            panel.spacing = unit(0.5, "lines"))
+    
+    
+    # Details for file destination
+    save_name = "Model fit by country"
+    save_dir  = "imputation"
+    
+    # Save figure to file
+    save_fig(g, save_name, id, dir = save_dir)
   }
   
   return()
-  }
-  
-  # --------------------------------------------------------
-  # Plot fitted model for each country
-  # --------------------------------------------------------
-  plot_impute_fit = function(){
-    message("  > Plotting model fit by country")
-   
-    # ---- Load models from fitting ----
-    # Function to load best model for each country and show results
-    load_results_fn = function(id){
-      model = read_rds("impute", "impute", id)$model 
-    }
-    
-    # Load imputation results for all d-v-a
-    diseases_dt = table("d_v_a") %>%
-      left_join(y  = table("disease"), 
-                by = "disease") %>%
-      filter(source == "vimc") %>%
-      pull(d_v_a_id)
-    
-    for(id in diseases_dt){
-      model = load_results_fn(id)
-      
-      plot_dt = augment(model) %>%
-        rename(estimate = .fitted) %>%
-        append_d_v_a_name()
-      
-      # Maximum value in each facet (target or estimate)
-      blank_dt = plot_dt %>%
-        mutate(max_value = pmax(target, estimate)) %>%
-        group_by(country) %>%
-        summarise(max_value = max(max_value)) %>%
-        ungroup() %>%
-        expand_grid(type = c("target", "estimate")) %>%
-        pivot_wider(names_from  = type, 
-                    values_from = max_value) %>%
-        as.data.table()
-      
-      
-      # ---- Produce plot ----
-     
-      # Single plot with multiple facets
-      g = ggplot(plot_dt) +
-        aes(x = year) +
-        # Plot fitting data
-        geom_point(aes(y = target,
-                       fill = "#6CA2EA")) +
-        
-        # Plot model output
-          geom_line(aes(y = estimate,
-                        colour = "black")) +
-        
-        # For square axes...
-        geom_blank(data = blank_dt) +
- 
-        # Simple faceting with wrap labelling...
-        facet_wrap(
-          facets   = ~country, 
-          labeller = label_wrap_gen(width = 30), 
-          ncol = 21,
-          scales = "free") + 
-        # Prettify x axis...
-        scale_x_continuous(
-          name   = "Year", 
-          labels = waiver(),
-          limits = c(1990, 2024), 
-          expand = c(0, 0), 
-          breaks = pretty_breaks()) +  
-        # Prettify y axis...
-        scale_y_continuous(
-          name   = "Impact", 
-          labels = NULL,#scientific,
-          limits = c(0, NA),
-          expand = c(0, 0), 
-          breaks = pretty_breaks()) +
-        # Title 
-        labs(title = paste("Fitted model for", plot_dt$d_v_a_name))
-      
-      # Prettify theme
-      g = g + theme_classic() + 
-        theme(axis.text     = element_text(size = 8),
-              axis.text.x   = element_text(hjust = 1, angle = 50),
-              axis.title.x  = element_text(
-                size = 16, margin = margin(l = 10, r = 20)),
-              axis.title.y  = element_text(
-                size = 16, margin = margin(b = 10, t = 20)),
-              axis.line     = element_blank(),
-              strip.text    = element_text(size = 12),
-              strip.background = element_blank(), 
-              panel.border  = element_rect(
-                linewidth = 0.5, fill = NA),
-              panel.spacing = unit(0.5, "lines"))
-      
-      
-      # Details for file destination
-      save_name = "Model fit by country"
-      save_dir  = "imputation"
-      
-      # Save figure to file
-      save_fig(g, save_name, id, dir = save_dir)
-    }
-      
-      return()
-    }
-    
-
+}
 
 # ---------------------------------------------------------
 # Exploratory plots of data used to fit impact functions
@@ -1786,11 +1968,13 @@ plot_impact_data = function() {
            dir = "impact_functions")
 }
 
+# ==== Impact functions ====
+
 # ---------------------------------------------------------
 # Plot function selection statistics
 # ---------------------------------------------------------
 plot_model_selection = function() {
- 
+  
   message("  > Plotting impact model selection")
   
   # Load stuff: best fit functions and associtaed coefficients
@@ -2012,185 +2196,6 @@ plot_model_fits = function() {
           panel.spacing = unit(0.5, "lines"))
   
   save_fig(g, "Impact function evaluation", dir = "impact_functions")
-}
-
-#-------------------------------------------------
-# Tornado plot of predictor coefficients by d_v_a 
-#-------------------------------------------------
-
-plot_tornado_d_v_a = function(){
-  message("  > Plotting tornado plots of predictors by d_v_a")
- 
-  # ---- Load models from fitting ----
-  # Function to load best model for each country and show results
-  load_results_fn = function(id)
-    report = read_rds("impute", "impute", id)$report
-
-   # Load imputation results for all d-v-a
-  results_dt = table("d_v_a") %>%
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
-    filter(source == "vimc") %>%
-    pull(d_v_a_id) %>%
-    lapply(load_results_fn) %>%
-    rbindlist()
-    
-    plot_dt = results_dt %>%
-      mutate(d_v_a_id = d_v_a_id.x,
-             model = d_v_a_id) %>%
-      select(-c(country, d_v_a_id.x, d_v_a_id.y, model_number, .model, AICc)) %>%
-      filter(!region_short == "NA" &
-              estimate >= -20 &
-              estimate <= 20 &
-               term == "HDI" &
-       p.value <= 0.05) %>%
-      append_d_v_a_name()
-
-    # ---- Produce plot ----
-    #browser()
-    # Single plot with multiple facets
-    g = dwplot(plot_dt) +
-      
-      # Simple faceting with wrap labelling...
-      facet_wrap(
-        facets   = ~region_short, 
-       # labeller = label_wrap_gen(width = 30), 
-        ncol = 1) +
-        #scales.y = "free"
-       
-      # Zero line
-      geom_vline(aes(xintercept = 0)) +
-      
-      # Prettify x axis...
-      scale_x_continuous(
-        name   = "Coefficient of correlation", 
-        labels = waiver(),
-        expand = c(0, 0), 
-        breaks = pretty_breaks())   
-     
-      # Title 
-      #labs(title = paste0("Predicting ", d_v_a_name, " vaccine impact"))
-    
-    # Prettify theme
-    g = g + theme_classic() + 
-      theme(axis.text     = element_text(size = 8),
-            axis.text.x   = element_text(hjust = 1, angle = 50),
-            axis.title.x  = element_text(
-              size = 16, margin = margin(l = 10, r = 20)),
-            axis.title.y  = element_text(
-              size = 16, margin = margin(b = 10, t = 20)),
-            axis.line     = element_blank(),
-            strip.text    = element_text(size = 12),
-            strip.background = element_blank(), 
-            panel.border  = element_rect(
-              linewidth = 0.5, fill = NA),
-            panel.spacing = unit(0.5, "lines"))
-    
-    
-    # Details for file destination
-    save_name = "Correlation coefficients by d_v_a"
-    save_dir  = "imputation"
-    
-    # Save figure to file
-    save_fig(g, save_name, dir = save_dir)
-  
-  
-  return(results_dt)
-}
-
-#--------------------------------------------------
-# Tornado plot of predictor coefficients by region
-#--------------------------------------------------
-
-plot_tornado_region = function(){
-  message("  > Plotting tornado plots of predictors by region")
-  
-  # ---- Load models from fitting ----
-  # Function to load best model for each country and show results
-  load_results_fn = function(id)
-    report = read_rds("impute", "impute", id)$report
-  
-  # Load imputation results for all d-v-a
-  results_dt = table("d_v_a") %>%
-    left_join(y  = table("disease"), 
-              by = "disease") %>%
-    filter(source == "vimc") %>%
-    pull(d_v_a_id) %>%
-    lapply(load_results_fn) %>%
-    rbindlist()
-  
-  results_dt = results_dt %>%
-    mutate(model = region_short,
-           d_v_a_id = d_v_a_id.x) %>%
-    select(-c(country, d_v_a_id.x, d_v_a_id.y, model_number, .model, AICc)) %>%
-    filter(!region_short == "NA" &
-            # estimate >= -20 &
-            # estimate <= 20 &
-             p.value <= 0.05) %>%
-    append_d_v_a_name()
-  
-  # Extract predictors for specific plotting
-  terms_dt = results_dt %>% 
-              select(term) %>%
-              unique() %>%
-              mutate(id = row_number(), .before = term)
-
-  for(i in terms_dt$id){
-  # ---- Produce plot ----
-  this_term = terms_dt %>%
-          filter(id == i) 
-    
-  plot_dt = results_dt %>%
-            filter(term == this_term$term)
-
-  # Single plot with multiple facets
-  g = ggplot(plot_dt, aes(x= estimate, y = region_short)) +
-    
-   geom_density_ridges() +
-    
-    # Simple faceting with wrap labelling...
-    facet_wrap(
-      facets   = ~d_v_a_id, 
-      ncol = 3) + 
-    
-    # Zero line
-    geom_vline(aes(xintercept = 0)) +
-    
-    # Prettify x axis...
-    scale_x_continuous(
-      name   = "Coefficient of correlation", 
-      labels = waiver(),
-      expand = c(0, 0), 
-      breaks = pretty_breaks())   
-  
-  # Title 
-  #labs(title = paste0("Predicting ", d_v_a_name, " vaccine impact"))
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(axis.text     = element_text(size = 8),
-          axis.text.x   = element_text(hjust = 1, angle = 50),
-          axis.title.x  = element_text(
-            size = 16, margin = margin(l = 10, r = 20)),
-          axis.title.y  = element_text(
-            size = 16, margin = margin(b = 10, t = 20)),
-          axis.line     = element_blank(),
-          strip.text    = element_text(size = 12),
-          strip.background = element_blank(), 
-          panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
-          panel.spacing = unit(0.5, "lines"))
-  
-  
-  # Details for file destination
-  save_name = paste("Correlation coefficients by region -" , this_term$term)
-  save_dir  = "imputation"
-  
-  # Save figure to file
-  save_fig(g, save_name, dir = save_dir)
-}
-  
-  return(results_dt)
 }
 
 # ---------------------------------------------------------
@@ -2549,6 +2554,8 @@ plot_impact_coverage = function() {
   #   save_fig(g, "Figure 3", dir = "manuscript")
 }
 
+# ==== Historical impact ====
+
 # ---------------------------------------------------------
 # Main results plot - historical impact over time
 # ---------------------------------------------------------
@@ -2771,8 +2778,8 @@ plot_child_mortality = function() {
            metric = factor(metric, metric_dict), 
            case   = recode(case, !!!case_dict), 
            case   = factor(case, case_dict))
-
-    
+  
+  
   area_dt = averted_dt %>%
     rbind(rate_dt) %>%
     rbind(life_exp_dt) %>%
@@ -3276,11 +3283,11 @@ plot_survival_increase = function() {
       limits = c(0, NA),
       expand = expansion(mult = c(0, 0.05)), 
       breaks = pretty_breaks()) +  
-      # sec.axis = sec_axis(
-      #   trans = ~ .,
-      #   name  = "Age at vaccination (all vaccines)",
-      #   labels = percent, 
-      #   breaks = pretty_breaks())) +
+    # sec.axis = sec_axis(
+    #   trans = ~ .,
+    #   name  = "Age at vaccination (all vaccines)",
+    #   labels = percent, 
+    #   breaks = pretty_breaks())) +
     # Prettify legend...
     guides(
       linetype  = "none", 
@@ -3692,6 +3699,8 @@ plot_vimc_comparison = function() {
            dir = "historical_impact")
 }
 
+# ==== Other (to be reviewed) ====
+
 # ---------------------------------------------------------
 # Helen's exploratory figures
 # ---------------------------------------------------------
@@ -3826,6 +3835,8 @@ plot_tornado = function() {
   
   g = g + theme_classic()
 }
+
+# ==== Helper functions ====
 
 # ---------------------------------------------------------
 # Append metric (deaths abd DALYs) descriptive names
