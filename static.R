@@ -33,11 +33,9 @@ run_static = function() {
     # Effective coverage considering waning immunity and boosters
     effective_coverage(disease)
 
-    # Effective coverage impact: deaths averted
-    burden_averted(disease, "deaths")
-    
-    # Effective coverage impact: deaths averted
-    burden_averted(disease, "dalys")
+    # Burden averted through vaccination (GBD estimates and effective coverage)
+    for (metric in o$metrics)
+      burden_averted(disease, metric)
   }
   
   # Compile all results
@@ -393,8 +391,6 @@ burden_averted = function(disease, metric) {
     ungroup() %>%
     as.data.table()
   
-  browser()
-  
   # Save this result to file
   save_rds(averted_disease, "static_d", metric, "averted", disease)
   
@@ -420,7 +416,7 @@ burden_averted = function(disease, metric) {
                by = c("country", "year", "age")) %>%
     # Summarise over age ...
     group_by(country, d_v_a_id, year) %>%
-    summarise(impact = sum(deaths_averted * weight)) %>%
+    summarise(impact = sum(averted * weight)) %>%
     ungroup() %>%
     # Tidy up...
     select(country, d_v_a_id, year, impact) %>%
@@ -448,7 +444,7 @@ burden_averted = function(disease, metric) {
   
   # Function for saving vaccine-specific results
   save_result_fn = function(x, name)
-    save_rds(x, "static_v", "deaths_averted", name)
+    save_rds(x, "static_v", metric, "averted", name)
   
   # Apply save function to each vaccine
   napply(result_list, save_result_fn)
@@ -481,8 +477,8 @@ compile_outputs = function(diseases) {
   
   # All outputs to compile
   outputs = list(
-    disease = qc(deaths_averted, effective_coverage), #, dalys_averted),
-    vaccine = qc(deaths_averted), #, dalys_averted),
+    disease = qc(deaths_averted, dalys_averted, effective_coverage),
+    vaccine = qc(deaths_averted, dalys_averted),
     type    = qc(effective_coverage))
   
   for (group in names(outputs)) {
