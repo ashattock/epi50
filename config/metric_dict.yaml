@@ -1,0 +1,10 @@
+---
+
+# Creates datatable: metric_dict_table
+table:
+
+- metric: deaths
+  metric_name: "Deaths"
+  
+- metric: dalys
+  metric_name: "Disability-adjusted life years"
