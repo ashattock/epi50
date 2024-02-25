@@ -268,8 +268,6 @@ prepare_gbd_estimates = function() {
       select(disease, country, year, age_bin, value = val) %>%
       arrange(disease, country, year, age_bin)
     
-    warning("Improvements to GBD burden extrapolations required...")
-    
     # TEMP: Until we do a proper future projection of GBD estimates
     burden_dt = 
       expand_grid(
@@ -298,14 +296,19 @@ prepare_gbd_estimates = function() {
   
   # ---- Cache formatted data ----
   
-  # Squash into single, wide datatable
+  # Squash into single datatable
   burden_list %>%
     rbindlist() %>%
     lazy_dt() %>%
     mutate(metric = paste1(metric, "disease")) %>%
+    # Pivot metrics to wide format...
     pivot_wider(names_from = metric) %>%
+    replace_na(list(
+      deaths_disease = 0, 
+      dalys_disease  = 0)) %>%
     arrange(disease, country, year, age) %>%
     as.data.table() %>%
+    # Save in tables cache
     save_table("gbd_estimates")
   
   # Plot GBD death estimates by age
@@ -379,8 +382,6 @@ prepare_gbd_covariates = function() {
               by = c("country", "year")) %>%
     arrange(country, year)
   
-  warning("Improvements to GBD covariate extrapolations required...")
-  
   # TEMP: Until we do a proper projection of GBD covariates
   #
   # NOTE: We only really need a forward projection here
@@ -409,7 +410,7 @@ prepare_unicef = function() {
   WHO_regions_dt = fread(paste0(o$pth$input, "WHO_country_codes.csv")) 
   
   # Read in UNICEF stunting data
-  stunting_dt = fread(paste0(o$pth$input, "JME_Country_Estimates_May_2023.csv")) %>%
+  stunting_dt = fread(paste0(o$pth$input, "unicef_stunting.csv")) %>%
     filter(Indicator == "Stunting" &
              Estimate == "Point Estimate") %>%
     select(-c("Country and areas", "Note", "Indicator", "Measure", "Estimate")) %>% 
@@ -423,8 +424,8 @@ prepare_unicef = function() {
     mutate(year = as.integer(year)) %>%
     as.data.table()
   
-  
-  maternal_mortality_dt = fread(paste0(o$pth$input, "unicef_maternal_mortality.csv"), header = TRUE) %>%
+  file = "unicef_maternal_mortality.csv"
+  maternal_mortality_dt = fread(paste0(o$pth$input, file), header = TRUE) %>%
     select(-Country) %>%
     pivot_longer(cols = -'ISO Code',
                  names_to = "year",

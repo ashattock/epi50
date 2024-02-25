@@ -33,11 +33,11 @@ run_static = function() {
     # Effective coverage considering waning immunity and boosters
     effective_coverage(disease)
 
-    # Deaths averted considering effective coverage and GBD disease burden
-    deaths_averted(disease)
+    # Effective coverage impact: deaths averted
+    burden_averted(disease, "deaths")
     
-    # Use deaths averted to calculate DALYs
-    # dalys_averted(id)  # See dalys.R
+    # Effective coverage impact: deaths averted
+    burden_averted(disease, "dalys")
   }
   
   # Compile all results
@@ -361,13 +361,18 @@ weight_booster = function(immunity_dt) {
 }
 
 # ---------------------------------------------------------
-# Deaths averted considering effective coverage and GBD disease burden
+# Burden averted considering GBD estimates and effective coverage
 # ---------------------------------------------------------
-deaths_averted = function(disease) {
+burden_averted = function(disease, metric) {
   
-  message("  > Calculating deaths averted")
+  message("  > Calculating burden averted: ", metric)
   
   # ---- Deaths averted for this disease ----
+  
+  # Load disease burden for this disease and this metric
+  burden_dt = table("gbd_estimates") %>%
+    rename(burden = !!paste1(metric, "disease")) %>%
+    select(disease, country, year, age, burden)
   
   # Load effective coverage for this disease from file
   effective_dt = read_rds("static_d", "effective_coverage", disease)
@@ -375,21 +380,23 @@ deaths_averted = function(disease) {
   # Load disease deaths, append coverage, and estimate deaths averted
   averted_disease = effective_dt %>%
     lazy_dt() %>%
-    inner_join(y  = table("gbd_estimates"),
+    inner_join(y  = burden_dt,
                by = c("disease", "country", "year", "age")) %>%
     # Estimate deaths without a vaccine and deaths averted...
-    mutate(deaths_without = deaths_disease / (1 - coverage), 
-           deaths_averted = deaths_without - deaths_disease) %>%
+    mutate(without = burden / (1 - coverage), 
+           averted = without - burden) %>%
     # Summairse neo-nate and other infant deaths...
     mutate(age = pmax(age, 0)) %>%
     group_by(disease, country, year, age) %>%
-    summarise(deaths_disease = sum(deaths_disease), 
-              deaths_averted = sum(deaths_averted)) %>%
+    summarise(burden  = sum(burden), 
+              averted = sum(averted)) %>%
     ungroup() %>%
     as.data.table()
   
+  browser()
+  
   # Save this result to file
-  save_rds(averted_disease, "static_d", "deaths_averted", disease)
+  save_rds(averted_disease, "static_d", metric, "averted", disease)
   
   # ---- Attribute impact to vaccine schedule ----
   
