@@ -523,7 +523,7 @@ plot_coverage = function() {
 }
 
 #-------------------------------------------------
-#  Plot model choice per region
+# Plot model choice per region
 #-------------------------------------------------
 plot_model_choice = function(){
   
@@ -765,28 +765,39 @@ plot_gbd_estimates = function() {
   
   # Load GBD estimates and categorise into age groups
   gbd_dt = table("gbd_estimates") %>%
-    left_join(y  = table("disease_name"), 
-              by = "disease") %>%
+    append_d_v_t_name() %>%
+    # Append age group details...
     left_join(y  = age_group_dt,
               by = "age") %>%
-    # Summarise for broad age groups...
-    group_by(disease_name, year, age_group) %>%
-    summarise(deaths = sum(deaths_disease)) %>%
+    # Summarise for these broad age groups...
+    lazy_dt() %>%
+    group_by(disease, year, age_group) %>%
+    summarise(deaths = sum(deaths_disease), 
+              dalys  = sum(dalys_disease)) %>%
     ungroup() %>%
-    # Set factors for meaningful plotting order...
+    # Melt to long format...
+    pivot_longer(cols = c(deaths, dalys), 
+                 names_to = "metric") %>%
+    replace_na(list(value = 0)) %>%
+    append_metric_name() %>%
+    # Set age group factors for meaningful plotting order...
     mutate(age_group = factor(age_group, names(age_groups))) %>%
+    select(disease, metric, year, age_group, value) %>%
+    arrange(disease, metric, year, age_group) %>%
     as.data.table()
   
   # Plot deaths over time by age group
   g = ggplot(gbd_dt) +
     aes(x = year, 
-        y = deaths, 
+        y = value, 
         fill = age_group) +
     geom_bar(stat = "identity") +
     # Facet by disease...
-    facet_wrap(
-      facets = vars(disease_name), 
-      scales = "free_y") + 
+    facet_grid2(
+      cols   = vars(disease), 
+      rows   = vars(metric), 
+      scales = "free_y", 
+      independent = "y") + 
     # Set colour scheme...
     scale_fill_manual(
       name   = "Age group",
@@ -795,7 +806,7 @@ plot_gbd_estimates = function() {
         n   = length(age_groups))) +
     # Prettify y axis...
     scale_y_continuous(
-      name   = "GBD-estimated number of deaths", 
+      name   = "GBD-estimated disease burden", 
       labels = comma,
       expand = expansion(mult = c(0, 0.05)), 
       breaks = pretty_breaks())
@@ -3814,6 +3825,22 @@ plot_tornado = function() {
     ggtitle(paste0("Predicting ", d_v_a_name, " vaccine impact"))
   
   g = g + theme_classic()
+}
+
+# ---------------------------------------------------------
+# Append metric (deaths abd DALYs) descriptive names
+# ---------------------------------------------------------
+append_metric_name = function(dt) {
+  
+  # Append metric names
+  name_dt = dt %>%
+    left_join(y  = table("metric_dict"), 
+              by = "metric") %>%
+    select(-metric) %>%
+    rename(metric = metric_name) %>%
+    mutate(metric = fct_inorder(metric))
+  
+  return(name_dt)
 }
 
 # ---------------------------------------------------------

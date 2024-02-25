@@ -209,12 +209,6 @@ prepare_gbd_estimates = function() {
   
   message(" - GBD estimates")
   
-  # Parse specific age strings
-  age_dict = c(
-    "<28 days"     = "-1", 
-    "28..364 days" = "0..1", 
-    "80+ years"    = "80..95")
-  
   # Dictionary of GBD disease names
   gbd_dict = table("gbd_dict") %>%
     rename(name  = gbd_name, 
@@ -222,47 +216,16 @@ prepare_gbd_estimates = function() {
     pivot_wider() %>%
     as.list()
   
-  # Load GBD estimates of deaths for relevant diseases
-  deaths_dt = fread(paste0(o$pth$input, "gbd19_deaths.csv")) %>%
-    filter(year %in% o$gbd_estimate_years) %>%
-    # Parse disease and countries...
-    mutate(disease = recode(cause, !!!gbd_dict), 
-           country = countrycode(
-             sourcevar   = location,
-             origin      = "country.name", 
-             destination = "iso3c")) %>%
-    # Retain only what we're interesting in...
-    filter(disease %in% table("d_v_a")$disease, 
-           country %in% all_countries()) %>%
-    # Parse age groups...
-    mutate(age = str_replace(age, "-", ".."), 
-           age = recode(age, !!!age_dict), 
-           age_bin = str_extract(age, "^-*[0-9]+"), 
-           age_bin = as.numeric(age_bin)) %>%
-    # Tidy up...
-    select(disease, country, year, age_bin, value = val) %>%
-    arrange(disease, country, year, age_bin)
+  # ---- Age mapping ----
   
-  warning("Improvements to GBD death extrapolations required...")
+  # Parse specific age strings
+  age_dict = c(
+    "<28 days"     = "-1", 
+    "28..364 days" = "0..1", 
+    "80+ years"    = "80..100")
   
-  # TEMP: Until we do a proper future projection of GBD estimates
-  deaths_dt = 
-    expand_grid(
-      disease = unique(deaths_dt$disease),
-      country = all_countries(), 
-      age_bin = unique(deaths_dt$age_bin), 
-      year    = o$years) %>%
-    left_join(y  = deaths_dt, 
-              by = names(.)) %>%
-    arrange(disease, country, age_bin) %>%
-    group_by(disease, country, age_bin) %>%
-    fill(value, .direction = "down") %>%
-    ungroup() %>%
-    filter(!is.na(value)) %>%
-    as.data.table()
-  
-  # Age bins in data before and after transformation
-  age_bins = sort(unique(deaths_dt$age_bin))
+  # Age bins in data before transformation
+  age_bins = c(-1, 0, 1, seq(5, 80, by = 5))
   
   # Construct age datatable to expand age bins to single years
   age_dt = data.table(age = c(-1, o$ages)) %>%
@@ -273,14 +236,76 @@ prepare_gbd_estimates = function() {
     ungroup() %>%
     as.data.table()
   
-  # Expand to all ages
-  deaths_dt %>%
-    full_join(y  = age_dt, 
-              by = "age_bin", 
-              relationship = "many-to-many") %>%
-    mutate(deaths_disease = value / n) %>%
-    select(disease, country, year, age, deaths_disease) %>%
+  # ---- Load and format data ----
+  
+  # Initiate list to store burden results
+  burden_list = list()
+  
+  # Iterate through burden metrics to load
+  for (metric in o$metrics) {
+    
+    # File path to GBD burden file 
+    file_name = paste1("gbd19", metric)
+    file_path = paste0(o$pth$input, file_name, ".csv")
+    
+    # Load GBD burden estimates for relevant diseases
+    burden_dt = fread(file_path) %>%
+      # Parse disease and countries...
+      mutate(disease = recode(cause, !!!gbd_dict), 
+             country = countrycode(
+               sourcevar   = location,
+               origin      = "country.name", 
+               destination = "iso3c")) %>%
+      # Retain only what we're interesting in...
+      filter(disease %in% table("d_v_a")$disease, 
+             country %in% all_countries()) %>%
+      # Parse age groups...
+      mutate(age = str_replace(age, "-", ".."), 
+             age = recode(age, !!!age_dict), 
+             age_bin = str_extract(age, "^-*[0-9]+"), 
+             age_bin = as.numeric(age_bin)) %>%
+      # Tidy up...
+      select(disease, country, year, age_bin, value = val) %>%
+      arrange(disease, country, year, age_bin)
+    
+    warning("Improvements to GBD burden extrapolations required...")
+    
+    # TEMP: Until we do a proper future projection of GBD estimates
+    burden_dt = 
+      expand_grid(
+        disease = unique(burden_dt$disease),
+        country = all_countries(), 
+        age_bin = unique(burden_dt$age_bin), 
+        year    = o$years) %>%
+      left_join(y  = burden_dt, 
+                by = names(.)) %>%
+      arrange(disease, country, age_bin) %>%
+      group_by(disease, country, age_bin) %>%
+      fill(value, .direction = "down") %>%
+      ungroup() %>%
+      filter(!is.na(value)) %>%
+      as.data.table()
+    
+    # Expand to all ages
+    burden_list[[metric]] = burden_dt %>%
+      full_join(y  = age_dt, 
+                by = "age_bin", 
+                relationship = "many-to-many") %>%
+      mutate(value  = value / n, 
+             metric = !!metric) %>%
+      select(disease, country, metric, year, age, value)
+  }
+  
+  # ---- Cache formatted data ----
+  
+  # Squash into single, wide datatable
+  burden_list %>%
+    rbindlist() %>%
+    lazy_dt() %>%
+    mutate(metric = paste1(metric, "disease")) %>%
+    pivot_wider(names_from = metric) %>%
     arrange(disease, country, year, age) %>%
+    as.data.table() %>%
     save_table("gbd_estimates")
   
   # Plot GBD death estimates by age

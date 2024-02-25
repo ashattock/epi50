@@ -2,8 +2,8 @@
 # OPTIONS
 #
 # Set key options for all things model related. The output
-# of this function, o (a list), lives in the global environment,
-# so can be referenced throughout the pipeline.
+# of this function, o (a list), lives in the global 
+# environment, so can be referenced throughout the pipeline.
 #
 ###########################################################
 
@@ -23,13 +23,18 @@ set_options = function(do_step = NA) {
   # Prepare output directory system
   o = prepare_dirs(o)  # See directories.R
   
+  # ---- Analysis settings ----
+  
+  # Disease burden metrics to report
+  o$metrics = c("deaths", "dalys")
+  
   # ---- Time settings ----
   
   # Years to analyse
   o$years = 1974 : 2024
   
   # Ages modelled
-  o$ages = 0 : 95
+  o$ages = 0 : 100
   
   # Annual of 5-year bins for population data
   o$pop_bin = 1  # OPTIONS: 1 or 5
@@ -37,7 +42,7 @@ set_options = function(do_step = NA) {
   # ---- Data and coverage settings ----
   
   # Bound coverage values below x%
-  o$max_coverage = 0.99
+  o$max_coverage = 0.999
   
   # Year that high-income countries switch to acellular pertussis vaccine
   o$wholecell_acellular_switch = 1995

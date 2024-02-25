@@ -46,10 +46,10 @@ run_static = function() {
   # ---- Plot results ----
   
   # Effective coverage with waning immunity for static model pathogens
-  #plot_effective_coverage()
+  plot_effective_coverage()
   
   # Deaths and DALYs averted for static model pathogens
-  #plot_static()
+  plot_static()
 }
 
 # ---------------------------------------------------------
