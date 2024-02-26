@@ -49,7 +49,6 @@ prepare_dirs = function(o) {
   # Path to imputation and impact function files
   pth$impute = file.path(pth$output, "2_impute")
   pth$impact = file.path(pth$output, "3_impact")
-  pth$runs   = file.path(pth$impact, "runs")
   
   # Path to figures and other output results
   pth$history = file.path(pth$output, "4_history")

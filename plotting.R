@@ -1873,12 +1873,12 @@ plot_impute_fit = function(){
 # ---------------------------------------------------------
 # Exploratory plots of data used to fit impact functions
 # ---------------------------------------------------------
-plot_impact_data = function() {
+plot_impact_data = function(metric) {
   
   message("  - Plotting impact function fitting data")
   
   # Load data used for impact function fitting
-  data_dt = read_rds("impact", "data") %>%
+  data_dt = read_rds("impact", "impact", metric, "data") %>%
     format_d_v_a_name()
   
   # ---- Plot 1: impact per FVP over time ----
@@ -1927,7 +1927,8 @@ plot_impact_data = function() {
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
-  save_fig(g1, "Data - impact ratio", dir = "impact_functions")
+  save_fig(g1, "Data", "impact ratio", metric, 
+           dir = "impact_functions")
   
   # ---- Plot 2: cumulative impact vs cumulative FVP ----
   
@@ -1976,7 +1977,7 @@ plot_impact_data = function() {
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
-  save_fig(g2, "Data - cumulative FVP vs impact", 
+  save_fig(g2, "Data", "cumulative FVP vs impact", metric, 
            dir = "impact_functions")
 }
 
@@ -2213,7 +2214,7 @@ plot_model_fits = function() {
 # ---------------------------------------------------------
 # Plot impact ratios - either all or initial only
 # ---------------------------------------------------------
-plot_impact_fvps = function(scope) {
+plot_impact_fvps = function(metric, scope) {
   
   width = 0.3
   
@@ -2228,7 +2229,7 @@ plot_impact_fvps = function(scope) {
     message("  - Plotting all-time impact per FVP")
     
     # Load initial ratio data
-    impact_dt = read_rds("impact", "data")
+    impact_dt = read_rds("impact", "impact", metric, "data")
     
     # Set a descriptive y-axis title
     y_lab = "Impact per fully vaccinated person (log10 scale)"
@@ -2240,7 +2241,7 @@ plot_impact_fvps = function(scope) {
     message("  - Plotting initial impact per FVP")
     
     # Load initial ratio data
-    impact_dt = read_rds("impact", "initial_ratio") %>%
+    impact_dt = read_rds("impact", metric, "initial_ratio") %>%
       rename(impact_fvp = initial_ratio)
     
     # Set a descriptive y-axis title
@@ -2393,10 +2394,11 @@ plot_impact_fvps = function(scope) {
   save_scope = str_replace(scope, "_", " ")
   
   # Save these figures to file
-  save_fig(g, save_stem, save_scope, dir = "impact_functions")
+  save_fig(g, save_stem, save_scope, metric, 
+           dir = "impact_functions")
   
   # Save all time plot as key manuscript figure
-  if (scope == "all_time")
+  if (scope == "all_time" && metric == "deaths")
     save_fig(g, "Figure 3", dir = "manuscript")
 }
 

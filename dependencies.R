@@ -50,9 +50,10 @@ packages = c(
   "gsubfn",         # Output multiple variables from functions
   "magrittr",       # Additional pipe operators, such as %<>%
   "wrapr",          # Convenience functions (eg qc)
+  "matrixStats",    # Matrix row and column operations
   "stats",          # Statistical calculations and random number generation
   "stats4",         # MLE algorithm
-  "matrixStats",    # Matrix row and column operations
+  "MCMCpack",       # MCMC functionality
   "fpp3",           # Time series forecasting
   "tsibble",        # Time series data format
   "imputeTS",       # Linear interpolation in dplyr pipes
@@ -65,6 +66,7 @@ packages = c(
   "parallel",       # Local parallelisation
   "lubridate",      # Data formatting functionality
   "naniar",         # Data formatting functionality
+  "progress",       # Pretty progress bar
   "GGally",         # Plotting correlation
   "ggpubr",         # Plotting functionality
   "ggnewscale",     # Plotting functionality
@@ -72,7 +74,6 @@ packages = c(
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
   "GGally",         # Plotting functionality
-  "ggridges",         # Plotting functionality
   "dotwhisker",     # Plotting functionality
   "pals",           # Colour palettes
   "colorspace")     # Colour palettes
@@ -116,6 +117,9 @@ union   = dplyr::union
 predict = stats::predict
 
 # ---- Clean up ----
+
+# Close any open connections
+closeAllConnections()
 
 # Tidy up console after package loading
 if (interactive()) clf()  # Close figures

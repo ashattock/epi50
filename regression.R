@@ -25,7 +25,7 @@ run_regression = function(case, metric) {
   #  basic_regression - IA2030 method using GBD covariates
   #  perform_regression1 - Helen's time series regression method
   #  perform_regression2 - Same as Helen's method, refactored code
-  method = "perform_regression2"
+  method = "basic_regression"
   
   # TEMP: Ignoring problematic cases for now
   ignore = c(7, 11, 14,   # Non-routine, small numbers

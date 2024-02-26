@@ -92,6 +92,13 @@ set_options = function(do_step = NA) {
   
   # Multiply impact when fitting for more consistent FVP-impact scales
   o$impact_scaler = 1000
+  
+  o$n_optim = 10
+  
+  o$prior_weight = 1
+  o$prior_sd     = 0.05
+  o$mcmc_burnin  = 100
+  o$mcmc_iter    = 1000
 
   # Defalt x scale for evaluating impact functions
   o$eval_x_scale = 3  # Not a critical value - often overwritten with actual FVPs
@@ -126,7 +133,7 @@ set_options = function(do_step = NA) {
   # Use multiple cores to speed up several fitting processes
   o$parallel = list(
     impute = TRUE, 
-    impact = FALSE) 
+    impact = FALSE)  # NOTE: Having issues with shared memory
 
   # Detect number of cores available to this user
   o$n_cores = detectCores()
