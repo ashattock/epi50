@@ -10,12 +10,12 @@
 # ---------------------------------------------------------
 # Use impact functions to calculate historical impact
 # ---------------------------------------------------------
-run_history = function() {
+run_history = function(metric) {
   
   # Only continue if specified by do_step
   if (!is.element(6, o$do_step)) return()
   
-  message("* Calculating impact of historical coverage")
+  message("* Calculating impact of historical coverage: ", metric)
   
   # ---- Extract FVP data to be evaluated ----
   
@@ -47,7 +47,7 @@ run_history = function() {
     as.data.table()
   
   # From which years have impact functions been fit from
-  start_fit_dt = read_rds("impact", "data") %>%
+  start_fit_dt = read_rds("impact", "impact", metric, "data") %>%
     lazy_dt() %>%
     select(d_v_a_id, country, year) %>%
     group_by(d_v_a_id, country) %>%
@@ -86,7 +86,7 @@ run_history = function() {
   result_fit_dt = eval_dt %>%
     # Rename solely for use in evaluation fn...
     rename(fvps = fvps_cum) %>%
-    evaluate_impact_function() %>%
+    evaluate_impact_function(metric = metric) %>%
     # Convert back to meaningful names...
     rename(fvps_cum   = fvps, 
            impact_cum = impact) %>%
@@ -124,7 +124,7 @@ run_history = function() {
     as.data.table()
   
   # Save initial ratio to file for diagnostic plotting
-  save_rds(initial_ratio_dt, "impact", "initial_ratio") 
+  save_rds(initial_ratio_dt, "history", "initial_ratio", metric) 
   
   # Back project by applying initial ratio 
   back_project_dt = result_fit_dt %>%
@@ -170,56 +170,50 @@ run_history = function() {
     rbind(extern_dt)
   
   # Save results to file
-  save_rds(result_dt, "history", "deaths_averted") 
+  save_rds(result_dt, "history", "burden_averted", metric) 
   
   # ---- Plot results ----
   
   # TODO: Add new plots here...
   
   # Plot inital impact ratios used to back project
-  plot_impact_fvps(scope = "initial")
+  plot_impact_fvps(metric, scope = "initial")
   
-  # Plot primary results figure: historical impact over time
-  plot_historical_impact()
-  
-  # Plot change in child mortality rates over time
-  plot_child_mortality()
+  # # Plot primary results figure: historical impact over time
+  # plot_historical_impact()
+  # 
+  # # Plot change in child mortality rates over time
+  # plot_child_mortality()
 }
 
 # ---------------------------------------------------------
 # Evaluate impact function given FVPs
 # ---------------------------------------------------------
-evaluate_impact_function = function(eval_dt = NULL) {
+evaluate_impact_function = function(data_dt = NULL, metric = NULL) {
   
   # ---- Load stuff ----
   
-  # Load results: best fit functions and associtaed coefficients
-  best_dt = read_rds("impact", "best_model")
-  coef_dt = read_rds("impact", "coef")
-  
-  # Best coefficients
-  best_coef = coef_dt %>%
+  # TEMP: For now take mean, but later sample from posterior
+  coef_dt = read_rds("impact", "posteriors", metric) %>% 
     lazy_dt() %>%
-    inner_join(y  = best_dt, 
-               by = c("d_v_a_id", "country", "fn")) %>%
-    mutate(par = as.list(setNames(value, coef))) %>% 
-    group_by(d_v_a_id, country, fn) %>% 
-    summarise(par = list(par)) %>% 
+    group_by(d_v_a_id, country, fn, param) %>% 
+    summarise(value = mean(value)) %>% 
     ungroup() %>% 
-    arrange(d_v_a_id, country) %>% 
+    arrange(d_v_a_id, country, param) %>% 
     as.data.table()
   
   # ---- Interpret trivial argument ----
   
-  # Countrues to evaluate
-  if (is.null(eval_dt)) {
+  # Countries to evaluate
+  if (is.null(data_dt)) {
     
     # Default points at which to evaluate
     x_eval = seq(0, o$eval_x_scale, length.out = 101)
     
     # Construct evaluation datatable
-    eval_dt = best_coef %>%
+    data_dt = coef_dt %>%
       select(d_v_a_id, country) %>%
+      unique() %>%
       expand_grid(fvps = x_eval) %>%
       as.data.table()
   }
@@ -227,43 +221,67 @@ evaluate_impact_function = function(eval_dt = NULL) {
   # ---- Evaluate best fit model and coefficients ----
   
   # Function to valuate best coefficients
-  eval_fn = function(i) {
+  eval_fn = function(i, ids, fns, data, coef) {
     
-    # message(paste(c_d_v_a[i, ], collapse = ", "))
+    # Index d-v-a country ID
+    id = ids[i, ]
     
-    # Exract FVPs for this c_d_v_a
-    data = c_d_v_a[i, ] %>%
-      inner_join(y  = eval_dt, 
-                 by = c("d_v_a_id", "country"))
+    # message(paste(id, collapse = ", "))
+    
+    # Exract FVPs for this ID
+    data %<>% inner_join(id, by = c("d_v_a_id", "country"))
     
     # Fitted function and parameters
-    pars = c_d_v_a[i, ] %>%
-      inner_join(y  = best_coef, 
-                 by = c("d_v_a_id", "country"))
+    coef %<>% inner_join(id, by = c("d_v_a_id", "country"))
     
     # Load fitted function
-    fn = fn_set()[[pars$fn]]
+    fn = fns[[unique(coef$fn)]]
     
     # Call function with fitted coefficients
-    impact = do.call(fn, c(list(x = data$fvps), pars$par[[1]]))
+    impact = fn(x = data$fvps, p = coef$value)
     
-    # Output result in datatable form
+    # Output in datatable form
     result = cbind(data, impact)
     
     return(result)
   }
   
+  # Load set of functions that may be evaluated
+  fns = fn_set()
+  
   # All country - dva combos to evaluate
-  c_d_v_a = eval_dt %>%
-    inner_join(y  = best_coef,
+  ids = data_dt %>%
+    select(d_v_a_id, country) %>%
+    unique() %>%
+    inner_join(y  = coef_dt,
                by = c("d_v_a_id", "country")) %>%
     select(d_v_a_id, country) %>%
     unique()
   
-  # Apply the evaluation funtion
-  result_dt = seq_row(c_d_v_a) %>%
-    lapply(eval_fn) %>%
-    rbindlist() %>%
+  # Apply evaluations in parallel
+  if (o$parallel$history)
+    result_list = mclapply(
+      X    = seq_row(ids), 
+      FUN  = eval_fn, 
+      ids  = ids,
+      fns  = fns,
+      data = data_dt, 
+      coef = coef_dt,
+      mc.cores = o$n_cores,
+      mc.preschedule = FALSE)
+  
+  # Apply evaluations consecutively
+  if (!o$parallel$history)
+    result_list = lapply(
+      X   = seq_row(ids), 
+      FUN = eval_fn,
+      ids  = ids,
+      fns  = fns,
+      data = data_dt, 
+      coef = coef_dt)
+  
+  # Squash results into single datatable
+  result_dt = rbindlist(result_list) %>%
     # Transform impact to real scale...
     mutate(impact = impact / o$impact_scaler)
   

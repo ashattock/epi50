@@ -25,7 +25,7 @@ run_regression = function(case, metric) {
   #  basic_regression - IA2030 method using GBD covariates
   #  perform_regression1 - Helen's time series regression method
   #  perform_regression2 - Same as Helen's method, refactored code
-  method = "basic_regression"
+  method = "perform_regression2"
   
   # TEMP: Ignoring problematic cases for now
   ignore = c(7, 11, 14,   # Non-routine, small numbers
@@ -383,7 +383,7 @@ basic_regression = function(d_v_a_id, target, case, metric) {
 # ---------------------------------------------------------
 # Perform regression (Helen's original version)
 # ---------------------------------------------------------
-perform_regression = function(d_v_a_id, target, case, metric) {
+perform_regression1 = function(d_v_a_id, target, case, metric) {
   
   # Extract name of this d-v-a
   d_v_a_name = table("d_v_a") %>%
@@ -948,6 +948,8 @@ perform_regression2 = function(d_v_a_id, target, case, metric) {
     filter(n() >= o$min_data_requirement) %>% 
     ungroup()
   
+  browser()
+  
   # Evaluate all models in parallel
   if (o$parallel$impute)
     model_list = mclapply(
@@ -1150,8 +1152,8 @@ append_covariates = function(d_v_a_id, models, covars, target) {
               relationship = "many-to-many") %>%
     # Append period...
     # HCJ - have I interpreted this correctly? period is a potential predictor?
-    left_join(y  = get_period(), 
-              by = "year") %>%
+    # left_join(y  = get_period(), 
+    #           by = "year") %>%
     # Summarise to single row for each country per year...
     # TODO: This shouldn't be necessary
     arrange(country, year) %>%

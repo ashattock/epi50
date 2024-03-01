@@ -88,7 +88,7 @@ set_options = function(do_step = NA) {
   # OPTIONS:
   #  aicc := Akaike information criterion score
   #    ll := Log likelihood score
-  o$selection_metric = "ll"
+  o$selection_metric = "aicc"
   
   # Multiply impact when fitting for more consistent FVP-impact scales
   o$impact_scaler = 1000
@@ -132,8 +132,9 @@ set_options = function(do_step = NA) {
   
   # Use multiple cores to speed up several fitting processes
   o$parallel = list(
-    impute = TRUE, 
-    impact = FALSE)  # NOTE: Having issues with shared memory
+    impute  = TRUE, 
+    impact  = FALSE,  # NOTE: Having issues with shared memory
+    history = FALSE)  # NOTE: Doesn't seem to offer any speed gain
 
   # Detect number of cores available to this user
   o$n_cores = detectCores()
@@ -142,10 +143,10 @@ set_options = function(do_step = NA) {
 
   # Turn figures on or off
   o$plot_inputs     = FALSE
-  o$plot_static     = TRUE
+  o$plot_static     = FALSE
   o$plot_imputation = FALSE
   o$plot_impact     = FALSE
-  o$plot_history    = FALSE
+  o$plot_history    = TRUE
 
   # ---- Plotting settings ----
   
