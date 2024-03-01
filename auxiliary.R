@@ -435,7 +435,7 @@ start_progress_bar = function(n) {
   
   # Initiate progress bar from progress package
   pb = progress_bar$new(
-    format     = " [:bar] :percent (Remaining: :eta)",
+    format     = " [:bar] :percent (remaining: :eta)",
     total      = n,     # Number of tasks to complete
     complete   = "-",   # Completion bar character
     incomplete = " ",   # Incomplete bar character

@@ -23,11 +23,11 @@ run_impact = function(metric) {
   # Prepare impact-FVP data to fit to
   data_dt = get_impact_data(metric)
 
-  # # Exploratory plots of data used to fit impact functions
-  # plot_impact_data(metric)
-  # 
-  # # Plot all-time impact per FVPs
-  # plot_impact_fvps(metric, scope = "all_time")
+  # Exploratory plots of data used to fit impact functions
+  plot_impact_data(metric)
+
+  # Plot all-time impact per FVPs
+  plot_impact_fvps(metric, scope = "all_time")
 
   # ---- Model fitting ----
 
@@ -53,7 +53,7 @@ run_impact = function(metric) {
     # Subset what to run, and data to use
     run  = run_dt[d_v_a_id == id]
     data = data_dt[d_v_a_id == id]
-    
+
     # Initiate progress bar
     pb = start_progress_bar(nrow(run))
 
@@ -67,34 +67,29 @@ run_impact = function(metric) {
 
     # Squash results into single datatable
     results_dt = rbindlist(results_list)
-    
+
     # Save to file
     save_rds(results_dt, "impact", "impact", metric, id)
-    
+
     # Close connections opened by sink
     closeAllConnections()
   }
   
   # ---- Model selection ----
 
-  # Compile all results
-  # compile_results(run_dt)
-
   # Select best function for each country-d_v_a combination
   model_selection(run_dt, metric)
-  
-  browser()
 
   # ---- Plot results ----
 
   # Plot function selection statistics
-  plot_model_selection()
-  
-  # Plot impact vs coverage by vaccine, income, and decade 
-  # plot_impact_coverage()
-  
+  plot_model_selection(metric)
+
   # Plot impact function evaluation
-  plot_model_fits()
+  plot_model_fits(metric)
+  
+  # Plot impact vs coverage by vaccine, income, and decade
+  # plot_impact_coverage(metric)
 }
 
 # ---------------------------------------------------------
@@ -146,18 +141,12 @@ get_impact_data = function(metric) {
 # ---------------------------------------------------------
 fn_set = function(params = FALSE, dict = FALSE) {
   
-  # Shorthand reference for impact functions
-  fn = list(
-    log = "logarithmic_growth", 
-    exp = "exponential_growth", 
-    sig = "sigmoidal_growth")
-  
   # Set of statistical models / functions we want to test
   out = list(
     lin = function(x, p) y = x * p[1],
-    log = function(x, p) y = get(fn$log)(x, p[1], p[2]),
-    exp = function(x, p) y = get(fn$exp)(x, p[1], p[2]),
-    sig = function(x, p) y = get(fn$sig)(x, p[1], p[2], p[3]))
+    log = function(x, p) y = logarithmic_growth(x, p[1], p[2]),
+    exp = function(x, p) y = exponential_growth(x, p[1], p[2]),
+    sig = function(x, p) y = sigmoidal_growth(x, p[1], p[2], p[3]))
   
   # Alternative functionality - return number of params
   if (params == TRUE)
@@ -222,6 +211,37 @@ get_best_model = function(id, run, data, pb) {
   
   # Update progress bar
   pb$tick()
+  
+  # ---- Diagnostic plot ----
+  
+  # data_dt   = data.table(x = x, value = y)
+  # models_dt = data.table(x = x)
+  # 
+  # for (fn in names(fit))
+  #   models_dt[[fn]] = fns[[fn]](x, fit[[fn]]$coef)
+  # 
+  # models_dt %<>%
+  #   pivot_longer(cols = -x) %>%
+  #   select(fn = name, x, value) %>%
+  #   arrange(fn, x) %>%
+  #   as.data.table()
+  # 
+  # plot_dt = result %>%
+  #   filter(param == "ll") %>%
+  #   mutate(lab = paste0(
+  #     fn, "\nll = ",
+  #     round(value, 2))) %>%
+  #   select(fn, lab) %>%
+  #   left_join(y  = models_dt,
+  #             by = "fn")
+  # 
+  # g = ggplot(plot_dt) +
+  #   aes(x = x, y = value) +
+  #   geom_line(
+  #     mapping = aes(colour = lab)) +
+  #   geom_point(
+  #     data   = data_dt,
+  #     colour = "black")
   
   return(result)
 }
@@ -310,13 +330,27 @@ run_mcmc = function(fns, optim, x, y) {
     y_pred = fns[[fn]](x, p)
     
     # Calculate the log-likelihood
-    ll = dnorm(x = y, mean = y_pred, log = TRUE)
+    ll = dnorm(
+      x    = y_pred, 
+      mean = y, 
+      sd   = sd(y - y_pred), 
+      log  = TRUE)
     
     # Calculate log-prior for all parameters
-    lp = dnorm(p, mean = x0, sd = x0 * o$prior_sd, log = TRUE)
+    lp = dnorm(
+      x    = p, 
+      mean = x0, 
+      sd   = x0 * o$prior_sd, 
+      log  = TRUE)
     
-    # Sum and ppply weighting to priors
-    likelihood = sum(ll) + sum(lp) * o$prior_weight
+    # Weighting to be applied to priors
+    #
+    # NOTE: Dividing by number of parameters such that more complex
+    #       models are not double punished when computing AICc
+    prior_weight = o$prior_weight / length(p)
+    
+    # Sum and appply weighting to priors
+    likelihood = sum(ll) + sum(lp) * prior_weight
     
     return(likelihood)
   }
@@ -439,29 +473,6 @@ model_quality = function(fns, fit, x, y, run_id) {
     mutate(run_id = run_id) %>%
     select(run_id, fn, param, iter, value)
   
-  # ---- Diagnostic plot ----
-  
-  # models_dt = data.table(x = x)
-  # 
-  # for (fn in names(fit))
-  #   models_dt[[fn]] = fns[[fn]](x, fit[[fn]]$coef)
-  # 
-  # models_dt %<>% 
-  #   pivot_longer(cols = -x) %>%
-  #   select(fn = name, x, value) %>%
-  #   arrange(fn, x) %>%
-  #   as.data.table()
-  # 
-  # data_dt = data.table(x = x, value = y)
-  # 
-  # g = ggplot(models_dt) + 
-  #   aes(x = x, y = value) + 
-  #   geom_line(
-  #     mapping = aes(colour = fn)) + 
-  #   geom_point(
-  #     data   = data_dt, 
-  #     colour = "black")
-  
   return(quality_dt)
 }
 
@@ -491,69 +502,57 @@ aicc = function(x, n) {
 }
 
 # ---------------------------------------------------------
-# Compile all results into full datatables
-# ---------------------------------------------------------
-compile_results = function(run_dt) {
-  
-  message(" > Compiling all results")
-  
-  browser()
-  
-  # Repeat for each type of output
-  for (type in c("coef", "aicc")) {
-    
-    browser()
-    
-    # All file names for this type of result
-    names = paste1(run_dt$run_id, type)
-    files = paste0(o$pth$runs, names, ".rds")
-    
-    # Files that exist 
-    #
-    # NOTE: Files with insufficient data are not saved
-    result_files = files[file.exists(files)]
-    
-    # Load all results and squash into single datatable
-    results_dt = result_files %>%
-      lapply(readRDS) %>%
-      rbindlist(fill = TRUE)
-    
-    # Append run details
-    compiled_dt = run_dt %>%
-      left_join(y  = results_dt, 
-                by = "run_id") %>%
-      select(-run_id)
-    
-    # Save to file
-    save_rds(compiled_dt, "impact", type)
-  }
-}
-
-# ---------------------------------------------------------
 # Select best function considering complexity
 # ---------------------------------------------------------
 model_selection = function(run_dt, metric) {
   
   message(" > Selecting best functions")
   
-  names = paste1("impact", metric, unique(run_dt$d_v_a_id))
+  # ---- Extract results ----
+  
+  # All d-v-a combinations considered
+  d_v_a = unique(run_dt$d_v_a_id)
+  
+  # Construct paths to results files
+  names = paste1("impact", metric, d_v_a)
   files = paste0(o$pth$impact, names, ".rds")
   
-  browser()
-  
   # Extract best fitting function based on AICc
-  best_dt = read_rds("impact", "aicc") %>%
-    lazy_dt() %>%
-    rename(value = !!o$selection_metric) %>%
-    # Select function with lowest AICc (or LL)...
-    group_by(d_v_a_id, country) %>%
+  results_dt = lapply(files, read_rds) %>%
+    rbindlist() %>%
+    left_join(y  = run_dt, 
+              by = "run_id")
+  
+  # ---- Model selection ----
+  
+  # Select best model based on AICc or LL
+  selection_dt = results_dt %>%
+    filter(param %in% c("aicc", "ll")) %>%
+    # Transform log-likelihood so we search for the lowest...
+    mutate(value = ifelse(param == "ll", -value, value)) %>%
+    # Select models according to AICc and LL...
+    group_by(d_v_a_id, country, param) %>%
     slice_min(value, n = 1, with_ties = FALSE) %>%
     ungroup() %>%
+    # Model selection according to o$selection_metric...
+    filter(param == o$selection_metric) %>%
     # Tidy up...
     select(d_v_a_id, country, fn) %>%
     as.data.table()
   
   # Save to file
-  save_rds(best_dt, "impact", "best_model")
+  save_rds(selection_dt, "impact", "model_choice", metric)
+  
+  # ---- Posterior chains ----
+  
+  # Select best model based on AICc or LL
+  posteriors_dt = results_dt %>%
+    filter(iter > 0) %>%
+    inner_join(y  = selection_dt, 
+               by = c("d_v_a_id", "country", "fn")) %>%
+    select(d_v_a_id, country, fn, param, iter, value)
+  
+  # Save to file
+  save_rds(posteriors_dt, "impact", "posteriors", metric)
 }
 
