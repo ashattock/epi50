@@ -173,18 +173,10 @@ run_history = function(metric) {
   # Save results to file
   save_rds(result_dt, "history", "burden_averted", metric) 
   
-  # ---- Plot results ----
-  
-  # TODO: Add new plots here...
+  # ---- Plot outcomes ----
   
   # Plot inital impact ratios used to back project
   plot_impact_fvps(metric, scope = "initial")
-  
-  # # Plot primary results figure: historical impact over time
-  # plot_historical_impact()
-  # 
-  # # Plot change in child mortality rates over time
-  # plot_child_mortality()
 }
 
 # ---------------------------------------------------------
@@ -318,8 +310,9 @@ mortality_rates = function(age_bound = 5, grouping = "none") {
   age_effect = impact_age_multiplier()
   
   # Estimated child deaths averted by vaccination
-  averted_dt = read_rds("history", "deaths_averted") %>%
+  averted_dt = read_rds("history", "burden_averted_deaths") %>%
     expand_grid(age_effect) %>%
+    lazy_dt() %>%
     filter(age <= age_bound) %>%
     left_join(y  = grouping_dt, 
               by = c("country", "year")) %>%

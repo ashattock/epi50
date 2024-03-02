@@ -235,7 +235,7 @@ plot_scope = function() {
   
   # Save to file
   save_fig(g, "Analysis scope", dir = "data_visualisation")
-  save_fig(g, "Figure 1", dir = "manuscript")
+  save_fig(g, "Figure X", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -771,6 +771,8 @@ plot_gbd_estimates = function() {
           legend.position = "right", 
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
+  
+  browser()
   
   # Save to file
   save_fig(g, "GBD deaths by age group", 
@@ -2726,8 +2728,6 @@ plot_historical_impact = function() {
   if (!is.null(grouping))
     colours = colours_who("category", length(diseases))
   
-  browser()
-  
   # ---- Produce plot ----
   
   # Stacked yearly bar plot
@@ -2791,7 +2791,7 @@ plot_historical_impact = function() {
   
   # Save these figures to file
   save_fig(g, "Historical impact", dir = "historical_impact")
-  save_fig(g, "Figure 2", dir = "manuscript")
+  save_fig(g, "Figure 1", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -2819,6 +2819,7 @@ plot_child_mortality = function() {
   
   # ---- Construct plotting datatables ----
   
+  # Load mortality rates in vaccine and no vaccine scenarios
   mortality_dt = mortality_rates(grouping = "none")
   
   # Cumulative deaths averted
@@ -2877,7 +2878,6 @@ plot_child_mortality = function() {
            metric = factor(metric, metric_dict), 
            case   = recode(case, !!!case_dict), 
            case   = factor(case, case_dict))
-  
   
   area_dt = averted_dt %>%
     rbind(rate_dt) %>%
@@ -3165,7 +3165,7 @@ plot_prob_death_age = function() {
     ~.(paste0("(", max(o$years), ")")))
   
   # Estimated child deaths averted by vaccination
-  averted_dt = read_rds("history", "deaths_averted") %>%
+  averted_dt = read_rds("history", "burden_averted_deaths") %>%
     filter(year == max(o$years)) %>%
     # Append region name...
     append_region_name() %>%
@@ -3282,7 +3282,7 @@ plot_survival_increase = function() {
   title = "Historical vaccination compared to hypothetical no vaccination"
   
   # Estimated child deaths averted by vaccination
-  averted_dt = read_rds("history", "deaths_averted") %>%
+  averted_dt = read_rds("history", "burden_averted_deaths") %>%
     # ...
     filter(year == max(o$years)) %>%
     # mutate(year = as.character(year)) %>%
@@ -3692,7 +3692,7 @@ plot_vimc_comparison = function() {
   # ---- Load EPI50 and VIMC outcomes ----
   
   # Results from EPI50 analysis - impact and FVPs
-  epi50_dt = read_rds("history", "deaths_averted") %>%
+  epi50_dt = read_rds("history", "burden_averted_deaths") %>%
     lazy_dt() %>%
     group_by(d_v_a_id) %>%
     summarise(impact_epi50 = round(sum(impact)), 
