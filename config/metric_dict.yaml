@@ -4,7 +4,9 @@
 table:
 
 - metric: deaths
-  metric_name: "Deaths"
+  metric_long: "Premature deaths"
+  metric_short: "Deaths"
   
 - metric: dalys
-  metric_name: "Disability-adjusted life years"
+  metric_long: "Disability-adjusted life years"
+  metric_short: "DALYs"

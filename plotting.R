@@ -2593,17 +2593,23 @@ plot_historical_impact = function() {
   # Diseases to combine into one colour (set to NULL to turn off)
   grouping = qc(Dip, HepB, JE, MenA, PCV, Rota, Rubella, YF) 
   
+  # Descriptive name for this grouping
   other = "Other pathogens"
   
+  # Year range string
+  range = paste(range(o$years), collapse = "-")
+  
   # Dictionary for temporal and cumulative subplots
-  result_dict = c(
-    impact_cum = "Cumulative disease burden averted (in millions)", 
-    impact     = "Disease burden averted per year (in millions)")
+  result_dict = list(
+    impact_cum = paste("Cumulative", range, "(in millions)"), 
+    impact     = paste("Per year", range, "(in millions)"))
   
   # ---- Load results ----
   
+  # Initiate results list
   results_list = list()
   
+  # Iterate through metrics
   for (metric in o$metrics) {
     
     # Prepare final results
@@ -2633,57 +2639,82 @@ plot_historical_impact = function() {
              result = factor(result, result_dict)) %>%
       # Append metric name...
       mutate(metric = !!metric) %>%
-      append_metric_name() %>%
+      left_join(y  = table("metric_dict"), 
+                by = "metric") %>%
+      mutate(metric_long = paste(metric_long, "averted")) %>%
       as.data.table()
   }
   
+  # Squash into single datatable
   results_dt = rbindlist(results_list)
+  
+  # ---- Create descriptive legend ----
+  
+  # We'll use short metric names in legend
+  metrics = unique(results_dt$metric_short)
+  
+  # Function for formating value into string
+  label_fn = function(x, n, m, k)
+    paste0(round(x / m, n), " ", k, "illion")
+  
+  # Construct labels: total FVPs over analysis timeframe
+  label_dt = results_dt %>%
+    filter(result == result_dict$impact_cum) %>%
+    select(disease, metric = metric_short, value) %>%
+    # Total burden averted over all years...
+    group_by(disease, metric) %>%
+    summarise(total = max(value)) %>%
+    ungroup() %>%
+    # Construct total result string...
+    mutate(total = ifelse(
+      test = metric == metrics[1], 
+      yes  = label_fn(total, 1, 1, "m"), 
+      no   = label_fn(total, 1, 1e3, "b"))) %>%
+    # Append metric and total strings...
+    mutate(total = paste(metric, "averted:", total)) %>%
+    pivot_wider(names_from  = metric,
+                values_from = total) %>%
+    # Embolden disease name...
+    mutate(name = paste0("**", disease, "**"), 
+           .after = disease) %>%
+    select(disease, name, all_of(metrics)) %>%
+    # Collapse into single string with line breaks...
+    unite(col = "label", names(.)[-1], 
+          sep = "<br>", remove = FALSE) %>%
+    select(disease, label) %>%
+    as.data.table()
   
   # ---- Construct plotting datatables ----
   
-  # metrics = table("metric_dict") %>%
-  #   pivot_wider(names_from  = metric, 
-  #               values_from = metric_name) %>%
-  #   as.list()
-  
   # Plotting order of diseases
   diseases = results_dt %>%
-    filter(metric == "Deaths") %>%
+    filter(metric == "deaths") %>%
+    # Highest to lowest in terms of deaths averted...
     group_by(disease) %>%
     slice_max(value, with_ties = FALSE) %>%
     ungroup() %>%
     arrange(-value) %>%
+    # Place 'other pathogens' at the bottom...
     pull(disease) %>%
     setdiff(other) %>%
     c(other)
   
-  # Construct labels: total FVPs over analysis timeframe
-  label_dt = results_dt %>%
-    filter(result == result_dict[["impact_cum"]]) %>%
-    group_by(disease, metric) %>%
-    summarise(total = round(max(value), 1)) %>%
-    ungroup() %>%
-    mutate(metric = paste0("Total ", tolower(metric)),
-           total  = paste0(metric, ": ", total, " million")) %>%
-    pivot_wider(names_from  = metric, 
-                values_from = total) %>%
-    unite("label", names(.), sep = "\n", remove = FALSE) %>%
-    select(disease, label) %>%
-    as.data.table()
-  
-  # Append total labels to plotting data
+  # Set order and append total labels to plotting data
   plot_dt = results_dt %>%
     left_join(y  = label_dt, 
               by = "disease") %>%
     # Pathogen order...
     mutate(disease = factor(disease, diseases)) %>%
     arrange(disease) %>%
-    mutate(label = fct_inorder(label)) %>%
-    select(label, metric, result, year, value)
+    # Metric order...
+    select(label, metric = metric_long, 
+           result, year, value) %>%
+    mutate(metric = fct_inorder(metric), 
+           label  = fct_inorder(label))
   
   # Separate into bar and line datatables
-  bar_dt  = plot_dt[result == result_dict[["impact_cum"]]]
-  line_dt = plot_dt[result == result_dict[["impact"]]]
+  bar_dt  = plot_dt[result == result_dict$impact_cum]
+  line_dt = plot_dt[result == result_dict$impact]
   
   # ---- Colours ----
   
@@ -2694,6 +2725,8 @@ plot_historical_impact = function() {
   # With grouping
   if (!is.null(grouping))
     colours = colours_who("category", length(diseases))
+  
+  browser()
   
   # ---- Produce plot ----
   
@@ -2717,6 +2750,7 @@ plot_historical_impact = function() {
       rows   = vars(result), 
       cols   = vars(metric), 
       scales = "free", 
+      # labeller = label_wrap_gen(width = 30), 
       independent = "all") +
     # Set colours...
     scale_fill_manual(values = colours) + 
@@ -2738,7 +2772,7 @@ plot_historical_impact = function() {
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title    = element_blank(),
-          axis.text     = element_text(size = 11),
+          axis.text     = element_text(size = 10),
           axis.text.x   = element_text(hjust = 1, angle = 50), 
           axis.line     = element_blank(),
           strip.text    = element_text(size = 14),
@@ -2748,10 +2782,10 @@ plot_historical_impact = function() {
           panel.spacing = unit(1, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.25),
           legend.title  = element_blank(),
-          legend.text   = element_text(size = 11),
+          legend.text   = element_markdown(size = 12),
           legend.key    = element_blank(),
           legend.position = "right", 
-          legend.spacing.y  = unit(1, "lines"),
+          legend.spacing.y  = unit(2, "lines"),
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
@@ -3912,8 +3946,8 @@ append_metric_name = function(dt) {
   name_dt = dt %>%
     left_join(y  = table("metric_dict"), 
               by = "metric") %>%
-    select(-metric) %>%
-    rename(metric = metric_name) %>%
+    select(-metric, -metric_short) %>%
+    rename(metric = metric_long) %>%
     mutate(metric = fct_inorder(metric))
   
   return(name_dt)

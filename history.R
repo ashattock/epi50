@@ -157,9 +157,10 @@ run_history = function(metric) {
   extern_dt = table("extern_estimates") %>%
     lazy_dt() %>%
     filter(d_v_a_id %in% table("d_v_a")$d_v_a_id) %>%
+    rename(impact = !!paste1(metric, "averted")) %>%
     # Summarise results over age...
     group_by(d_v_a_id, country, year) %>%
-    summarise(impact = sum(deaths_averted)) %>%
+    summarise(impact = sum(impact)) %>%
     ungroup() %>%
     # TODO: Update placeholder with actual values
     mutate(fvps = 1, .before = impact) %>%
