@@ -150,15 +150,15 @@ prepare_vaccine_efficacy = function() {
     
     # Fit all required parameters to the data available
     optim = asd(
-      fn   = obj_fn,
-      x0   = runif(n_args),
-      args = list(
+      fn = obj_fn,
+      x0 = runif(n_args),
+      lb = 1e-6, 
+      ub = 1e6,
+      iters = 1e3, 
+      args  = list(
         data   = data, 
         fn     = fn, 
-        n_args = n_args),
-      lb   = 1e-6, 
-      ub   = 1e6,
-      max_iters = 1e3)
+        n_args = n_args))
     
     # Evaluate function using optimal parameters
     profile = do.call(fn, as.list(optim$x))

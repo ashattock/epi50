@@ -18,12 +18,12 @@ run_external = function() {
   
   # TODO: Split impact across each vaccine...
   
-  # # Create templates for measles and polio models
-  # template_measles()
-  # template_polio()
-  # 
-  # # Simulate DynaMICE measles model
-  # simulate_dynamice()
+  # Create templates for measles and polio models
+  template_measles()
+  template_polio()
+
+  # Simulate DynaMICE measles model
+  simulate_dynamice()
 
   # TEMP: Construct temporary dummy polio results
   dummy_polio()  # TODO: Remove when polio results available
@@ -273,26 +273,23 @@ dummy_polio = function() {
   template_dt = fread(paste0(o$pth$extern, template_file)) %>%
     select(-value)
   
-  # All metrics of intrerest (epi outcomes and number of doses)
-  metrics = unique(template_dt$metric)
-  
-  # Crudely, expect around 30k deaths per year in counterfactual scenario
-  annual_deaths = 30000
-  
-  # Split equally across regions and age groups
-  counterfactual = annual_deaths / 
-    (n_unique(template_dt$region) * 
-       n_unique(template_dt$age_group))
-  
-  # Create dummy counter-factual results
-  counterfactual_dt = template_dt %>%
-    filter(scenario == "no_vaccine",
-           metric   == "deaths") %>%
-    mutate(value = counterfactual)
+  # Load temporary impact file (loosely resembles draft results)
+  temp_file = paste0(o$pth$extern, "epi50_polio_temp.csv")
+  impact_dt = fread(temp_file) %>%
+    pivot_longer(cols = c(no_vaccine, vaccine), 
+                 names_to = "scenario") %>%
+    # Expand for each region and age group...
+    expand_grid(region    = unique(template_dt$region),
+                age_group = "age_group_1") %>%
+    # Distribute burden and impact evenly across regions...
+    mutate(value = value / n_unique(template_dt$region)) %>%
+    # Tidy up...
+    select(scenario, region, year, age_group, metric, value) %>%
+    arrange(scenario, region, year, age_group, metric) %>%
+    as.data.table()
   
   # Polio doses based on crude data extraction
   doses_dt = table("coverage_everything") %>%
-    lazy_dt() %>%
     inner_join(y  = table("d_v_a_extern"), 
                by = "d_v_a_id") %>%
     left_join(y  = table("country"), 
@@ -300,23 +297,19 @@ dummy_polio = function() {
     left_join(y  = table("regimen"), 
               by = "vaccine") %>%
     mutate(metric = paste1(vaccine, "doses")) %>%
-    filter(metric %in% metrics) %>%
+    filter(metric %in% unique(template_dt$metric)) %>%
     group_by(region, year, metric) %>%
     summarise(value = sum(fvps * schedule)) %>%
     ungroup() %>%
     mutate(scenario  = "vaccine", 
            age_group = "age_group_1") %>%
-    select(all_names(template_dt), value) %>%
-    full_join(y  = template_dt, 
-              by = names(template_dt)) %>%
-    filter(grepl(".+_doses$", metric)) %>%
-    replace_na(list(value = 0)) %>%
+    select(scenario, region, year, age_group, metric, value) %>%
     arrange(scenario, region, year, age_group, metric) %>%
     as.data.table()
   
   # Concatenate into single datatable
   dummy_dt = template_dt %>%
-    left_join(y  = rbind(doses_dt, counterfactual_dt),
+    left_join(y  = rbind(impact_dt, doses_dt),
               by = names(template_dt)) %>%
     replace_na(list(value = 0)) %>%
     arrange(scenario, region, year, age_group, metric)
@@ -332,13 +325,14 @@ dummy_polio = function() {
   #   mutate(effect = cum_value -
   #            cum_value[scenario == "no_vaccine"]) %>%
   #   ungroup() %>%
+  #   filter(scenario == "vaccine") %>%
+  #   select(region, year, age_group, metric, effect) %>%
   #   as.data.table()
   # 
   # g = ggplot(plot_dt) +
   #   aes(x = year,
   #       y = effect,
-  #       colour   = region,
-  #       linetype = scenario) +
+  #       colour = region) +
   #   geom_line() +
   #   facet_grid(
   #     rows   = vars(metric),
@@ -394,9 +388,11 @@ format_measles = function() {
     
     # Append original FVPs from coverage table
     model_dt = template_dt %>%
+      lazy_dt() %>%
       left_join(y  = rbind(raw_dt, fvps_dt),
                 by = names(template_dt)) %>%
-      replace_na(list(value = 0))
+      replace_na(list(value = 0)) %>%
+      as.data.table()
     
     # Save EPI50-formatted results for this model 
     save_table(model_dt, table_name)
@@ -459,6 +455,7 @@ format_polio = function() {
   
   # Bring it all together to disaggregate raw results...
   polio_dt = raw_dt %>%
+    lazy_dt() %>%
     # Expand age groups to all ages...
     full_join(age_dt, by = "age_group", 
               relationship = "many-to-many") %>%
@@ -470,7 +467,8 @@ format_polio = function() {
     # Divide results through for each country and age ...
     mutate(value = (value * pop_share) / n) %>%
     select(scenario, country, year, age, metric, value) %>%
-    arrange(scenario, country, year, age)
+    arrange(scenario, country, year, age) %>%
+    as.data.table()
   
   # ---- Sanity checks ----
   
@@ -479,6 +477,7 @@ format_polio = function() {
     
     # Total outcomes by scenario and metric
     total_dt = dt %>%
+      lazy_dt() %>%
       group_by(scenario, metric) %>%
       summarise(value = sum(value)) %>%
       ungroup() %>%
@@ -492,8 +491,9 @@ format_polio = function() {
   check_dt = total_fn(polio_dt, "clean") %>%
     left_join(y  = total_fn(raw_dt, "raw"), 
               by = c("scenario", "metric")) %>%
-    mutate(diff = abs(clean - raw), 
-           err  = diff > 1e-6)
+    mutate(diff = abs(clean - raw) / pmin(clean, raw), 
+           err  = diff > 1e-6) %>%
+    replace_na(list(err = FALSE))
   
   # Throw an error if any differences are identified
   if (any(check_dt$err))
@@ -507,8 +507,9 @@ format_polio = function() {
     left_join(y  = table("regimen"), 
               by = c("metric" = "vaccine")) %>%
     replace_na(list(schedule = 1)) %>%
-    mutate(value = value / schedule) %>%
-    select(-schedule)
+    mutate(value = value / as.numeric(schedule)) %>%
+    select(-schedule) %>%
+    as.data.table()
   
   # Save EPI50-formatted polio results 
   save_table(polio_dt, "extern_polio_results")
