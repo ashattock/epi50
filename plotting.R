@@ -748,16 +748,13 @@ plot_gbd_estimates = function() {
         n   = length(age_groups))) +
     # Prettify y axis...
     scale_y_continuous(
-      name   = "GBD-estimated disease burden", 
       labels = comma,
       expand = expansion(mult = c(0, 0.05)), 
       breaks = pretty_breaks())
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.title.x  = element_blank(),
-          axis.title.y  = element_text(
-            size = 20, margin = margin(l = 10, r = 20)),
+    theme(axis.title    = element_blank(),
           axis.text     = element_text(size = 10),
           axis.line     = element_blank(),
           strip.text    = element_text(size = 14),
@@ -768,14 +765,12 @@ plot_gbd_estimates = function() {
           legend.title  = element_blank(),
           legend.text   = element_text(size = 14),
           legend.key    = element_blank(),
-          legend.position = "right", 
+          legend.position = "bottom", 
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
-  browser()
-  
   # Save to file
-  save_fig(g, "GBD deaths by age group", 
+  save_fig(g, "GBD disease burden by age group", 
            dir = "static_models")
 }
 
