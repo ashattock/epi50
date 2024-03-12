@@ -40,13 +40,13 @@ run_prepare = function() {
 
   # Prepare country income status classification over time
   prepare_income_status()
-
+  
   # Prepare demography-related estimates from WPP
   prepare_demography()
-
+  
   # Prepare age at birth by country and year
   prepare_birth_age()
-  
+
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
 }
@@ -666,71 +666,106 @@ prepare_demography = function() {
   
   message(" > Demography data")
   
-  # Details of data sets to load
-  data_sets = list(
-    pop = list(name = "pop",    var = "pop"),
-    mx  = list(name = "deaths", var = "mxB"))
+  # Details of metrics to load
+  metrics = list(
+    pop = list(
+      var   = "pop",   
+      file  = "pop", 
+      scale = 1e3,   
+      proj  = TRUE, 
+      age   = TRUE),
+    deaths = list(
+      var   = "mxB",   
+      file  = "mx",  
+      scale = "pop", 
+      proj  = FALSE, 
+      age   = TRUE),
+    fertility_total = list(
+      var   = "tfr", 
+      file  = "tfr", 
+      scale = 1,
+      proj  = TRUE, 
+      age   = FALSE), 
+    fertility_age = list(
+      var  = "pasfr", 
+      file = "percentASFR", 
+      scale = 0.01, 
+      proj  = FALSE, 
+      age   = TRUE))
   
-  # Iterate through data sets to load
-  for (id in names(data_sets)) {
+  # Function to apply element-wise scaler to data
+  scaler_fn = function(m) {
     
-    # Index data set name and variable reference
-    name = data_sets[[id]]$name
-    var  = data_sets[[id]]$var
+    # Population scaling: by country, year, and age
+    if (m$scale == "pop")
+      scaler_dt = setnames(
+        x   = table("wpp_pop"), 
+        old = "pop", 
+        new = "scaler")
     
-    # Load population size data
-    if (id == "pop") {
+    # Numeric values: simple repitition
+    if (is.numeric(m$scale))
+      scaler_dt = expand_grid(
+        country = all_countries(), 
+        year    = o$years,
+        age     = if (m$age) o$ages else NA, 
+        scaler  = m$scale) %>%
+        as.data.table()
+    
+    return(scaler_dt)
+  }
+  
+  # Iterate through metrics to load
+  for (metric in names(metrics)) {
+    m = metrics[[metric]]
+    
+    message("  - ", metric)
+    
+    # Past and future in separate data sets
+    if (m$proj == TRUE) {
+      
+      # Age-disaggregation specified in data set file name
+      age = ifelse(m$age, "Age", "")
       
       # Names of WPP2022 data files to load
-      past   = paste0("popAge",     o$pop_bin, "dt")
-      future = paste0("popprojAge", o$pop_bin, "dt") 
+      past   = paste0(m$file,         age, o$pop_bin, "dt")
+      future = paste0(m$file, "proj", age, o$pop_bin, "dt") 
       
       # Load pop data from WPP github package
       data_list = data_package(past, future, package = "wpp2022")
-      
-      # Scale metrics by factor of 1k
-      scaler_dt = expand_grid(
-        country = all_countries(), 
-        year    = o$years, 
-        age     = 0 : 100, 
-        scaler  = 1e3) %>%
-        as.data.table()
     }
     
-    # Load any other data type
-    if (id != "pop") {
+    # Past and future combined into single data set
+    if (m$proj == FALSE) {
       
       # Name of WPP2022 data file - history and projection in one
-      all_time = paste0(id, o$pop_bin, "dt") 
+      all_time = paste0(m$file, o$pop_bin, "dt")
       
       # Load data from WPP github package
       data_list = data_package(all_time, package = "wpp2022")
-      
-      # We'll need to scale per 1k population
-      scaler_dt = table("wpp_pop") %>%
-        rename(scaler = pop)
     }
     
-    # Combine past and future data
+    # Combine (extended) past and future data
     data_dt = rbindlist(data_list, fill = TRUE) %>%
-      # Select countries of interst...
+      {if (!m$age) mutate(., age = NA) else .} %>%
+      # Select countries of interest...
       inner_join(y  = table("country"),  
                  by = "country_code") %>%
-      select(country, year, age, value = !!var) %>%
+      select(country, year, age, value = !!m$var) %>%
       # Shift year by one (see github.com/PPgp/wpp2022 for details)...
       mutate(year = as.integer(year) + 1) %>%
       filter(year %in% o$years) %>%
       # Scale metrics...
-      left_join(y = scaler_dt, 
+      left_join(y = scaler_fn(m), 
                 by = c("country", "year", "age")) %>%
       mutate(value = value * scaler) %>%
       select(-scaler) %>%
       # Tidy up...
-      rename(!!name := value) %>%
+      rename(!!metric := value) %>%
       arrange(country, year, age)
     
     # Save in tables cache
-    save_table(data_dt, paste1("wpp", name))
+    save_table(data_dt, paste1("wpp", metric))
   }
 }
 

@@ -25,6 +25,19 @@ colours_who = function(type, n) {
 # ---------------------------------------------------------
 # Colour palette: categorical
 # ---------------------------------------------------------
+colours_who_logo = function() {
+  
+  # WHO logo colours
+  colours = c(
+    "#009CDE",  # Vibrant blue
+    "#001F58")  # Navy blue
+  
+  return(colours)
+}
+
+# ---------------------------------------------------------
+# Colour palette: categorical
+# ---------------------------------------------------------
 colours_who_category = function() {
   
   # 6 colours and 1 grey

@@ -155,9 +155,6 @@ set_options = function(do_step = NA) {
     disease = "pals::kovesi.rainbow",  # 14 values needed
     region  = "brewer::paired",        # 6 values needed
     income  = "brewer::dark2")         # 4 values needed
-  
-  # WHO colour scheme (vibrant blue, navy blue)
-  o$palette_who = c("#009CDE", "#001F58")
 
   # Font sizes: title, axis, tick, strip, legend, key
   o$font_size = c(34, 28, 16, 24, 20, 18)

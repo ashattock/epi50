@@ -2790,102 +2790,156 @@ plot_historical_impact = function() {
 }
 
 # ---------------------------------------------------------
-# Plot change in child mortality rates over time
+# Plot change in infant mortality rates over time
 # ---------------------------------------------------------
-plot_child_mortality = function() {
+plot_infant_mortality = function() {
   
-  message("  - Plotting child mortality rates")
+  message("  - Plotting infant mortality rates")
   
   # ---- Figure properties ----
+  
+  age_bound = 0
   
   # Set colour scheme for vaccine coverage
   colour_map = "viridis::viridis" # pals::kovesi.rainbow "viridis::viridis"
   
-  metric_dict = list(
-    avert = "Deaths of children under 5 averted", 
-    rate  = "Mortality rate for children under 5", 
-    exp   = "Global life expectancy", 
-    cov   = "Global vaccine coverage")
+  year_range = paste(range(o$years), collapse = "-")
   
-  # Dictionary for each vaccine case
-  case_dict = list( 
+  metric_dict = list(
+    rate   = paste("Infant mortality rate", year_range), 
+    deaths = paste("Cumulative infant deaths", year_range)) 
+    # cov    = "Global vaccine coverage")
+  
+  # Dictionary for each scenario
+  scenario_dict = list( 
     vaccine    = "Vaccination as obserevd", 
-    no_vaccine = "No historical vaccination")
+    no_vaccine = "Hypothetical scenario:\nno historical vaccination", 
+    no_other   = "Hypothetical scenario:\nno improvement in infant survival")
   
   # ---- Construct plotting datatables ----
   
   # Load mortality rates in vaccine and no vaccine scenarios
-  mortality_dt = mortality_rates(grouping = "none")
+  mortality_dt = mortality_rates(
+    age_bound = age_bound, 
+    grouping  = "none")
   
-  # Cumulative deaths averted
-  averted_dt = mortality_dt %>%
-    mutate(total_averted = cumsum(averted)) %>%
-    mutate(metric = "avert", 
-           case   = "vaccine") %>%
-    select(metric, case, year, value = total_averted)
-  
-  # Mortality rate over time
+  # Mortality rate over time in each scenario
   rate_dt = mortality_dt %>%
-    select(year, vaccine, no_vaccine) %>%
+    # Scenario variables refer to mortality rates... 
+    rename(vaccine    = rate, 
+           no_vaccine = rate_alt1, 
+           no_other   = rate_alt2) %>%
+    select(year, vaccine, no_vaccine, no_other) %>%
+    # Melt to long format...
     pivot_longer(cols = -year, 
-                 names_to = "case") %>%
+                 names_to = "scenario") %>%
+    # Tidy up...
     mutate(metric = "rate") %>%
-    select(metric, case, year, value) %>%
+    select(metric, scenario, year, value) %>%
+    arrange(metric, scenario, year) %>%
     as.data.table()
   
-  # Life expectancy over time
-  life_exp_dt = NULL
+  # Total number of deaths in each scenario
+  deaths_dt = mortality_dt %>%
+    # Scenario variables refer to absolute values... 
+    rename(vaccine    = deaths, 
+           no_vaccine = deaths_alt1, 
+           no_other   = deaths_alt2) %>%
+    select(year, vaccine, no_vaccine, no_other) %>%
+    # Cumulative infant deaths...
+    pivot_longer(cols = -year, 
+                 names_to = "scenario") %>%
+    group_by(scenario) %>%
+    mutate(value = cumsum(value)) %>%
+    ungroup() %>%
+    # Tidy up...
+    mutate(metric = "deaths") %>%
+    select(metric, scenario, year, value) %>%
+    arrange(metric, scenario, year) %>%
+    as.data.table()
   
   # Vaccine coverage over time - global average
   coverage_dt = table("coverage_global") %>%
-    filter(coverage > 0, 
+    filter(coverage > 0,
            !grepl("_BD$", vaccine)) %>%
     # Combine DTP3 estimates...
     mutate(vaccine = ifelse(
-      test = vaccine %in% qc(Dip3, Tet3, aPer3), 
-      yes  = "DTP3", 
+      test = vaccine %in% qc(Dip3, Tet3, aPer3),
+      yes  = "DTP3",
       no   = vaccine)) %>%
     group_by(vaccine, year) %>%
     summarise(coverage = mean(coverage)) %>%
     ungroup() %>%
     # Append descriptive vaccine names...
-    left_join(y  = table("vaccine_name"), 
+    left_join(y  = table("vaccine_name"),
               by = "vaccine") %>%
     replace_na(list(vaccine_name = "DTP third dose")) %>%
-    mutate(metric = "cov", 
-           case   = "vaccine") %>%
+    mutate(metric   = "cov",
+           scenario = "vaccine") %>%
     # Tidy up...
-    select(metric, case, vaccine_name, 
+    select(metric, scenario, vaccine_name,
            year, value = coverage) %>%
     as.data.table()
   
   # Combine into single plotting datatable
-  lines_dt = averted_dt %>%
-    bind_rows(rate_dt) %>%
-    bind_rows(life_exp_dt) %>%
-    bind_rows(coverage_dt) %>%
+  lines_dt = rate_dt %>%
+    bind_rows(deaths_dt) %>%
+    # bind_rows(coverage_dt) %>%
     # Vaccine coverage order...
-    replace_na(list(vaccine_name = "-")) %>%
-    arrange(vaccine_name) %>%
-    mutate(vaccine_name = fct_inorder(vaccine_name)) %>%
-    # Metric subplot order...
-    mutate(metric = recode(metric, !!!metric_dict),
-           metric = factor(metric, metric_dict), 
-           case   = recode(case, !!!case_dict), 
-           case   = factor(case, case_dict))
-  
-  area_dt = averted_dt %>%
-    rbind(rate_dt) %>%
-    rbind(life_exp_dt) %>%
-    pivot_wider(names_from = case) %>%
-    replace_na(list(no_vaccine = 0)) %>%
-    mutate(y_min = pmin(vaccine, no_vaccine), 
-           y_max = pmax(vaccine, no_vaccine)) %>%
+    # replace_na(list(vaccine_name = "-")) %>%
+    # arrange(vaccine_name) %>%
+    # mutate(vaccine_name = fct_inorder(vaccine_name)) %>%
+    # Scenario order...
+    mutate(scenario = recode(scenario, !!!scenario_dict), 
+           scenario = factor(scenario, scenario_dict)) %>%
     # Metric subplot order...
     mutate(metric = recode(metric, !!!metric_dict),
            metric = factor(metric, metric_dict)) %>%
+    arrange(metric, scenario, year)
+  
+  # Second plotting datatable to highlight vaccine contribution
+  area_dt = rate_dt %>%
+    rbind(deaths_dt) %>%
+    pivot_wider(names_from = scenario) %>%
+    # Fill difference between vaccine and no vaccine
+    mutate(y_min = pmin(vaccine, no_vaccine),
+           y_max = pmax(vaccine, no_vaccine)) %>%
     select(metric, year, y_min, y_max) %>%
+    # Metric subplot order...
+    mutate(metric = recode(metric, !!!metric_dict),
+           metric = factor(metric, metric_dict)) %>%
     as.data.table()
+  
+  # ---- xxx ----
+  
+  # Percentage of mortality decline attributable to vaccination
+  attributable = rate_dt %>%
+    mutate(value = value * 100) %>%
+    pivot_wider(names_from = scenario) %>%
+    mutate(relative = 100 * (no_vaccine - vaccine) / 
+             (no_vaccine[1] - vaccine)) %>%
+    filter(year > o$years[1]) %>%
+    pull(relative) %>%
+    mean() %>%
+    round()
+  
+  colour = colours_who("logo", 1)
+  
+  label = paste0(
+    "<span style='color:", colour, "'>", 
+    "Impact attributable to <b>vaccination</b>: ", 
+    attributable, "%</span><br>", 
+    "Impact attributable to <b>all other factors</b>: ",
+    100 - attributable, "%")
+  
+  attributable_dt = lines_dt %>%
+    select(metric, year, value) %>%
+    filter(metric == metric_dict$deaths) %>%
+    group_by(metric) %>%
+    slice_max(value, n = 1) %>%
+    mutate(value = 0.1 * value, 
+           year  = -0.01 * diff(range(o$years)) + max(o$years)) %>%
+    mutate(label = label)
   
   # ---- Set y axis properties for each facet ----
   
@@ -2903,23 +2957,22 @@ plot_child_mortality = function() {
     expand = expansion(mult = c(0, 0.05)), 
     breaks = pretty_breaks())
   
-  y3 = scale_y_continuous(
-    labels = percent, 
-    limits = c(0, 1),
-    expand = c(0, 0), 
-    breaks = pretty_breaks())
+  # y3 = scale_y_continuous(
+  #   labels = percent, 
+  #   limits = c(0, 1),
+  #   expand = c(0, 0), 
+  #   breaks = pretty_breaks())
   
   y_list = list(
-    metric == fct_fn("avert") ~ y1,
-    metric == fct_fn("rate")  ~ y2, 
-    metric == fct_fn("exp")   ~ y1, 
-    metric == fct_fn("cov")   ~ y3)
+    metric == fct_fn("deaths") ~ y1,
+    metric == fct_fn("rate")   ~ y2) #, 
+    # metric == fct_fn("cov")    ~ y3)
   
-  legend_entries = unique(lines_dt$vaccine_name)
-  
-  n_cols  = n_unique(coverage_dt$vaccine_name)
-  colours = colour_scheme(colour_map, n = n_cols)
-  colours = setNames(c("black", colours), legend_entries)
+  # legend_entries = unique(lines_dt$vaccine_name)
+  # 
+  # n_cols  = n_unique(coverage_dt$vaccine_name)
+  # colours = colour_scheme(colour_map, n = n_cols)
+  # colours = setNames(c("black", colours), legend_entries)
   
   # ---- Produce plot ----
   
@@ -2929,18 +2982,28 @@ plot_child_mortality = function() {
     # Plot area...
     geom_ribbon(
       mapping = aes(
-        ymin = y_min, 
-        ymax = y_max), 
-      fill  = "grey", 
-      alpha = 0.7) +
+        ymin = y_min,
+        ymax = y_max),
+      colour = NA, 
+      fill   = colour,
+      alpha  = 0.5) +
     # Plot lines...
     geom_line(
       data    = lines_dt,
       mapping = aes(
         y = value,
-        linetype = case, 
-        colour   = vaccine_name), 
+        linetype = scenario), 
+        # colour   = vaccine_name), 
       linewidth = 1.1) +
+    # Plot attributability labels...
+    geom_richtext(
+      data    = attributable_dt, 
+      mapping = aes(
+        y = value,
+        label = label), 
+      hjust = "right", 
+      size  = 4.5, 
+      label.color = NA) + 
     # Facet by metric...
     facet_wrap(
       facets = vars(metric), 
@@ -2948,8 +3011,8 @@ plot_child_mortality = function() {
       ncol   = 1) +
     # Set colour scheme...
     scale_color_manual(
-      breaks = legend_entries[-1], 
-      values = c("black", colours)) +
+      # breaks = legend_entries[-1], 
+      values = "black") + # c("black", colours)) +
     # Prettify y axis...
     facetted_pos_scales(y = y_list) + 
     # Prettiy x axis...
@@ -2958,8 +3021,10 @@ plot_child_mortality = function() {
       expand = expansion(mult = c(0, 0)), 
       breaks = seq(min(o$years), max(o$years), by = 5)) +
     # Prettify legends...
-    guides(linetype = guide_legend(order = 1), 
-           colour   = guide_legend(order = 2))
+    guides(colour   = guide_legend(order = 2),
+           linetype = guide_legend(
+             order     = 1, 
+             keyheight = 4))
   
   # Prettify theme
   g = g + theme_classic() + 
@@ -2975,13 +3040,13 @@ plot_child_mortality = function() {
           legend.title  = element_blank(),
           legend.text   = element_text(size = 11),
           legend.position      = "right",
-          legend.justification = "bottom",
-          legend.spacing.y  = unit(4, "lines"),
+          # legend.justification = "bottom",
+          # legend.spacing.y  = unit(10, "lines"),
           legend.key.height = unit(1.1, "lines"),
-          legend.key.width  = unit(1.1, "lines"))
+          legend.key.width  = unit(1.8, "lines"))
   
   # Save figure to file
-  save_fig(g, "Child mortality rates", dir = "historical_impact")
+  save_fig(g, "Infant mortality rates", dir = "historical_impact")
   
   # Also save as main manuscript figure
   save_fig(g, "Figure 4a", dir = "manuscript")
@@ -3221,7 +3286,7 @@ plot_prob_death_age = function() {
       scales = "free_y") +
     # Set colour scheme...
     scale_fill_manual(
-      values = o$palette_who) + 
+      values = colours_who("logo", n = 2)) + 
     # Prettify x axis...
     scale_x_continuous(
       name   = "Age (log2 scale)",
