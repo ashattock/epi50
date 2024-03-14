@@ -2750,7 +2750,9 @@ plot_historical_impact = function() {
       expand = expansion(mult = c(0, 0)), 
       breaks = seq(min(o$years), max(o$years), by = 5)) +
     # Prettify legend (needed for y spacing to take effect)...
-    guides(fill = guide_legend(byrow = TRUE))
+    guides(fill = guide_legend(
+      byrow = TRUE, 
+      nrow  = 2))
   
   # Prettify theme
   g = g + theme_classic() + 
@@ -2767,7 +2769,7 @@ plot_historical_impact = function() {
           legend.title  = element_blank(),
           legend.text   = element_markdown(size = 12),
           legend.key    = element_blank(),
-          legend.position = "right", 
+          legend.position = "bottom", 
           legend.spacing.y  = unit(2, "lines"),
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))

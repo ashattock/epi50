@@ -182,12 +182,13 @@ run_history = function(metric) {
     
     # Apply age structure and calculate YLL from deaths
     yll_dt = result_dt %>%
+      # Append life expectancy...
+      left_join(y  = table("wpp_life_exp"), 
+                by = c("country", "year")) %>%
+      select(-age) %>%
       # Apply age structure...
       expand_grid(impact_age_multiplier()) %>%
       mutate(deaths = impact * scaler) %>%
-      select(d_v_a_id, country, year, age, deaths) %>%
-      # Append life expectency...
-      mutate(life_exp = 80) %>%  # TODO: Use proper WPP data
       # Calculate years of life lost...
       mutate(yll = deaths * pmax(0, life_exp - age)) %>%
       group_by(d_v_a_id, country, year) %>%

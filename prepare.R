@@ -667,19 +667,27 @@ prepare_demography = function() {
   message(" > Demography data")
   
   # Details of metrics to load
+  #
+  # TODO: Migrate to new config file
   metrics = list(
     pop = list(
-      var   = "pop",   
-      file  = "pop", 
-      scale = 1e3,   
-      proj  = TRUE, 
+      var   = "pop",
+      file  = "pop",
+      scale = 1e3,
+      proj  = TRUE,
       age   = TRUE),
     deaths = list(
-      var   = "mxB",   
-      file  = "mx",  
-      scale = "pop", 
-      proj  = FALSE, 
+      var   = "mxB",
+      file  = "mx",
+      scale = "pop",
+      proj  = FALSE,
       age   = TRUE),
+    life_exp = list(
+      var   = "e0B", 
+      file  = "e0", 
+      scale = 1, 
+      proj  = TRUE, 
+      age   = FALSE), 
     fertility = list(
       var  = "pasfr", 
       file = "percentASFR", 
