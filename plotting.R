@@ -2825,12 +2825,19 @@ plot_infant_mortality = function() {
     cov    = "Global vaccine coverage")
   
   # Dictionary for each scenario
-  scenario_dict = list( 
-    vaccine    = "Vaccination as obserevd", 
-    no_vaccine = "Hypothetical scenario:\nno historical vaccination", 
-    no_other   = "Hypothetical scenario:\nno improvement in infant survival")
+  # scenario_dict = list( 
+  #   vaccine    = "Vaccination as obserevd", 
+  #   no_vaccine = "Hypothetical scenario:\nno historical vaccination", 
+  #   no_other   = "Hypothetical scenario:\nno improvement in infant survival")
   
-  # ---- Construct plotting datatables ----
+  # Dictionary for each scenario
+  scenario_dict = list( 
+    vaccine = "Reduction in infant mortality\nattributable to vaccination", 
+    other   = "Reduction in infant mortality\nattributable to other causes")
+  
+  scenario_colours = c(colours_who("logo", 1), "grey30")
+  
+  # ---- Compile results ----
   
   # Load mortality rates in vaccine and no vaccine scenarios
   mortality_dt = mortality_rates(
@@ -2895,10 +2902,30 @@ plot_infant_mortality = function() {
            year, value = coverage) %>%
     as.data.table()
   
+  # ---- Impact attributable to vaccination ----
+  
+  # Percentage of mortality decline attributable to vaccination
+  attributable = rate_dt %>%
+    mutate(value = value * 100) %>%
+    pivot_wider(names_from = scenario) %>%
+    mutate(relative = 100 * (no_vaccine - vaccine) / 
+             (no_vaccine[1] - vaccine)) %>%
+    filter(year > o$years[1]) %>%
+    pull(relative) %>%
+    mean() %>%
+    round()
+  
+  # Append this very important outcome to legend labels
+  scenario_dict$vaccine %<>% paste0(": ", attributable, "%")
+  scenario_dict$other   %<>% paste0(": ", 100 - attributable, "%")
+  
+  # ---- Construct plotting datatables ----
+  
   # Combine into single plotting datatable
   lines_dt = rate_dt %>%
     bind_rows(deaths_dt) %>%
     bind_rows(coverage_dt) %>%
+    filter(scenario == "vaccine") %>%
     # Vaccine coverage order...
     replace_na(list(vaccine_name = "-")) %>%
     arrange(vaccine_name) %>%
@@ -2915,45 +2942,28 @@ plot_infant_mortality = function() {
   area_dt = rate_dt %>%
     rbind(deaths_dt) %>%
     pivot_wider(names_from = scenario) %>%
-    # Fill difference between vaccine and no vaccine
-    mutate(y_min = pmin(vaccine, no_vaccine),
-           y_max = pmax(vaccine, no_vaccine)) %>%
-    select(metric, year, y_min, y_max) %>%
+    # Fill impact attributable to vaccination and other factors...
+    mutate(y0.vaccine = pmin(vaccine, no_vaccine),
+           y1.vaccine = pmax(vaccine, no_vaccine), 
+           y0.other   = pmin(no_vaccine, no_other),
+           y1.other   = pmax(no_vaccine, no_other)) %>%
+    select(-vaccine, -no_vaccine, -no_other) %>%
+    # Format into plottable datatable...
+    pivot_longer(cols = -c(metric, year)) %>%
+    separate(col  = "name", 
+             into = c("var", "scenario"), 
+             sep  = "\\.") %>%
+    pivot_wider(names_from = var) %>%
+    # Scenario order...
+    mutate(scenario = recode(scenario, !!!scenario_dict), 
+           scenario = factor(scenario, scenario_dict)) %>%
     # Metric subplot order...
     mutate(metric = recode(metric, !!!metric_dict),
            metric = factor(metric, metric_dict)) %>%
+    # Tidy up...
+    select(metric, scenario, year, y0, y1) %>%
+    arrange(metric, scenario, year) %>%
     as.data.table()
-  
-  # ---- xxx ----
-  
-  # Percentage of mortality decline attributable to vaccination
-  attributable = rate_dt %>%
-    mutate(value = value * 100) %>%
-    pivot_wider(names_from = scenario) %>%
-    mutate(relative = 100 * (no_vaccine - vaccine) / 
-             (no_vaccine[1] - vaccine)) %>%
-    filter(year > o$years[1]) %>%
-    pull(relative) %>%
-    mean() %>%
-    round()
-  
-  colour = colours_who("logo", 1)
-  
-  label = paste0(
-    "<span style='color:", colour, "'>", 
-    "Impact attributable to <b>vaccination</b>: ", 
-    attributable, "%</span><br>", 
-    "Impact attributable to <b>all other factors</b>: ",
-    100 - attributable, "%")
-  
-  attributable_dt = lines_dt %>%
-    select(metric, year, value) %>%
-    filter(metric == metric_dict$deaths) %>%
-    group_by(metric) %>%
-    slice_max(value, n = 1) %>%
-    mutate(value = 0.1 * value, 
-           year  = -0.01 * diff(range(o$years)) + max(o$years)) %>%
-    mutate(label = label)
   
   # ---- Set y axis properties for each facet ----
   
@@ -2996,34 +3006,26 @@ plot_infant_mortality = function() {
     # Plot area...
     geom_ribbon(
       mapping = aes(
-        ymin = y_min,
-        ymax = y_max),
+        ymin = y0,
+        ymax = y1, 
+        fill = scenario),
       colour = NA, 
-      fill   = colour,
       alpha  = 0.5) +
     # Plot lines...
     geom_line(
       data    = lines_dt,
       mapping = aes(
         y = value,
-        linetype = scenario, 
         colour   = vaccine_name),
       linewidth = 1.1) +
-    # Plot attributability labels...
-    geom_richtext(
-      data    = attributable_dt, 
-      mapping = aes(
-        y = value,
-        label = label), 
-      hjust = "right", 
-      size  = 4.5, 
-      label.color = NA) + 
     # Facet by metric...
     facet_wrap(
       facets = vars(metric), 
       scales = "free_y", 
       ncol   = 1) +
     # Set colour scheme...
+    scale_fill_manual(
+      values = scenario_colours) +
     scale_color_manual(
       breaks = legend_entries[-1],
       values = c("black", colours)) +
@@ -3035,10 +3037,10 @@ plot_infant_mortality = function() {
       expand = expansion(mult = c(0, 0)), 
       breaks = seq(min(o$years), max(o$years), by = 5)) +
     # Prettify legends...
-    guides(colour   = guide_legend(order = 2),
-           linetype = guide_legend(
+    guides(colour = guide_legend(order = 2),
+           fill   = guide_legend(
              order     = 1, 
-             keyheight = 4))
+             keyheight = 3))
   
   # Prettify theme
   g = g + theme_classic() + 
@@ -3055,7 +3057,7 @@ plot_infant_mortality = function() {
           legend.text   = element_text(size = 11),
           legend.position      = "right",
           legend.justification = "bottom",
-          legend.spacing.y  = unit(10, "lines"),
+          legend.spacing.y  = unit(11.5, "lines"),
           legend.key.height = unit(1.1, "lines"),
           legend.key.width  = unit(1.8, "lines"))
   
