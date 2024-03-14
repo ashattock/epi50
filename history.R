@@ -136,7 +136,7 @@ run_history = function(metric) {
     select(d_v_a_id, country, year, 
            fvps   = fvps_abs, 
            impact = impact_abs) %>%
-    arrange(country, d_v_a_id, year) %>%
+    arrange(d_v_a_id, country, year) %>%
     # Append impact ratio...
     left_join(y  = initial_ratio_dt, 
               by = c("d_v_a_id", "country")) %>%
@@ -168,7 +168,8 @@ run_history = function(metric) {
   
   # Concatenate results from external models
   result_dt = back_project_dt %>%
-    rbind(extern_dt)
+    rbind(extern_dt) %>%
+    arrange(d_v_a_id, country, year)
   
   # Save results to file
   save_rds(result_dt, "history", "burden_averted", metric) 
@@ -199,6 +200,7 @@ run_history = function(metric) {
                 by = c("d_v_a_id", "country", "year")) %>%
       rename(fvps = fvps_abs) %>%
       select(all_names(result_dt)) %>%
+      arrange(d_v_a_id, country, year) %>%
       as.data.table()
       
     # Save results to file
