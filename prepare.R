@@ -19,7 +19,9 @@ run_prepare = function() {
   
   # Convert config yaml files to datatables
   prepare_config_tables()
-
+  
+  browser()
+  
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
 

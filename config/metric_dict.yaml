@@ -4,13 +4,16 @@
 table:
 
 - metric: deaths
-  metric_long: "Premature deaths"
   metric_short: "Deaths"
+  metric_long: "Deaths"
+  metric_impact: "Deaths averted"
   
 - metric: dalys
-  metric_long: "Disability-adjusted life years"
   metric_short: "DALYs"
+  metric_long: "Disability-adjusted life years"
+  metric_impact: "Disability-adjusted life years averted"
   
 - metric: yll
-  metric_long: "Years of life lost"
-  metric_short: "YLL"  
+  metric_short: "YLS"
+  metric_long: "Years of life saved"
+  metric_impact: "Years of life saved"

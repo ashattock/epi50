@@ -2644,10 +2644,6 @@ plot_historical_impact = function() {
   scale_dt = list2dt(scale) %>%
     mutate(metric = names(scale), .before = 1)
   
-  # Function for formating value into string
-  label_fn = function(x, n, m, k)
-    paste0(round(x / m, n), " ", k)
-  
   # Construct labels: total FVPs over analysis timeframe
   label_dt = results_dt %>%
     select(disease, metric, impact) %>%
@@ -2663,8 +2659,8 @@ plot_historical_impact = function() {
     # Append metric and total strings...
     left_join(y  = table("metric_dict"), 
               by = "metric") %>%
-    mutate(total = paste(metric_short, "averted:", total)) %>%
-    select(-metric_short, -metric_long) %>%
+    mutate(total = paste0(metric_short, ": ", total)) %>%
+    select(-metric_short, -metric_long, -metric_impact) %>%
     # Format into single string per disease...
     pivot_wider(names_from  = metric,
                 values_from = total) %>%
@@ -2697,13 +2693,14 @@ plot_historical_impact = function() {
     # Apply scaler...
     left_join(y  = scale_dt,
               by = "metric") %>%
-    mutate(impact = impact / val) %>%
+    mutate(value = impact / val) %>%
     # Full metric description...
     left_join(y  = table("metric_dict"), 
               by = "metric") %>%
-    mutate(metric = paste(metric_long, "averted\n"), 
+    mutate(metric_id = metric, 
            metric = paste0(
-             metric, "(cumulative ", range, ", in ", str, "s)")) %>%
+             metric_impact, "\n(cumulative ", 
+             range, ", in ", str, "s)")) %>%
     # Append labels...
     left_join(y  = label_dt, 
               by = "disease") %>%
@@ -2712,8 +2709,24 @@ plot_historical_impact = function() {
     arrange(disease) %>%
     mutate(metric = fct_inorder(metric), 
            label  = fct_inorder(label)) %>%
-    select(label, metric, year, impact)
+    select(label, metric_id, metric, year, value)
   
+  # We'll also plot metric totals in each facet
+  text_dt = plot_dt %>%
+    # Total impact by metric...
+    filter(year %in% max(o$years)) %>%
+    group_by(metric_id, metric) %>%
+    summarise(value = round(sum(value), 1)) %>%
+    ungroup() %>%
+    # Apply metric scaling...
+    left_join(y  = scale_dt, 
+              by = c("metric_id" = "metric")) %>%
+    mutate(text = paste("Total:", value, str)) %>%
+    # Set facet positioning...
+    mutate(value = 0.98 * value, 
+           year  = 0.1 * diff(range(o$years)) + min(o$years)) %>%
+    select(metric, year, value, text)
+
   # ---- Colours ----
   
   # No grouping - use disease colours
@@ -2729,13 +2742,22 @@ plot_historical_impact = function() {
   # Stacked yearly bar plot
   g = ggplot(plot_dt) +
     aes(x = year, 
-        y = impact, 
-        fill = label) + 
-    geom_col() +
+        y = value) + 
+    geom_col(
+      mapping = aes(
+        fill = label)) + 
+    # Add total text...
+    geom_text(
+      data    = text_dt, 
+      mapping = aes(
+        label = text), 
+      hjust   = "left", 
+      size    = 4) + 
     # Facet by temporal-cumulative metric...
     facet_wrap(
       facets = vars(metric), 
-      scales = "free_y") + 
+      scales = "free_y", 
+      nrow   = 1) + 
     # Set colours...
     scale_fill_manual(values = colours) + 
     # Prettify y axis...
@@ -2748,28 +2770,30 @@ plot_historical_impact = function() {
       limits = c(min(o$years) - 1, 
                  max(o$years) + 1), 
       expand = expansion(mult = c(0, 0)), 
-      breaks = seq(min(o$years), max(o$years), by = 5)) +
+      breaks = seq(
+        from = min(o$years), 
+        to   = max(o$years), 
+        by   = 5)) +
     # Prettify legend (needed for y spacing to take effect)...
     guides(fill = guide_legend(
-      byrow = TRUE, 
-      nrow  = 2))
+      byrow = TRUE))
   
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title    = element_blank(),
-          axis.text     = element_text(size = 10),
+          axis.text     = element_text(size = 9),
           axis.text.x   = element_text(hjust = 1, angle = 50), 
           axis.line     = element_blank(),
-          strip.text    = element_text(size = 14),
+          strip.text    = element_text(size = 12),
           strip.background = element_blank(), 
           panel.border  = element_rect(
             linewidth = 0.5, fill = NA),
-          panel.spacing = unit(1, "lines"),
+          panel.spacing = unit(0.5, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.25),
           legend.title  = element_blank(),
-          legend.text   = element_markdown(size = 12),
+          legend.text   = element_markdown(size = 11),
           legend.key    = element_blank(),
-          legend.position = "bottom", 
+          legend.position = "right", 
           legend.spacing.y  = unit(2, "lines"),
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
