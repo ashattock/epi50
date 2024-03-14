@@ -10,3 +10,7 @@ table:
 - metric: dalys
   metric_long: "Disability-adjusted life years"
   metric_short: "DALYs"
+  
+- metric: yll
+  metric_long: "Years of life lost"
+  metric_short: "YLL"  

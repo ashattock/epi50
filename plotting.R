@@ -12,8 +12,6 @@
 # ---------------------------------------------------------
 plot_scope = function() {
   
-  # NOTE: Some inefficiencies in this function
-  
   message("  - Plotting country-disease scope")
   
   # Manually set tidy y axis limit
@@ -235,7 +233,7 @@ plot_scope = function() {
   
   # Save to file
   save_fig(g, "Analysis scope", dir = "data_visualisation")
-  save_fig(g, "Figure X", dir = "manuscript")
+  save_fig(g, "Figure S1", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -2167,8 +2165,8 @@ plot_impact_fvps = function(metric, scope) {
            dir = "impact_functions")
   
   # Save all time plot as key manuscript figure
-  if (scope == "all_time" && metric == "deaths")
-    save_fig(g, "Figure 3", dir = "manuscript")
+  # if (scope == "all_time" && metric == "deaths")
+  #   save_fig(g, "Figure 3", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -2593,13 +2591,16 @@ plot_historical_impact = function() {
   # Descriptive name for this grouping
   other = "Other pathogens"
   
+  # Dictionary for temporal and cumulative subplots
+  metrics = qc(deaths, yll, dalys)
+  
+  scale = list(
+    deaths = list(val = 1e6, str = "million"),
+    yll    = list(val = 1e9, str = "billion"), 
+    dalys  = list(val = 1e9, str = "billion"))
+  
   # Year range string
   range = paste(range(o$years), collapse = "-")
-  
-  # Dictionary for temporal and cumulative subplots
-  result_dict = list(
-    impact_cum = paste("Cumulative", range, "(in millions)"), 
-    impact     = paste("Per year", range, "(in millions)"))
   
   # ---- Load results ----
   
@@ -2607,7 +2608,7 @@ plot_historical_impact = function() {
   results_list = list()
   
   # Iterate through metrics
-  for (metric in o$metrics) {
+  for (metric in metrics) {
     
     # Prepare final results
     results_list[[metric]] = 
@@ -2625,20 +2626,12 @@ plot_historical_impact = function() {
         no   = disease_name)) %>%
       # Cumulative results for each disease...
       group_by(group, year) %>%
-      summarise(impact = sum(impact) / 1e6) %>%
-      mutate(impact_cum = cumsum(impact)) %>%
+      summarise(impact = sum(impact)) %>%
+      mutate(impact = cumsum(impact)) %>%
       ungroup() %>%
       rename(disease = group) %>%
-      # Tidy format for single plot...
-      pivot_longer(cols = c(impact, impact_cum), 
-                   names_to = "result") %>%
-      mutate(result = recode(result, !!!result_dict), 
-             result = factor(result, result_dict)) %>%
       # Append metric name...
       mutate(metric = !!metric) %>%
-      left_join(y  = table("metric_dict"), 
-                by = "metric") %>%
-      mutate(metric_long = paste(metric_long, "averted")) %>%
       as.data.table()
   }
   
@@ -2647,31 +2640,34 @@ plot_historical_impact = function() {
   
   # ---- Create descriptive legend ----
   
-  # We'll use short metric names in legend
-  metrics = unique(results_dt$metric_short)
+  # Format scaling details into joinable datatable
+  scale_dt = list2dt(scale) %>%
+    mutate(metric = names(scale), .before = 1)
   
   # Function for formating value into string
   label_fn = function(x, n, m, k)
-    paste0(round(x / m, n), " ", k, "illion")
+    paste0(round(x / m, n), " ", k)
   
   # Construct labels: total FVPs over analysis timeframe
   label_dt = results_dt %>%
-    filter(result == result_dict$impact_cum) %>%
-    select(disease, metric = metric_short, value) %>%
+    select(disease, metric, impact) %>%
     # Total burden averted over all years...
     group_by(disease, metric) %>%
-    summarise(total = max(value)) %>%
+    summarise(total = max(impact)) %>%
     ungroup() %>%
-    # Construct total result string...
-    mutate(total = ifelse(
-      test = metric == metrics[1], 
-      yes  = label_fn(total, 1, 1, "m"), 
-      no   = label_fn(total, 1, 1e3, "b"))) %>%
+    # Apply metric scaling...
+    left_join(y  = scale_dt, 
+              by = "metric") %>%
+    mutate(total = paste(round(total / val, 1), str)) %>%
+    select(-val, -str) %>%
     # Append metric and total strings...
-    mutate(total = paste(metric, "averted:", total)) %>%
+    left_join(y  = table("metric_dict"), 
+              by = "metric") %>%
+    mutate(total = paste(metric_short, "averted:", total)) %>%
+    select(-metric_short, -metric_long) %>%
+    # Format into single string per disease...
     pivot_wider(names_from  = metric,
                 values_from = total) %>%
-    # Embolden disease name...
     mutate(name = paste0("**", disease, "**"), 
            .after = disease) %>%
     select(disease, name, all_of(metrics)) %>%
@@ -2688,9 +2684,9 @@ plot_historical_impact = function() {
     filter(metric == "deaths") %>%
     # Highest to lowest in terms of deaths averted...
     group_by(disease) %>%
-    slice_max(value, with_ties = FALSE) %>%
+    slice_max(impact, with_ties = FALSE) %>%
     ungroup() %>%
-    arrange(-value) %>%
+    arrange(-impact) %>%
     # Place 'other pathogens' at the bottom...
     pull(disease) %>%
     setdiff(other) %>%
@@ -2698,20 +2694,25 @@ plot_historical_impact = function() {
   
   # Set order and append total labels to plotting data
   plot_dt = results_dt %>%
+    # Apply scaler...
+    left_join(y  = scale_dt,
+              by = "metric") %>%
+    mutate(impact = impact / val) %>%
+    # Full metric description...
+    left_join(y  = table("metric_dict"), 
+              by = "metric") %>%
+    mutate(metric = paste(metric_long, "averted\n"), 
+           metric = paste0(
+             metric, "(cumulative ", range, ", in ", str, "s)")) %>%
+    # Append labels...
     left_join(y  = label_dt, 
               by = "disease") %>%
-    # Pathogen order...
+    # Plotting order...
     mutate(disease = factor(disease, diseases)) %>%
     arrange(disease) %>%
-    # Metric order...
-    select(label, metric = metric_long, 
-           result, year, value) %>%
     mutate(metric = fct_inorder(metric), 
-           label  = fct_inorder(label))
-  
-  # Separate into bar and line datatables
-  bar_dt  = plot_dt[result == result_dict$impact_cum]
-  line_dt = plot_dt[result == result_dict$impact]
+           label  = fct_inorder(label)) %>%
+    select(label, metric, year, impact)
   
   # ---- Colours ----
   
@@ -2726,30 +2727,17 @@ plot_historical_impact = function() {
   # ---- Produce plot ----
   
   # Stacked yearly bar plot
-  g = ggplot(bar_dt) +
+  g = ggplot(plot_dt) +
     aes(x = year, 
-        y = value) + 
-    # Bars for cumulative results...
-    geom_col(
-      mapping = aes(
-        fill = label)) +
-    # Lines for temporal results...
-    geom_line(
-      data    = line_dt, 
-      mapping = aes(
-        colour = label), 
-      linewidth   = 1.5, 
-      show.legend = FALSE) +
+        y = impact, 
+        fill = label) + 
+    geom_col() +
     # Facet by temporal-cumulative metric...
-    facet_grid2(
-      rows   = vars(result), 
-      cols   = vars(metric), 
-      scales = "free", 
-      # labeller = label_wrap_gen(width = 30), 
-      independent = "all") +
+    facet_wrap(
+      facets = vars(metric), 
+      scales = "free_y") + 
     # Set colours...
     scale_fill_manual(values = colours) + 
-    scale_colour_manual(values = colours) + 
     # Prettify y axis...
     scale_y_continuous(
       labels = comma, 
@@ -2807,8 +2795,8 @@ plot_infant_mortality = function() {
   
   metric_dict = list(
     rate   = paste("Infant mortality rate", year_range), 
-    deaths = paste("Cumulative infant deaths", year_range)) 
-    # cov    = "Global vaccine coverage")
+    deaths = paste("Cumulative infant deaths", year_range), 
+    cov    = "Global vaccine coverage")
   
   # Dictionary for each scenario
   scenario_dict = list( 
@@ -2884,11 +2872,11 @@ plot_infant_mortality = function() {
   # Combine into single plotting datatable
   lines_dt = rate_dt %>%
     bind_rows(deaths_dt) %>%
-    # bind_rows(coverage_dt) %>%
+    bind_rows(coverage_dt) %>%
     # Vaccine coverage order...
-    # replace_na(list(vaccine_name = "-")) %>%
-    # arrange(vaccine_name) %>%
-    # mutate(vaccine_name = fct_inorder(vaccine_name)) %>%
+    replace_na(list(vaccine_name = "-")) %>%
+    arrange(vaccine_name) %>%
+    mutate(vaccine_name = fct_inorder(vaccine_name)) %>%
     # Scenario order...
     mutate(scenario = recode(scenario, !!!scenario_dict), 
            scenario = factor(scenario, scenario_dict)) %>%
@@ -2957,22 +2945,22 @@ plot_infant_mortality = function() {
     expand = expansion(mult = c(0, 0.05)), 
     breaks = pretty_breaks())
   
-  # y3 = scale_y_continuous(
-  #   labels = percent, 
-  #   limits = c(0, 1),
-  #   expand = c(0, 0), 
-  #   breaks = pretty_breaks())
+  y3 = scale_y_continuous(
+    labels = percent,
+    limits = c(0, 1),
+    expand = c(0, 0),
+    breaks = pretty_breaks())
   
   y_list = list(
     metric == fct_fn("deaths") ~ y1,
-    metric == fct_fn("rate")   ~ y2) #, 
-    # metric == fct_fn("cov")    ~ y3)
+    metric == fct_fn("rate")   ~ y2, 
+    metric == fct_fn("cov")    ~ y3)
   
-  # legend_entries = unique(lines_dt$vaccine_name)
-  # 
-  # n_cols  = n_unique(coverage_dt$vaccine_name)
-  # colours = colour_scheme(colour_map, n = n_cols)
-  # colours = setNames(c("black", colours), legend_entries)
+  legend_entries = unique(lines_dt$vaccine_name)
+  
+  n_cols  = n_unique(coverage_dt$vaccine_name)
+  colours = colour_scheme(colour_map, n = n_cols)
+  colours = setNames(c("black", colours), legend_entries)
   
   # ---- Produce plot ----
   
@@ -2992,8 +2980,8 @@ plot_infant_mortality = function() {
       data    = lines_dt,
       mapping = aes(
         y = value,
-        linetype = scenario), 
-        # colour   = vaccine_name), 
+        linetype = scenario, 
+        colour   = vaccine_name),
       linewidth = 1.1) +
     # Plot attributability labels...
     geom_richtext(
@@ -3011,8 +2999,8 @@ plot_infant_mortality = function() {
       ncol   = 1) +
     # Set colour scheme...
     scale_color_manual(
-      # breaks = legend_entries[-1], 
-      values = "black") + # c("black", colours)) +
+      breaks = legend_entries[-1],
+      values = c("black", colours)) +
     # Prettify y axis...
     facetted_pos_scales(y = y_list) + 
     # Prettiy x axis...
@@ -3040,8 +3028,8 @@ plot_infant_mortality = function() {
           legend.title  = element_blank(),
           legend.text   = element_text(size = 11),
           legend.position      = "right",
-          # legend.justification = "bottom",
-          # legend.spacing.y  = unit(10, "lines"),
+          legend.justification = "bottom",
+          legend.spacing.y  = unit(10, "lines"),
           legend.key.height = unit(1.1, "lines"),
           legend.key.width  = unit(1.8, "lines"))
   
@@ -3049,26 +3037,26 @@ plot_infant_mortality = function() {
   save_fig(g, "Infant mortality rates", dir = "historical_impact")
   
   # Also save as main manuscript figure
-  save_fig(g, "Figure 4a", dir = "manuscript")
+  save_fig(g, "Figure 2", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
-# Plot regional differences in child mortality changes
+# Plot regional differences in infant mortality changes
 # ---------------------------------------------------------
 plot_mortality_change = function() {
   
-  message("  - Plotting regional changes in child mortality")
+  message("  - Plotting regional changes in infant mortality")
   
   # Description of metric and year scope
-  metric_str = "under 5 mortality rate"
+  metric_str = "infant mortality rate"
   years_str  = paste0("(", paste(range(o$years), collapse = "-"), ")")
   
   # Dictionary for metric type
   type_dict = list(
-    diff    = paste("Absolute decrease in", metric_str, years_str),
-    rel     = paste("Relative decrease in", metric_str, years_str), 
-    contrib = paste("Contribution of vaccination to decrease in", 
-                    metric_str, years_str))
+    abs = paste("Absolute decrease in", metric_str, years_str),
+    rel = paste("Relative decrease in", metric_str, years_str), 
+    att = paste("Contribution of vaccination to decrease in", 
+                metric_str, years_str))
   
   # Metric type colour scheme (+1 for global average)
   colours = c("#EBAA2D", "#DF721F", "#71C2A9", "#808080")
@@ -3078,51 +3066,63 @@ plot_mortality_change = function() {
   world_dt  = mortality_rates(grouping = "none") %>%
     mutate(group = "World")
   
-  # Contribution of vaccination to decrease in child mortality
-  contrib_dt = rbind(region_dt, world_dt) %>%
-    select(group, year, 
-           end0 = no_vaccine, 
-           end  = vaccine) %>%
-    # Start (year 1) and end (year n) values...
+  abs_dt = rbind(region_dt, world_dt) %>%
+    select(group, year, rate) %>%
+    filter(year %in% range(o$years)) %>%
     group_by(group) %>%
-    mutate(start = end0[year == min(year)],
-           diff0 = start - end0,
-           diff  = start - end) %>%
+    summarise(start = rate[1], 
+              end   = rate[2], 
+              abs   = start - end) %>%
     ungroup() %>%
-    # We're interested in the value come the final year...
-    filter(year == max(year)) %>%
-    select(-year) %>%
-    # Relative decrease and contribution of vaccination...
-    mutate(rel     = diff / start, 
-           contrib = 1 - diff0 / diff) %>%
-    select(-end0, -diff0) %>%
+    arrange(-abs) %>%
+    as.data.table()
+  
+  rel_dt = rbind(region_dt, world_dt) %>%
+    select(group, year, rate) %>%
+    filter(year %in% range(o$years)) %>%
+    group_by(group) %>%
+    summarise(rel = 1 - min(rate) / max(rate)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # Percentage of mortality decline attributable to vaccination
+  att_dt = rbind(region_dt, world_dt) %>%
+    select(group, year, rate, rate_alt1) %>%
+    group_by(group) %>%
+    mutate(att = (rate_alt1 - rate) / 
+             (rate_alt1[1] - rate)) %>%
+    filter(year > o$years[1]) %>%
+    summarise(att = mean(att)) %>%
+    ungroup() %>%
     as.data.table()
   
   # Order regions by absolute decrease in mortality rates
-  order = contrib_dt %>%
+  order = abs_dt %>%
     filter(group != "World") %>%
-    arrange(desc(diff)) %>%
+    arrange(desc(abs)) %>%
     pull(group) %>%
     c("World")
   
   # Labels bars for clarity
-  label_dt = contrib_dt %>%
+  label_dt = abs_dt %>%
     # Convert to percentage...
     mutate(across(
-      .cols = c(diff, start, end), 
+      .cols = c(abs, start, end), 
       .fns  = ~ . * 100)) %>%
     # Construct string explaining start and end values...
     mutate(label = sprintf(
       "%.1f%%\n(%.1f%% to %.1f%%)", 
-      diff, start, end)) %>%
+      abs, start, end)) %>%
     # Only required for absolute bars...
-    mutate(type = "diff") %>%
+    mutate(type = "abs") %>%
     select(group, type, label)
   
   # Construct plotting datatable
-  plot_dt = contrib_dt %>%
-    # Retain only what we want to plot...
-    select(group, diff, rel, contrib) %>%
+  plot_dt = abs_dt %>%
+    select(-start, -end) %>%
+    # Append all results...
+    left_join(rel_dt, by = "group") %>%
+    left_join(att_dt, by = "group") %>%
     pivot_longer(cols = -group, 
                  names_to = "type") %>%
     # Labels: simple and expansive versions...
@@ -3194,11 +3194,11 @@ plot_mortality_change = function() {
           legend.position = "none")
   
   # Save figure to file
-  save_fig(g, "Child mortality change by region", 
+  save_fig(g, "Infant mortality change by region", 
            dir = "historical_impact")
   
   # Also save as main manuscript figure
-  save_fig(g, "Figure 4b", dir = "manuscript")
+  save_fig(g, "Figure 3", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -3325,7 +3325,7 @@ plot_prob_death_age = function() {
   save_fig(g, "Probability of death by age", dir = "historical_impact")
   
   # Also save as main manuscript figure
-  save_fig(g, "Figure 7", dir = "manuscript")
+  save_fig(g, "Figure 4", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -3487,7 +3487,7 @@ plot_survival_increase = function() {
   save_fig(g, "Increase in survival", dir = "historical_impact")
   
   # Also save as main manuscript figure
-  save_fig(g, "Figure 6", dir = "manuscript")
+  save_fig(g, "Figure 5", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -3657,7 +3657,7 @@ plot_measles_in_context = function() {
       show.legend = FALSE) +
     # Plot all cause deaths...
     geom_line(
-      data    = line_dt[case == case_dict[[1]], ],
+      data    = line_dt, # [case == case_dict[[1]], ]
       mapping = aes(
         colour = cause, 
         linetype = case), 
@@ -3725,9 +3725,7 @@ plot_measles_in_context = function() {
   
   # Save figure to file
   save_fig(g, "Measles in context", dir = "historical_impact")
-  
-  # Also save as main manuscript figure
-  save_fig(g, "Figure 5", dir = "manuscript")
+  save_fig(g, "Figure S2", dir = "manuscript")
 }
 
 # ---------------------------------------------------------

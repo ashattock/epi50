@@ -173,6 +173,37 @@ run_history = function(metric) {
   # Save results to file
   save_rds(result_dt, "history", "burden_averted", metric) 
   
+  # ---- Convert deaths to YLL ----
+  
+  # Only approporiate/necessary when computing deaths averted
+  if (metric == "deaths") {
+    
+    message(" > Calculating years of life lost")
+    
+    # Apply age structure and calculate YLL from deaths
+    yll_dt = result_dt %>%
+      # Apply age structure...
+      expand_grid(impact_age_multiplier()) %>%
+      mutate(deaths = impact * scaler) %>%
+      select(d_v_a_id, country, year, age, deaths) %>%
+      # Append life expectency...
+      mutate(life_exp = 80) %>%  # TODO: Use proper WPP data
+      # Calculate years of life lost...
+      mutate(yll = deaths * pmax(0, life_exp - age)) %>%
+      group_by(d_v_a_id, country, year) %>%
+      summarise(impact = sum(yll)) %>%
+      ungroup() %>%
+      # Reappend FVPs for consistent formatting...
+      left_join(y  = fvps_dt, 
+                by = c("d_v_a_id", "country", "year")) %>%
+      rename(fvps = fvps_abs) %>%
+      select(all_names(result_dt)) %>%
+      as.data.table()
+      
+    # Save results to file
+    save_rds(yll_dt, "history", "burden_averted_yll") 
+  }
+  
   # ---- Plot outcomes ----
   
   # Plot inital impact ratios used to back project
@@ -399,23 +430,18 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
               by = c("group", "year")) %>%
     left_join(y  = averted_dt, 
               by = c("group", "year")) %>%
-    # Lives and deaths saved from vaccination...
-    # left_join(y  = saved_dt, 
-    #           by = c("group", "year")) %>%
-    # replace_na(list(
-    #   lives_saved  = 0, 
-    #   births_saved = 0)) %>%
-    # ...
-    mutate(# pop_alt    = pop - lives_saved - births_saved,
-           deaths_alt1 = deaths + deaths_averted) %>%
-    # select(-deaths_averted) %>%
+    mutate(deaths_alt1 = deaths + deaths_averted) %>%
     # Calculate child mortality rates...
+    group_by(group) %>%
     mutate(rate      = deaths      / pop, 
-           rate_alt1 = deaths_alt1 / pop, # pop_alt
+           rate_alt1 = deaths_alt1 / pop,
+           rate_alt1 = pmin(rate_alt1, rate_alt1[1]),
            rate_alt2 = rate_alt1[1]) %>%
+    ungroup() %>%
     mutate(deaths_alt2 = pop * rate_alt2, 
            .after = deaths_alt1) %>%
-    select(-pop, -deaths_averted)
+    select(-pop, -deaths_averted) %>%
+    as.data.table()
   
   return(mortality_dt)
 }
