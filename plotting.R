@@ -2840,43 +2840,23 @@ plot_infant_mortality = function() {
   # ---- Compile results ----
   
   # Load mortality rates in vaccine and no vaccine scenarios
-  mortality_dt = mortality_rates(
+  mortality = mortality_rates(
     age_bound = age_bound, 
     grouping  = "none")
   
   # Mortality rate over time in each scenario
-  rate_dt = mortality_dt %>%
-    # Scenario variables refer to mortality rates... 
-    rename(vaccine    = rate, 
-           no_vaccine = rate_alt1, 
-           no_other   = rate_alt2) %>%
-    select(year, vaccine, no_vaccine, no_other) %>%
-    # Melt to long format...
-    pivot_longer(cols = -year, 
-                 names_to = "scenario") %>%
-    # Tidy up...
+  rate_dt = mortality$rate %>%
     mutate(metric = "rate") %>%
     select(metric, scenario, year, value) %>%
-    arrange(metric, scenario, year) %>%
     as.data.table()
   
-  # Total number of deaths in each scenario
-  deaths_dt = mortality_dt %>%
-    # Scenario variables refer to absolute values... 
-    rename(vaccine    = deaths, 
-           no_vaccine = deaths_alt1, 
-           no_other   = deaths_alt2) %>%
-    select(year, vaccine, no_vaccine, no_other) %>%
-    # Cumulative infant deaths...
-    pivot_longer(cols = -year, 
-                 names_to = "scenario") %>%
+  # Cumulative number of deaths in each scenario
+  deaths_dt = mortality$value %>%
     group_by(scenario) %>%
     mutate(value = cumsum(value)) %>%
     ungroup() %>%
-    # Tidy up...
     mutate(metric = "deaths") %>%
     select(metric, scenario, year, value) %>%
-    arrange(metric, scenario, year) %>%
     as.data.table()
   
   # Vaccine coverage over time - global average
@@ -3077,6 +3057,138 @@ plot_infant_mortality = function() {
 }
 
 # ---------------------------------------------------------
+# Plot vaccine contribution to infant mortality decrease by region
+# ---------------------------------------------------------
+plot_mortality_region = function() {
+  
+  message("  - Plotting infant mortality decrease by region")
+  
+  # ---- UNICEF infant mortality rate data ----
+  
+  pop_weight_dt = table("wpp_pop") %>%
+    group_by(country, year) %>%
+    summarise(pop = sum(pop)) %>%
+    ungroup() %>%
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    select(region, country, year, pop) %>%
+    group_by(region, year) %>%
+    mutate(pop_weight = pop / sum(pop)) %>%
+    as.data.table()
+  
+  country_dt = fread("infant_mortality_data.csv") %>%
+    select(country = SpatialDimValueCode,
+           year    = Period, 
+           sex     = Dim1, 
+           value   = FactValueNumeric) %>%
+    filter(sex     == "Both sexes", 
+           country %in% all_countries(), 
+           year    %in% o$years) %>%
+    mutate(value = value / 1000) %>%
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    select(region, country, year, value) %>%
+    arrange(region, country, year)
+  
+  region_dt = country_dt %>%
+    left_join(y  = pop_weight_dt,
+              by = c("region", "country", "year")) %>%
+    mutate(value_weight = value * pop_weight) %>%
+    group_by(region, year) %>%
+    summarise(value = sum(value_weight)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  global_dt = country_dt %>%
+    left_join(y  = pop_weight_dt,
+              by = c("region", "country", "year")) %>%
+    mutate(value_weight = value * pop_weight) %>%
+    group_by(year) %>%
+    summarise(value = sum(value_weight) / 
+                n_unique(country_dt$region)) %>%
+    ungroup() %>%
+    as.data.table()
+    
+  g1 = ggplot(country_dt) +
+    aes(x = year, 
+        y = value) +
+    geom_line(
+      mapping = aes(
+        colour = country), 
+      show.legend = FALSE) +
+    geom_line(
+      data   = region_dt, 
+      colour = "black", 
+      linewidth = 2) +
+    facet_wrap(~region)
+  
+  g2 = ggplot(region_dt) +
+    aes(x = year, 
+        y = value) +
+    geom_line(
+      mapping = aes(
+        colour = region)) +
+    geom_line(
+      data   = global_dt, 
+      colour = "black", 
+      linewidth = 2)
+  
+  # ---- EPI50 infant mortality results ----
+  
+  # Load mortality rates in vaccine and no vaccine scenarios
+  region_dt = mortality_rates(grouping = "region")
+  global_dt = mortality_rates(grouping = "none")
+  
+  g3 = ggplot(region_dt) +
+    aes(x = year, 
+        y = rate) +
+    geom_line(
+      mapping = aes(
+        colour = group)) +
+    geom_line(
+      data   = global_dt, 
+      colour = "black", 
+      linewidth = 2)
+  
+  browser()
+  
+  # ---- Contribution of vaccination ----
+  
+  # Mortality rate over time in each scenario
+  plot_dt = region_dt %>%
+    # Scenario variables refer to absolute values... 
+    select(group, year, 
+           vaccine    = deaths, 
+           no_vaccine = deaths_alt1, 
+           no_other   = deaths_alt2) %>%
+    # Cumulative infant deaths...
+    pivot_longer(cols = -c(group, year), 
+                 names_to = "scenario") %>%
+    group_by(group, scenario) %>%
+    mutate(value = cumsum(value)) %>%
+    ungroup() %>%
+    # Calculate attributability to vaccination...
+    pivot_wider(names_from = scenario) %>%
+    mutate(value = (no_vaccine - vaccine) / 
+             (no_other - vaccine), 
+           value = ifelse(value < 1, value, NA)) %>%
+    filter(year  > o$years[1]) %>%
+    select(group, year, value) %>%
+    as.data.table()
+  
+  # ---- Produce plot ----
+  
+  # Plot all metrics over time
+  g = ggplot(plot_dt) +
+    aes(x = year, 
+        y = value, 
+        colour = group) +
+    geom_line() 
+  
+  browser()
+}
+
+# ---------------------------------------------------------
 # Plot regional differences in infant mortality changes
 # ---------------------------------------------------------
 plot_mortality_change = function() {
@@ -3260,6 +3372,8 @@ plot_prob_death_age = function() {
     ~.("year of life")
     ~.(paste0("(", max(o$years), ")")))
   
+  browser()
+  
   # Estimated child deaths averted by vaccination
   averted_dt = read_rds("history", "burden_averted_deaths") %>%
     filter(year == max(o$years)) %>%
@@ -3270,7 +3384,7 @@ plot_prob_death_age = function() {
     summarise(total_averted = sum(impact)) %>%
     ungroup() %>%
     # xxx ...
-    expand_grid(impact_age_multiplier()) %>%
+    expand_grid(table("impact_age_multiplier")) %>%
     mutate(age     = age + 1, 
            averted = total_averted * scaler) %>%
     select(region, age, averted) %>%
@@ -3390,6 +3504,8 @@ plot_survival_increase = function(log_age = FALSE) {
     absolute = "Absolute marginal increase in survival probability", 
     relative = "Relative marginal increase in survival probability")
   
+  browser()
+  
   # Estimated child deaths averted by vaccination
   averted_dt = read_rds("history", "burden_averted_deaths") %>%
     # Results in year of interest...
@@ -3400,7 +3516,7 @@ plot_survival_increase = function(log_age = FALSE) {
     summarise(total_averted = sum(impact)) %>%
     ungroup() %>%
     # Apply age effect...
-    expand_grid(impact_age_multiplier()) %>%
+    expand_grid(table("impact_age_multiplier")) %>%
     mutate(averted = total_averted * scaler) %>%
     select(region, age, averted) %>%
     as.data.table()
@@ -3547,11 +3663,7 @@ plot_survival_increase = function(log_age = FALSE) {
   save_fig(g, "Increase in survival", dir = "historical_impact")
 
   # Also save as main manuscript figure
-  # save_fig(g, "Figure 3", dir = "manuscript")
-  
-  # TEMP: Save plot with unique name
-  fig_num = paste0("Figure 3", letters[log_age + 1])
-  save_fig(g, fig_num, dir = "manuscript")
+  save_fig(g, "Figure 3", dir = "manuscript")
 }
 
 # ---------------------------------------------------------

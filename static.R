@@ -27,9 +27,9 @@ run_static = function() {
   
   # Iterate through these diseases
   for (disease in diseases) {
-    
+
     message(" > ", names[d == disease, x])
-    
+
     # Effective coverage considering waning immunity and boosters
     effective_coverage(disease)
 
@@ -408,20 +408,29 @@ burden_averted = function(disease, metric) {
     select(d_v_a_id, vaccine, country, year, age, weight) %>%
     as.data.table()
   
-  # We'll split impact across schedules by previously calculated weighting
-  averted_vaccine = averted_disease %>%
+  # Retain age structure and save before summarising
+  averted_age = averted_disease %>%
     lazy_dt() %>%
     # Attribute impact to each shedule...
     inner_join(y  = weight_dt, 
                by = c("country", "year", "age")) %>%
-    # Summarise over age ...
-    group_by(country, d_v_a_id, year) %>%
+    # Apply weighting...
+    group_by(d_v_a_id, country, year, age) %>%
     summarise(impact = sum(averted * weight)) %>%
     ungroup() %>%
-    # Tidy up...
-    select(country, d_v_a_id, year, impact) %>%
-    arrange(country, d_v_a_id, year) %>%
     as.data.table()
+  
+  # Save this result to file
+  save_rds(averted_age, "static_d", metric, "averted", disease, "age")
+  
+  # Summarise over age
+  averted_vaccine = averted_age %>%
+    group_by(d_v_a_id, country, year) %>%
+    summarise(impact = sum(impact)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # ---- Compile final results ----
   
   # Number of 'FVP' by vaccine - yeah, confusing concept in the context of boosters
   fvps_dt = table("coverage") %>%
@@ -475,6 +484,8 @@ compile_outputs = function(diseases) {
     vaccine = d_v_a_id, 
     type    = vaccine_types)
   
+  # ---- All primary outputs ----
+  
   # All outputs to compile
   outputs = list(
     disease = qc(deaths_averted, dalys_averted, effective_coverage),
@@ -482,25 +493,54 @@ compile_outputs = function(diseases) {
     type    = qc(effective_coverage))
   
   for (group in names(outputs)) {
-    
+
     # Sub directory to load disease/vaccine results from
     load_dir = paste1("static", str_sub(group, 1, 1))
-    
+
     # Function to read rds files
-    load_fn = function(file) 
+    load_fn = function(file)
       read_rds(load_dir, file)
-    
+
     # Loop through all outputs
     for (output in outputs[[group]]) {
-      
+
       # Load all files related to this output
       output_dt = paste1(output, ids[[group]]) %>%
         lapply(load_fn) %>%
         rbindlist()
-      
+
       # Save compiled results to file
       save_rds(output_dt, "static", output, group)
     }
   }
+  
+  # ---- Age structure ----
+  
+  # Initiate list
+  age_list = list()
+  
+  # Iterate through metrics
+  for (metric in o$metrics) {
+    metric_name = paste1(metric, "averted")
+    
+    # File paths for age structured results
+    file_name = paste1(metric_name, ids$disease, "age")
+    file_path = paste0(o$pth$static_d, file_name, ".rds")
+    
+    # Load and store
+    age_list[[metric]] = file_path %>%
+      lapply(readRDS) %>%
+      rbindlist() %>%
+      mutate(metric = metric_name)
+  }
+  
+  # Squash into single, wide datatable
+  age_dt = rbindlist(age_list) %>%
+    pivot_wider(names_from  = metric, 
+                values_from = impact) %>%
+    as.data.table()
+  
+  # Save to tables cache
+  save_table(age_dt, "static_estimates")
 }
 

@@ -119,10 +119,12 @@ run_results = function() {
     # 
     # # Main results plot - historical impact over time
     # plot_historical_impact()
-    # 
-    # # Infant mortality rates over time with and without vaccination
-    # plot_infant_mortality()
-    # 
+
+    # Infant mortality rates over time with and without vaccination
+    plot_infant_mortality()
+    
+    plot_mortality_region()
+
     # # Regional differences in child mortality changes
     # plot_mortality_change()
     # 
@@ -131,11 +133,10 @@ run_results = function() {
     # 
     # # Plot absolute and relative probability of death in 2024
     # plot_prob_death_age()
-    
-    # Plot absolute and relative probability of death in 2024
-    plot_survival_increase(log_age = FALSE)
-    plot_survival_increase(log_age = TRUE)
-
+    # 
+    # # Plot absolute and relative probability of death in 2024
+    # plot_survival_increase()
+    # 
     # # Plot comparison of EPI50 outcomes vs VIMC outcomes
     # plot_vimc_comparison()
   }
