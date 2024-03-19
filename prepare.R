@@ -19,15 +19,17 @@ run_prepare = function() {
   
   # Convert config yaml files to datatables
   prepare_config_tables()
-  
-  # Streamline VIMC impact estimates for quick loading
+
+  # # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
+
+  # Prepare GBD estimates of deaths for non-VIMC pathogens
+  prepare_gbd_estimates()
 
   # Parse vaccine efficacy profile for non-VIMC pathogens
   prepare_vaccine_efficacy()
 
-  # Prepare GBD estimates of deaths for non-VIMC pathogens
-  prepare_gbd_estimates()
+  # TODO: Group all covariate loading into single function...
 
   # Prepare GBD covariates for extrapolating to non-VIMC countries
   prepare_gbd_covariates()
@@ -40,11 +42,13 @@ run_prepare = function() {
 
   # Prepare country income status classification over time
   prepare_income_status()
-  
+
   # Prepare demography-related estimates from WPP
   prepare_demography()
-  
+
   # Prepare age at birth by country and year
+  #
+  # TODO: Swap this out for WPP fertility by age - a much better metric
   prepare_birth_age()
 
   # Prepare historical vaccine coverage
@@ -89,32 +93,57 @@ prepare_vimc_estimates = function() {
   
   message(" > VIMC estimates")
   
-  # TODO: In raw form, we could instead use vimc_estimates.csv
+  # All diseases to load VIMC outcomes for
+  vimc_diseases = table("d_v_a") %>%
+    filter(source == "vimc") %>%
+    pull(disease) %>%
+    unique()
   
-  # Prepare VIMC vaccine impact estimates
-  read_rds("input", "vimc_estimates") %>%
-    # Years and countries of interest...
-    filter(country %in% all_countries(), 
-           year    %in% o$years) %>%
-    # Disease, vaccines, and activities of interest...
-    lazy_dt() %>%
+  # Initiate list to store outcomes
+  vimc_list = list()
+  
+  # Iterate through diseases
+  for (disease in vimc_diseases) {
+    message("  - ", disease)
+    
+    # Load VIMC impact estimates for this disease
+    vimc_list[[disease]] = read_rds("vimc", disease) %>%
+      lazy_dt() %>%
+      pivot_longer(cols = ends_with("impact"), 
+                   names_to = "vaccine") %>%
+      # Intrepet disease, vaccine, and activity...
+      mutate(disease  = tolower(disease), 
+             vaccine  = str_remove(vaccine, "_impact"), 
+             activity = ifelse(
+               test = vaccine %in% c("routine", "campaign"), 
+               yes  = vaccine, 
+               no   = "routine")) %>%
+      # Tidy up...
+      select(disease, vaccine, activity, country, 
+             year, age, metric = outcome, value) %>%
+      as.data.table()
+  }
+  
+  # Squash results into single datatable
+  vimc_dt = rbindlist(vimc_list) %>%
+    mutate(vaccine = ifelse(
+      test = vaccine %in% c("routine", "campaign", "combined"), 
+      yes  = disease, 
+      no   = vaccine)) %>%
+    # Wide format of metrics...
+    mutate(metric = paste1(metric, "averted")) %>%
+    pivot_wider(names_from = metric) %>%
+    # Append d-v-a ID...
     left_join(y  = table("d_v_a"), 
               by = c("disease", "vaccine", "activity")) %>%
-    filter(!is.na(d_v_a_id), 
-           source == "vimc") %>%
-    # TEMP: Mock DALY averted estimates...
-    mutate(dalys_averted = deaths_averted * 80) %>%
     # Tidy up...
     select(d_v_a_id, country, year, age, 
            deaths_averted, dalys_averted) %>%
     arrange(d_v_a_id, country, year, age) %>%
-    as.data.table() %>%
-    # Save in tables cache...
-    save_table("vimc_estimates")
+    as.data.table()
   
-  # Simply store VIMC in it's current form
-  # read_rds("input", "vimc_uncertainty") %>%
-  #   save_table("vimc_uncertainty")
+  # Save in tables cache
+  save_table(vimc_dt, "vimc_estimates")
 }
 
 # ---------------------------------------------------------
