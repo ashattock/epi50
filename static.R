@@ -62,8 +62,8 @@ effective_coverage = function(disease) {
   
   schedule_id = c(
     x  = "primary",
-    BX = "booster", 
-    PX = "pregnancy")
+    bx = "booster", 
+    px = "pregnancy")
   
   # ---- Set up ----
   
@@ -142,7 +142,7 @@ effective_coverage = function(disease) {
     booster_ref = vaccine_dt %>%
       filter(vaccine == !!vaccine) %>%
       select(type) %>%
-      paste1("BX")
+      paste1("bx")
     
     # Mothers covered
     mother_coverage = coverage_dt %>%

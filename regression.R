@@ -25,12 +25,11 @@ run_regression = function(case, metric) {
   #  basic_regression - IA2030 method using GBD covariates
   #  perform_regression1 - Helen's time series regression method
   #  perform_regression2 - Same as Helen's method, refactored code
-  method = "perform_regression2"
+  method = "basic_regression"
   
   # TEMP: Ignoring problematic cases for now
-  ignore = c(7, 11, 14,   # Non-routine, small numbers
-             16, 18, 22,  # DTP boosters causing problems
-             25)          # Polio results not yet ready
+  ignore = NULL # c(7, 11, 14,   # Non-routine, small numbers
+             # 16, 18, 22)  # DTP boosters causing problems
   
   # ---- Load data ----
   
@@ -947,8 +946,6 @@ perform_regression2 = function(d_v_a_id, target, case, metric) {
     group_by(country) %>%
     filter(n() >= o$min_data_requirement) %>% 
     ungroup()
-  
-  browser()
   
   # Evaluate all models in parallel
   if (o$parallel$impute)
