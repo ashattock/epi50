@@ -9,11 +9,11 @@ table:
   metric_impact: "Deaths averted"
   
 - metric: dalys
-  metric_short: "DALYs"
-  metric_long: "Disability-adjusted life years"
-  metric_impact: "Disability-adjusted life years averted"
+  metric_short: "YFH"
+  metric_long: "Years of Full Health"
+  metric_impact: "Years of Full Health gained"
   
 - metric: yll
-  metric_short: "YLS"
-  metric_long: "Years of life saved"
-  metric_impact: "Years of life saved"
+  metric_short: "YL"
+  metric_long: "Years of Life"
+  metric_impact: "Years of Life saved"
