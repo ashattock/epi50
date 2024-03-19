@@ -16,8 +16,6 @@ run_external = function() {
   
   message("* Preparing external models")
   
-  # TODO: Split impact across each vaccine...
-  
   # Create templates for measles and polio models
   template_measles()
   template_polio()
@@ -85,7 +83,7 @@ template_polio = function() {
   message(" > Creating results template: polio")
   
   # All metrics of intrerest (epi outcomes and number of doses)
-  metrics = qc(paralytic_cases, deaths, dalys, OPV_doses, IPV_doses)
+  metrics = qc(paralytic_cases, deaths, dalys, opv_doses, ipv_doses)
   
   # Two different stratifications of setting
   geo = list(
@@ -149,9 +147,9 @@ simulate_dynamice = function() {
   
   # Convert EPI50-DynaMICE vaccine references
   dynamice_dict = c(
-    MCV1    = "MCV1", 
-    MCV2    = "MCV2", 
-    Measles = "SIA")
+    mcv1    = "MCV1", 
+    mcv2    = "MCV2", 
+    measles = "SIA")
   
   # Load EPI50 coverage details
   coverage_dt = table("coverage_everything") %>%
@@ -351,9 +349,9 @@ format_measles = function() {
   
   # Dictionary for converting dose names
   dose_dict = c(
-    MCV1_doses = "MCV1",
-    MCV2_doses = "MCV2",
-    SIA_doses  = "Measles")
+    MCV1_doses = "mcv1",
+    MCV2_doses = "mcv2",
+    SIA_doses  = "measles")
   
   # Load template of regional results
   template_file = "template_measles.csv"
@@ -365,14 +363,14 @@ format_measles = function() {
   fvps_dt = table("coverage_everything") %>%
     inner_join(y  = table("d_v_a_extern"), 
                by = "d_v_a_id") %>%
-    filter(disease == "Measles") %>%
+    filter(disease == "measles") %>%
     mutate(scenario = "vaccine") %>%
     select(scenario, country, year, age, 
            metric = vaccine, value = fvps)
   
   # All measles models to append to
   measles_models = table("extern_models") %>%
-    filter(disease == "Measles") %>%
+    filter(disease == "measles") %>%
     pull(model)
   
   # Iterate through measles models
@@ -552,9 +550,9 @@ extract_extern_results = function() {
     rbindlist() %>%
     lazy_dt() %>%
     # Define d_v_a classification...
-    mutate(d_v_a_name = all_models[model]) %>%
+    mutate(disease = all_models[model]) %>%
     left_join(y  = table("d_v_a"), 
-              by = "d_v_a_name") %>%
+              by = "disease") %>%
     # Summarise by d_v_a (mean across all models)...
     group_by(d_v_a_id, scenario, country, year, age, metric) %>%
     summarise(value = mean(value, na.rm = TRUE)) %>%
@@ -655,14 +653,6 @@ extract_extern_results = function() {
     rbind(extern_coverage_dt) %>%
     arrange(d_v_a_id, country, year, age) %>%
     save_table("coverage")
-}
-
-# ---------------------------------------------------------
-# Accredit impact across vaccine types
-# ---------------------------------------------------------
-split_impact = function() {
-  
-  browser() # TODO
 }
 
 # ---------------------------------------------------------
