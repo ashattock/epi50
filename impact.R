@@ -27,7 +27,7 @@ run_impact = function(metric) {
   plot_impact_data(metric)
 
   # Plot all-time impact per FVPs
-  plot_impact_fvps(metric, scope = "all_time")
+  # plot_impact_fvps(metric, scope = "all_time")
 
   # ---- Model fitting ----
 
@@ -189,15 +189,18 @@ get_best_model = function(id, run, data, pb) {
   fit_data_dt = data.table(x = 1e-12, y = 0) %>%
     rbind(fit_data_dt)
   
+  # Number of genuine data points (aside from the origin)
+  n_data = nrow(fit_data_dt) - 1 
+  
   # Do not fit if insufficient data
-  if (nrow(fit_data_dt) > 1) {
+  if (n_data >= 1) {
 
     # Declare x and y values for which we want to determine a relationship
     x = fit_data_dt$x
     y = fit_data_dt$y
 
     # Functions we'll attempt to fit with
-    fns = fn_set()
+    fns = fn_set()[fn_set(params = TRUE) <= n_data]
 
     # Attempt to determine global minimum for each function
     optim = run_optim(fns, x, y)
@@ -461,7 +464,10 @@ model_quality = function(fns, fit, x, y, run_id) {
     as.data.table() %>%
     mutate(iter = 1 : n()) %>%
     pivot_longer(cols = -iter) %>%
-    separate("name", c("fn", "param")) %>%
+    separate(col  = "name", 
+             into = c("fn", "param"), 
+             fill = "right") %>%
+    replace_na(list(param = "a")) %>%
     select(fn, param, iter, value) %>%
     arrange(fn, param, iter) %>%
     as.data.table()

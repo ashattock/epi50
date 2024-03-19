@@ -130,7 +130,7 @@ set_options = function(do_step = NA) {
   
   # ---- Parallelisation settings ----
   
-  # Use multiple cores to speed up several fitting processes
+  # Use multiple cores to speed up several processes
   o$parallel = list(
     impute  = TRUE, 
     impact  = FALSE,  # NOTE: Having issues with shared memory
@@ -149,15 +149,6 @@ set_options = function(do_step = NA) {
   o$plot_history    = TRUE
 
   # ---- Plotting settings ----
-  
-  # Colour packages and palettes (see colour_scheme in auxiliary.R)
-  o$palette = list(
-    disease = "pals::kovesi.rainbow",  # 14 values needed
-    region  = "brewer::paired",        # 6 values needed
-    income  = "brewer::dark2")         # 4 values needed
-
-  # Font sizes: title, axis, tick, strip, legend, key
-  o$font_size = c(34, 28, 16, 24, 20, 18)
 
   # Saved figure size
   o$save_width  = 14
