@@ -72,9 +72,9 @@ packages = c(
   "ggnewscale",     # Plotting functionality
   "ggtext",         # Plotting functionality
   "ggh4x",          # Plotting functionality
+  "patchwork",      # Plotting functionality
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
-  "GGally",         # Plotting functionality
   "dotwhisker",     # Plotting functionality
   "pals",           # Colour palettes
   "colorspace")     # Colour palettes

@@ -116,29 +116,29 @@ run_results = function() {
     # # Inital impact ratios used to back project
     # for (metric in o$metrics)
     #   plot_impact_fvps(metric, scope = "initial")
-    # 
+
     # # Main results plot - historical impact over time
     # plot_historical_impact()
-
-    # Infant mortality rates over time with and without vaccination
-    plot_infant_mortality()
-    
-    plot_mortality_region()
-
+    # 
+    # # Infant mortality rates over time with and without vaccination
+    # plot_infant_mortality()
+    # 
+    # plot_mortality_region()
+    # 
     # # Regional differences in child mortality changes
     # plot_mortality_change()
     # 
     # # Measles deaths in context of all cause deaths
     # plot_measles_in_context()
-    # 
-    # # Plot absolute and relative probability of death in 2024
+
+    # Plot absolute and relative probability of death in 2024
     # plot_prob_death_age()
-    # 
-    # # Plot absolute and relative probability of death in 2024
-    # plot_survival_increase()
-    # 
-    # # Plot comparison of EPI50 outcomes vs VIMC outcomes
-    # plot_vimc_comparison()
+
+    # Plot absolute and relative probability of death in 2024
+    plot_survival_increase()
+
+    # Plot comparison of EPI50 outcomes vs VIMC outcomes
+    plot_vimc_comparison()
   }
 }
 
