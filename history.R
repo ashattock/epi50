@@ -185,31 +185,66 @@ run_history = function(metric) {
     
     # Load all results and summarise age at impact
     age_impact_dt = table("vimc_estimates") %>%
+      # Append all results...
       bind_rows(table("static_estimates")) %>%
       bind_rows(table("extern_estimates")) %>%
+      select(d_v_a_id, country, year, age, impact = deaths_averted) %>%
+      # Pregnancy vaccines are a special case...
+      left_join(y  = table("d_v_a"), 
+                by = "d_v_a_id") %>%
+      mutate(impact = ifelse(
+        test = grepl("_px$", vaccine) & age > 0, 
+        yes  = 0, 
+        no   = impact)) %>%
+      # Attribute all impact to infants...
+      mutate(impact = ifelse(
+        test = grepl("_px$", vaccine) & age == 0, 
+        yes  = 1, 
+        no   = impact)) %>%
       # Summarise deaths over space and time...
       lazy_dt() %>%
+      group_by(d_v_a_id, year, age) %>%
+      summarise(value = sum(abs(impact))) %>%
+      ungroup() %>%
+      # Normalise absolute numbers...
+      group_by(d_v_a_id, year) %>%
+      mutate(scaler = value / sum(value)) %>%
+      ungroup() %>%
+      replace_na(list(scaler = 0)) %>%
+      # Mean over time...
       group_by(d_v_a_id, age) %>%
-      summarise(value = sum(abs(deaths_averted))) %>%
+      summarise(scaler = mean(scaler)) %>%
+      ungroup() %>%
+      # Normalise means...
+      group_by(d_v_a_id) %>%
+      mutate(scaler = scaler / sum(scaler)) %>%
       ungroup() %>%
       as.data.table()
     
-    # Normalise for each d-v-a
-    age_effect = table("d_v_a") %>%
+    # Expand for each age
+    age_effect_dt = table("d_v_a") %>%
       select(d_v_a_id) %>%
       expand_grid(age = o$ages) %>%
       left_join(y  = age_impact_dt, 
                 by = c("d_v_a_id", "age")) %>%
-      replace_na(list(value = 0)) %>%
-      # Normalise...
-      group_by(d_v_a_id) %>%
-      mutate(scaler = value / sum(value)) %>%
-      ungroup() %>%
-      select(d_v_a_id, age, scaler) %>%
+      replace_na(list(scaler = 0)) %>%
       as.data.table()
     
+    # g = age_effect_dt %>%
+    #   group_by(d_v_a_id) %>%
+    #   mutate(scaler = cumsum(scaler)) %>%
+    #   ungroup() %>%
+    #   format_d_v_a_name() %>%
+    #   ggplot() +
+    #   aes(x = age,
+    #       y = scaler,
+    #       colour = d_v_a_name) +
+    #   geom_line() +
+    #   facet_wrap(~d_v_a_name) +
+    #   xlim(0, 50)
+    
     # Save to tables cache
-    save_table(age_effect, "impact_age_multiplier")
+    save_table(age_effect_dt, "impact_age_multiplier")
     
     # ---- Convert deaths to YLL ----
     
@@ -377,58 +412,37 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
     ungroup() %>%
     as.data.table()
   
-  # ---- Mortality rates ----
-  
+  # ---- Age-structured deaths averted ----
+
   # Vaccine impact disaggregated by age
   age_effect = table("impact_age_multiplier") %>%
-    filter(age <= age_bound)
+    filter(age <= age_bound + 1) %>%
+    group_by(d_v_a_id) %>%
+    summarise(scaler = sum(scaler)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  # g = ggplot(age_effect %>%
+  #              format_d_v_a_name()) +
+  #   aes(fill = d_v_a_name,
+  #       x    = d_v_a_name,
+  #       y    = scaler) +
+  #   geom_col() +
+  #   theme(axis.text.x = element_text(
+  #     angle = 50, hjust = 1))
   
   # Estimated child deaths averted by vaccination
   averted_dt = read_rds("history", "burden_averted_deaths") %>%
     left_join(y  = age_effect, 
-              by = "d_v_a_id", 
-              relationship = "many-to-many") %>%
-    
-    
-    
-    
-    
-    
-    mutate(scaler = 1) %>%
-    
-    
-    
-    
-    
-    
-    
+              by = "d_v_a_id") %>%
+    mutate(impact_age = impact * scaler) %>%
+    # Summarise over d-v-a...
     group_by(country, year) %>%
-    summarise(deaths_averted = sum(impact * scaler)) %>%
+    summarise(averted = sum(impact_age)) %>%
     ungroup() %>%
     as.data.table()
   
-  # Calculate mortality rates in each scenario
-  mortality_dt = pop_dt %>%
-    # Join child death estimates...
-    left_join(y  = deaths_dt, 
-              by = c("country", "year")) %>%
-    left_join(y  = averted_dt, 
-              by = c("country", "year")) %>%
-    mutate(deaths_alt1 = deaths + deaths_averted) %>%
-    # Calculate child mortality rates...
-    mutate(rate      = deaths      / pop, 
-           rate_alt1 = deaths_alt1 / pop) %>%
-    group_by(country) %>%
-    mutate(rate_alt2 = rate_alt1[1]) %>%
-    ungroup() %>%
-    mutate(deaths_alt2 = pop * rate_alt2, 
-           .after = deaths_alt1) %>%
-    select(-deaths_averted, -pop) %>%
-    as.data.table()
-  
-  # rate_alt1 = pmin(rate_alt1, rate_alt1[1])
-  
-  # ---- Apply grouping ----
+  # ---- Mortality rates ----
   
   # Construct grouping datatable to be joined to results
   grouping_dt = table("country") %>%
@@ -437,62 +451,61 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
     mutate(none = "none") %>%
     select(group = !!grouping, country, year)
   
-  pop_weight_dt = pop_dt %>%
-    left_join(y  = grouping_dt, 
+  # Calculate mortality rates in each scenario
+  mortality_dt = grouping_dt %>%
+    left_join(y  = pop_dt, 
               by = c("country", "year")) %>%
-    group_by(group, country) %>%
-    summarise(pop_mean = mean(pop)) %>%
-    ungroup() %>%
+    # Join child death estimates...
+    left_join(y  = deaths_dt, 
+              by = c("country", "year")) %>%
+    left_join(y  = averted_dt, 
+              by = c("country", "year")) %>%
+    # Summarise over group...
+    group_by(group, year) %>%
+    summarise(pop     = sum(pop), 
+              deaths  = sum(deaths), 
+              averted = sum(averted)) %>%
+    # Calculate child mortality rates...
+    mutate(deaths_alt1 = deaths + averted, 
+           rate        = deaths      / pop, 
+           rate_alt1   = deaths_alt1 / pop) %>%
     group_by(group) %>%
-    mutate(pop_weight = pop_mean / sum(pop_mean)) %>%
+    # Alternative scenario: no improvement in mortality rate...
+    mutate(rate_alt2 = rate_alt1[1]) %>%
     ungroup() %>%
-    select(group, country, pop_weight) %>%
+    mutate(deaths_alt2 = pop * rate_alt2, 
+           .after = deaths_alt1) %>%
+    select(-pop, -averted) %>%
     as.data.table()
   
-  # Apply grouping to number of deaths
-  mortality_value_dt = mortality_dt %>%
-    left_join(y  = grouping_dt, 
-              by = c("country", "year")) %>%
-    # Select metrics of interest...
-    select(group, country, year, 
-           vaccine    = deaths, 
-           no_vaccine = deaths_alt1, 
-           no_other   = deaths_alt2) %>%
-    # Melt to long format...
-    pivot_longer(cols = -c(group, country, year), 
-                 names_to = "scenario") %>%
-    # Summarise over each group...
-    group_by(scenario, group, year) %>%
-    summarise(value = sum(value)) %>%
-    ungroup() %>%
-    as.data.table()
+  # rate_alt1 = pmin(rate_alt1, rate_alt1[1])
   
-  # Apply grouping to death rate (requires population weighting)
-  mortality_rate_dt = mortality_dt %>%
-    left_join(y  = grouping_dt, 
-              by = c("country", "year")) %>%
-    # Select metrics of interest...
-    select(group, country, year, 
-           vaccine    = rate, 
-           no_vaccine = rate_alt1, 
-           no_other   = rate_alt2) %>%
-    # Melt to long format...
-    pivot_longer(cols = -c(group, country, year), 
-                 names_to = "scenario") %>%
-    # Apply population weighting for rate in each group...
-    left_join(y  = pop_weight_dt, 
-              by = c("group", "country")) %>%
-    mutate(value_weight = value * pop_weight) %>%
-    # Summarise over each group...
-    group_by(scenario, group, year) %>%
-    summarise(value = sum(value_weight)) %>%
-    ungroup() %>%
-    as.data.table()
+  # ---- Format output ----
+  
+  # Use more descriptive scenario names
+  scenarios = qc(vaccine, no_vaccine, no_other)
+  col_names = c("group", "year", scenarios)
+  
+  # Function to format output datatable
+  mortality_format_fn = function(dt, metric) {
+
+    # Selection of metrics and melt to long format
+    formated_dt = dt %>%
+      select(group, year, starts_with(metric)) %>%
+      as_named_dt(col_names) %>%
+      pivot_longer(cols = -c(group, year), 
+                   names_to = "scenario") %>%
+      select(scenario, group, year, value) %>%
+      arrange(scenario, group, year) %>%
+      as.data.table()
+    
+    return(formated_dt)
+  }
   
   # Store results in list
   mortality = list(
-    rate  = mortality_rate_dt,
-    value = mortality_value_dt)
+    rate  = mortality_format_fn(mortality_dt, "rate"),
+    value = mortality_format_fn(mortality_dt, "deaths"))
   
   return(mortality)
 }
