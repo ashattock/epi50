@@ -110,7 +110,7 @@ coverage_vimc = function() {
     # Rubella special case...
     mutate(activity = ifelse(
       test = disease == "rubella", 
-      yes  = "routine", 
+      yes  = "all", 
       no   = activity)) %>%
     # Append d_v_a ID...
     inner_join(y  = d_v_a_dt, 
@@ -269,12 +269,16 @@ coverage_wiise = function(vimc_countries_dt) {
   
   # Age at vaccination for pregnancy vaccines
   age_birth_dt = table("vaccine_age") %>%
-    filter(age == "NA") %>% 
-    select(vaccine) %>%
-    expand_grid(table("birth_age")) %>%
     left_join(y  = d_v_a_dt, 
               by = "vaccine") %>%
-    select(d_v_a_id, country, age, weight) %>%
+    filter(age == "NA") %>% 
+    select(d_v_a_id) %>%
+    expand_grid(table("wpp_fertility")) %>%
+    # Remove trivial values...
+    filter(fertility > 1e-6) %>%
+    group_by(country, year) %>%
+    mutate(fertility = fertility / sum(fertility)) %>%
+    ungroup() %>%
     as.data.table()
   
   # Append age and calculate FVPs
@@ -290,12 +294,12 @@ coverage_wiise = function(vimc_countries_dt) {
               by = c("country", "year", "age")) %>%
     mutate(sheduled_doses = coverage * pop) %>%
     calculate_fvps() %>%
-    # But we want coverage in terms of mothers...
+    # But we want FVPs in terms of mothers...
     select(-age, -cohort, -coverage) %>%
     left_join(y  = age_birth_dt,
-              by = c("d_v_a_id", "country"), 
+              by = c("d_v_a_id", "country", "year"), 
               relationship = "many-to-many") %>%
-    mutate(fvps = fvps * weight) %>%
+    mutate(fvps = fvps * fertility) %>%
     # Append parental demographics...
     left_join(y  = table("wpp_pop"), 
               by = c("country", "year", "age")) %>%
