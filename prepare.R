@@ -29,27 +29,14 @@ run_prepare = function() {
   # Parse vaccine efficacy profile for non-VIMC pathogens
   prepare_vaccine_efficacy()
 
-  # TODO: Group all covariate loading into single function...
-
-  # Prepare GBD covariates for extrapolating to non-VIMC countries
-  prepare_gbd_covariates()
-
-  # Prepare UNICEF stunting combined estimates for imputing non-VIMC countries
-  prepare_unicef()
-
-  # Prepare Gapminder covariates for imputing non-VIMC countries
-  prepare_gapminder()
+  # Prepare all covariates for regression modelling
+  prepare_covariates()
 
   # Prepare country income status classification over time
   prepare_income_status()
 
   # Prepare demography-related estimates from WPP
   prepare_demography()
-
-  # Prepare age at birth by country and year
-  #
-  # TODO: Swap this out for WPP fertility by age - a much better metric
-  prepare_birth_age()
 
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
@@ -109,132 +96,46 @@ prepare_vimc_estimates = function() {
     # Load VIMC impact estimates for this disease
     vimc_list[[disease]] = read_rds("vimc", disease) %>%
       lazy_dt() %>%
-      pivot_longer(cols = ends_with("impact"), 
+      pivot_longer(cols = ends_with("impact"),
                    names_to = "vaccine") %>%
       # Intrepet disease, vaccine, and activity...
-      mutate(disease  = tolower(disease), 
-             vaccine  = str_remove(vaccine, "_impact"), 
+      mutate(disease  = tolower(disease),
+             vaccine  = str_remove(vaccine, "_impact"),
              activity = ifelse(
-               test = vaccine %in% c("routine", "campaign"), 
-               yes  = vaccine, 
+               test = vaccine %in% c("routine", "campaign"),
+               yes  = vaccine,
                no   = "routine")) %>%
       # Tidy up...
-      select(disease, vaccine, activity, country, 
+      select(disease, vaccine, activity, country,
              year, age, metric = outcome, value) %>%
       as.data.table()
   }
   
   # Squash results into single datatable
   vimc_dt = rbindlist(vimc_list) %>%
+    # Interpret activity...
     mutate(vaccine = ifelse(
-      test = vaccine %in% c("routine", "campaign", "combined"), 
-      yes  = disease, 
+      test = vaccine %in% c("routine", "campaign"),
+      yes  = disease,
       no   = vaccine)) %>%
+    # Deal with rubella special case...
+    mutate(is_all   = vaccine == "combined",
+           vaccine  = ifelse(is_all, disease, vaccine),
+           activity = ifelse(is_all, "all", activity)) %>%
     # Wide format of metrics...
     mutate(metric = paste1(metric, "averted")) %>%
     pivot_wider(names_from = metric) %>%
     # Append d-v-a ID...
-    left_join(y  = table("d_v_a"), 
+    left_join(y  = table("d_v_a"),
               by = c("disease", "vaccine", "activity")) %>%
     # Tidy up...
-    select(d_v_a_id, country, year, age, 
+    select(d_v_a_id, country, year, age,
            deaths_averted, dalys_averted) %>%
     arrange(d_v_a_id, country, year, age) %>%
     as.data.table()
   
   # Save in tables cache
   save_table(vimc_dt, "vimc_estimates")
-}
-
-# ---------------------------------------------------------
-# Parse vaccine efficacy profile for non-modelled pathogens
-# ---------------------------------------------------------
-prepare_vaccine_efficacy = function() {
-  
-  message(" > Vaccine efficacy")
-  
-  # ---- Optimisation functions ----
-  
-  # Function to determine optimal immunity profiles parameters
-  optimisation_fn = function(vaccine) {
-    
-    # Efficacy details (incl data) for this vaccine
-    efficacy_info = table("vaccine_efficacy") %>%
-      filter(vaccine == !!vaccine)
-    
-    # Extract the data points (efficacy, year)
-    data = efficacy_info %>%
-      pull(data) %>%
-      unlist() %>%
-      matrix(nrow = 2) %>%
-      t()
-    
-    # Extract user-defined functional form for vaccine efficacy
-    fn = eval_str(unique(efficacy_info$fn))
-    
-    # Number of function input arguments (without default values)
-    #
-    # NOTE: These are the set of values to be optimised
-    n_args = sum(!unlist(lapply(formals(fn), is.numeric)))
-    
-    # Fit all required parameters to the data available
-    optim = asd(
-      fn = obj_fn,
-      x0 = runif(n_args),
-      lb = 1e-6, 
-      ub = 1e6,
-      iters = 1e3, 
-      args  = list(
-        data   = data, 
-        fn     = fn, 
-        n_args = n_args))
-    
-    # Evaluate function using optimal parameters
-    profile = do.call(fn, as.list(optim$x))
-    
-    # Form profile into a datatable
-    profile_dt = data.table(
-      vaccine = vaccine,
-      time    = t,
-      profile = profile)
-    
-    return(profile_dt)
-  }
-  
-  # Objective function to minimise
-  obj_fn = function(x, args) {
-    
-    # Evalulate immunity function
-    y = do.call(args$fn, as.list(x))
-    
-    # Data points we want to hit
-    data_x = args$data[, 2] + 1
-    data_y = args$data[, 1]
-    
-    # Calculate sum of squared error
-    obj_val = sum((y[data_x] - data_y) ^ 2)
-    
-    return(list(y = obj_val))
-  }
-  
-  # ---- Perform optimisation for each vaccine ----
-  
-  # Points at which to evaluate efficacy functions
-  t = seq_along(o$years) - 1  # Immunity in the years following vaccination
-  
-  # Vaccines we want efficacy profiles for (all static modelled vaccines)
-  vaccines = table("d_v_a")[source == "static", vaccine]
-  
-  # Apply optimisation to determine optimal immunity parameters
-  lapply(vaccines, optimisation_fn) %>%
-    rbindlist() %>%
-    left_join(y  = table("d_v_a"), 
-              by = "vaccine") %>%
-    select(disease, vaccine, time, profile) %>%
-    save_table("vaccine_efficacy_profiles")
-  
-  # Plot these profiles
-  plot_vaccine_efficacy()
 }
 
 # ---------------------------------------------------------
@@ -351,14 +252,106 @@ prepare_gbd_estimates = function() {
 }
 
 # ---------------------------------------------------------
-# Prepare GBD covariates for extrapolating to non-modelled countries
+# Parse vaccine efficacy profile for non-modelled pathogens
 # ---------------------------------------------------------
-prepare_gbd_covariates = function() {
+prepare_vaccine_efficacy = function() {
   
-  # TODO: We need to project these estimates to avoid losing impact
-  #       estimates in geo-imputation model
+  message(" > Vaccine efficacy")
   
-  message(" > GBD covariates")
+  # ---- Optimisation functions ----
+  
+  # Function to determine optimal immunity profiles parameters
+  optimisation_fn = function(vaccine) {
+    
+    # Efficacy details (incl data) for this vaccine
+    efficacy_info = table("vaccine_efficacy") %>%
+      filter(vaccine == !!vaccine)
+    
+    # Extract the data points (efficacy, year)
+    data = efficacy_info %>%
+      pull(data) %>%
+      unlist() %>%
+      matrix(nrow = 2) %>%
+      t()
+    
+    # Extract user-defined functional form for vaccine efficacy
+    fn = eval_str(unique(efficacy_info$fn))
+    
+    # Number of function input arguments (without default values)
+    #
+    # NOTE: These are the set of values to be optimised
+    n_args = sum(!unlist(lapply(formals(fn), is.numeric)))
+    
+    # Fit all required parameters to the data available
+    optim = asd(
+      fn = obj_fn,
+      x0 = runif(n_args),
+      lb = 1e-6, 
+      ub = 1e6,
+      iters = 1e3, 
+      args  = list(
+        data   = data, 
+        fn     = fn, 
+        n_args = n_args))
+    
+    # Evaluate function using optimal parameters
+    profile = do.call(fn, as.list(optim$x))
+    
+    # Form profile into a datatable
+    profile_dt = data.table(
+      vaccine = vaccine,
+      time    = t,
+      profile = profile)
+    
+    return(profile_dt)
+  }
+  
+  # Objective function to minimise
+  obj_fn = function(x, args) {
+    
+    # Evalulate immunity function
+    y = do.call(args$fn, as.list(x))
+    
+    # Data points we want to hit
+    data_x = args$data[, 2] + 1
+    data_y = args$data[, 1]
+    
+    # Calculate sum of squared error
+    obj_val = sum((y[data_x] - data_y) ^ 2)
+    
+    return(list(y = obj_val))
+  }
+  
+  # ---- Perform optimisation for each vaccine ----
+  
+  # Points at which to evaluate efficacy functions
+  t = seq_along(o$years) - 1  # Immunity in the years following vaccination
+  
+  # Vaccines we want efficacy profiles for (all static modelled vaccines)
+  vaccines = table("d_v_a")[source == "static", vaccine]
+  
+  # Apply optimisation to determine optimal immunity parameters
+  lapply(vaccines, optimisation_fn) %>%
+    rbindlist() %>%
+    left_join(y  = table("d_v_a"), 
+              by = "vaccine") %>%
+    select(disease, vaccine, time, profile) %>%
+    save_table("vaccine_efficacy_profiles")
+  
+  # Plot these profiles
+  plot_vaccine_efficacy()
+}
+
+# ---------------------------------------------------------
+# Prepare all covariates for regression modelling
+# ---------------------------------------------------------
+prepare_covariates = function() {
+  
+  message(" > Regression covariates")
+  
+  # ---- Covariates from GBD ----
+  
+  message("  - GBD covariates")
   
   # Prepare GBD 2019 HAQI for use as a covariate
   haqi_dt = fread(paste0(o$pth$input, "gbd19_haqi.csv")) %>%
@@ -430,16 +423,9 @@ prepare_gbd_covariates = function() {
     ungroup() %>%
     as.data.table()
   
-  # Save in tables cache
-  save_table(gbd_covariates, "gbd_covariates")
-}
-
-# ---------------------------------------------------------
-# Prepare UNICEF stunting combined estimates
-# ---------------------------------------------------------
-prepare_unicef = function() {
+  # ---- Covariates from UNICEF ----
   
-  message(" > UNICEF")
+  message("  - UNICEF covariates")
   
   # Read in WHO region data
   WHO_regions_dt = fread(paste0(o$pth$input, "WHO_country_codes.csv")) 
@@ -482,12 +468,9 @@ prepare_unicef = function() {
     model(lm = TSLM(log(maternal_mortality) ~ trend())) %>%
     interpolate(maternal_mortality_dt)
   
-  
-  # browser()
   # Create table of UNICEF covariates
   unicef_dt = stunting_dt  %>%
     full_join(maternal_mortality_dt, by=c("country", "year"))
-  
   
   # Check for UNICEF countries not linked to WHO regions
   #unicef_dt %>% filter(is.na(region_short)) %>%
@@ -497,16 +480,9 @@ prepare_unicef = function() {
   #unicef_dt = unicef_dt %>%
   # filter(!is.na(region_short))
   
-  # Save in tables cache
-  save_table(unicef_dt, "unicef_covariates")
-}
+  # ---- Covariates from UNICEF ----
 
-# ---------------------------------------------------------
-# Prepare Gapminder covariates for extrapolating to non-modelled countries
-# ---------------------------------------------------------
-prepare_gapminder = function() {
-  
-  message(" > Gapminder covariates")
+  message("  - UNICEF covariates")
   
   # TODO: We can remove the region references, handled in table("countries")
   
@@ -634,7 +610,13 @@ prepare_gapminder = function() {
   gapminder_dt = gapminder_dt %>%
     filter(!is.na(region_short))
   
+  # ---- Combine and store ----
+
+  # TODO: Combine into single datatable
+  
   # Save in tables cache
+  save_table(gbd_covariates, "gbd_covariates")
+  save_table(unicef_dt, "unicef_covariates")
   save_table(gapminder_dt, "gapminder_covariates")
 }
 
@@ -798,88 +780,6 @@ prepare_demography = function() {
     # Save in tables cache
     save_table(data_dt, paste1("wpp", metric))
   }
-}
-
-# ---------------------------------------------------------
-# Prepare age at birth by country and year
-# ---------------------------------------------------------
-prepare_birth_age = function() {
-  
-  # Construct path to data file
-  #
-  # SOURCE: https://w3.unece.org/PXWeb/en/Table?IndicatorCode=34
-  data_file = paste0(o$pth$input, "age_at_birth.csv")
-  
-  # Load raw data
-  data_dt = fread(data_file) %>%
-    select(country = Alpha3Code, 
-           year    = PeriodCode, 
-           value   = Value) %>%
-    # Remove any unknown countries...
-    filter(country %in% all_countries(), 
-           year    %in% o$years) %>%
-    # Format values into numeric...
-    mutate(value = str_remove(value, "\\.\\."), 
-           value = as.numeric(value)) %>%
-    filter(!is.na(value)) %>%
-    # Take the national mean over time...
-    group_by(country) %>%
-    summarise(avg = mean(value)) %>%
-    ungroup() %>%
-    # Expand to all countries...
-    right_join(y  = all_countries(as_dt = TRUE),
-               by = "country") %>%
-    # Impute missing countries with global mean...
-    mutate(avg = ifelse(
-      test = is.na(avg), 
-      yes  = mean(avg, na.rm = TRUE), 
-      no   = avg)) %>%
-    # Convert to integer...
-    mutate(avg = round(avg)) %>%
-    arrange(country) %>% 
-    as.data.table()
-  
-  # Construct age x country matrix
-  birth_age_mat = matrix(
-    data = 0, 
-    nrow = length(o$ages),
-    ncol = nrow(data_dt))
-  
-  # Range of viable ages around the mean
-  range = -(o$birth_age_sd * 2) : (o$birth_age_sd * 2)
-  
-  # Iterate through countries
-  for (i in seq_row(data_dt)) {
-    
-    # Average age at birth
-    avg = data_dt[i, avg]
-    
-    # Distribution around this mean
-    dist = dnorm(
-      x    = avg + range, 
-      mean = avg, 
-      sd   = o$birth_age_sd)
-    
-    # Insert these values into matrix
-    birth_age_mat[avg + range, i] = dist / sum(dist)
-  }
-  
-  # COnvert matrix into long datatable
-  birth_age_dt = birth_age_mat %>%
-    as_named_dt(data_dt$country) %>%
-    mutate(age = o$ages) %>%
-    # Melt to tidy format...
-    pivot_longer(cols = -age, 
-                 names_to  = "country", 
-                 values_to = "weight") %>%
-    # Remove trivial values...
-    filter(weight > 0) %>%
-    select(country, age, weight) %>%
-    arrange(country, age) %>%
-    as.data.table()
-  
-  # Save to file for easier loading
-  save_table(birth_age_dt, "birth_age")
 }
 
 # ---------------------------------------------------------
