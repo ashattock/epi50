@@ -17,7 +17,7 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = 1 : 6)
+o = set_options(do_step = 1 : 8)
 
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
@@ -41,12 +41,9 @@ run_history("deaths")  # See history.R
 run_history("dalys")   # See history.R
 
 # Step 7) Re-fit time series regression models to infer predictors
-run_regression("infer", "deaths")  # See regression.R
+# run_regression("infer", "deaths")  # See regression.R
 
-# Step 8) Generate uncertainty draws
-run_uncertainty()  # See uncertainty.R
-
-# Step 9) Produce results
+# Step 8) Produce results
 run_results()  # See results.R
 
 # Finish up

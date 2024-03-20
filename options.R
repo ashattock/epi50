@@ -52,9 +52,6 @@ set_options = function(do_step = NA) {
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
   
-  # Standard deviation around maternal mean age at birth
-  o$birth_age_sd = 3
-  
   # ---- External models ----
   
   # Create/recreate dummy polio results
