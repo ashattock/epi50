@@ -98,6 +98,7 @@ prepare_vimc_estimates = function() {
       lazy_dt() %>%
       pivot_longer(cols = ends_with("impact"),
                    names_to = "vaccine") %>%
+      replace_na(list(value = 0)) %>%
       # Intrepet disease, vaccine, and activity...
       mutate(disease  = tolower(disease),
              vaccine  = str_remove(vaccine, "_impact"),
@@ -351,7 +352,7 @@ prepare_covariates = function() {
   
   # ---- Covariates from GBD ----
   
-  message("  - GBD covariates")
+  message("  - Health and Quality index")
   
   # Prepare GBD 2019 HAQI for use as a covariate
   haqi_dt = fread(paste0(o$pth$input, "gbd19_haqi.csv")) %>%
@@ -366,10 +367,10 @@ prepare_covariates = function() {
   
   # Function to load each SDI file
   load_sdi = function(name) {
-    
+
     # Full file name
     file = paste0(o$pth$input, name, ".csv")
-    
+
     # Load and convert to long form to allow binding
     sdi_dt = fread(file, header = TRUE) %>%
       rename(gbd_alt_name = Location) %>%
@@ -377,7 +378,7 @@ prepare_covariates = function() {
                    names_to  = "year",
                    values_to = "sdi") %>%
       as.data.table()
-    
+
     return(sdi_dt)
   }
   
@@ -425,7 +426,9 @@ prepare_covariates = function() {
   
   # ---- Covariates from UNICEF ----
   
-  message("  - UNICEF covariates")
+  message("  - UNICEF")
+  
+  browser()
   
   # Read in WHO region data
   WHO_regions_dt = fread(paste0(o$pth$input, "WHO_country_codes.csv")) 
@@ -480,9 +483,9 @@ prepare_covariates = function() {
   #unicef_dt = unicef_dt %>%
   # filter(!is.na(region_short))
   
-  # ---- Covariates from UNICEF ----
+  # ---- Covariates from Gapminder ----
 
-  message("  - UNICEF covariates")
+  message("  - Gapminder")
   
   # TODO: We can remove the region references, handled in table("countries")
   
@@ -677,35 +680,6 @@ prepare_demography = function() {
   
   message(" > Demography data")
   
-  # Details of metrics to load
-  #
-  # TODO: Migrate to new config file
-  metrics = list(
-    pop = list(
-      var   = "pop",
-      file  = "pop",
-      scale = 1e3,
-      proj  = TRUE,
-      age   = TRUE),
-    deaths = list(
-      var   = "mxB",
-      file  = "mx",
-      scale = "pop",
-      proj  = FALSE,
-      age   = TRUE),
-    life_exp = list(
-      var   = "e0B", 
-      file  = "e0", 
-      scale = 1, 
-      proj  = TRUE, 
-      age   = FALSE), 
-    fertility = list(
-      var  = "pasfr", 
-      file = "percentASFR", 
-      scale = 0.01, 
-      proj  = FALSE, 
-      age   = TRUE))
-  
   # Function to apply element-wise scaler to data
   scaler_fn = function(m) {
     
@@ -728,9 +702,13 @@ prepare_demography = function() {
     return(scaler_dt)
   }
   
+  # Details of WPP metrics to load
+  wpp_metrics = table("wpp_dict") %>%
+    split(.$metric)
+  
   # Iterate through metrics to load
-  for (metric in names(metrics)) {
-    m = metrics[[metric]]
+  for (metric in names(wpp_metrics)) {
+    m = as.list(wpp_metrics[[metric]])
     
     message("  - ", metric)
     
