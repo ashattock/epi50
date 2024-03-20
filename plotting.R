@@ -3297,8 +3297,6 @@ plot_mortality_change = function() {
   save_fig(g, "Infant mortality change by region", 
            dir = "historical_impact")
   
-  browser()
-  
   # Also save as main manuscript figure
   # save_fig(g, "Figure 3", dir = "manuscript")
 }
@@ -3326,21 +3324,22 @@ plot_prob_death_age = function() {
     ~.("year of life")
     ~.(paste0("(", max(o$years), ")")))
   
-  browser()
-  
-  # Estimated child deaths averted by vaccination
+  # Deaths averted by vaccination
   averted_dt = read_rds("history", "burden_averted_deaths") %>%
     filter(year == max(o$years)) %>%
-    # Append region name...
+    # Apply age structure...
+    left_join(y  = table("impact_age_multiplier"), 
+              by = "d_v_a_id", 
+              relationship = "many-to-many") %>%
+    mutate(impact = impact * scaler) %>%
+    # Summarise over region...
     append_region_name() %>%
-    # xxx ...
-    group_by(region) %>%
-    summarise(total_averted = sum(impact)) %>%
+    group_by(region, age) %>%
+    summarise(averted = sum(impact)) %>%
     ungroup() %>%
-    # xxx ...
-    expand_grid(table("impact_age_multiplier")) %>%
-    mutate(age     = age + 1, 
-           averted = total_averted * scaler) %>%
+    # Avoid zero for log scaling ...
+    mutate(age = age + 1) %>%
+    filter(age %in% 2 ^ (0 : age_bins)) %>%
     select(region, age, averted) %>%
     as.data.table()
   
@@ -3349,12 +3348,11 @@ plot_prob_death_age = function() {
     filter(year == max(o$years)) %>%
     left_join(y  = table("wpp_deaths"), 
               by = c("country", "year", "age")) %>%
-    # xxx ...
+    # Avoid zero for log scaling ...
     mutate(age = age + 1) %>%
     filter(age %in% 2 ^ (0 : age_bins)) %>%
-    # Append region name...
-    append_region_name() %>%
     # Average prob of death by region and year...
+    append_region_name() %>%
     group_by(region, age) %>%
     summarise(pop    = sum(pop), 
               deaths = sum(deaths)) %>%
@@ -3427,9 +3425,6 @@ plot_prob_death_age = function() {
   
   # Save figure to file
   save_fig(g, "Probability of death by age", dir = "historical_impact")
-  
-  # Also save as main manuscript figure
-  # save_fig(g, "Figure 4", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -3532,8 +3527,6 @@ plot_survival_increase = function(log_age = FALSE) {
     arrange(size, region) %>%
     mutate(region = fct_inorder(region)) %>%
     as.data.table()
-  
-  browser()
   
   # ---- Produce plot ----
   
@@ -3650,7 +3643,7 @@ plot_measles_in_context = function() {
     no_vaccine = "No historical vaccination")
   
   # Name of d-v-a to plot
-  measles_id = "measles"
+  measles_id = "Measles"
   
   # ID of coverage values to plot
   coverage_ids = c(101, 102)
@@ -3867,7 +3860,7 @@ plot_vimc_comparison = function() {
   message("  - Plotting comparison of EPI50 vs VIMC outcomes")
   
   # Dictionary for source of estimates
-  source_dict = c(
+  type_dict = c(
     impact_epi50 = "Deaths averted: EPI50", 
     impact_vimc  = "Deaths averted: VIMC", 
     fvps_epi50   = "Fully vaccinated people: EPI50", 
@@ -3880,64 +3873,65 @@ plot_vimc_comparison = function() {
   
   # ---- Load EPI50 and VIMC outcomes ----
   
-  # Results from EPI50 analysis - impact and FVPs
-  epi50_dt = read_rds("history", "burden_averted_deaths") %>%
-    lazy_dt() %>%
-    group_by(d_v_a_id) %>%
-    summarise(impact_epi50 = round(sum(impact)), 
-              fvps_epi50   = round(sum(fvps))) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  # VIMC impact outcomes
-  vimc_impact_dt = table("vimc_estimates") %>%
-    lazy_dt() %>%
-    group_by(d_v_a_id) %>%
-    summarise(impact_vimc = sum(deaths_averted)) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  # VIMC FVPs
-  vimc_coverage_dt = table("coverage_source") %>%
-    filter(source == "vimc") %>%
-    lazy_dt() %>%
-    group_by(d_v_a_id) %>%
-    summarise(fvps_vimc = round(sum(fvps))) %>%
-    ungroup() %>%
-    as.data.table()
+  # Store all plotting values in list
+  plot_list = list(
+    
+    # EPI50 impact 
+    a = read_rds("history", "burden_averted_deaths") %>%
+      lazy_dt() %>%
+      group_by(d_v_a_id) %>%
+      summarise(value = round(sum(impact))) %>%
+      ungroup() %>%
+      mutate(metric = "impact", 
+             type   = "epi50") %>%
+      as.data.table(), 
+    
+    # VIMC impact
+    b = table("vimc_estimates") %>%
+      lazy_dt() %>%
+      group_by(d_v_a_id) %>%
+      summarise(value = sum(deaths_averted)) %>%
+      ungroup() %>%
+      mutate(metric = "impact", 
+             type   = "vimc") %>%
+      as.data.table(), 
+    
+    # EPI50 FVPs
+    c = table("coverage") %>%
+      lazy_dt() %>%
+      group_by(d_v_a_id) %>%
+      summarise(value = round(sum(fvps))) %>%
+      ungroup() %>%
+      mutate(metric = "fvps", 
+             type   = "epi50") %>%
+      as.data.table(),
+    
+    # VIMC FVPs
+    d = table("coverage_source") %>%
+      filter(source == "vimc") %>%
+      lazy_dt() %>%
+      group_by(d_v_a_id) %>%
+      summarise(value = round(sum(fvps))) %>%
+      ungroup() %>%
+      mutate(metric = "fvps", 
+             type   = "vimc") %>%
+      as.data.table())
   
   # ---- Concatenate all outcomes ---- 
-  
-  # Combine impact estimates
-  impact_dt = epi50_dt %>%
-    select(d_v_a_id, impact_epi50) %>%
-    inner_join(y  = vimc_impact_dt, 
-               by = "d_v_a_id") %>%
-    mutate(metric = "impact") %>%
-    as.data.table()
-  
-  # Combine FVPs
-  fvps_dt = epi50_dt %>%
-    select(d_v_a_id, fvps_epi50) %>%
-    inner_join(y  = vimc_coverage_dt, 
-               by = "d_v_a_id") %>%
-    mutate(metric = "fvps") %>%
-    as.data.table()
-  
+
   # Combine all plotting data
-  plot_dt = impact_dt %>%
-    bind_rows(fvps_dt) %>%
-    pivot_longer(cols = -c(d_v_a_id, metric), 
-                 names_to = "source") %>%
-    filter(!is.na(value)) %>%
+  plot_dt = rbindlist(plot_list) %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    filter(source == "vimc") %>%
     # Append d_v_a names...
-    format_d_v_a_name() %>%
-    select(d_v_a_name, metric, source, value) %>%
+    select(d_v_a_name, metric, type, value) %>%
+    mutate(type = paste1(metric, type)) %>%
     # Set plotting order...
     mutate(metric = recode(metric, !!!metric_dict), 
            metric = factor(metric, metric_dict), 
-           source = recode(source, !!!source_dict), 
-           source = factor(source, source_dict)) %>%
+           type   = recode(type,   !!!type_dict), 
+           type   = factor(type,   type_dict)) %>%
     as.data.table()
   
   # ---- Produce plot ----
@@ -3946,7 +3940,7 @@ plot_vimc_comparison = function() {
   g = ggplot(plot_dt) + 
     aes(x = d_v_a_name, 
         y = value, 
-        fill = source) + 
+        fill = type) + 
     geom_col(position = "dodge") + 
     # Facet by metric...
     facet_wrap(
@@ -3957,7 +3951,7 @@ plot_vimc_comparison = function() {
     scale_fill_manual(
       values = rev(colour_scheme(
         map = "brewer::paired", 
-        n   = n_unique(plot_dt$source)))) + 
+        n   = length(type_dict)))) + 
     # Prettify y axis...
     scale_y_continuous(
       labels = comma)
