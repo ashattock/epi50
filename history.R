@@ -17,6 +17,9 @@ run_history = function(metric) {
   
   message("* Calculating impact of historical coverage: ", metric)
   
+  # Eausy reference external d-v-a IDs
+  extern_id = table("d_v_a")[source == "extern", d_v_a_id]
+  
   # ---- Extract FVP data to be evaluated ----
   
   message(" > Preparing historical coverage")
@@ -131,12 +134,13 @@ run_history = function(metric) {
     lazy_dt() %>%
     select(d_v_a_id, country, year, impact_abs) %>%
     # Join with full FVPs data...
-    full_join(y  = fvps_dt, 
+    full_join(y  = fvps_dt,
               by = c("d_v_a_id", "country", "year")) %>%
     select(d_v_a_id, country, year, 
            fvps   = fvps_abs, 
            impact = impact_abs) %>%
     arrange(d_v_a_id, country, year) %>%
+    filter(!d_v_a_id %in% extern_id) %>%
     # Append impact ratio...
     left_join(y  = initial_ratio_dt, 
               by = c("d_v_a_id", "country")) %>%
@@ -146,7 +150,7 @@ run_history = function(metric) {
       test = is.na(impact), 
       yes  = fvps * initial_ratio, 
       no   = impact)) %>%
-    select(-initial_ratio) %>%
+    select(d_v_a_id, country, year, impact) %>%
     as.data.table()
   
   # ---- Append external models ----
@@ -156,14 +160,11 @@ run_history = function(metric) {
   # Load up results from external models
   extern_dt = table("extern_estimates") %>%
     lazy_dt() %>%
-    filter(d_v_a_id %in% table("d_v_a")$d_v_a_id) %>%
     rename(impact = !!paste1(metric, "averted")) %>%
     # Summarise results over age...
     group_by(d_v_a_id, country, year) %>%
     summarise(impact = sum(impact)) %>%
     ungroup() %>%
-    # TODO: Update placeholder with actual values
-    mutate(fvps = 1, .before = impact) %>%
     as.data.table()
   
   # Concatenate results from external models
