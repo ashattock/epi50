@@ -93,15 +93,19 @@ set_options = function(do_step = NA) {
   # Multiply impact when fitting for more consistent FVP-impact scales
   o$impact_scaler = 1000
   
+  # Number of times to repeat optimisation
   o$n_optim = 10
   
+  # Prior characteristics (assuming Gaussian)
   o$prior_weight = 1
   o$prior_sd     = 0.05
+  
+  # MCMC run time settings
   o$mcmc_burnin  = 100
   o$mcmc_iter    = 1000
 
   # Defalt x scale for evaluating impact functions
-  o$eval_x_scale = 3  # Not a critical value - often overwritten with actual FVPs
+  o$eval_x_scale = 5  # Not a critical value - often overwritten with actual FVPs
   
   # Number of initial years to average over for back-projecting impact ratio
   o$init_impact_years = 3

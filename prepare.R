@@ -20,26 +20,26 @@ run_prepare = function() {
   # Convert config yaml files to datatables
   prepare_config_tables()
 
-  # Streamline VIMC impact estimates for quick loading
-  prepare_vimc_estimates()
-
-  # Prepare GBD estimates of deaths for non-VIMC pathogens
-  prepare_gbd_estimates()
+  # # Streamline VIMC impact estimates for quick loading
+  # prepare_vimc_estimates()
+  # 
+  # # Prepare GBD estimates of deaths for non-VIMC pathogens
+  # prepare_gbd_estimates()
 
   # Parse vaccine efficacy profile for non-VIMC pathogens
   prepare_vaccine_efficacy()
 
-  # Prepare country income status classification over time
-  prepare_income_status()
-
-  # Prepare demography-related estimates from WPP
-  prepare_demography()
-
-  # Prepare all covariates for regression modelling
-  prepare_covariates()  # See covariates.R
-
-  # Prepare historical vaccine coverage
-  prepare_coverage()  # See coverage.R
+  # # Prepare country income status classification over time
+  # prepare_income_status()
+  # 
+  # # Prepare demography-related estimates from WPP
+  # prepare_demography()
+  # 
+  # # Prepare all covariates for regression modelling
+  # prepare_covariates()  # See covariates.R
+  # 
+  # # Prepare historical vaccine coverage
+  # prepare_coverage()  # See coverage.R
 }
 
 # ---------------------------------------------------------
@@ -353,6 +353,41 @@ prepare_vaccine_efficacy = function() {
     # NOTE: These are the set of values to be optimised
     n_args = sum(!unlist(lapply(formals(fn), is.numeric)))
     
+    optim_list = lapply(
+      X      = 1 : o$n_optim, 
+      FUN    = asd_fn, 
+      data   = data, 
+      fn     = fn, 
+      n_args = n_args)
+    
+    # Extract parameters from best fitting result
+    optim_pars = optim_list %>%
+      rbindlist() %>%
+      pivot_wider() %>%
+      slice_min(y, n = 1, with_ties = FALSE) %>%
+      select(-id, -y) %>%
+      unlist() %>%
+      unname() %>%
+      as.list()
+    
+    # Evaluate function using optimal parameters
+    profile = do.call(fn, optim_pars)
+    
+    # Form profile into a datatable
+    profile_dt = data.table(
+      vaccine = vaccine,
+      time    = t,
+      profile = profile)
+    
+    return(profile_dt)
+  }
+  
+  # Objective algorithm
+  asd_fn = function(i, data, fn, n_args) {
+    
+    # Reset random number generator
+    set.seed(i)
+    
     # Fit all required parameters to the data available
     optim = asd(
       fn = obj_fn,
@@ -365,16 +400,14 @@ prepare_vaccine_efficacy = function() {
         fn     = fn, 
         n_args = n_args))
     
-    # Evaluate function using optimal parameters
-    profile = do.call(fn, as.list(optim$x))
+    # Convert result to datatable
+    result = optim[qc(x, y)] %>%
+      unlist() %>%
+      enframe() %>%
+      mutate(id = i) %>%
+      as.data.table()
     
-    # Form profile into a datatable
-    profile_dt = data.table(
-      vaccine = vaccine,
-      time    = t,
-      profile = profile)
-    
-    return(profile_dt)
+    return(result)
   }
   
   # Objective function to minimise
