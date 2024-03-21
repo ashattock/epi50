@@ -114,17 +114,6 @@ set_options = function(do_step = NA) {
   # Number of draws to sample
   o$n_draws = 200
 
-  # Parameter bounds for fitting beta distribution to GBD disease vaccine efficacy
-  o$par_lower = log(1)
-  o$par_upper = log(10)
-
-  # Statistical summary to use for 'best estimate' projection
-  #
-  # OPTIONS:
-  #  "median" := Median of uncertainty simulations
-  #    "mean" := Mean of uncertainty simulations
-  # o$best_estimate_simulation = "mean"
-
   # Quantiles for credibility intervals
   # o$quantiles = c(0.025, 0.975)
   
@@ -132,6 +121,7 @@ set_options = function(do_step = NA) {
   
   # Use multiple cores to speed up several processes
   o$parallel = list(
+    covars  = TRUE, 
     impute  = TRUE, 
     impact  = FALSE,  # NOTE: Having issues with shared memory
     history = FALSE)  # NOTE: Doesn't seem to offer any speed gain
