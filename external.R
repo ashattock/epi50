@@ -369,8 +369,14 @@ format_polio = function() {
   
   # Bring it all together to disaggregate raw results...
   polio_dt = raw_dt %>%
-    lazy_dt() %>%
+    complete(scenario, region, year = o$years, age_group, metric) %>%
+    arrange(scenario, region, year, age_group, metric) %>%
+    # Fill most recent year...
+    group_by(scenario, region, age_group, metric) %>%
+    fill(value, .direction = "down") %>%
+    ungroup() %>%
     # Expand age groups to all ages...
+    lazy_dt() %>%
     full_join(age_dt, by = "age_group", 
               relationship = "many-to-many") %>%
     select(-age_group) %>%
@@ -402,7 +408,9 @@ format_polio = function() {
   }
   
   # Compare raw with formatted model outcomes
-  check_dt = total_fn(polio_dt, "clean") %>%
+  check_dt = polio_dt %>%
+    filter(year <= max(raw_dt$year)) %>%
+    total_fn("clean") %>%
     left_join(y  = total_fn(raw_dt, "raw"), 
               by = c("scenario", "metric")) %>%
     mutate(diff = abs(clean - raw) / pmin(clean, raw), 

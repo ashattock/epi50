@@ -27,8 +27,9 @@ run_regression = function(case, metric) {
   method = "basic_regression"
   
   # TEMP: Ignoring problematic cases for now
-  ignore = NULL # c(7, 11, 14,   # Non-routine, small numbers
-             # 16, 18, 22)  # DTP boosters causing problems
+  ignore = NULL 
+  # c(7, 11, 14,  # Non-routine, small numbers
+  # 16, 18, 22)  # DTP boosters causing problems
   
   # ---- Load data ----
   
