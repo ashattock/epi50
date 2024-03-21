@@ -90,7 +90,7 @@ impute_dt = epi50_dynamice %>%
   left_join(y  = measles_dt, 
             by = intersect(names(.), names(measles_dt))) %>%
   mutate(value = ifelse(
-    test = is.na(value) & year > min(o$year), 
+    test = is.na(value) & year > min(o$years), 
     yes  = dynamice, 
     no   = value))
 
@@ -100,7 +100,7 @@ init_dt = impute_dt %>%
   group_by(scenario, country, age, metric) %>%
   summarise(value = mean(value)) %>%
   ungroup() %>%
-  mutate(year = min(o$year)) %>%
+  mutate(year = min(o$years)) %>%
   select(all_names(measles_dt)) %>%
   as.data.table()
 

@@ -110,8 +110,8 @@ covariates_gapminder = function() {
     filter(country %in% all_countries()) %>%
     # Data ten years prior EPI to capture historical effect...
     mutate(year = as.integer(time)) %>%
-    filter(year >= min(o$year) - 10, 
-           year <= max(o$year)) %>%
+    filter(year >= min(o$years) - 10, 
+           year <= max(o$years)) %>%
     # Tidy up...
     select(country, year, value, metric) %>%
     split(f = .$metric)
@@ -252,7 +252,7 @@ interpolate_covariates = function(covariates) {
     
     # Expand years to data limit and interpolate trends
     interp_data = data %>%
-      # Expand to single year age bins...
+      # Expand to complete temporal scope...
       complete(country, year = min(year) : max(o$years)) %>%
       # Interpolate timeseries trends...
       as_tsibble(index = year, key = country) %>%
@@ -265,7 +265,7 @@ interpolate_covariates = function(covariates) {
   }
   
   # Interpolate metrics in parallel
-  if (o$parallel$covars)
+  if (o$parallel$interp)
     interp_list = mclapply(
       X   = covariates,
       FUN = interpolate_fn, 
@@ -273,7 +273,7 @@ interpolate_covariates = function(covariates) {
       mc.preschedule = FALSE)
   
   # Interpolate metrics consecutively
-  if (!o$parallel$covars)
+  if (!o$parallel$interp)
     interp_list = lapply(
       X   = covariates,
       FUN = interpolate_fn)

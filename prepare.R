@@ -37,7 +37,7 @@ run_prepare = function() {
 
   # Prepare all covariates for regression modelling
   prepare_covariates()  # See covariates.R
-  
+
   # Prepare historical vaccine coverage
   prepare_coverage()  # See coverage.R
 }
@@ -182,6 +182,8 @@ prepare_gbd_estimates = function() {
   
   # ---- Load and format data ----
   
+  message("  - Loading data")
+  
   # Initiate list to store burden results
   burden_list = list()
   
@@ -193,7 +195,7 @@ prepare_gbd_estimates = function() {
     file_path = paste0(o$pth$input, file_name, ".csv")
     
     # Load GBD burden estimates for relevant diseases
-    burden_dt = fread(file_path) %>%
+    burden_list[[metric]] = fread(file_path) %>%
       # Parse disease and countries...
       mutate(disease = recode(cause, !!!gbd_dict), 
              country = countrycode(
@@ -208,42 +210,103 @@ prepare_gbd_estimates = function() {
              age = recode(age, !!!age_dict), 
              age_bin = str_extract(age, "^-*[0-9]+"), 
              age_bin = as.numeric(age_bin)) %>%
-      # Tidy up...
+      # Reduce down to variables of interest...
       select(disease, country, year, age_bin, value = val) %>%
-      arrange(disease, country, year, age_bin)
-    
-    # TEMP: Until we do a proper future projection of GBD estimates
-    burden_dt = 
-      expand_grid(
-        disease = unique(burden_dt$disease),
-        country = all_countries(), 
-        age_bin = unique(burden_dt$age_bin), 
-        year    = o$years) %>%
-      left_join(y  = burden_dt, 
-                by = names(.)) %>%
-      arrange(disease, country, age_bin) %>%
-      group_by(disease, country, age_bin) %>%
-      fill(value, .direction = "down") %>%
-      ungroup() %>%
-      filter(!is.na(value)) %>%
-      as.data.table()
-    
-    # Expand to all ages
-    burden_list[[metric]] = burden_dt %>%
-      full_join(y  = age_dt, 
-                by = "age_bin", 
-                relationship = "many-to-many") %>%
-      mutate(value  = value / n, 
-             metric = !!metric) %>%
-      select(disease, country, metric, year, age, value)
+      arrange(disease, country, year, age_bin) %>%
+      mutate(metric = !!metric)
   }
   
-  # ---- Cache formatted data ----
+  # Squash then split by disease-metric-age
+  gbd_list = burden_list %>%
+    rbindlist() %>%
+    split(f = list(
+      .$disease, 
+      .$metric, 
+      .$age_bin))
+  
+  # Remove any trivial splits
+  gbd_list[lapply(gbd_list, nrow) == 0] = NULL
+  
+  # ---- Extrapolate recent years ----
+  
+  message("  - Extrapolating trends")
+  
+  # Function for extrapolating trends for post-2019 period
+  extrap_fn = function(data) {
+    
+    # Constant method...
+    if (o$gbd_extrap == "constant") {
+      
+      # Expand temporal scope and extrapolate
+      extrap_data = data %>%
+        # Expand out to recent years without data...
+        complete(country, disease, age_bin, metric,
+                 year = min(year) : max(o$years)) %>%
+        # Extrapolate most recent value...
+        fill(value, .direction = "down") %>%
+        # filter(!is.na(value)) %>%
+        select(all_names(data)) %>%
+        as.data.table()
+    }
+    
+    # Using time series method...
+    if (o$gbd_extrap == "trend") {
+      
+      # Identifiers of this split
+      id_dt = data %>%
+        select(disease, metric, age_bin) %>%
+        unique()
+      
+      # Expand temporal scope and extrapolate
+      extrap_data = data %>%
+        # Expand out to recent years without data...
+        complete(country, year = min(year) : max(o$years)) %>%
+        # Extrapolate recent trends...
+        as_tsibble(index = year,
+                   key   = country) %>%
+        interp_ts_trend() %>%
+        as.data.table() %>%
+        # Tidy up...
+        cbind(id_dt) %>%
+        select(all_names(data))
+    }
+    
+    return(extrap_data)
+  }
+  
+  # Interpolate metrics in parallel
+  if (o$parallel$interp)
+    extrap_list = mclapply(
+      X   = gbd_list,
+      FUN = extrap_fn, 
+      mc.cores = o$n_cores,
+      mc.preschedule = FALSE)
+  
+  # Interpolate metrics consecutively
+  if (!o$parallel$interp)
+    extrap_list = lapply(
+      X   = gbd_list,
+      FUN = extrap_fn)
+  
+  # Squash everything back together
+  extrap_dt = extrap_list %>%
+    rbindlist() %>%
+    arrange(metric, disease, country, year, age_bin)
+  
+  # ---- Expand to singel age bins ----
+  
+  message("  - Expanding age groups")
+  
+  # Expand to all ages
+  gbd_dt = extrap_dt %>%
+    full_join(y  = age_dt, 
+              by = "age_bin", 
+              relationship = "many-to-many") %>%
+    mutate(value = value / n) %>%
+    select(disease, country, year, age, value, metric)
   
   # Squash into single datatable
-  burden_list %>%
-    rbindlist() %>%
-    lazy_dt() %>%
+  gbd_dt %>%
     mutate(metric = paste1(metric, "disease")) %>%
     # Pivot metrics to wide format...
     pivot_wider(names_from = metric) %>%

@@ -766,7 +766,7 @@ get_period = function() {
   # Format into full year-period datatable
   period_dt = tibble(year = o$years[year_idx]) %>%
     mutate(period = 1 : n()) %>%
-    full_join(y  = tibble(year = o$year), 
+    full_join(y  = tibble(year = o$years), 
               by = "year") %>%
     arrange(year) %>%
     fill(period, .direction = "updown") %>%

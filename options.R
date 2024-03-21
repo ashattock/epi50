@@ -52,6 +52,9 @@ set_options = function(do_step = NA) {
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
   
+  # Define method for extrapolating GBD burden post 2019
+  o$gbd_extrap = "constant"  # OPTIONS: "trend" or "constant"
+  
   # Flag to force (re)download Gapminder data from github
   o$force_download_gapminder = FALSE
   
@@ -118,7 +121,7 @@ set_options = function(do_step = NA) {
   
   # Use multiple cores to speed up several processes
   o$parallel = list(
-    covars  = TRUE, 
+    interp  = FALSE,  # NOTE: Occurs in two places in preparation step
     impute  = TRUE, 
     impact  = FALSE,  # NOTE: Having issues with shared memory
     history = FALSE)  # NOTE: Doesn't seem to offer any speed gain

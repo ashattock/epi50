@@ -686,6 +686,9 @@ plot_gbd_estimates = function() {
   
   message("  - Plotting GBD burden estimates by age")
   
+  # Flag for plotting recent extrapolation
+  plot_extrap = FALSE
+  
   # Define age groups and associated upper bounds
   age_groups = c(
     "Neonates"      = -1,
@@ -703,8 +706,12 @@ plot_gbd_estimates = function() {
     fill(group, .direction = "up") %>%
     select(age, age_group = group)
   
+  # Plot up to this year
+  plot_to = ifelse(plot_extrap, max(o$years), max(o$gbd_estimate_years))
+  
   # Load GBD estimates and categorise into age groups
   gbd_dt = table("gbd_estimates") %>%
+    filter(year <= plot_to) %>%
     append_d_v_t_name() %>%
     # Append age group details...
     left_join(y  = age_group_dt,
