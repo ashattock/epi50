@@ -25,7 +25,7 @@ run_regression = function(case, metric) {
   #  basic_regression - IA2030 method using GBD covariates
   #  perform_regression1 - Helen's time series regression method
   #  perform_regression2 - Same as Helen's method, refactored code
-  method = "basic_regression"
+  method = "perform_regression2"
   
   # TEMP: Ignoring problematic cases for now
   ignore = NULL # c(7, 11, 14,   # Non-routine, small numbers
@@ -123,7 +123,7 @@ define_models = function(case) {
     cov4  = "log(coverage_minus_4)", 
     pop14 = "pop_0to14", 
     gini  = "gini", 
-    hdi   = "HDI", 
+    hdi   = "hdi", 
     ab    = "attended_births", 
     hs0   = "health_spending", 
     hs1   = "health_spending_minus_1", 
@@ -264,13 +264,23 @@ basic_regression = function(d_v_a_id, target, case, metric) {
     mutate(imr = deaths / pop) %>%
     select(country, year, imr)
   
+  # Compile datatable of covariates
+  covariates_dt = table("regression_covariates") %>%
+    filter(metric %in% c("haqi", "sdi")) %>%
+    pivot_wider(names_from = metric) %>%
+    full_join(y  = infant_mortality_dt, 
+              by = c("country", "year")) %>%
+    arrange(country, year) %>%
+    group_by(country) %>%
+    fill(haqi, .direction = "up") %>%
+    ungroup() %>%
+    as.data.table()
+  
   # Append covariates to target
   target_dt = target %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
     # Append GBD indices and infant mortality...
-    left_join(y  = table("gbd_covariates"),
-              by = c("country", "year")) %>%
-    left_join(y  = infant_mortality_dt,
+    left_join(y  = covariates_dt,
               by = c("country", "year")) %>%
     # Calculate n years of estimates...
     mutate(n_years = 1) %>%
@@ -1128,6 +1138,11 @@ append_covariates = function(d_v_a_id, models, covars, target) {
   
   # ---- Append all other covariates ----
   
+  # Spread covariates to wide format
+  covariates_dt = table("regression_covariates") %>%
+    pivot_wider(names_from = metric) %>%
+    as.data.table()
+  
   # Create time-series tibble with all covariates
   target_ts = target %>%
     # Data for this d-v-a...
@@ -1136,27 +1151,14 @@ append_covariates = function(d_v_a_id, models, covars, target) {
     # Append vaccination coverage...
     full_join(y = coverage_dt,  
               by = c("country", "year")) %>%
-    # Append covariates: GBD...
-    full_join(y  = table("gbd_covariates"),
+    # Append all possible covariates...
+    full_join(y  = covariates_dt,
               by = c("country", "year")) %>%
-    # Append covariates: UNICEF...
-    # full_join(y  = table("unicef_covariates"),
-    #           by = c("country", "year"),
-    #           relationship = "many-to-many") %>%
-    # Append covariates: Gapminder...
-    full_join(y  = table("gapminder_covariates"),  # TODO: multiple entries for COD(Congo, Kinshasa)
-              by = c("country", "year"), 
-              relationship = "many-to-many") %>%
+    arrange(country, year) %>%
     # Append period...
     # HCJ - have I interpreted this correctly? period is a potential predictor?
     # left_join(y  = get_period(), 
     #           by = "year") %>%
-    # Summarise to single row for each country per year...
-    # TODO: This shouldn't be necessary
-    arrange(country, year) %>%
-    group_by(country, year) %>%
-    slice_head(n = 1) %>%
-    ungroup() %>%
     # Lag any necessary covariates...
     group_by(country) %>%
     covar_lag_fn() %>%
