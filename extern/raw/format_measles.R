@@ -1,8 +1,10 @@
 
 # ---- Load raw results ----
 
-vaccine_dt    = fread(paste0(o$pth$extern, "epi50_measles_vaccine.csv"))
-no_vaccine_dt = fread(paste0(o$pth$extern, "epi50_measles_no_vaccine.csv"))
+raw_path = paste0(o$pth$extern, "raw")
+
+vaccine_dt    = fread(file.path(raw_path, "epi50_measles_vaccine.csv"))
+no_vaccine_dt = fread(file.path(raw_path, "epi50_measles_no_vaccine.csv"))
 
 raw_dt = vaccine_dt %>%
   select(iso, year, 

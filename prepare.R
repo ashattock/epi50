@@ -20,26 +20,26 @@ run_prepare = function() {
   # Convert config yaml files to datatables
   prepare_config_tables()
 
-  # # Streamline VIMC impact estimates for quick loading
-  # prepare_vimc_estimates()
-  # 
-  # # Prepare GBD estimates of deaths for non-VIMC pathogens
-  # prepare_gbd_estimates()
-  # 
-  # # Parse vaccine efficacy profile for non-VIMC pathogens
-  # prepare_vaccine_efficacy()
-  # 
-  # # Prepare country income status classification over time
-  # prepare_income_status()
-  # 
-  # # Prepare demography-related estimates from WPP
-  # prepare_demography()
+  # Streamline VIMC impact estimates for quick loading
+  prepare_vimc_estimates()
+
+  # Prepare GBD estimates of deaths for non-VIMC pathogens
+  prepare_gbd_estimates()
+
+  # Parse vaccine efficacy profile for non-VIMC pathogens
+  prepare_vaccine_efficacy()
+
+  # Prepare country income status classification over time
+  prepare_income_status()
+
+  # Prepare demography-related estimates from WPP
+  prepare_demography()
 
   # Prepare all covariates for regression modelling
   prepare_covariates()  # See covariates.R
   
   # Prepare historical vaccine coverage
-  # prepare_coverage()  # See coverage.R
+  prepare_coverage()  # See coverage.R
 }
 
 # ---------------------------------------------------------
@@ -81,20 +81,27 @@ prepare_vimc_estimates = function() {
   message(" > VIMC estimates")
   
   # All diseases to load VIMC outcomes for
-  vimc_diseases = table("d_v_a") %>%
+  vimc_info = table("d_v_a") %>%
     filter(source == "vimc") %>%
-    pull(disease) %>%
-    unique()
+    select(disease) %>%
+    unique() %>%
+    left_join(y  = table("disease_name"), 
+              by = "disease")
   
   # Initiate list to store outcomes
   vimc_list = list()
   
   # Iterate through diseases
-  for (disease in vimc_diseases) {
-    message("  - ", disease)
+  for (i in seq_row(vimc_info)) {
+    
+    # Disease ID and associated full name
+    id   = vimc_info[i]$disease
+    name = vimc_info[i]$disease_name
+
+    message("  - ", name)
     
     # Load VIMC impact estimates for this disease
-    vimc_list[[disease]] = read_rds("vimc", disease) %>%
+    vimc_list[[id]] = read_rds("vimc", id) %>%
       lazy_dt() %>%
       pivot_longer(cols = ends_with("impact"),
                    names_to = "vaccine") %>%
@@ -404,19 +411,19 @@ prepare_demography = function() {
   scaler_fn = function(m) {
     
     # Population scaling: by country, year, and age
-    if (m$scale == "pop")
+    if (grepl("pop", m$scale))
       scaler_dt = setnames(
         x   = table("wpp_pop"), 
         old = "pop", 
         new = "scaler")
     
     # Numeric values: simple repitition
-    if (is.numeric(m$scale))
+    if (grepl("^[0-9,\\.]+$", m$scale))
       scaler_dt = expand_grid(
         country = all_countries(), 
         year    = o$years,
         age     = if (m$age) o$ages else NA, 
-        scaler  = m$scale) %>%
+        scaler  = as.numeric(m$scale)) %>%
         as.data.table()
     
     return(scaler_dt)
@@ -424,6 +431,7 @@ prepare_demography = function() {
   
   # Details of WPP metrics to load
   wpp_metrics = table("wpp_dict") %>%
+    mutate(metric = fct_inorder(metric)) %>%
     split(.$metric)
   
   # Iterate through metrics to load
