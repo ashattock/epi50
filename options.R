@@ -52,6 +52,9 @@ set_options = function(do_step = NA) {
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
   
+  # Flag to force (re)download Gapminder data from github
+  o$force_download_gapminder = FALSE
+  
   # ---- External models ----
   
   # Create/recreate dummy polio results
