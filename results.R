@@ -116,13 +116,22 @@ run_results = function() {
     # Inital impact ratios used to back project
     for (metric in o$metrics)
       plot_impact_fvps(metric, scope = "initial")
-
+    
     # Main results plot - historical impact over time
     plot_historical_impact()
-
+    
+    # Equivalent plot for each region
+    for (region in all_regions())
+      plot_historical_impact(region = region)
+    
+    # Non-cumulative, pathogen specific results
+    for (metric in o$metrics)
+      plot_temporal_impact(metric)
+    
     # Infant mortality rates over time with and without vaccination
     plot_infant_mortality()
 
+    # xxx
     plot_mortality_region()
 
     # Regional differences in child mortality changes

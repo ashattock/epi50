@@ -65,6 +65,7 @@ plot_scope = function() {
   static_dt = table("gbd_estimates") %>%
     select(disease, country, year) %>%
     unique() %>%
+    # filter(year %in% o$gbd_estimate_years) %>%
     mutate(class = "static")
   
   # External model settings
@@ -193,7 +194,7 @@ plot_scope = function() {
       repeat.tick.labels = FALSE) + 
     # Set colours and legend title...
     scale_fill_manual(
-      values = impact_colours, 
+      values = FALSE, 
       name   = "Source of impact estimates") +
     guides(fill = guide_legend(reverse = TRUE)) +
     # Prettify x axis...
@@ -210,6 +211,8 @@ plot_scope = function() {
       breaks = seq(2, y_max, by = 2),
       labels = comma,
       expand = expansion(mult = c(0, 0)))
+  
+  browser()
   
   # Prettify theme
   g = g + theme_classic() + 
@@ -994,7 +997,12 @@ plot_effective_coverage = function() {
   age_max = 50
   
   # Manually define appropriate number of colours 
-  colours = colour_scheme("pals::brewer.blues", n = 8)
+  colours = list(
+    disease = "blues", 
+    type    = "greens")
+  
+  # Number of breaks in continuous colour bar
+  col_breaks = 40
   
   # Repeat for disease and vaccine type
   for (by in c("disease", "type")) {
@@ -1019,6 +1027,10 @@ plot_effective_coverage = function() {
       ungroup() %>%
       as.data.table()
     
+    # Construct continuous colour vector
+    col_map = paste0("pals::brewer.", colours[by])
+    col_vec = colour_scheme(col_map, n = col_breaks - 1)
+    
     # Plot each pathogen by year ana age
     g = ggplot(plot_dt) + 
       aes(x = year, y = age, fill = effective_coverage) + 
@@ -1026,7 +1038,7 @@ plot_effective_coverage = function() {
       facet_wrap(~by) + 
       # Set continuous colour bar...
       scale_fill_gradientn(
-        colours = colours, 
+        colours = c("#FFFFFF", col_vec), 
         limits  = c(0, 1), 
         breaks  = pretty_breaks(), 
         label   = percent,
@@ -1035,7 +1047,10 @@ plot_effective_coverage = function() {
       # Prettify x axis...
       scale_x_continuous(
         expand = c(0, 0), 
-        breaks = seq(min(o$years), max(o$years), by = 5)) +
+        breaks = seq(
+          from = min(o$years), 
+          to   = max(o$years), 
+          by   = 5)) +
       # Prettify y axis...
       scale_y_continuous(
         name   = "Vaccine efficacy (death reduction)", 
@@ -1063,7 +1078,7 @@ plot_effective_coverage = function() {
             legend.key.width  = unit(6,   "lines"))
     
     # Save figure to file
-    save_name = "Effective coverage by year and age"
+    save_name = "Effective coverage"
     save_fig(g, save_name, by, dir = "static_models")
   }
 }
@@ -1075,6 +1090,9 @@ plot_static = function() {
   
   message("  - Plotting static model impact results")
   
+  # Flag for plotting recent extrapolation
+  plot_extrap = FALSE
+  
   # Disease burden / burden averted dictionary
   metric_dict = c(
     burden  = "Estimated disease-specific burden (GBD 2019)", 
@@ -1085,6 +1103,9 @@ plot_static = function() {
   
   # ---- Plot by disease ----
   
+  # Plot up to this year
+  plot_to = ifelse(plot_extrap, max(o$years), max(o$gbd_estimate_years))
+  
   # Repeat for each metric
   for (metric in o$metrics) {
     
@@ -1093,18 +1114,22 @@ plot_static = function() {
     
     # Summarise results over country and age
     disease_dt = averted_dt %>%
-      lazy_dt() %>%
+      # lazy_dt() %>%
+      filter(year <= plot_to) %>%
       pivot_longer(cols = c(burden, averted), 
                    names_to = "metric") %>%
       # Summarise over countries...
       group_by(disease, year, metric) %>%
       summarise(value = sum(value) / 1e6) %>%
       ungroup() %>%
-      arrange(metric, disease, year) %>%
       # Recode deaths disease/averted...
-      append_d_v_t_name() %>%
+      left_join(y  = table("disease_name"), 
+                by = "disease") %>%
       mutate(metric = recode(metric, !!!metric_dict), 
              metric = factor(metric, metric_dict)) %>%
+      # Tidy up...
+      select(metric, disease = disease_name, year, value) %>%
+      arrange(metric, disease, year) %>%
       as.data.table()
     
     # Plot deaths and deaths averted by disease
@@ -1129,9 +1154,16 @@ plot_static = function() {
         labels = comma,
         expand = expansion(mult = c(0, 0.05)))
     
+    # Set a figure title explaining metric
+    g = g + ggtitle(
+      label = table("metric_dict") %>%
+        filter(metric == !!metric) %>%
+        pull(metric_impact))
+    
     # Prettify theme
     g = g + theme_classic() + 
-      theme(axis.title.x  = element_blank(),
+      theme(plot.title    = element_text(size = 20, hjust = 0.5),
+            axis.title.x  = element_blank(),
             axis.title.y  = element_text(
               size = 20, margin = margin(l = 10, r = 20)),
             axis.text     = element_text(size = 10),
@@ -1173,6 +1205,7 @@ plot_static = function() {
     # Summarise results over country
     vaccine_dt = averted_dt %>%
       lazy_dt() %>%
+      filter(year <= plot_to) %>%
       # Summarise over countries...
       group_by(d_v_a_id, year) %>%
       summarise(averted = sum(impact)) %>%
@@ -2350,8 +2383,12 @@ plot_model_fits = function(metric) {
     mutate(x_max = x_max + o$eval_x_scale / 100) %>%
     as.data.table()
   
+  browser() # Need to load up mean coef datatable here
+  
   # Evaluate selected impact function
-  best_fit = evaluate_impact_function(metric = metric) %>%
+  best_fit = evaluate_impact_function(
+    data = NULL, 
+    coef = NULL) %>%
     format_d_v_a_name()
   
   # Apply max_data so we only plot up to data (or just past)
@@ -2588,15 +2625,9 @@ plot_impact_coverage = function(metric) {
 # ---------------------------------------------------------
 # Main results plot - historical impact over time
 # ---------------------------------------------------------
-plot_historical_impact = function() {
+plot_historical_impact = function(region = NULL) {
   
-  message("  - Plotting historical impact")
-  
-  # Diseases to combine into one colour (set to NULL to turn off)
-  grouping = qc(dip, hepb, je, mena, pcv, rota, rubella, yf) 
-  
-  # Descriptive name for this grouping
-  other = "Other pathogens"
+  # ---- Figure properties ----
   
   # Dictionary for temporal and cumulative subplots
   metrics = qc(deaths, yll, dalys)
@@ -2607,55 +2638,88 @@ plot_historical_impact = function() {
     yll    = list(val = 1e9, str = "billion"), 
     dalys  = list(val = 1e9, str = "billion"))
   
+  # Diseases to combine into one colour (set to NULL to turn off)
+  grouping = qc(dip, hepb, je, mena, pcv, rota, rubella, yf) 
+  
+  # Descriptive name for this grouping
+  other = "Other pathogens"
+  
   # Custom y axes limits for set of metrics
   y_lims = c(200, 11, 11)
   
   # Year range string
   range = paste(range(o$years), collapse = "-")
   
-  # ---- Load results ----
+  # ---- Regional scope ----
   
-  # Initiate results list
-  results_list = list()
-  
-  # Iterate through metrics
-  for (metric in metrics) {
-    
-    # Prepare final results
-    results_list[[metric]] = 
-      read_rds("history", "burden_averted", metric) %>%
-      lazy_dt() %>%
-      # Append full disease names...
-      left_join(y  = table("d_v_a"), 
-                by = "d_v_a_id") %>%
-      left_join(y  = table("disease_name"), 
-                by = "disease") %>%
-      # Combine subset of diseases...
-      mutate(group = ifelse(
-        test = disease %in% grouping, 
-        yes  = other, 
-        no   = disease_name)) %>%
-      # Cumulative results for each disease...
-      group_by(group, year) %>%
-      summarise(impact = sum(impact)) %>%
-      mutate(impact = cumsum(impact)) %>%
-      ungroup() %>%
-      rename(disease = group) %>%
-      # Append metric name...
-      mutate(metric = !!metric) %>%
-      as.data.table()
+  # Regional scope
+  if (!is.null(region)) {
+    scope = table("region_dict") %>%
+      filter(region == !!region) %>%
+      pull(region_name)
   }
   
-  # Squash into single datatable
-  results_dt = rbindlist(results_list) %>%
+  # Global scope
+  if (is.null(region)) {
+    region = all_regions()
+    scope  = NULL
+  }
+  
+  # Display what we're plotting to user
+  msg = "  - Plotting historical impact"
+  message(paste(c(msg, scope), collapse = ": "))
+  
+  # ---- Load results ----
+  
+  # Function to load results for a given metric
+  load_fn = function(metric) {
+    
+    # Load result and append metric ID
+    impact_dt = read_rds("history", "burden_averted", metric) %>%
+      mutate(metric = !!metric)
+    
+    return(impact_dt)
+  }
+  
+  # Load results and apply initial formatting
+  impact_dt = lapply(metrics, load_fn) %>%
+    rbindlist() %>%
+    # Remove 'other' pathogens - these go last...
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    left_join(y  = table("disease_name"), 
+              by = "disease") %>%
+    # Tidy up...
+    select(metric, disease, disease_name, 
+           country, year, impact)
+  
+  # ---- Summarize results ----
+  
+  # Cumulative impact by metric and disease group
+  results_dt = impact_dt %>%
+    # Subset to regional scope
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    filter(region %in% !!region) %>%
+    # Combine subset of diseases...
+    mutate(group = ifelse(
+      test = disease %in% grouping, 
+      yes  = other, 
+      no   = disease_name)) %>%
+    # Cumulative results for each disease...
+    group_by(metric, group, year) %>%
+    summarise(impact = sum(impact)) %>%
+    mutate(impact = cumsum(impact)) %>%
+    ungroup() %>%
+    rename(disease = group) %>%
     # All metrics bounded above by DALYs...
     group_by(disease, year) %>%
     mutate(impact = pmin(
       impact, impact[metric == "dalys"])) %>%
     ungroup() %>%
     as.data.table()
-  
-  # ---- Create descriptive legend ----
+
+  # ---- Disease totals ----
   
   # Format scaling details into joinable datatable
   scale_dt = list2dt(scale) %>%
@@ -2663,7 +2727,6 @@ plot_historical_impact = function() {
   
   # Construct labels: total FVPs over analysis timeframe
   label_dt = results_dt %>%
-    select(disease, metric, impact) %>%
     # Total burden averted over all years...
     group_by(disease, metric) %>%
     summarise(total = max(impact)) %>%
@@ -2690,20 +2753,25 @@ plot_historical_impact = function() {
     select(disease, label) %>%
     as.data.table()
   
-  # ---- Construct plotting datatables ----
+  # ---- Disease colours ----
   
-  # Plotting order of diseases
-  diseases = results_dt %>%
-    filter(metric == "deaths") %>%
-    # Highest to lowest in terms of deaths averted...
-    group_by(disease) %>%
-    slice_max(impact, with_ties = FALSE) %>%
+  # Common plotting order of diseases based on global deaths averted
+  diseases = impact_dt %>%
+    filter(metric == metrics[1], 
+           !disease %in% grouping) %>%
+    # Order by decreasing global impact...
+    group_by(disease_name) %>%
+    summarise(order = sum(impact)) %>%
     ungroup() %>%
-    arrange(-impact) %>%
-    # Place 'other pathogens' at the bottom...
-    pull(disease) %>%
-    setdiff(other) %>%
+    arrange(-order) %>%
+    # Covert to vector
+    pull(disease_name) %>%
     c(other)
+  
+  # Set colours as named vector for consistent colouring
+  colours = colours_who("category", length(diseases))
+  
+  # ---- Construct plotting datatables ----
   
   # Set order and append total labels to plotting data
   plot_dt = results_dt %>%
@@ -2714,7 +2782,7 @@ plot_historical_impact = function() {
     # Full metric description...
     left_join(y  = table("metric_dict"), 
               by = "metric") %>%
-    mutate(metric_id = metric, 
+    mutate(metric_id = factor(metric, metrics), 
            metric = paste0(
              metric_impact, "\n(cumulative ", 
              range, ", in ", str, "s)")) %>%
@@ -2723,7 +2791,7 @@ plot_historical_impact = function() {
               by = "disease") %>%
     # Plotting order...
     mutate(disease = factor(disease, diseases)) %>%
-    arrange(disease) %>%
+    arrange(metric_id, disease) %>%
     mutate(metric = fct_inorder(metric), 
            label  = fct_inorder(label)) %>%
     select(label, metric_id, metric, year, value)
@@ -2752,16 +2820,6 @@ plot_historical_impact = function() {
     mutate(value = 0.95 * value, 
            year  = 0.1 * diff(range(o$years)) + year) %>%
     select(metric, year, value, text)
-  
-  # ---- Colours ----
-  
-  # No grouping - use disease colours
-  if (is.null(grouping))
-    colours = get_palette("disease")
-  
-  # With grouping
-  if (!is.null(grouping))
-    colours = colours_who("category", length(diseases))
   
   # ---- Produce plot ----
   
@@ -2806,12 +2864,20 @@ plot_historical_impact = function() {
     guides(fill = guide_legend(
       byrow = TRUE))
   
+  # Plot region name unless plotting global results
+  if (!is.null(scope))
+    g = g + ggtitle(scope)
+  
   # Prettify theme
   g = g + theme_classic() + 
     theme(axis.title    = element_blank(),
           axis.text     = element_text(size = 9),
           axis.text.x   = element_text(hjust = 1, angle = 50), 
           axis.line     = element_blank(),
+          plot.title    = element_text(
+            margin = margin(t = 10, b = 20), 
+            size   = 18,
+            hjust  = 0.5), 
           strip.text    = element_text(size = 12),
           strip.background = element_blank(), 
           panel.border  = element_rect(
@@ -2827,8 +2893,118 @@ plot_historical_impact = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save these figures to file
-  save_fig(g, "Historical impact", dir = "historical_impact")
+  save_fig(g, "Historical impact", scope, 
+           dir = "historical_impact")
+  
+  # Save global results as main manuscript figure
+  if (is.null(scope))
   save_fig(g, "Figure 1", dir = "manuscript")
+}
+
+# ---------------------------------------------------------
+# Main results plot - historical impact over time
+# ---------------------------------------------------------
+plot_temporal_impact = function(metric) {
+  
+  message("  - Plotting temporal impact: ", metric)
+  
+  # Results by disease and region
+  plot_dt = read_rds("history", "all_samples", metric) %>%
+    # Append full region and disease names...
+    append_region_name() %>%
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    left_join(y  = table("disease_name"), 
+              by = "disease") %>%
+    select(disease = disease_name, region, year, sample, impact) %>%
+    # Results for each disease and each region...
+    group_by(disease, region, year, sample) %>%
+    summarise(impact = sum(impact)) %>%
+    ungroup() %>%
+    # Remove only single data points...
+    add_count(disease, region) %>%
+    mutate(n = n / (o$uncertainty_samples + 1)) %>%
+    filter(n > 1) %>%
+    select(-n) %>%
+    # Summarising uncertainty...
+    summarise_uncertainty(cumulative = FALSE) %>%
+    as.data.table()
+  
+  # Colour scheme
+  colours = colours_who_region() %>%
+    enframe() %>%
+    left_join(y  = table("region_dict"), 
+              by = c("name" = "region")) %>%
+    select(region_name, value) %>%
+    deframe()
+  
+  # Y axis label describing metric
+  axis_label = table("metric_dict") %>%
+    filter(metric == !!metric) %>%
+    pull(metric_impact)
+  
+  # Stacked yearly bar plot
+  g = ggplot(plot_dt) +
+    aes(x = year, 
+        y = impact) + 
+    # Plot uncertainty bands...
+    geom_ribbon(
+      mapping = aes(
+        ymin = lower,
+        ymax = upper,
+        fill = region),
+      colour = NA,
+      alpha  = 0.5) +
+    # Plot best estimate line...
+    geom_line(
+      mapping = aes(colour = region), 
+      linewidth = 1.2) + 
+    # Facet by temporal-cumulative metric...
+    facet_wrap(
+      facets = vars(disease), 
+      scales = "free_y") + 
+    # Set colours...
+    scale_colour_manual(
+      values = colours) + 
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = axis_label,
+      labels = comma, 
+      breaks = pretty_breaks(),
+      expand = expansion(mult = c(0, 0.05))) +
+    # Prettiy x axis...
+    scale_x_continuous(
+      limits = c(min(o$years), 
+                 max(o$years)), 
+      expand = expansion(mult = c(0, 0)), 
+      breaks = seq(
+        from = min(o$years), 
+        to   = max(o$years), 
+        by   = 5))
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title.x  = element_blank(),
+          axis.title.y  = element_text(size = 20),
+          axis.text     = element_text(size = 9),
+          axis.text.x   = element_text(hjust = 1, angle = 50), 
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 12),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(0.5, "lines"),
+          panel.grid.major.y = element_line(linewidth = 0.25),
+          legend.title  = element_blank(),
+          legend.text   = element_text(size = 12),
+          legend.key    = element_blank(),
+          legend.position = "bottom", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
+  
+  # Save these figures to file
+  save_fig(g, "Temporal impact by region", metric, 
+           dir = "historical_impact")
 }
 
 # ---------------------------------------------------------
