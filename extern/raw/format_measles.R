@@ -29,6 +29,28 @@ raw_dt = vaccine_dt %>%
   select(scenario, country, year, metric, value) %>%
   arrange(scenario, country, year, metric) %>%
   as.data.table()
+
+# ---- Summary of uncertainty ----
+
+uncert_dt = vaccine_dt %>%
+  select(iso, year, 
+         x  = mean_deaths, 
+         lb = lb_deaths, 
+         ub = ub_deaths) %>%
+  filter(year > min(year), 
+         x > 0) %>%
+  group_by(year) %>%
+  mutate(w = x / sum(x)) %>%
+  summarise(lower = sum((1 - (x - lb) / x) * w), 
+            upper = sum((1 - (x - ub) / x) * w)) %>%
+  ungroup() %>%
+  complete(year = o$years) %>%
+  fill(lower, upper, .direction = "downup") %>%
+  mutate(model = "measles", 
+         .before = 1) %>%
+  as.data.table()
+
+save_rds(uncert_dt, "extern", "epi50_measles_uncertainty")
   
 # ---- Age structure ----
 
