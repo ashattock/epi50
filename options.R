@@ -39,6 +39,11 @@ set_options = function(do_step = NA) {
   # Annual of 5-year bins for population data
   o$pop_bin = 1  # OPTIONS: 1 or 5
   
+  # Model final year only partially
+  #
+  # NOTE: This represents results up to May 2024
+  o$partial_final_year = 5 / 12
+  
   # ---- Data and coverage settings ----
   
   # Bound coverage values below x%
@@ -63,7 +68,7 @@ set_options = function(do_step = NA) {
   # Directly simulate Dynamice model
   #
   # NOTE: If false, DynaMICE results must be otherwise available to user
-  o$simulate_dynamice = FALSE
+  o$simulate_dynamice = TRUE
   
   # GitHub repo for simulating DynaMICE model for EPI50 analysis
   o$github_dynamice = "ashattock/dynamice"
@@ -103,6 +108,9 @@ set_options = function(do_step = NA) {
   # MCMC run time settings
   o$mcmc_burnin  = 100
   o$mcmc_iter    = 1000
+  
+  # MCMC posterior samples (ensure greater than required uncertainty_samples)
+  o$mcmc_samples = 100
 
   # Defalt x scale for evaluating impact functions
   o$eval_x_scale = 5  # Not a critical value - often overwritten with actual FVPs
@@ -112,23 +120,22 @@ set_options = function(do_step = NA) {
   
   # ---- Uncertainty settings ----
 
-  # Flag for reproducible uncertainty draws (consistent randomly sampled seeds)
-  o$uncertainty_reproducible = TRUE  # TODO: Implement this
-
-  # Number of draws to sample
-  o$n_draws = 200
-
-  # Quantiles for credibility intervals
-  # o$quantiles = c(0.025, 0.975)
+  # Number of posterior samples for generating uncertainty
+  # 
+  # NOTE: Bounded by value of mcmc_samples
+  o$uncertainty_samples = 10
+  
+  # Quantiles for prediction intervals
+  o$quantiles = c(0.025, 0.975)  # Represents 95% bounds
   
   # ---- Parallelisation settings ----
   
   # Use multiple cores to speed up several processes
   o$parallel = list(
-    interp  = FALSE,  # NOTE: Occurs in two places in preparation step
+    interp  = TRUE,  # NOTE: Occurs in two places in preparation step
     impute  = TRUE, 
     impact  = FALSE,  # NOTE: Having issues with shared memory
-    history = FALSE)  # NOTE: Doesn't seem to offer any speed gain
+    history = TRUE)
 
   # Detect number of cores available to this user
   o$n_cores = detectCores()
@@ -157,7 +164,7 @@ set_options = function(do_step = NA) {
   # Image format for saving figure
   #
   # NOTE: Use a character vector to save with multiple formats at once
-  o$figure_format = "png" # Classic options: "png", "pdf", or "svg"
+  o$figure_format = c("png", "svg")  # Lancet requires: "eps" or "svg"
 
   return(o)
 }
