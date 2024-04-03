@@ -17,7 +17,7 @@ source("dependencies.R")
 message("Running EPI50 pipeline")
 
 # Set options (see options.R)
-o = set_options(do_step = 2)
+o = set_options(do_step = 8)
 
 # Step 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
@@ -33,7 +33,7 @@ run_regression("impute", "deaths")  # See regression.R
 run_regression("impute", "dalys")   # See regression.R
 
 # Step 5) Fit and select impact-FVP functions
-run_impact("deaths")  # See impact.R
+run_impact("deaths")  # See impact.R  
 run_impact("dalys")   # See impact.R
 
 # Step 6) Apply impact functions to historical coverage
