@@ -371,16 +371,27 @@ prepare_vaccine_efficacy = function() {
       unname() %>%
       as.list()
     
+    # Convert into datatable
+    pars_dt = optim_pars %>%
+      as_named_dt(letters[seq_along(optim_pars)]) %>%
+      mutate(vaccine = vaccine) %>%
+      pivot_longer(cols = -vaccine, 
+                   names_to = "var") %>%
+      as.data.table()
+    
     # Evaluate function using optimal parameters
     profile = do.call(fn, optim_pars)
     
     # Form profile into a datatable
     profile_dt = data.table(
       vaccine = vaccine,
-      time    = t,
-      profile = profile)
+      var     = t,
+      value   = profile)
     
-    return(profile_dt)
+    # Bind optimal parameters and optimal profile for single output
+    output_dt = rbind(pars_dt, profile_dt)
+    
+    return(output_dt)
   }
   
   # Objective algorithm
@@ -436,12 +447,26 @@ prepare_vaccine_efficacy = function() {
   vaccines = table("d_v_a")[source == "static", vaccine]
   
   # Apply optimisation to determine optimal immunity parameters
-  lapply(vaccines, optimisation_fn) %>%
-    rbindlist() %>%
+  optim_results = vaccines %>%
+    lapply(optimisation_fn) %>%
+    rbindlist()
+  
+  # Extract optimal profiles
+  profile_dt = optim_results %>%
+    filter(grepl("^[0-9]+$", var)) %>%
+    mutate(time = as.integer(var)) %>%
     left_join(y  = table("d_v_a"), 
               by = "vaccine") %>%
-    select(disease, vaccine, time, profile) %>%
-    save_table("vaccine_efficacy_profiles")
+    select(disease, vaccine, time, profile = value)
+  
+  # Extract optimal parameters
+  pars_dt = optim_results %>%
+    filter(grepl("^[a-z]+$", var)) %>%
+    rename(parameter = var)
+  
+  # Save both in tables cache
+  save_table(profile_dt, "vaccine_efficacy_profiles")
+  save_table(pars_dt,    "vaccine_efficacy_parameters")
   
   # Plot these profiles
   plot_vaccine_efficacy()
@@ -598,6 +623,17 @@ all_countries = function(as_dt = FALSE) {
     countries = data.table(country = countries)
   
   return(countries)
+}
+
+# ---------------------------------------------------------
+# Simple wrapper to load all regions
+# ---------------------------------------------------------
+all_regions = function() {
+  
+  # Pull all regions defined in config file
+  regions = table("region_dict")$region
+  
+  return(regions)
 }
 
 # ---------------------------------------------------------
