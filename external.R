@@ -30,6 +30,9 @@ run_external = function() {
   # Extract results from all extern models
   extract_extern_results()
   
+  # Generate samples from extern model results
+  extern_uncertainty()  # See uncertainty.R
+  
   # ---- Data visualisation plots ----
   
   # Plot total number of FVP over time
