@@ -11,8 +11,8 @@
 # ---------------------------------------------------------
 run_external = function() {
   
-  # Only continue if specified by do_step
-  if (!is.element(2, o$do_step)) return()
+  # Only continue if specified by run_module
+  if (!is.element(2, o$run_module)) return()
   
   message("* Preparing external models")
   

@@ -22,23 +22,24 @@ All code required to run the pipeline sits within the main repository directory 
  1. a `/config/` directory containing a series of configuration files written in YAML.
  2. an `/input/` directory containing the input data required to run the pipeline.
  3. an `/extern/` directory containing processed results from the measles and polio models used in this analysis.
+
 A fourth directory, `/output/`, is automatically created when the pipeline is first launched. All final intermediary and final results are stored in this output folder. The figures presented in the peer-reviewed publication are stored within the `/output/figures/` sub-directory. 
 
 ## Running the pipeline
 
-All pipeline modules are launched from `launch.R`. Preferred usage is to 'source' this file (without 'echo' is ideal). When sourced, the current working directory is automatically reset the EPI50 repository. Alternative UNIX command line usage is to `cd` to the EPI50 repository then call `sh launch.sh`.
+All pipeline *modules* are launched from `launch.R`. Preferred usage is to 'source' this file (without 'echo' is ideal). When sourced, the current working directory is automatically reset the EPI50 repository. Alternative UNIX command line usage is to `cd` to the EPI50 repository then call `sh launch.sh`.
 
 The pipeline consists of a series of modules that, in general, should be run consecutively. The module/s to be run can be set in `launch.R` (line 20). There are 8 modules in the entire pipeline, each described below. By default, all 8 modules will be run, and in the process producing all outputs described in the associated manuscript.
 
-### Step 1: Generate a model calibration
-- Set `do_step = 1` in `launch.R` and 'source' to calibrate the model
+### Module 1: Generate a model calibration
+- Set `run_module = 1` in `launch.R` and 'source' to calibrate the model
 - There are three broad options for model calibration available (by setting `calibration_type` in your analysis file):
   1. Calibrate the model to a user-defined effective reproduction number at the start of the simulation period (`calibration_type: "r_user"`, the default)
   2. Calibrate the model to an effective reproduction number that is calculated from setting-specific epidemiological data (`calibration_type: "r_data"`)
   3. Calibrate the model to a set of setting-specific epidemiological metrics (such as confirmed cases, hospitalisations, and deaths) over time (`calibration_type: "epi_data"`)
 
-### Step 2: Run scenarios
-- Set `do_step = 2` in `launch.R` and 'source' to simulate the baseline and any user-defined alternative scenarios detailed in the analysis file
+### Module 2: Run scenarios
+- Set `run_module = 2` in `launch.R` and 'source' to simulate the baseline and any user-defined alternative scenarios detailed in the analysis file
 
 ## Authors
 

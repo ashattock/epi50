@@ -10,7 +10,7 @@
 # ---------------------------------------------------------
 # Set model options and assumptions
 # ---------------------------------------------------------
-set_options = function(do_step = NA) {
+set_options = function(run_module = NA) {
 
   message("* Setting options")
 
@@ -18,7 +18,7 @@ set_options = function(do_step = NA) {
   default_R_options()  # See auxiliary.R
 
   # Initiate options list
-  o = list(do_step = do_step)
+  o = list(run_module = run_module)
 
   # Prepare output directory system
   o = prepare_dirs(o)  # See directories.R

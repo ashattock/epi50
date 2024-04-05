@@ -12,8 +12,8 @@
 # ---------------------------------------------------------
 run_prepare = function() {
   
-  # Only continue if specified by do_step
-  if (!is.element(1, o$do_step)) return()
+  # Only continue if specified by run_module
+  if (!is.element(1, o$run_module)) return()
   
   message("* Preparing input data")
   

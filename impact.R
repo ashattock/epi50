@@ -11,8 +11,8 @@
 # ---------------------------------------------------------
 run_impact = function(metric) {
   
-  # Only continue if specified by do_step
-  if (!is.element(5, o$do_step)) return()
+  # Only continue if specified by run_module
+  if (!is.element(5, o$run_module)) return()
   
   message("* Fitting impact functions: ", metric)
   

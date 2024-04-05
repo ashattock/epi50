@@ -12,8 +12,8 @@
 # ---------------------------------------------------------
 run_results = function() {
   
-  # Only continue if specified by do_step
-  if (!is.element(8, o$do_step)) return()
+  # Only continue if specified by run_module
+  if (!is.element(8, o$run_module)) return()
   
   message("* Producing results")
   
