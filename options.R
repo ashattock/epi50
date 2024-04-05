@@ -126,13 +126,15 @@ set_options = function(do_step = NA) {
   o$uncertainty_samples = 10
   
   # Quantiles for prediction intervals
-  o$quantiles = c(0.025, 0.975)  # Represents 95% bounds
+  o$quantiles = c(0.025, 0.975)  # Represents 95% prediction bounds
   
   # ---- Parallelisation settings ----
   
+  # TODO: Auto turn off parallelisation on Windows...
+  
   # Use multiple cores to speed up several processes
   o$parallel = list(
-    interp  = TRUE,  # NOTE: Occurs in two places in preparation step
+    interp  = TRUE,
     impute  = TRUE, 
     impact  = FALSE,  # NOTE: Having issues with shared memory
     history = TRUE)
@@ -144,6 +146,7 @@ set_options = function(do_step = NA) {
 
   # Turn figures on or off
   o$plot_inputs     = FALSE
+  o$plot_external   = FALSE
   o$plot_static     = FALSE
   o$plot_imputation = FALSE
   o$plot_impact     = FALSE

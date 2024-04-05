@@ -19,9 +19,9 @@ We invite any potential collaborators interested in expanding upon this analysis
 ## Directory structure
 
 All code required to run the pipeline sits within the main repository directory (called `epi50` by default). Initially, three sub-directories can also be found within this main directory: 
-1. a `/config/` directory containing a series of configuration files written in YAML.
-2. an `/input/` directory containing the input data required to run the pipeline.
-3. an `/extern/` directory containing processed results from the measles and polio models used in this analysis.
+ 1. a `/config/` directory containing a series of configuration files written in YAML.
+ 2. an `/input/` directory containing the input data required to run the pipeline.
+ 3. an `/extern/` directory containing processed results from the measles and polio models used in this analysis.
 A fourth directory, `/output/`, is automatically created when the pipeline is first launched. All final intermediary and final results are stored in this output folder. The figures presented in the peer-reviewed publication are stored within the `/output/figures/` sub-directory. 
 
 ## Running the pipeline

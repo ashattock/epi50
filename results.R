@@ -33,11 +33,20 @@ run_results = function() {
 
     # Coverage data density by age
     plot_coverage_age_density()
-
+  }
+  
+  # ---- External model plots ----
+  
+  # Check plotting flag
+  if (o$plot_external) {
+    
+    # Plot outcomes from each external model
+    plot_external_models()
+    
     # Missing coverage data by country
     plot_missing_data()
   }
-
+  
   # ---- Static model plots ----
 
   # Check plotting flag
@@ -116,7 +125,7 @@ run_results = function() {
     # Inital impact ratios used to back project
     for (metric in o$metrics)
       plot_impact_fvps(metric, scope = "initial")
-    
+
     # Main results plot - historical impact over time
     plot_historical_impact()
     
@@ -124,10 +133,14 @@ run_results = function() {
     for (region in all_regions())
       plot_historical_impact(region = region)
     
+    # Equivalent plot for each WB income group
+    for (income in table("income_dict")$income)
+      plot_historical_impact(income = income)
+    
     # Non-cumulative, pathogen specific results
     for (metric in o$metrics)
       plot_temporal_impact(metric)
-    
+
     # Infant mortality rates over time with and without vaccination
     plot_infant_mortality()
 

@@ -26,9 +26,6 @@ prepare_dirs = function(o) {
   pth$input  = file.path(pth$code, "input")
   pth$config = file.path(pth$code, "config")
   
-  # Path to log files
-  pth$log = file.path(pth$code, "log")
-  
   # Paths to VIMC and Gapminder inputs
   pth$vimc      = file.path(pth$input, "vimc")
   pth$gapminder = file.path(pth$input, "gapminder")

@@ -587,6 +587,126 @@ plot_coverage_age_density = function() {
   save_fig(g, "Coverage density by age", dir = "data_visualisation")
 }
 
+# **** External models ****
+
+# ---------------------------------------------------------
+# Plot outcomes from each external model
+# ---------------------------------------------------------
+plot_external_models = function() {
+
+  extern_deaths_dt = table("extern_all_models") %>%
+    format_d_v_a_name()
+  
+  # ---- By scenario ----
+  
+  scenario_dt = extern_deaths_dt %>%
+    group_by(d_v_a_name, model, scenario, year) %>%
+    summarise(deaths = sum(deaths)) %>%
+    ungroup() %>%
+    group_by(d_v_a_name, model, scenario) %>%
+    mutate(cum_deaths = cumsum(deaths)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  g1 = ggplot(scenario_dt) +
+    aes(x = year, 
+        y = deaths, 
+        colour   = model, 
+        linetype = scenario) +
+    geom_line() +
+    facet_wrap(
+      facets = vars(d_v_a_name), 
+      scales = "free_y") +
+    scale_y_continuous(
+      labels = comma)
+  
+  g2 = ggplot(scenario_dt) +
+    aes(x = year, 
+        y = cum_deaths, 
+        colour   = model, 
+        linetype = scenario) +
+    geom_line() +
+    facet_wrap(
+      facets = vars(d_v_a_name), 
+      scales = "free_y") +
+    scale_y_continuous(
+      labels = comma)
+  
+  # ---- By impact ----
+  
+  impact_dt = scenario_dt %>%
+    group_by(d_v_a_name, model, year) %>%
+    mutate(averted = deaths[scenario == "no_vaccine"] - deaths) %>%
+    ungroup() %>%
+    filter(scenario == "vaccine") %>%
+    select(d_v_a_name, model, year, averted) %>%
+    group_by(d_v_a_name, model) %>%
+    mutate(cum_averted = cumsum(averted)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  g3 = ggplot(impact_dt) +
+    aes(x = year, 
+        y = averted, 
+        colour = model) +
+    geom_line() +
+    facet_wrap(
+      facets = vars(d_v_a_name), 
+      scales = "free_y") +
+    scale_y_continuous(
+      labels = comma)
+  
+  g4 = ggplot(impact_dt) +
+    aes(x = year, 
+        y = cum_averted, 
+        colour = model) +
+    geom_line() +
+    facet_wrap(
+      facets = vars(d_v_a_name), 
+      scales = "free_y") +
+    scale_y_continuous(
+      labels = comma)
+  
+  # ---- By region ----
+  
+  region_dt = extern_deaths_dt %>%
+    group_by(d_v_a_name, model, region, year) %>%
+    mutate(averted = deaths[scenario == "no_vaccine"] - deaths) %>%
+    ungroup() %>%
+    filter(scenario == "vaccine") %>%
+    select(d_v_a_name, model, region, year, averted) %>%
+    group_by(d_v_a_name, model, region) %>%
+    mutate(cum_averted = cumsum(averted)) %>%
+    ungroup() %>%
+    as.data.table()
+  
+  g5 = ggplot(region_dt) +
+    aes(x = year, 
+        y = averted, 
+        colour   = region, 
+        linetype = model) +
+    geom_line() +
+    facet_grid(
+      rows   = vars(d_v_a_name), 
+      cols   = vars(region),
+      scales = "free_y") +
+    scale_y_continuous(
+      labels = comma)
+  
+  g6 = ggplot(region_dt) +
+    aes(x = year, 
+        y = cum_averted, 
+        colour   = region, 
+        linetype = model) +
+    geom_line() +
+    facet_grid(
+      rows   = vars(d_v_a_name), 
+      cols   = vars(region),
+      scales = "free_y") +
+    scale_y_continuous(
+      labels = comma)
+}
+
 # ---------------------------------------------------------
 # Plot countries with missing coverage data
 # ---------------------------------------------------------
@@ -2625,7 +2745,15 @@ plot_impact_coverage = function(metric) {
 # ---------------------------------------------------------
 # Main results plot - historical impact over time
 # ---------------------------------------------------------
-plot_historical_impact = function(region = NULL) {
+plot_historical_impact = function(region = NULL, income = NULL) {
+  
+  # Flags for disaggregation
+  by_region = !is.null(region)
+  by_income = !is.null(income)
+  
+  # Sanity check that we only have one disaggregation
+  if (by_region && by_income)
+    stop("Disaggregation only possible for region or income, not both")
   
   # ---- Figure properties ----
   
@@ -2650,20 +2778,31 @@ plot_historical_impact = function(region = NULL) {
   # Year range string
   range = paste(range(o$years), collapse = "-")
   
-  # ---- Regional scope ----
+  # ---- Regional or income scope ----
   
   # Regional scope
-  if (!is.null(region)) {
+  if (by_region) {
     scope = table("region_dict") %>%
       filter(region == !!region) %>%
       pull(region_name)
+    
+  } else {  # Otherwise all regions
+    region = all_regions()
   }
   
-  # Global scope
-  if (is.null(region)) {
-    region = all_regions()
-    scope  = NULL
+  # Income group scope
+  if (by_income) {
+    scope = table("income_dict") %>%
+      filter(income == !!income) %>%
+      pull(income_name)
+    
+  } else {  # Otherwise all income groups
+    income = table("income_dict")$income
   }
+  
+  # Global scope: trivialise scope
+  if (!by_region && !by_income)
+    scope = NULL
   
   # Display what we're plotting to user
   msg = "  - Plotting historical impact"
@@ -2697,10 +2836,14 @@ plot_historical_impact = function(region = NULL) {
   
   # Cumulative impact by metric and disease group
   results_dt = impact_dt %>%
-    # Subset to regional scope
+    # Subset regional scope...
     left_join(y  = table("country"), 
               by = "country") %>%
     filter(region %in% !!region) %>%
+    # Subset income group scope....
+    left_join(y  = table("income_status"), 
+              by = c("country", "year")) %>%
+    filter(income %in% !!income) %>%
     # Combine subset of diseases...
     mutate(group = ifelse(
       test = disease %in% grouping, 
