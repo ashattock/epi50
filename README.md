@@ -38,27 +38,43 @@ As standard, the configuration files in this repository will fully reproduce the
 
 ## Running the pipeline
 
-The analysis pipeline consists of eight *modules*, indentified by numbers 1 to 8, each described below. In general, these modules should be run consecutively from 1 to 8. All modules are launched from `launch.R`; the module/s to be run can be set in line 20. Use a single value to run/re-run a specific module, or use a vector to run/re-run a subset of modules or all modules. 
+The analysis pipeline consists of eight *modules*, indentified by numbers 1 to 8, each described below. In general, these modules should be run consecutively from 1 to 8. The module/s to be run are defined by the `run_module` variable in line 20 of `launch.R`. Use a single value to run/re-run a specific module, or use a vector to run/re-run a subset of modules or all modules. 
 
 ```{r}
 # All of the following are are valid syntax for defining modules to be run (line 20, launch.R)
-o = set_options(run_module = 1)
-o = set_options(run_module = c(1, 2, 4))
-o = set_options(run_module = 2 : 5)
-o = set_options(run_module = 1 : 8)
+run_modules = 1
+run_modules = c(1, 2, 4)
+run_modules = 2 : 5
+run_modules = 1 : 8
 ```
 
-By default all 8 modules will be run, in the process producing all outputs presented in the corresponding publication.
+Modules are launched by running `launch.R`. Preferred usage is to 'source' this file (without 'echo' is ideal). When sourced, the current working directory is automatically reset the EPI50 repository. Alternative UNIX command line usage is to `cd` to the EPI50 repository then call `sh launch.sh`. By default all 8 modules will be run, in the process producing all outputs presented in the corresponding publication.
 
- Preferred usage is to 'source' this file (without 'echo' is ideal). When sourced, the current working directory is automatically reset the EPI50 repository. Alternative UNIX command line usage is to `cd` to the EPI50 repository then call `sh launch.sh`.
-
-
-
-#### Module 1: Prepare
+#### Module 1: Prepare inputs
 The `run_prepare` module loads and formats modelling estimates from VIMC and GBD, vaccine coverage data from WHO (WIISE and SIA databases), demography data from WPP, and pubic health covariate data from GapMinder. Further, this module interprets all configuration files, using data dictionaries to convert variables to EPI50 naming conventions where appropriate.
 
-#### Module 2: Run scenarios
-- Set `run_module = 2` in `launch.R` and 'source' to simulate the baseline and any user-defined alternative scenarios detailed in the analysis file
+#### Module 2: External models
+The `run_external` module loads and formats outcomes from transmission models simulated outside of VIMC scope. Both measles and polio are considered 'externally modelled' for the purpose of this analysis. Only minor formatting jobs are applied to externally modelled diseases, as this analysis attempts to use the outcomes in their purest form.
+
+Note that it is possible to simulate the [DynaMICE measles model](https://pubmed.ncbi.nlm.nih.gov/37474227/) directly from within this module. However this requires the user to clone another [github repository](https://github.com/ashattock/dynamice) and also have access to a computing cluster that uses the SLURM queueing system. 
+
+#### Module 3: Static models
+The `run_static` module produces vaccine impact estimates for diseases outside of VIMC scope and which haven't been 'externally modelled'. In this analysis, static modelling is used for diphtheria, tetanus, pertussis, and tuberculosis. Broadly, vaccine impact is calculated using a combination of GBD burden estimates, vaccine efficacy profiles, and vaccine coverage. A full description of the static modelling approach used in this analysis is provided in the Supplementary Material of the publication. 
+
+#### Module 4: Regression (geographical-imputation)
+The `run_regression("impute")` module uses time-series regression models to produce vaccine impact estimates for countries outside of VIMC scope, for diseases within VIMC scope. A series of models that vary in terms of predictor covariates are evaluated for each vaccine in each country, with the most parsimonious model selected. For countries without impact estimates, such estimates are imputed using the most commonly selected model in each WHO region.
+
+#### Module 5: Impact functions (temporal-extrapolation)
+The `run_impact` module seeks to determine the relationship between vaccine coverage and vaccine impact for each vaccine in each country. This is acheived by fitting four pre-defined statistical functions (straight line, exponential growth, logarithmic growth, sigmoidal growth) in cumulative space, and selecting the most parsimonious function.
+
+#### Module 6: Historical evaluation
+The `run_history` module compiles the final vaccine impact results by evaluating impact functions for each vaccine in each country using all coverage values. Temporal extrapolation takes effect at this stage, where vaccine coverage values that do not have corresponding impact estimates are evaluated.
+
+#### Module 7: Regression (impact inference)
+The `run_regression("infer")` module reapplies the regression models used for geographical imputation, but for all vaccines (including statically modelled and externally modelled diseases). The purpose of this additional regression step is to infer the predictors of vaccine impact for all diseases. Note that outcomes from this module were not presented in the final publication.
+
+#### Module 8: Produce results
+The `run_results` module produces all result and diagnostic figures presented in the publication.
 
 ## Authors
 
@@ -67,5 +83,5 @@ The `run_prepare` module loads and formats modelling estimates from VIMC and GBD
 
 #### Contributors:
 * Helen C. Johnson
-* So Yoon Sim
 * Austin Carter
+* So Yoon Sim
