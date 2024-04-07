@@ -86,7 +86,7 @@ run_impact = function(metric) {
   plot_model_selection(metric)
 
   # Plot impact function evaluation
-  plot_model_fits(metric)
+  # plot_model_fits(metric)
   
   # Plot impact vs coverage by vaccine, income, and decade
   # plot_impact_coverage(metric)

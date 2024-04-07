@@ -10,7 +10,7 @@ table:
   gbd_name: "Tetanus"
   
 - disease: per
-  gbd_name: "Whooping cough"
+  gbd_name: "Pertussis" # GBD19 uses "Whooping cough"
   
 - disease: tb
   gbd_name: "Tuberculosis"

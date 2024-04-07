@@ -16,8 +16,11 @@ source("dependencies.R")
 
 message("Running EPI50 pipeline")
 
-# Set options (see options.R)
-o = set_options(run_module = 1 : 8)
+# Define modules to be run
+run_modules = 1 : 8
+
+# Set global options (see options.R)
+o = set_options(run_module = run_modules)
 
 # Module 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
