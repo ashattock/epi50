@@ -96,7 +96,6 @@ table:
 - country: BHS
   country_code: 44
   country_name: "Bahamas"
-  gbd_alt_name: "The Bahamas"
   region: AMR
   
 - country: BIH
@@ -117,7 +116,6 @@ table:
 - country: BOL
   country_code: 68
   country_name: "Bolivia (Plurinational State of)"
-  gbd_alt_name: "Bolivia"
   region: AMR
   
 - country: BRA
@@ -133,7 +131,6 @@ table:
 - country: BRN
   country_code: 96
   country_name: "Brunei Darussalam"
-  gbd_alt_name: "Brunei"
   region: WPR
   
 - country: BTN
@@ -184,13 +181,11 @@ table:
 - country: COD
   country_code: 180
   country_name: "Democratic Republic of the Congo"
-  gbd_alt_name: "DR Congo"
   region: AFR
   
 - country: COG
   country_code: 178
   country_name: "Congo"
-  gbd_alt_name: "Congo (Brazzaville)"
   region: AFR
   
 - country: COK
@@ -211,7 +206,6 @@ table:
 - country: CPV
   country_code: 132
   country_name: "Cabo Verde"
-  gbd_alt_name: "Cape Verde"
   region: AFR
   
 - country: CRI
@@ -232,7 +226,6 @@ table:
 - country: CZE
   country_code: 203
   country_name: "Czechia"
-  gbd_alt_name: "Czech Republic"
   region: EUR
   
 - country: DEU
@@ -313,7 +306,6 @@ table:
 - country: FSM
   country_code: 583
   country_name: "Micronesia (Federated States of)"
-  gbd_alt_name: "Federated States of Micronesia"
   region: WPR
   
 - country: GAB
@@ -324,7 +316,6 @@ table:
 - country: GBR
   country_code: 826
   country_name: "United Kingdom"
-  gbd_alt_name: "UK"
   region: EUR
   
 - country: GEO
@@ -345,7 +336,6 @@ table:
 - country: GMB
   country_code: 270
   country_name: "Gambia"
-  gbd_alt_name: "The Gambia"
   region: AFR
   
 - country: GNB
@@ -416,7 +406,6 @@ table:
 - country: IRN
   country_code: 364
   country_name: "Iran (Islamic Republic of)"
-  gbd_alt_name: "Iran"
   region: EMR
   
 - country: IRQ
@@ -487,7 +476,6 @@ table:
 - country: KOR
   country_code: 410
   country_name: "Republic of Korea"
-  gbd_alt_name: "South Korea"
   region: WPR
   
 - country: KWT
@@ -498,7 +486,6 @@ table:
 - country: LAO
   country_code: 418
   country_name: "Lao People's Democratic Republic"
-  gbd_alt_name: "Laos"
   region: WPR
   
 - country: LBN
@@ -559,7 +546,6 @@ table:
 - country: MDA
   country_code: 498
   country_name: "Republic of Moldova"
-  gbd_alt_name: "Moldova"
   region: EUR
   
 - country: MDG
@@ -730,7 +716,6 @@ table:
 - country: PRK
   country_code: 408
   country_name: "Democratic People's Republic of Korea"
-  gbd_alt_name: "North Korea"
   region: SEAR
   
 - country: PRT
@@ -756,7 +741,6 @@ table:
 - country: RUS
   country_code: 643
   country_name: "Russian Federation"
-  gbd_alt_name: "Russia"
   region: EUR
   
 - country: RWA
@@ -822,7 +806,6 @@ table:
 - country: STP
   country_code: 678
   country_name: "Sao Tome and Principe"
-  gbd_alt_name: "São Tomé and PrÍncipe"
   region: AFR
   
 - country: SUR
@@ -848,7 +831,6 @@ table:
 - country: SWZ
   country_code: 748
   country_name: "Eswatini"
-  gbd_alt_name: "eSwatini"
   region: AFR
   
 - country: SYC
@@ -859,7 +841,6 @@ table:
 - country: SYR
   country_code: 760
   country_name: "Syrian Arab Republic"
-  gbd_alt_name: "Syria"
   region: EMR
   
 - country: TCD
@@ -920,7 +901,6 @@ table:
 - country: TZA
   country_code: 834
   country_name: "United Republic of Tanzania"
-  gbd_alt_name: "Tanzania"
   region: AFR
   
 - country: UGA
@@ -941,7 +921,6 @@ table:
 - country: USA
   country_code: 840
   country_name: "United States of America"
-  gbd_alt_name: "USA"
   region: AMR
   
 - country: UZB
@@ -957,13 +936,11 @@ table:
 - country: VEN
   country_code: 862
   country_name: "Venezuela (Bolivarian Republic of)"
-  gbd_alt_name: "Venezuela"
   region: AMR
   
 - country: VNM
   country_code: 704
   country_name: "Viet Nam"
-  gbd_alt_name: "Vietnam"
   region: WPR
   
 - country: VUT
