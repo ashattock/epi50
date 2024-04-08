@@ -50,10 +50,9 @@ packages = c(
   "gsubfn",         # Output multiple variables from functions
   "magrittr",       # Additional pipe operators, such as %<>%
   "wrapr",          # Convenience functions (eg qc)
-  "matrixStats",    # Matrix row and column operations
   "stats",          # Statistical calculations and random number generation
   "stats4",         # MLE algorithm
-  "MCMCpack",       # MCMC functionality
+  "matrixStats",    # Matrix row and column operations
   "fpp3",           # Time series forecasting
   "tsibble",        # Time series data format
   "imputeTS",       # Linear interpolation in dplyr pipes
@@ -66,18 +65,20 @@ packages = c(
   "parallel",       # Local parallelisation
   "lubridate",      # Data formatting functionality
   "naniar",         # Data formatting functionality
-  "progress",       # Pretty progress bar
   "GGally",         # Plotting correlation
   "ggpubr",         # Plotting functionality
   "ggnewscale",     # Plotting functionality
-  "ggtext",         # Plotting functionality
   "ggh4x",          # Plotting functionality
-  "patchwork",      # Plotting functionality
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
+  "ggridges",         # Plotting functionality
   "dotwhisker",     # Plotting functionality
+  "patchwork",     # Plotting functionality
   "pals",           # Colour palettes
   "colorspace",     # Colour palettes
+  "progress",       # Progress bar
+  "ggtext",
+  "MCMCpack",
   "svglite")        # Figure saving
 
 # List of all packages only available from github
@@ -118,9 +119,6 @@ count   = dplyr::count
 predict = stats::predict
 
 # ---- Clean up ----
-
-# Close any open connections
-closeAllConnections()
 
 # Tidy up console after package loading
 if (interactive()) clf()  # Close figures
