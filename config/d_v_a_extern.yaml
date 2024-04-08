@@ -11,7 +11,7 @@ table:
 - d_v_a_id: 102
   disease: measles
   vaccine: mcv2
-  activity: routine
+  activity: routin
   
 - d_v_a_id: 103
   disease: measles
@@ -27,3 +27,4 @@ table:
   disease: polio
   vaccine: opv
   activity: all
+  

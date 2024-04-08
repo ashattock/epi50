@@ -148,7 +148,7 @@ set_options = function(run_module = NA) {
   # ---- Plotting flags ----
 
   # Turn figures on or off
-  o$plot_inputs     = FALSE
+  o$plot_inputs     = TRUE
   o$plot_external   = FALSE
   o$plot_static     = FALSE
   o$plot_imputation = FALSE

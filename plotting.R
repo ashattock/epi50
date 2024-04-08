@@ -249,21 +249,8 @@ plot_total_fvps = function() {
   # Flag for whether to plot FVPs cumulatively over time
   cumulative = TRUE
   
-  # Number of FVPs by source of data
-  source_dt = table("coverage_source") %>%
-    # Summarise over countries and age...
-    group_by(d_v_a_id, source, year) %>%
-    summarise(fvps = sum(fvps) / 1e9) %>%
-    ungroup() %>%
-    # Cumulative FVPs...
-    group_by(d_v_a_id, source) %>%
-    mutate(fvps_cum = cumsum(fvps)) %>%
-    ungroup() %>%
-    # Tidy up...
-    format_d_v_a_name() %>%
-    filter(!is.na(d_v_a_name)) %>%
-    arrange(d_v_a_name, source, year) %>%
-    as.data.table()
+  # String to define total FVPs
+  total = "All source total"
   
   # Total FVPs (sum of all sources)
   #
@@ -278,35 +265,111 @@ plot_total_fvps = function() {
     group_by(d_v_a_id) %>%
     mutate(fvps_cum = cumsum(fvps)) %>%
     ungroup() %>%
+    # Append d-v-a details...
+    left_join(y  = table("d_v_a"), 
+              by = "d_v_a_id") %>%
+    mutate(type = total) %>%
     # Tidy up...
-    format_d_v_a_name() %>%
-    arrange(d_v_a_id, year) %>%
+    select(d_v_a_name, disease, type, 
+           year, fvps, fvps_cum) %>%
     as.data.table()
+  
+  # Polio is a special case
+  polio_dt = total_dt %>%
+    filter(disease == "polio") %>%
+    mutate(source = "POLIS") %>%
+    select(d_v_a_name, source, year, fvps, fvps_cum)
+  
+  # Map external model vaccines to d-v-a ID
+  extern_map = table("d_v_a_extern") %>%
+    filter(disease != "polio") %>%
+    select(disease, id = d_v_a_id) %>%
+    left_join(y  = table("d_v_a"), 
+              by = "disease") %>%
+    select(disease, id, d_v_a_id)
+    
+  # Number of FVPs by source of data
+  source_dt = table("coverage_source") %>%
+    mutate(source = toupper(source)) %>%
+    # Map external vaccines to d-v-a ID...
+    rename(id = d_v_a_id) %>%
+    left_join(y  = extern_map, 
+              by = "id") %>%
+    mutate(d_v_a_id = ifelse(
+      test = is.na(d_v_a_id), 
+      yes  = id, 
+      no   = d_v_a_id)) %>%
+    filter(d_v_a_id %in% table("d_v_a")$d_v_a_id) %>%
+    # Summarise over countries and age...
+    group_by(d_v_a_id, source, year) %>%
+    summarise(fvps = sum(fvps) / 1e9) %>%
+    ungroup() %>%
+    # Cumulative FVPs...
+    group_by(d_v_a_id, source) %>%
+    mutate(fvps_cum = cumsum(fvps)) %>%
+    ungroup() %>%
+    # Append polio...
+    format_d_v_a_name() %>%
+    select(all_names(polio_dt)) %>%
+    rbind(polio_dt) %>%
+    as.data.table()
+  
+  # All sources being plotted
+  sources = unique(source_dt$source)
+  
+  # Concatenate into plotting datatable
+  plot_dt = total_dt %>%
+    select(-disease) %>%
+    bind_rows(source_dt) %>%
+    replace_na(list(
+      source = "NA", 
+      type   = "NA")) %>%
+    mutate(source = factor(source, c(sources, "NA")), 
+           type   = factor(type,   c(total,   "NA")))
   
   # Metric to use for y axis
   y = ifelse(cumulative, "fvps_cum", "fvps")
   
+  # Colours: named vector
+  colours = colour_scheme(
+    map = "brewer::set1", 
+    n   = length(sources)) %>%
+    c("black") %>%
+    setNames(c(sources, "NA"))
+  
+  # Line types: named vector
+  types = c("dashed", "solid") %>%
+    setNames(c(total, "NA"))
+  
   # Plot FVPs over time for each d_v_a
-  g = ggplot(source_dt) + 
-    aes(x = year, y = !!sym(y)) + 
+  g = ggplot(plot_dt) + 
+    aes(x = year, 
+        y = !!sym(y), 
+        colour   = source, 
+        linetype = type) + 
     geom_line(
-      mapping   = aes(colour = source), 
-      linewidth = 1.5) + 
-    geom_line(
-      data      = total_dt, 
-      linetype  = "dashed",
-      colour    = "black", 
       linewidth = 1.5) + 
     # Facet with strip text wrapping...
     facet_wrap(
       facets   = vars(d_v_a_name), 
       labeller = label_wrap_gen(width = 24), 
       scales   = "free_y") + 
+    # Set colour scheme...
+    scale_color_manual(
+      breaks = sources,
+      values = colours) +
+    # Set line types...
+    scale_linetype_manual(
+      breaks = total,
+      values = types) +
     # Prettify x axis...
     scale_x_continuous(
-      limits = c(min(o$years), max(o$years)), 
+      limits = range(o$years), 
       expand = expansion(mult = c(0, 0)), 
-      breaks = seq(min(o$years), max(o$years), by = 10)) +  
+      breaks = seq(
+        from = min(o$years), 
+        to   = max(o$years), 
+        by   = 10)) +  
     # Prettify y axis...
     scale_y_continuous(
       name   = "Total receiving full schedule (in billions)", 
@@ -330,9 +393,9 @@ plot_total_fvps = function() {
           legend.title  = element_blank(),
           legend.text   = element_text(size = 14),
           legend.key    = element_blank(),
-          legend.position = "right", 
+          legend.position = "bottom", 
           legend.key.height = unit(2, "lines"),
-          legend.key.width  = unit(2, "lines"))
+          legend.key.width  = unit(3, "lines"))
   
   # Save to file
   save_dir = "data_visualisation"
@@ -1173,7 +1236,7 @@ plot_effective_coverage = function() {
           by   = 5)) +
       # Prettify y axis...
       scale_y_continuous(
-        name   = "Vaccine efficacy (death reduction)", 
+        name   = "Age (in years)", 
         expand = c(0, 0), 
         breaks = pretty_breaks())
     

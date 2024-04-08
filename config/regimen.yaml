@@ -16,7 +16,7 @@ table:
   schedule: 2
   
 - vaccine: mena
-  schedule: 2
+  schedule: 1
   
 - vaccine: pcv
   schedule: 3
