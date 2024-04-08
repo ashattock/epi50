@@ -17,22 +17,22 @@ run_impact = function(metric) {
   message("* Fitting impact functions: ", metric)
   
   # ---- FVPs and impact estimates ----
-
+  
   message(" > Preparing FVP-impact data")
-
+  
   # Prepare impact-FVP data to fit to
   data_dt = get_impact_data(metric)
-
+  
   # Exploratory plots of data used to fit impact functions
- # plot_impact_data(metric)
-
+  plot_impact_data(metric)
+  
   # Plot all-time impact per FVPs
-  # plot_impact_fvps(metric, scope = "all_time")
-
+  plot_impact_fvps(metric, scope = "all_time")
+  
   # ---- Model fitting ----
-
+  
   message(" > Evaluating impact functions")
-
+  
   # Country-disease-vaccine-activity combinations
   run_dt = data_dt %>%
     select(d_v_a_id, country) %>%
@@ -53,10 +53,10 @@ run_impact = function(metric) {
     # Subset what to run, and data to use
     run  = run_dt[d_v_a_id == id]
     data = data_dt[d_v_a_id == id]
-
+    
     # Initiate progress bar
     pb = start_progress_bar(nrow(run))
-
+    
     # Run get_best_model
     results_list = lapply(
       X    = run$run_id,
@@ -64,32 +64,32 @@ run_impact = function(metric) {
       run  = run,
       data = data,
       pb   = pb)
-
+    
     # Squash results into single datatable
     results_dt = rbindlist(results_list)
-
+    
     # Save to file
     save_rds(results_dt, "impact", "impact", metric, id)
-
+    
     # Close connections opened by sink
     closeAllConnections()
   }
   
   # ---- Model selection ----
-
+  
   # Select best function for each country-d_v_a combination
   model_selection(run_dt, metric)
-
+  
   # ---- Plot results ----
-
+  
   # Plot function selection statistics
-  # plot_model_selection(metric)
-
+  plot_model_selection(metric)
+  
   # Plot impact function evaluation
-  # plot_model_fits(metric)
+  plot_model_fits(metric)
   
   # Plot impact vs coverage by vaccine, income, and decade
-  # plot_impact_coverage(metric)
+  plot_impact_coverage(metric)
 }
 
 # ---------------------------------------------------------
@@ -167,13 +167,13 @@ fn_set = function(params = FALSE, dict = FALSE) {
 # Parent function to determine best fitting function
 # ---------------------------------------------------------
 get_best_model = function(id, run, data, pb) {
- 
+  
   # Initiate trivial output
   result = NULL
   
   # Details of this run
   this_run = run[run_id == id]
-
+  
   # Reduce data down to what we're interested in
   fit_data_dt = data %>%
     lazy_dt() %>%
@@ -184,7 +184,7 @@ get_best_model = function(id, run, data, pb) {
     # Multiply impact for more consistent x-y scales...
     mutate(y = y * o$impact_scaler) %>%
     as.data.table()
-
+  
   # Append the origin (zero vaccine, zero impact)
   fit_data_dt = data.table(x = 1e-12, y = 0) %>%
     rbind(fit_data_dt)
@@ -194,14 +194,14 @@ get_best_model = function(id, run, data, pb) {
   
   # Do not fit if insufficient data
   if (n_data >= 1) {
-
+    
     # Declare x and y values for which we want to determine a relationship
     x = fit_data_dt$x
     y = fit_data_dt$y
-
+    
     # Functions we'll attempt to fit with
     fns = fn_set()[fn_set(params = TRUE) <= n_data]
-
+    
     # Attempt to determine global minimum for each function
     optim = run_optim(fns, x, y)
     
@@ -288,7 +288,7 @@ run_optim = function(fns, x, y) {
       
       # Different starting point each time
       x0 = pmax(runif(n_pars), lb)
-
+      
       # Run ASD optimisation algorithm
       asd_result = asd(
         fn   = obj_fn,
@@ -515,7 +515,7 @@ model_selection = function(run_dt, metric) {
   message(" > Selecting best functions")
   
   # ---- Extract results ----
- 
+  
   # All d-v-a combinations considered
   d_v_a = unique(run_dt$d_v_a_id)
   

@@ -99,6 +99,8 @@ covariates_gapminder = function() {
   # All previously downloaded gapminder files
   files = paste0(o$pth$gapminder, vars, ".rds")
   
+  browser()
+  
   # Load and format gapminder data
   covariates = lapply(files, readRDS) %>%
     rbindlist() %>%
@@ -111,10 +113,10 @@ covariates_gapminder = function() {
     mutate(year = as.integer(time)) %>%
     filter(year >= min(o$years) - 10, 
            year <= max(o$years)) %>%
-    # Normalise
+    # Normalise...
     group_by(metric) %>%
     mutate(value = value / max(value)) %>%
-    ungroup(metric) %>%
+    ungroup() %>%
     # Tidy up...
     select(country, year, value, metric) %>%
     split(f = .$metric)
@@ -131,6 +133,8 @@ covariates_unicef = function() {
   covariates = list()
   
   # ---- Stunting ----
+  
+  browser()
   
   # Read in UNICEF stunting data
   covariates$stunting = 
@@ -151,7 +155,7 @@ covariates_unicef = function() {
     filter(!is.na(value)) %>% 
     # Format values...
     mutate(value  = as.numeric(value), 
-           value = value / max(value),
+           value  = value / max(value),
            year   = as.integer(year), 
            metric = "stunting") %>%
     as.data.table()

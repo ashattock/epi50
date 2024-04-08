@@ -18,19 +18,19 @@ run_results = function() {
   message("* Producing results")
   
   # ---- Input data plots ----
-
+  
   # Check plotting flag
   if (o$plot_inputs) {
     
     # Methodology pathogen-country-scope figure
     plot_scope()
-
+    
     # Total number of FVP over time by source
     plot_total_fvps()
-
+    
     # Plot coverage density by disease
     plot_coverage()
-
+    
     # Coverage data density by age
     plot_coverage_age_density()
   }
@@ -48,22 +48,22 @@ run_results = function() {
   }
   
   # ---- Static model plots ----
-
+  
   # Check plotting flag
   if (o$plot_static) {
     
     # Global Burden of Disease death estimates by age
     plot_gbd_estimates()
-
+    
     # Proportion of GBD burden we have coverage data for
     plot_gbd_missing()
-
+    
     # Plot vaccine efficacy profiles for static model pathogens
     plot_vaccine_efficacy()
-
+    
     # Effective coverage with waning immunity for static model pathogens
     plot_effective_coverage()
-
+    
     # Deaths and DALYs averted for static model pathogens
     plot_static()
   }
@@ -75,22 +75,21 @@ run_results = function() {
     
     # Repeat for deaths and DALYs
     for (metric in o$metrics) {
-     
+      
       # Plot model choice by region
       plot_model_choice(metric)
-     
+      
       # Plot predicted vs. observed for all countries
       plot_impute_quality(metric)
       
-      # Plot predicted vs. observed for each country
+      # Plot predicted vs observed for each country
       plot_impute_perform(metric)
       
       # Plot fit to data in train-predict countries
       plot_impute_fit(metric)
       
       # Plot validation
-      #plot_validation(metric)
-      
+      plot_validation(metric)
     }
   }
   
@@ -103,19 +102,19 @@ run_results = function() {
     for (metric in o$metrics) {
       
       # Exploratory plots of data used to fit impact functions
-    #  plot_impact_data(metric)
-
+      plot_impact_data(metric)
+      
       # Plot all-time impact per FVPs
-     # plot_impact_fvps(metric, scope = "all_time")
-
+      plot_impact_fvps(metric, scope = "all_time")
+      
       # Plot function selection statistics
-    #  plot_model_selection(metric)
+      plot_model_selection(metric)
       
       # Plot impact function evaluation
-    #  plot_model_fits(metric)
+      plot_model_fits(metric)
       
       # Plot impact vs coverage by vaccine, income, and decade 
-      # plot_impact_coverage(metric)
+      plot_impact_coverage(metric)
     }
   }
   
@@ -127,13 +126,13 @@ run_results = function() {
     # Inital impact ratios used to back project
     for (metric in o$metrics)
       plot_impact_fvps(metric, scope = "initial")
-
+    
     # Main results plot - historical impact over time
-   # plot_historical_impact()
+    plot_historical_impact()
     
     # Equivalent plot for each region
-   # for (region in all_regions())
-  #    plot_historical_impact(region = region)
+    for (region in all_regions())
+      plot_historical_impact(region = region)
     
     # Equivalent plot for each WB income group
     for (income in table("income_dict")$income)
@@ -142,25 +141,25 @@ run_results = function() {
     # Non-cumulative, pathogen specific results
     for (metric in o$metrics)
       plot_temporal_impact(metric)
-
+    
     # Infant mortality rates over time with and without vaccination
     plot_infant_mortality()
-
+    
     # xxx
     plot_mortality_region()
-
+    
     # Regional differences in child mortality changes
     plot_mortality_change()
-
+    
     # Measles deaths in context of all cause deaths
     plot_measles_in_context()
-
+    
     # Plot absolute and relative probability of death in 2024
     plot_prob_death_age()
-
+    
     # Plot absolute and relative probability of death in 2024
     plot_survival_increase()
-
+    
     # Plot comparison of EPI50 outcomes vs VIMC outcomes
     plot_vimc_comparison()
   }

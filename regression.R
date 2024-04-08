@@ -18,10 +18,7 @@ run_regression = function(case, metric) {
   if (case == "infer"  & !is.element(7, o$run_module)) return()
   
   message("* Running regression: ", case, " ", metric)
-
-  # TEMP: Ignoring problematic cases for now
-  ignore = c(4:7, 12)#NULL
-
+  
   # ---- Load data ----
   
   # Load response variable (impact per FVP)
@@ -40,8 +37,6 @@ run_regression = function(case, metric) {
   # Call country imputation function
   predict_dt = table("d_v_a") %>%
     filter(source %in% use_sources) %>%
-    # TEMP: Ignoring problematic cases for now...
-    filter(!d_v_a_id %in% ignore) %>%  
     # Apply geographical imputation model...
     pull(d_v_a_id) %>%
     lapply(perform_regression, 
@@ -76,6 +71,22 @@ run_regression = function(case, metric) {
   # Save imputed results to file
   save_rds(impute_dt, case, case, metric, "result")
   
+  # ---- Plot results ----
+  
+  # Plot model choice by region
+  plot_model_choice(metric)
+  
+  # Plot predicted vs. observed for all countries
+  plot_impute_quality(metric)
+  
+  # Plot predicted vs observed for each country
+  plot_impute_perform(metric)
+  
+  # Plot fit to data in train-predict countries
+  plot_impute_fit(metric)
+  
+  # Plot validation
+  plot_validation(metric)
 }
 
 # ---------------------------------------------------------
@@ -96,29 +107,35 @@ define_models = function(case) {
     mat   = "maternal_mortality",
     stunt = "stunting",
     phs   = "private_health",
-    wat   = "basic_water")
+    water = "basic_water")
   
- 
   # Define models (using shorthand covariate references)
-    models = list(
-  # Models for imputing missing countries
-    impute = list(
-      m1  = "cov0", 
-      m2  = "cov0 + cov1", 
-      m3  = "cov0 + cov1 + cov2", 
-      m4  = "cov0 + cov1 + cov2 + cov3", 
-      m5  = "cov0 + cov1 + cov2 + cov3 + cov4", 
-      
-    m401 = "cov0 + cov1 + cov2 + cov3 + mat",
-    m402 = "cov0 + cov1 + cov2 + cov3 + mat + gini",
-    m403 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt",
-    m404 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + phs",
-    m405 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + wat",
+  models = list(
     
-    m500 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + wat + phs + wat"))
-  
-return(list(models[[case]], covars))
-  
+    # Models for imputing missing countries
+    impute = list(
+      m1   = "cov0", 
+      m2   = "cov0 + cov1", 
+      m3   = "cov0 + cov1 + cov2", 
+      m4   = "cov0 + cov1 + cov2 + cov3", 
+      m5   = "cov0 + cov1 + cov2 + cov3 + cov4", 
+      m401 = "cov0 + cov1 + cov2 + cov3 + mat",
+      m402 = "cov0 + cov1 + cov2 + cov3 + mat + gini",
+      m403 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt",
+      m404 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + phs",
+      m405 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water",
+      m500 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water + phs"), 
+    
+    # Models for inferring key drivers of impact 
+    infer = list(
+      x401 = "cov0 + cov1 + cov2 + cov3 + mat",
+      x402 = "cov0 + cov1 + cov2 + cov3 + mat + gini",
+      x403 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt",
+      x404 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + phs",
+      x405 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water",
+      x500 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water + phs"))
+
+  return(list(models[[case]], covars))
 }
 
 # ---------------------------------------------------------
@@ -143,7 +160,6 @@ get_regression_data = function(case, metric) {
   # Impact estimates in imputation case: all modelled results
   if (case == "infer")
     outcomes_dt = read_rds("history", metric, "averted")
-  
   
   # Convert estimates to cumulative form
   impact_dt = outcomes_dt %>%
@@ -204,35 +220,33 @@ get_regression_data = function(case, metric) {
 }
 
 # ---------------------------------------------------------
-# Perform regression
+# Perform regression - parent function for key functionality
 # ---------------------------------------------------------
 perform_regression = function(d_v_a_id, target, case, metric) {
-
- # Extract name of this d-v-a
+  
+  # Extract name of this d-v-a
   d_v_a_name = table("d_v_a") %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
     pull(d_v_a_name)
   
   # Display progress message to user
   message(" > ", d_v_a_name)
-
+  
   # Load set of models to evaluate
   list[models, covars] = define_models(case)
   
   # Append all required covariates - see separate function
   target_ts = append_covariates(d_v_a_id, models, covars, target)
   
-  # Income groupings
-  # Load income status dictionary
-  income_dict = table("income_dict")
+  browser()
   
   # Load income status of each country
   income_dt = table("income_status") %>%
-    filter(year == max(year)-5) %>% # Income level 5 years ago
-    left_join(y  = income_dict, 
+    # Income level 5 years ago...
+    filter(year == max(year) - 5) %>%
+    left_join(y  = table("income_dict"), 
               by = "income") %>%
     select(country, income = income_name)
-  
   
   # ---- Evaluate all user-defined models ----
   
@@ -246,7 +260,7 @@ perform_regression = function(d_v_a_id, target, case, metric) {
     group_by(country) %>%
     filter(n() >= o$min_data_requirement) %>% 
     ungroup()
- 
+  
   # Evaluate all models in parallel
   if (o$parallel$impute)
     model_list = mclapply(
@@ -268,7 +282,10 @@ perform_regression = function(d_v_a_id, target, case, metric) {
       data   = data_ts)
   
   # ---- Model selection ----
-   message("  - Model selection")
+  
+  message("  - Model selection")
+  
+  browser() # Need to append region/income here?
   
   # For each country, select the model with the best AICc
   model_choice = model_list %>%
@@ -285,7 +302,7 @@ perform_regression = function(d_v_a_id, target, case, metric) {
               by = c("country", "model_id")) %>%
     # Reduce down to keep only model and AICc... 
     select(country, model_id, tslm, AICc) %>%
-   # mutate(model_id = as.factor(model_id)) %>%
+    # mutate(model_id = as.factor(model_id)) %>%
     mutate(d_v_a_id = d_v_a_id, 
            .before = 1) %>%
     # Convert to mable class...
@@ -296,7 +313,7 @@ perform_regression = function(d_v_a_id, target, case, metric) {
     left_join(y = income_dt,
               by = "country")
   
-    # Extract parameters of best fitting model for each country
+  # Extract parameters of best fitting model for each country
   model_fit = tidy(model_choice) %>%
     select(d_v_a_id, country, model_id, term, 
            estimate, std.error, p.value) %>%
@@ -305,7 +322,7 @@ perform_regression = function(d_v_a_id, target, case, metric) {
   # ---- Predictions ----
   
   message("  - Model predictions")
- 
+  
   # Impute case: predict missing data using regional best models 
   if (case == "impute") {
     
@@ -320,7 +337,7 @@ perform_regression = function(d_v_a_id, target, case, metric) {
   
   # Infer case: just a case of evaluating on the training data
   if (case == "infer") {
-  
+    
     # Evaluate models on the training data
     predict_dt = augment(model_choice) %>%
       select(country, year, prediction = .fitted) %>%
@@ -364,8 +381,6 @@ perform_regression = function(d_v_a_id, target, case, metric) {
 # Append all required covariates
 # ---------------------------------------------------------
 append_covariates = function(d_v_a_id, models, covars, target) {
-  
-  # TODO: Are GBD covariates still used/needed?
   
   # ---- Identify covariates from model specification ----
   
@@ -482,14 +497,17 @@ evaluate_model = function(id, models, covars, data) {
 # Evaluate chosen model for all settings
 # ---------------------------------------------------------
 evaluate_predictions = function(model_choice, model_list, target, case, income_dt) {
-   # Full set of models available - we'll subset for this modal ID
+  
+  browser() # Where most changes have happened
+  
+  # Full set of models available - we'll subset for this modal ID
   list[models, covars] = define_models(case)
-
-# Evaluate models on the training data
-predict_dt = augment(model_choice) %>%
-  select(country, year, prediction = .fitted) %>%
-  as.data.table()
-
+  
+  # Evaluate models on the training data
+  predict_dt = augment(model_choice) %>%
+    select(country, year, prediction = .fitted) %>%
+    as.data.table()
+  
   # Function to find mode
   mode <- function(x) {
     ux = unique(x[!is.na(x)])
@@ -498,16 +516,16 @@ predict_dt = augment(model_choice) %>%
   
   # Find most commonly chosen model by region and/or income group
   group_choice_dt = model_choice %>%
-                    select(d_v_a_id, country, region, income, model_id, tslm) %>%
-                  # Find preferred model by income level
-                   group_by(region, income) %>%
-                   summarise(mode = mode(model_id)) 
-                   
+    select(d_v_a_id, country, region, income, model_id, tslm) %>%
+    # Find preferred model by income level
+    group_by(region, income) %>%
+    summarise(mode = mode(model_id)) 
+  
   
   # ---- Summarise predictor coefficients from training countries ---------
   coefficient_dt = model_choice %>%
     tidy() %>%
-     lazy_dt() %>%
+    lazy_dt() %>%
     # Median coefficient by region and income group to avoid outliers...
     group_by(region, income, model_id, term) %>%
     summarise(estimate = median(estimate, na.rm = TRUE)) %>%
@@ -553,10 +571,10 @@ predict_dt = augment(model_choice) %>%
     tidy() %>%
     lazy_dt() %>%
     left_join(y = table("country"), 
-     by =  "country") %>%
+              by =  "country") %>%
     mutate(region = region.x) %>%
-     select(d_v_a_id, country, country_name, model_id, region, income, term, estimate) %>%
-   # Spread to wide format...
+    select(d_v_a_id, country, country_name, model_id, region, income, term, estimate) %>%
+    # Spread to wide format...
     pivot_wider(
       names_from  = term,
       names_glue  = "{term}_coefficient",
@@ -572,6 +590,8 @@ predict_dt = augment(model_choice) %>%
   quote = function(x, q = '"') 
     paste0(q, x, q)
   
+  browser() # Why pluck 11?
+  
   # Column names of predictors
   predict_covars = models %>%
     interpret_covars(covars) %>%
@@ -586,10 +606,12 @@ predict_dt = augment(model_choice) %>%
     paste(predict_covars, sep = " * ") %>%
     paste(collapse = " + ") 
   
+  browser() # Can be tidied up?...
+  
   # Construct complete function call to be evaluated
   predict_fn   = paste0("prediction = exp(", predict_str, "+ `(Intercept)_coefficient`",")")
   predict_eval = paste0("predictors %>% mutate(", predict_fn, ")")
- # browser()
+  
   # Append coefficients to predictors
   predictors = target %>%
     left_join(y = income_dt,
@@ -597,13 +619,13 @@ predict_dt = augment(model_choice) %>%
     left_join(y  = full_coefficient_dt, 
               by = "country") %>% 
     replace(is.na(.), 0) %>%
-   as.data.table()
- 
+    as.data.table()
+  
   # Evaluate function call to predict all target values
   predict_dt = eval_str(predict_eval) %>%
     select(country, year, prediction) %>%
     filter(prediction <= 1e-3)
-
+  
   return(predict_dt)
 }
 

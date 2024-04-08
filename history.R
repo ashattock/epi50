@@ -567,6 +567,9 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
     as.data.table()
   
 # --- Double-counting check ---
+  
+  browser()
+  
   # Estimated child deaths averted by vaccination
   averted_dva_dt = read_rds("history", "burden_averted_deaths") %>%
     left_join(y  = age_effect, 

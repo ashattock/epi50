@@ -65,7 +65,7 @@ plot_scope = function() {
   static_dt = table("gbd_estimates") %>%
     select(disease, country, year) %>%
     unique() %>%
-    # filter(year %in% o$gbd_prediction_years) %>%
+    # filter(year %in% o$gbd_estimate_years) %>%
     mutate(class = "static")
   
   # External model settings
@@ -195,7 +195,7 @@ plot_scope = function() {
     # Set colours and legend title...
     scale_fill_manual(
       values = FALSE, 
-      name   = "Source of impact predictions") +
+      name   = "Source of impact estimates") +
     guides(fill = guide_legend(reverse = TRUE)) +
     # Prettify x axis...
     scale_x_continuous(
@@ -287,7 +287,7 @@ plot_total_fvps = function() {
     left_join(y  = table("d_v_a"), 
               by = "disease") %>%
     select(disease, id, d_v_a_id)
-    
+  
   # Number of FVPs by source of data
   source_dt = table("coverage_source") %>%
     mutate(source = toupper(source)) %>%
@@ -656,7 +656,7 @@ plot_coverage_age_density = function() {
 # Plot outcomes from each external model
 # ---------------------------------------------------------
 plot_external_models = function() {
-
+  
   extern_deaths_dt = table("extern_all_models") %>%
     format_d_v_a_name()
   
@@ -895,7 +895,7 @@ plot_gbd_estimates = function() {
   # Plot up to this year
   plot_to = ifelse(plot_extrap, max(o$years), max(o$gbd_estimate_years))
   
-  # Load GBD predictions and categorise into age groups
+  # Load GBD estimates and categorise into age groups
   gbd_dt = table("gbd_estimates") %>%
     filter(year <= plot_to) %>%
     append_d_v_t_name() %>%
@@ -1278,8 +1278,8 @@ plot_static = function() {
   
   # Disease burden / burden averted dictionary
   metric_dict = c(
-    burden  = "estimated disease-specific burden (GBD 2019)", 
-    averted = "estimated burden averted from static model")
+    burden  = "Estimated disease-specific burden (GBD 2021)", 
+    averted = "Estimated burden averted from static model")
   
   # Associated colours
   metric_colours = c("darkred", "navyblue")
@@ -1287,7 +1287,7 @@ plot_static = function() {
   # ---- Plot by disease ----
   
   # Plot up to this year
-  plot_to = ifelse(plot_extrap, max(o$years), max(o$gbd_prediction_years))
+  plot_to = ifelse(plot_extrap, max(o$years), max(o$gbd_estimate_years))
   
   # Repeat for each metric
   for (metric in o$metrics) {
@@ -1452,7 +1452,7 @@ plot_static = function() {
 # Plot truth vs predicted for imputation training data
 # ---------------------------------------------------------
 plot_impute_quality = function(metric) {
-#browser()
+  
   message("  - Plotting imputation quality of fit")
   
   # ---- Load results from fitting ----
@@ -1547,7 +1547,7 @@ plot_impute_quality = function(metric) {
 # Plot predictive performance for each country
 # --------------------------------------------------------
 plot_impute_perform = function(metric) {
- # browser()
+  
   message("  - Plotting predictive performance by country")
   
   # ---- Load models from fitting ----
@@ -1556,12 +1556,12 @@ plot_impute_perform = function(metric) {
     model = read_rds("impute", "impute", metric, id)$model 
   }
   
- # ignore = 12
+  # ignore = 12
   
   # Load imputation results for all d-v-a
   diseases_dt = table("d_v_a") %>%
     filter(source == "vimc") %>%
-   # filter(!d_v_a_id %in% ignore) %>% 
+    # filter(!d_v_a_id %in% ignore) %>% 
     pull(d_v_a_id)
   
   for(id in diseases_dt){
@@ -1655,7 +1655,7 @@ plot_model_choice = function(metric) {
   message("  - Plotting model choice by region")
   
   # ---- Load results from imputation ----
-   # Function to load imputation results
+  # Function to load imputation results
   load_results_fn = function(id)
     result = read_rds("impute", "impute", metric, id)$model
   
@@ -1664,24 +1664,24 @@ plot_model_choice = function(metric) {
   # Load imputation results for all d-v-a
   choice_dt = table("d_v_a") %>%
     filter(source == "vimc") %>%
-   # filter(!d_v_a_id %in% ignore) %>% 
+    # filter(!d_v_a_id %in% ignore) %>% 
     pull(d_v_a_id) %>%
     lapply(load_results_fn) %>%
     rbindlist() 
- 
+  
   # Group model choice by income 
-   income_choice_dt = choice_dt %>%
-                       group_by(d_v_a_id) %>%
-                       count(income, model_id) %>%
-                       group_by(model_id) %>%         
-                       mutate(prop = prop.table(n)) 
-   
+  income_choice_dt = choice_dt %>%
+    group_by(d_v_a_id) %>%
+    count(income, model_id) %>%
+    group_by(model_id) %>%         
+    mutate(prop = prop.table(n)) 
+  
   # Group model choice by region 
-   region_choice_dt = choice_dt %>%
-                       group_by(d_v_a_id) %>%
-                       count(region, model_id) %>%
-                       group_by(model_id) %>%         
-                       mutate(prop = prop.table(n)) 
+  region_choice_dt = choice_dt %>%
+    group_by(d_v_a_id) %>%
+    count(region, model_id) %>%
+    group_by(model_id) %>%         
+    mutate(prop = prop.table(n)) 
   
   # Details for file destination
   save_name = paste("Model_choice_by_region", metric, sep = "_")
@@ -1692,13 +1692,13 @@ plot_model_choice = function(metric) {
               aes(x = model_id,
                   y = n,
                   fill = region)) + 
-              geom_bar(stat = "identity") + 
-  
-  # Simple faceting with wrap labelling...
-  facet_wrap(
-    facets   = vars(d_v_a_id), 
-    labeller = label_wrap_gen(width = 30), 
-    scales   = "free") 
+    geom_bar(stat = "identity") + 
+    
+    # Simple faceting with wrap labelling...
+    facet_wrap(
+      facets   = vars(d_v_a_id), 
+      labeller = label_wrap_gen(width = 30), 
+      scales   = "free") 
   
   # Prettify theme
   g1 = g1 + theme_classic() + 
@@ -1766,7 +1766,7 @@ plot_model_choice = function(metric) {
 # --------------------------------------------------------
 plot_impute_fit = function(metric){
   message("  - Plotting model fit by country")
- 
+  
   # ---- Load models from fitting ----
   # Function to load best model for each country and show results
   load_results_fn = function(id){
@@ -1775,8 +1775,8 @@ plot_impute_fit = function(metric){
   
   # Load imputation results for all d-v-a
   diseases_dt = table("d_v_a") %>%
-     filter(source == "vimc") %>%
-     pull(d_v_a_id)
+    filter(source == "vimc") %>%
+    pull(d_v_a_id)
   
   for(id in diseases_dt){
     model = load_results_fn(id)
@@ -1867,14 +1867,14 @@ plot_impute_fit = function(metric){
 # --------------------------------------------------------
 plot_validation = function(metric){
   message("  - Plotting validation")
-  browser()
+  
   # ---- Load models from fitting ----
   # Function to load best model for each country and show results
   load_results_fn = function(id){
     model = read_rds("impute", "impute", metric, id)$model 
   }
   
-   # Load imputation results for all d-v-a
+  # Load imputation results for all d-v-a
   diseases_dt = table("d_v_a") %>%
     filter(source == "vimc") %>%
     pull(d_v_a_id)
@@ -1923,7 +1923,7 @@ plot_validation = function(metric){
       scale_x_continuous(
         name   = "Year", 
         labels = waiver(),
-       # limits = c(1990, 2024), 
+        # limits = c(1990, 2024), 
         expand = c(0, 0), 
         breaks = pretty_breaks()) +  
       # Prettify y axis...
@@ -2756,7 +2756,7 @@ plot_historical_impact = function(region = NULL, income = NULL) {
     
     return(impact_dt)
   }
- # browser()
+  
   # Load results and apply initial formatting
   impact_dt = lapply(metrics, load_fn) %>%
     rbindlist() %>%
@@ -2798,7 +2798,7 @@ plot_historical_impact = function(region = NULL, income = NULL) {
       impact, impact[metric == "dalys"])) %>%
     ungroup() %>%
     as.data.table()
-
+  
   # ---- Disease totals ----
   
   # Format scaling details into joinable datatable
@@ -2978,7 +2978,7 @@ plot_historical_impact = function(region = NULL, income = NULL) {
   
   # Save global results as main manuscript figure
   if (is.null(scope))
-  save_fig(g, "Figure 1", dir = "manuscript")
+    save_fig(g, "Figure 1", dir = "manuscript")
 }
 
 # ---------------------------------------------------------
@@ -3035,7 +3035,7 @@ plot_temporal_impact = function(metric) {
         fill = region),
       colour = NA,
       alpha  = 0.5) +
-    # Plot best prediction line...
+    # Plot best estimate line...
     geom_line(
       mapping = aes(colour = region), 
       linewidth = 1.2) + 
@@ -3137,7 +3137,7 @@ plot_infant_mortality = function() {
     mutate(metric = "rate") %>%
     select(metric, scenario, year, value) %>%
     as.data.table()
- 
+  
   # Cumulative number of deaths in each scenario
   deaths_dt = mortality$value %>%
     group_by(scenario) %>%
@@ -3151,7 +3151,7 @@ plot_infant_mortality = function() {
   coverage_dt = table("coverage_global") %>%
     filter(coverage > 0,
            !grepl("_BD$", vaccine)) %>%
-    # Combine DTP3 predictions...
+    # Combine DTP3 coverage...
     mutate(vaccine = ifelse(
       test = vaccine %in% qc(dip, tet, aper),
       yes  = "DTP3",
@@ -3360,7 +3360,7 @@ plot_infant_mortality = function() {
   
   # Patch subplots together
   g = g1 / g2 / g3
-
+  
   # Save figure to file
   save_fig(g, "Infant mortality rates", dir = "historical_impact")
   
@@ -3705,7 +3705,7 @@ plot_survival_increase = function(log_age = FALSE) {
   
   # Construct pplot title
   title = "Historical vaccination compared to hypothetical no vaccination"
-
+  
   # Construct a somewhat elaborate y axis label
   y_label = paste0(
     "Marginal increase in survival probability in n<sup>th</sup> ", 
@@ -3716,7 +3716,7 @@ plot_survival_increase = function(log_age = FALSE) {
     relative = "Relative", 
     absolute = "Absolute")
   
-  # predictiond child deaths averted by vaccination
+  # Estimated child deaths averted by vaccination
   averted_dt = read_rds("history", "burden_averted_deaths") %>%
     # Results in year of interest...
     filter(year == snapshot_year) %>%
@@ -3872,7 +3872,7 @@ plot_survival_increase = function(log_age = FALSE) {
   
   # Save figure to file
   save_fig(g, "Increase in survival", dir = "historical_impact")
-
+  
   # Also save as main manuscript figure
   save_fig(g, "Figure 3", dir = "manuscript")
 }
@@ -3884,7 +3884,7 @@ plot_measles_in_context = function() {
   
   message("  - Plotting measles in context")
   
-  # Upper age bound for predictions
+  # Upper age bound for estimates
   age_bound = 5
   
   # Metrics to plot
@@ -4122,7 +4122,7 @@ plot_vimc_comparison = function() {
   
   message("  - Plotting comparison of EPI50 vs VIMC outcomes")
   
-  # Dictionary for source of predictions
+  # Dictionary for source of estimates
   type_dict = c(
     impact_epi50 = "Deaths averted: EPI50", 
     impact_vimc  = "Deaths averted: VIMC", 
@@ -4150,7 +4150,7 @@ plot_vimc_comparison = function() {
       as.data.table(), 
     
     # VIMC impact
-    b = table("vimc_predictions") %>%
+    b = table("vimc_estimates") %>%
       lazy_dt() %>%
       group_by(d_v_a_id) %>%
       summarise(value = sum(deaths_averted)) %>%
@@ -4181,7 +4181,7 @@ plot_vimc_comparison = function() {
       as.data.table())
   
   # ---- Concatenate all outcomes ---- 
-
+  
   # Combine all plotting data
   plot_dt = rbindlist(plot_list) %>%
     left_join(y  = table("d_v_a"), 
@@ -4244,143 +4244,6 @@ plot_vimc_comparison = function() {
            dir = "historical_impact")
 }
 
-# **** Other (to be reviewed) ****
-
-# ---------------------------------------------------------
-# Helen's exploratory figures
-# ---------------------------------------------------------
-plot_exploratory = function() {
-  
-  browser() # To be fully integrated...
-  
-  # Plot predictions of regression predictors by region
-  plot_model_fit_df = model_fit %>%
-    select(country, region_short, term, prediction) %>%
-    pivot_wider(names_from = term,
-                values_from = prediction) %>%
-    group_by(region_short) %>%
-    as.data.table()
-  
-  # Plot Spearman rank correlation between coefficients of regression
-  plot_model_fit_df %>% 
-    select(`log(coverage)`,
-           `log(coverage_minus_1)`,
-           `log(coverage_minus_2)`,
-           `log(coverage_minus_3)`,
-           `log(coverage_minus_4)`,
-           gini,
-           HDI,
-           `(Intercept)`,
-           attended_births) %>%
-    ggpairs()
-  
-  ggpairs(plot_model_fit_df, columns = c(3,5,6), ggplot2::aes(colour=region_short))
-  
-  # Plot density of coefficients of predictors by region
-  ggpairs(plot_model_fit_df,
-          columns = c(3,6:10),
-          aes(colour = region_short,
-              alpha = 0.5))
-  
-  # Plot data vs fitted for a single country
-  plot_df = augment(model_1) %>%
-    filter(country == "THA")
-  
-  ggplot(data = plot_df, aes(x = target, y = .fitted)) +
-    geom_point() +
-    labs(
-      y = "Fitted (predicted values)",
-      x = "Data (actual values)",
-      title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
-    ) +
-    geom_abline(intercept = 0, slope = 1)
-  
-  # Plot data vs. fitted for all countries
-  plot_df = augment(best_model)
-  
-  ggplot(data = plot_df, aes(x = target, y = .fitted)) +
-    geom_point() +
-    labs(
-      y = "Fitted (predicted values)",
-      x = "Data (actual values)",
-      title = paste("Vaccine impact of", d_v_a_name)
-    ) +
-    geom_abline(intercept = 0, slope = 1) +
-    facet_wrap(~country, ncol = 21)
-  
-  # Plot model fit for a single country
-  plot_df = augment(best_model) %>%
-    filter(country == "AGO")
-  
-  ggplot(data = plot_df, aes(x = year)) +
-    geom_point(aes(y = target, colour = "Data")) +
-    geom_line(aes(y = .fitted, colour = "Fitted")) +
-    labs(y = NULL,
-         title = paste("Vaccine impact of", d_v_a_name, "in", plot_df$country)
-    ) +
-    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-    guides(colour = guide_legend(title = NULL))
-  
-  # Plot model fit for all countries
-  plot_df = augment(best_model)
-  
-  ggplot(data = plot_df, aes(x = year)) +
-    geom_point(aes(y = target, colour = "Data")) +
-    geom_line(aes(y = .fitted, colour = "Fitted")) +
-    labs(y = NULL,
-         title = paste("Vaccine impact of", d_v_a_name)
-    ) +
-    scale_colour_manual(values=c(Data="black",Fitted="#D55E00")) +
-    guides(colour = guide_legend(title = NULL))  +
-    facet_wrap(~country, ncol = 21)
-  
-  # Manually explore associations between predictor variables for different geographical regions and time points
-  explore_dt =  data_dt %>% as.data.table() %>% # Transform to data table to remove country as categorical variable
-    filter(#year > 2000 & year <= 2020 &
-      region_short == "AFR" &
-        target > 2e-20) %>%
-    select(-country) %>%
-    select(target, gini, health_spending, coverage, 
-           coverage_minus_1, coverage_minus_2, coverage_minus_3, sdi)
-  
-  explore_dt %>% 
-    ggpairs(upper = list(continuous = wrap("cor", method = "spearman"))) # Use Spearman rank correlation to account for outliers
-  
-  # Explore model selection by region
-  ggplot(data = model_choice, aes(x = model_number)) +
-    geom_histogram() +
-    facet_wrap(~region_short)
-  
-  # Explore prob. density of coefficients of predictors
-  plot_df = model_fit %>% filter(term == "pop_0to14")
-  
-  ggplot(data = plot_df, aes(x=prediction) ) +
-    geom_density() +
-    facet_wrap(~region_short, ncol=1)
-}
-
-# ---------------------------------------------------------
-# Helen's tornado plot of predictor coefficients
-# ---------------------------------------------------------
-plot_tornado = function() {
-  
-  # TODO: Split by decade, facet by region OR d_v_a_id OR predictor
-  
-  # Explore density of coefficients of predictors
-  plot_dt = impute_1$model_fit %>%
-    select(-c(country, d_v_a_id.x, d_v_a_id.y, model_number, .model, AICc)) %>%
-    filter(#!term == "HDI" &
-      !region_short == "NA" &
-        p.value <= 0.05) %>%
-    mutate(model = region_short)
-  
-  g = dwplot(plot_dt) + 
-    geom_vline(xintercept = 0, linetype = 2) +
-    ggtitle(paste0("Predicting ", d_v_a_name, " vaccine impact"))
-  
-  g = g + theme_classic()
-}
-
 # **** Helper functions ****
 
 # ---------------------------------------------------------
@@ -4424,7 +4287,6 @@ append_region_name = function(dt) {
   
   return(name_dt)
 }
-
 
 # ---------------------------------------------------------
 # Full descriptive names for disease, vaccine, or vaccine type
@@ -4553,5 +4415,3 @@ save_fig = function(g, ..., dir = NULL) {
   }
 }
 
-    
- 
