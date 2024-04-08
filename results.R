@@ -66,20 +66,22 @@ run_results = function() {
     
     # Repeat for deaths and DALYs
     for (metric in o$metrics) {
-      
-      browser() # Figures need to be updated to handle metric...
-      
+     
       # Plot model choice by region
       plot_model_choice(metric)
-      
-      # Plot predictor and response relationships
-      plot_covariates(metric)
-      
-      # Plot imputation quality of fit
+     
+      # Plot predicted vs. observed for all countries
       plot_impute_quality(metric)
       
-      # Plot train-predict countries
-      plot_impute_countries(metric)
+      # Plot predicted vs. observed for each country
+      plot_impute_perform(metric)
+      
+      # Plot fit to data in train-predict countries
+      plot_impute_fit(metric)
+      
+      # Plot validation
+      #plot_validation(metric)
+      
     }
   }
   
@@ -92,16 +94,16 @@ run_results = function() {
     for (metric in o$metrics) {
       
       # Exploratory plots of data used to fit impact functions
-      plot_impact_data(metric)
+    #  plot_impact_data(metric)
 
       # Plot all-time impact per FVPs
-      plot_impact_fvps(metric, scope = "all_time")
+     # plot_impact_fvps(metric, scope = "all_time")
 
       # Plot function selection statistics
-      plot_model_selection(metric)
+    #  plot_model_selection(metric)
       
       # Plot impact function evaluation
-      plot_model_fits(metric)
+    #  plot_model_fits(metric)
       
       # Plot impact vs coverage by vaccine, income, and decade 
       # plot_impact_coverage(metric)
@@ -118,11 +120,11 @@ run_results = function() {
       plot_impact_fvps(metric, scope = "initial")
     
     # Main results plot - historical impact over time
-    plot_historical_impact()
+   # plot_historical_impact()
     
     # Equivalent plot for each region
-    for (region in all_regions())
-      plot_historical_impact(region = region)
+   # for (region in all_regions())
+  #    plot_historical_impact(region = region)
     
     # Non-cumulative, pathogen specific results
     for (metric in o$metrics)
