@@ -12,8 +12,8 @@
 # ---------------------------------------------------------
 run_prepare = function() {
   
-  # Only continue if specified by do_step
-  if (!is.element(1, o$do_step)) return()
+  # Only continue if specified by run_module
+  if (!is.element(1, o$run_module)) return()
   
   message("* Preparing input data")
   
@@ -166,10 +166,10 @@ prepare_gbd_estimates = function() {
   age_dict = c(
     "<28 days"     = "-1", 
     "28..364 days" = "0..1", 
-    "80+ years"    = "80..100")
+    "95+"          = "95..100")
   
   # Age bins in data before transformation
-  age_bins = c(-1, 0, 1, seq(5, 80, by = 5))
+  age_bins = c(-1, 0, 1, seq(5, 95, by = 5))
   
   # Construct age datatable to expand age bins to single years
   age_dt = data.table(age = c(-1, o$ages)) %>%
@@ -191,27 +191,22 @@ prepare_gbd_estimates = function() {
   for (metric in o$metrics) {
     
     # File path to GBD burden file 
-    file_name = paste1("gbd19", metric)
-    file_path = paste0(o$pth$input, file_name, ".csv")
+    file = file.path(
+      paste0(o$pth$input, "gbd"), 
+      paste0("gbd21_", metric, ".rds"))
     
     # Load GBD burden estimates for relevant diseases
-    burden_list[[metric]] = fread(file_path) %>%
-      # Parse disease and countries...
-      mutate(disease = recode(cause, !!!gbd_dict), 
-             country = countrycode(
-               sourcevar   = location,
-               origin      = "country.name", 
-               destination = "iso3c")) %>%
-      # Retain only what we're interesting in...
-      filter(disease %in% table("d_v_a")$disease, 
-             country %in% all_countries()) %>%
+    burden_list[[metric]] = read_rds(file) %>%
+      # Parse diseases...
+      mutate(disease = recode(cause, !!!gbd_dict)) %>%
+      filter(disease %in% table("d_v_a")$disease) %>%
       # Parse age groups...
       mutate(age = str_replace(age, "-", ".."), 
              age = recode(age, !!!age_dict), 
              age_bin = str_extract(age, "^-*[0-9]+"), 
              age_bin = as.numeric(age_bin)) %>%
       # Reduce down to variables of interest...
-      select(disease, country, year, age_bin, value = val) %>%
+      select(disease, country, year, age_bin, value) %>%
       arrange(disease, country, year, age_bin) %>%
       mutate(metric = !!metric)
   }

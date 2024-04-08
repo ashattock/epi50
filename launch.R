@@ -16,34 +16,37 @@ source("dependencies.R")
 
 message("Running EPI50 pipeline")
 
-# Set options (see options.R)
-o = set_options(do_step = c(8))
+# Define modules to be run
+run_modules = 1
 
-# Step 1) Prepare all inputs (only needs to be done once)
+# Set global options (see options.R)
+o = set_options(run_module = run_modules)
+
+# Module 1) Prepare all inputs (only needs to be done once)
 run_prepare()  # See prepare.R
 
-# Step 2) Interface with external polio and measles models
+# Module 2) Interface with external polio and measles models
 run_external()  # See external.R
 
-# Step 3) Estimate impact for static models using GBD
+# Module 3) Estimate impact for static models using GBD
 run_static()  # See static.R
 
-# Step 4) Impute missing countries for VIMC-modelled pathogens
+# Module 4) Impute missing countries for VIMC-modelled pathogens
 run_regression("impute", "deaths")  # See regression.R
-#run_regression("impute", "dalys")   # See regression.R
+run_regression("impute", "dalys")   # See regression.R
 
-# Step 5) Fit and select impact-FVP functions
-#run_impact("deaths")  # See impact.R  
+# Module 5) Fit and select impact-FVP functions
+run_impact("deaths")  # See impact.R
 run_impact("dalys")   # See impact.R
 
-# Step 6) Apply impact functions to historical coverage
-#run_history("deaths")  # See history.R
+# Module 6) Apply impact functions to historical coverage
+run_history("deaths")  # See history.R
 run_history("dalys")   # See history.R
 
-# Step 7) Re-fit time series regression models to infer predictors
+# Module 7) Re-fit time series regression models to infer predictors
 # run_regression("infer", "deaths")  # See regression.R
 
-# Step 8) Produce results
+# Module 8) Produce results
 run_results()  # See results.R
 
 # Finish up

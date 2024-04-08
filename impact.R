@@ -11,8 +11,8 @@
 # ---------------------------------------------------------
 run_impact = function(metric) {
   
-  # Only continue if specified by do_step
-  if (!is.element(5, o$do_step)) return()
+  # Only continue if specified by run_module
+  if (!is.element(5, o$run_module)) return()
   
   message("* Fitting impact functions: ", metric)
   
@@ -83,10 +83,10 @@ run_impact = function(metric) {
   # ---- Plot results ----
 
   # Plot function selection statistics
- # plot_model_selection(metric)
+  # plot_model_selection(metric)
 
   # Plot impact function evaluation
-  #plot_model_fits(metric)
+  # plot_model_fits(metric)
   
   # Plot impact vs coverage by vaccine, income, and decade
   # plot_impact_coverage(metric)
@@ -245,7 +245,7 @@ get_best_model = function(id, run, data, pb) {
   #   geom_point(
   #     data   = data_dt,
   #     colour = "black")
-  #browser()
+  
   return(result)
 }
 

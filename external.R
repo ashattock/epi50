@@ -11,8 +11,8 @@
 # ---------------------------------------------------------
 run_external = function() {
   
-  # Only continue if specified by do_step
-  if (!is.element(2, o$do_step)) return()
+  # Only continue if specified by run_module
+  if (!is.element(2, o$run_module)) return()
   
   message("* Preparing external models")
   
@@ -29,11 +29,14 @@ run_external = function() {
 
   # Extract results from all extern models
   extract_extern_results()
-  
+
   # Generate samples from extern model results
   extern_uncertainty()  # See uncertainty.R
   
   # ---- Data visualisation plots ----
+  
+  # Plot outcomes from each external model
+  plot_external_models()
   
   # Plot total number of FVP over time
   plot_total_fvps()
@@ -472,23 +475,40 @@ extract_extern_results = function() {
     unlist()
   
   # Load historical outcomes from all models
-  historical_dt = names(all_models) %>%
+  all_models_dt = names(all_models) %>%
     lapply(extract_fn) %>%
     rbindlist() %>%
-    lazy_dt() %>%
-    # Define d_v_a classification...
     mutate(disease = all_models[model]) %>%
     left_join(y  = table("d_v_a"), 
               by = "disease") %>%
-    # Summarise by d_v_a (mean across all models)...
-    group_by(d_v_a_id, scenario, country, year, age, metric) %>%
-    summarise(value = mean(value, na.rm = TRUE)) %>%
+    select(d_v_a_id, model, scenario, 
+           country, year, age, metric, value)
+  
+  # Summary of each model by region and scenario
+  all_models_summary_dt = all_models_dt %>%
+    lazy_dt() %>%
+    filter(metric == "deaths") %>%
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    group_by(d_v_a_id, model, scenario, region, year) %>%
+    summarise(deaths = sum(value)) %>%
     ungroup() %>%
     as.data.table()
+  
+  # Save for plotting purposes
+  save_table(all_models_summary_dt, "extern_all_models")
   
   # ---- Historical deaths and DALYs ----
   
   message("  - Summarising historical estimates")
+  
+  # Summarise by d-v-a (mean across all models)...
+  historical_dt = all_models_dt %>%
+    lazy_dt() %>%
+    group_by(d_v_a_id, scenario, country, year, age, metric) %>%
+    summarise(value = mean(value, na.rm = TRUE)) %>%
+    ungroup() %>%
+    as.data.table()
   
   # Historical deaths in each scenario
   #
@@ -526,26 +546,6 @@ extract_extern_results = function() {
   
   # Save in table cache
   save_table(extern_averted_dt, "extern_estimates")
-  
-  # TODO: Migrate to plotting.R
-  
-  # plot_dt = extern_averted_dt %>%
-  #   pivot_longer(cols = c(dalys_averted, deaths_averted),
-  #                names_to = "metric") %>%
-  #   group_by(d_v_a_id, metric, year) %>%
-  #   summarise(value = sum(value)) %>%
-  #   ungroup() %>%
-  #   group_by(d_v_a_id, metric) %>%
-  #   mutate(cum_value = cumsum(value)) %>%
-  #   ungroup() %>%
-  #   format_d_v_a_name() %>%
-  #   as.data.table()
-  # 
-  # g = ggplot(plot_dt) +
-  #   aes(x = year, y = cum_value, colour = d_v_a_name) +
-  #   geom_line() +
-  #   facet_wrap(~metric, scales = "free_y") +
-  #   scale_y_continuous(labels = comma)
   
   # ---- Update coverage estimates using model outputs ----
   

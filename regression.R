@@ -12,10 +12,10 @@
 # Parent function for regression modelling
 # ---------------------------------------------------------
 run_regression = function(case, metric) {
-
-  # Only continue if specified by do_step
-  if (case == "impute" & !is.element(4, o$do_step)) return()
-  if (case == "infer"  & !is.element(7, o$do_step)) return()
+  
+  # Only continue if specified by run_module
+  if (case == "impute" & !is.element(4, o$run_module)) return()
+  if (case == "infer"  & !is.element(7, o$run_module)) return()
   
   message("* Running regression: ", case, " ", metric)
 

@@ -2,10 +2,11 @@
 .Rhistory
 core*
 *.nfs*
-log/*
+*.html
 extern/template/*
 input/sia_coverage.csv
 input/wiise_coverage.csv
+input/gbd/gbd21_raw.csv
 output*
 input/wpp/WPP2022_DeathsBySingleAgeSex_Medium_1950-2021.csv
 input/wpp/WPP2022_DeathsBySingleAgeSex_Medium_2022-2100.csv

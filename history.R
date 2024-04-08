@@ -12,8 +12,8 @@
 # ---------------------------------------------------------
 run_history = function(metric) {
   
-  # Only continue if specified by do_step
-  if (!is.element(6, o$do_step)) return()
+  # Only continue if specified by run_module
+  if (!is.element(6, o$run_module)) return()
   
   message("* Calculating impact of historical coverage: ", metric)
   

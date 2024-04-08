@@ -116,7 +116,6 @@ filter  = dplyr::filter
 rename  = dplyr::rename
 recode  = dplyr::recode
 count   = dplyr::count
-union   = dplyr::union
 predict = stats::predict
 
 # ---- Clean up ----

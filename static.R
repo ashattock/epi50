@@ -11,8 +11,8 @@
 # ---------------------------------------------------------
 run_static = function() {
   
-  # Only continue if specified by do_step
-  if (!is.element(3, o$do_step)) return()
+  # Only continue if specified by run_module
+  if (!is.element(3, o$run_module)) return()
   
   message("* Estimating static model vaccine impact")
   

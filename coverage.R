@@ -495,8 +495,6 @@ constant_coverage_extapolation = function(coverage_dt) {
 # ---------------------------------------------------------
 smooth_static_fvps = function(coverage_dt) {
   
-  # TODO: Experiment reducing kernel smoothing bandwidth...
-  
   # If no coverage smoothing required, return out now
   if (is.null(o$gbd_coverage_smoother))
     return(coverage_dt)
@@ -508,7 +506,9 @@ smooth_static_fvps = function(coverage_dt) {
     
     # Smooth with kernel (stats package)
     if (o$gbd_coverage_smoother == "kernel")
-      fit = ksmooth(x, y, "normal", bandwidth = 5, x.points = x)
+      fit = ksmooth(x, y, "normal", 
+                    bandwidth = o$kernal_bandwidth, 
+                    x.points  = x)
     
     # Smooth with splines (stats package)
     if (o$gbd_coverage_smoother == "spline")

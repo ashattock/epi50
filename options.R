@@ -10,7 +10,7 @@
 # ---------------------------------------------------------
 # Set model options and assumptions
 # ---------------------------------------------------------
-set_options = function(do_step = NA) {
+set_options = function(run_module = NA) {
 
   message("* Setting options")
 
@@ -18,7 +18,7 @@ set_options = function(do_step = NA) {
   default_R_options()  # See auxiliary.R
 
   # Initiate options list
-  o = list(do_step = do_step)
+  o = list(run_module = run_module)
 
   # Prepare output directory system
   o = prepare_dirs(o)  # See directories.R
@@ -46,8 +46,8 @@ set_options = function(do_step = NA) {
   
   # ---- Data and coverage settings ----
   
-  # Bound coverage values below x%
-  o$max_coverage = 0.995
+  # Upper bound for vaccine coverage values
+  o$max_coverage = 0.996
   
   # Year that high-income countries switch to acellular pertussis vaccine
   o$wholecell_acellular_switch = 1995
@@ -56,6 +56,9 @@ set_options = function(do_step = NA) {
   #
   # NOTE: Set to NULL to turn smoothing off
   o$gbd_coverage_smoother = "kernel"  # OPTIONS: "kernel" or "spline"
+  
+  # Define smoothing power when using kernel smoothing
+  o$kernal_bandwidth = 3
   
   # Define method for extrapolating GBD burden post 2019
   o$gbd_extrap = "constant"  # OPTIONS: "trend" or "constant"
@@ -68,7 +71,7 @@ set_options = function(do_step = NA) {
   # Directly simulate Dynamice model
   #
   # NOTE: If false, DynaMICE results must be otherwise available to user
-  o$simulate_dynamice = TRUE
+  o$simulate_dynamice = FALSE
   
   # GitHub repo for simulating DynaMICE model for EPI50 analysis
   o$github_dynamice = "ashattock/dynamice"
@@ -76,7 +79,7 @@ set_options = function(do_step = NA) {
   # ---- Global Burden of Disease settings ----
   
   # Use GBD estimates starting from a given year
-  o$gbd_estimate_years = 1990 : 2019
+  o$gbd_estimate_years = 1980 : 2022
   
   # ---- Regression settings ----
   
@@ -126,16 +129,18 @@ set_options = function(do_step = NA) {
   o$uncertainty_samples = 10
   
   # Quantiles for prediction intervals
-  o$quantiles = c(0.025, 0.975)  # Represents 95% bounds
+  o$quantiles = c(0.025, 0.975)  # Represents 95% prediction bounds
   
   # ---- Parallelisation settings ----
   
+  # TODO: Auto turn off parallelisation on Windows...
+  
   # Use multiple cores to speed up several processes
   o$parallel = list(
-    interp  = FALSE,  # NOTE: Occurs in two places in preparation step
-    impute  = FALSE, 
+    interp  = TRUE,
+    impute  = TRUE, 
     impact  = FALSE,  # NOTE: Having issues with shared memory
-    history = FALSE)
+    history = TRUE)
 
   # Detect number of cores available to this user
   o$n_cores = detectCores()
@@ -144,6 +149,7 @@ set_options = function(do_step = NA) {
 
   # Turn figures on or off
   o$plot_inputs     = FALSE
+  o$plot_external   = FALSE
   o$plot_static     = FALSE
   o$plot_imputation = FALSE
   o$plot_impact     = FALSE

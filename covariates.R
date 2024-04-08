@@ -20,7 +20,6 @@ prepare_covariates = function() {
   # Format all covariates from the various sources
   c1 = covariates_gapminder()
   c2 = covariates_unicef()
-  
  
   # Concatenate and interpolate
   covariates_dt = c(c1, c2) %>%
