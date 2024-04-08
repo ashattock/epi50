@@ -563,11 +563,7 @@ smooth_static_fvps = function(coverage_dt) {
 # ---------------------------------------------------------
 wholecell_acellular_switch = function(coverage_dt) {
   
-  # NOTE: A first attempt to defining when countries switched - to be improved
-  
   # Details of who switched to acellular pertussis and when
-  #
-  # TODO: Do a more thorough job of this
   switch_dt = table("income_status") %>%
     filter(year   == o$wholecell_acellular_switch, 
            income == "hic") %>%
