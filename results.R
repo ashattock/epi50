@@ -52,20 +52,22 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_static) {
     
-    # Global Burden of Disease death estimates by age
-    plot_gbd_estimates()
-    
-    # Proportion of GBD burden we have coverage data for
-    plot_gbd_missing()
-    
-    # Plot vaccine efficacy profiles for static model pathogens
-    plot_vaccine_efficacy()
-    
-    # Effective coverage with waning immunity for static model pathogens
-    plot_effective_coverage()
+    # # Global Burden of Disease death estimates by age
+    # plot_gbd_estimates()
+    # 
+    # # Proportion of GBD burden we have coverage data for
+    # plot_gbd_missing()
+    # 
+    # # Plot vaccine efficacy profiles for static model pathogens
+    # plot_vaccine_efficacy()
+    # 
+    # # Effective coverage with waning immunity for static model pathogens
+    # plot_effective_coverage()
     
     # Deaths and DALYs averted for static model pathogens
     plot_static()
+    
+    browser()
   }
   
   # ---- Imputation plots ----
@@ -101,17 +103,19 @@ run_results = function() {
     # Repeat for deaths and DALYs
     for (metric in o$metrics) {
       
-      # Exploratory plots of data used to fit impact functions
-      plot_impact_data(metric)
-      
-      # Plot all-time impact per FVPs
-      plot_impact_fvps(metric, scope = "all_time")
-      
-      # Plot function selection statistics
-      plot_model_selection(metric)
+      # # Exploratory plots of data used to fit impact functions
+      # plot_impact_data(metric)
+      # 
+      # # Plot all-time impact per FVPs
+      # plot_impact_fvps(metric, scope = "all_time")
+      # 
+      # # Plot function selection statistics
+      # plot_model_selection(metric)
       
       # Plot impact function evaluation
       plot_model_fits(metric)
+      
+      browser()
       
       # Plot impact vs coverage by vaccine, income, and decade 
       plot_impact_coverage(metric)

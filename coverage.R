@@ -31,9 +31,12 @@ prepare_coverage = function() {
   # Incorporate non-routine SIA data (from WIISE)
   sia_dt = coverage_sia(vimc_countries_dt)  # See sia.R
   
-  # Combine sources and deal with pertussis special case
+  # Combine all coverage data sources
   source_dt = rbind(vimc_dt, wiise_dt, sia_dt) %>%
-    wholecell_acellular_switch()
+    # Deal with pertussis special case...
+    wholecell_acellular_switch() %>%
+    # Deal with meningitis A special case...
+    meningococcal_conjugate()
   
   # Sanity check that no zero entries remain
   if (any(source_dt$fvps <= 1e-10))
@@ -617,5 +620,36 @@ wholecell_acellular_switch = function(coverage_dt) {
     stop("FVPs have been lost/gained through wholecell-acellular switch")
   
   return(switched_dt)
+}
+
+# ---------------------------------------------------------
+# Remove effects on men_conj vaccine in locations without menA burden
+# ---------------------------------------------------------
+meningococcal_conjugate = function(coverage_dt) {
+  
+  # Meningitis A d-v-a IDs
+  mena_id = table("d_v_a") %>%
+    filter(disease == "mena") %>%
+    pull(d_v_a_id)
+  
+  # Meningitis A belt according to VIMC
+  mena_countries = coverage_dt %>%
+    filter(d_v_a_id %in% mena_id, 
+           source == "vimc") %>%
+    pull(country) %>%
+    unique()
+  
+  # Remove coverage for countries outside of the Men A belt
+  mena_belt_dt = coverage_dt %>%
+    filter(d_v_a_id %in% mena_id, 
+           country  %in% mena_countries)
+  
+  # Update coverage datatable
+  updated_dt = coverage_dt %>%
+    filter(!d_v_a_id %in% mena_id) %>%
+    rbind(mena_belt_dt) %>%
+    arrange(d_v_a_id, country, year, age)
+  
+  return(updated_dt)
 }
 

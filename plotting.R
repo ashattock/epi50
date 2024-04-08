@@ -1286,9 +1286,21 @@ plot_static = function() {
   
   # ---- Plot by disease ----
   
-  # Plot up to this year
-  plot_to = ifelse(plot_extrap, max(o$years), max(o$gbd_estimate_years))
-  
+  # Ensure consistent years of plotting
+  plot_years = table("gbd_estimates") %>%
+    lazy_dt() %>%
+    pivot_longer(cols = -c(disease, country, year, age), 
+                 names_to = "metric") %>%
+    group_by(metric, disease, year) %>%
+    summarise(value = sum(value)) %>%
+    ungroup() %>%
+    # Only years for which we have all data...
+    filter(value > 0) %>%
+    count(year) %>%
+    filter(n == max(n)) %>%
+    pull(year) %>%
+    intersect(o$gbd_estimate_years)
+
   # Repeat for each metric
   for (metric in o$metrics) {
     
@@ -1297,8 +1309,8 @@ plot_static = function() {
     
     # Summarise results over country and age
     disease_dt = averted_dt %>%
-      # lazy_dt() %>%
-      filter(year <= plot_to) %>%
+      lazy_dt() %>%
+      filter(year %in% plot_years) %>%
       pivot_longer(cols = c(burden, averted), 
                    names_to = "metric") %>%
       # Summarise over countries...
@@ -1388,7 +1400,7 @@ plot_static = function() {
     # Summarise results over country
     vaccine_dt = averted_dt %>%
       lazy_dt() %>%
-      filter(year <= plot_to) %>%
+      filter(year %in% plot_years) %>%
       # Summarise over countries...
       group_by(d_v_a_id, year) %>%
       summarise(averted = sum(impact)) %>%
@@ -2441,6 +2453,8 @@ plot_model_fits = function(metric) {
     as.data.table()
   
   browser() # Need to load up mean coef datatable here
+  
+  # Use fine vector of x points to evaluate for nicer plotting
   
   # Evaluate selected impact function
   best_fit = evaluate_impact_function(
