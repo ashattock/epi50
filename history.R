@@ -86,7 +86,7 @@ run_history = function(metric) {
   message(" > Evaluating impact functions")
   
   # Parent function to evaluate impact functions
-  evaluate_fn = function(data, uncert) {
+  evaluate_fn = function(data, orig, uncert) {
     
     # Evaluate FVPs using impact functions
     result = data %>%
@@ -114,16 +114,43 @@ run_history = function(metric) {
   
   # Evaluate impact of relevant FVPs - best fit coefficients
   fit_best_dt = eval_dt %>%
-    evaluate_fn(uncert = FALSE) %>%
+    evaluate_fn(orig_dt, uncert = FALSE) %>%
     mutate(sample = "best")
+  
+  # Determine evaluation error for primary metric
+  if (metric == "deaths") {
+    
+    # Determine error between original target and evalation
+    err_dt = read_rds("impact", "impact", metric, "data") %>%
+      select(d_v_a_id, country, year, target = impact) %>%
+      # Convert target back to real scale...
+      left_join(y  = pop_dt, 
+                by = c("country", "year")) %>%
+      group_by(d_v_a_id, country) %>%
+      mutate(target = rev_cumsum(target)) %>%
+      ungroup() %>%
+      mutate(target = target * pop) %>%
+      # Join with evaluated results...
+      left_join(y  = fit_best_dt, 
+                by = c("d_v_a_id", "country", "year")) %>%
+      # Calculate error...
+      mutate(err = abs(abs(target - impact) / target), 
+             err = pmin(err + 1, sqrt(o$uncertainty_max))) %>%
+      replace_na(list(err = 1)) %>%
+      select(d_v_a_id, country, year, err) %>%
+      as.data.table()
+    
+    # Save error outcomes to file for use in uncertainty calculations
+    save_rds(err_dt, "history", "evaluation_error")
+  }
   
   message("  - Posterior coefficients (", 
           o$uncertainty_samples, " samples)")
   
   # Evaluate impact of relevant FVPs - uncertainty samples
   fit_uncert_dt = eval_dt %>%
-    evaluate_fn(uncert = TRUE)
-    
+    evaluate_fn(orig_dt, uncert = TRUE)
+  
   # Concatenate results
   fit_dt = rbind(fit_best_dt, fit_uncert_dt)
   
@@ -203,18 +230,10 @@ run_history = function(metric) {
   
   # Determine uncertainty bounds for temporal results
   result_time_dt = all_samples %>%
-    summarise_uncertainty(cumulative = FALSE)  # See uncertainty.R
-  
-  # Equivalent uncertainty bounds for cumulative results
-  #
-  # NOTE: This special case is needed as it is not legitimate 
-  #       to simply cumulatively sum temporal bounds
-  # result_cum_dt = all_samples %>%
-  #   summarise_uncertainty(cumulative = TRUE)  # See uncertainty.R
+    summarise_uncertainty()  # See uncertainty.R
   
   # Save results to file
   save_rds(result_time_dt, "history", "burden_averted", metric) 
-  # save_rds(result_cum_dt,  "history", "cumulative_averted", metric) 
   
   # ---- Supporting results ----
   
@@ -318,18 +337,10 @@ run_history = function(metric) {
     
     # Determine uncertainty bounds for temporal results
     yll_time_dt = yll_samples_dt %>%
-      summarise_uncertainty(cumulative = FALSE)  # See uncertainty.R
-    
-    # Equivalent uncertainty bounds for cumulative results
-    #
-    # NOTE: This special case is needed as it is not legitimate 
-    #       to simply cumulatively sum temporal bounds
-    # yll_cum_dt = yll_samples_dt %>%
-    #   summarise_uncertainty(cumulative = TRUE)  # See uncertainty.R
+      summarise_uncertainty()  # See uncertainty.R
     
     # Save results to file
     save_rds(yll_time_dt, "history", "burden_averted_yll") 
-    # save_rds(yll_cum_dt,  "history", "cumulative_averted_yll") 
   }
   
   # ---- Plot outcomes ----
@@ -501,7 +512,7 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
     as.data.table()
   
   # ---- Age-structured deaths averted ----
-
+  
   # Vaccine impact disaggregated by age
   age_effect = table("impact_age_multiplier") %>%
     filter(age <= age_bound + 1) %>%
@@ -566,9 +577,7 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
     select(-pop, -averted) %>%
     as.data.table()
   
-# --- Double-counting check ---
-  
-  browser()
+  # --- Double-counting check ---
   
   # Estimated child deaths averted by vaccination
   averted_dva_dt = read_rds("history", "burden_averted_deaths") %>%
@@ -602,24 +611,24 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
     as.data.table()
   
   uncorrected = mortality_dva_dt %>%
-                 mutate(diff = rate_alt1 - rate) %>%
-                 select(diff) %>%
-                 sum()
+    mutate(diff = rate_alt1 - rate) %>%
+    select(diff) %>%
+    sum()
   
   bernoulli = mortality_dva_dt %>%
-               mutate(diff = rate_alt1 - rate) %>%
-               mutate(inverse = 1- diff) %>%
-               select(inverse) %>%
-               cumprod()
+    mutate(diff = rate_alt1 - rate) %>%
+    mutate(inverse = 1- diff) %>%
+    select(inverse) %>%
+    cumprod()
   
   bernoulli = 1-min(bernoulli)
   
   lower_bound_error = uncorrected-bernoulli
   lower_bound_deaths = mortality_dva_dt %>%
-                        summarise(pop = mean(pop)) %>%
-                        mutate(value = pop * lower_bound_error) %>%
-                        select(-pop)
-                       
+    summarise(pop = mean(pop)) %>%
+    mutate(value = pop * lower_bound_error) %>%
+    select(-pop)
+  
   # ---- Format output ----
   
   # Use more descriptive scenario names
@@ -628,7 +637,7 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
   
   # Function to format output datatable
   mortality_format_fn = function(dt, metric) {
-
+    
     # Selection of metrics and melt to long format
     formated_dt = dt %>%
       select(group, year, starts_with(metric)) %>%

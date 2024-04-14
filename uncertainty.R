@@ -78,10 +78,10 @@ extern_uncertainty = function() {
       # Apply uncertainty bounds...
       mutate(bound = impact * scaler, 
              diff  = abs(impact - bound)) %>%
-      group_by(d_v_a_id, country, year) %>%
-      slice_min(diff, n = 1, with_ties = FALSE) %>%
+      group_by(d_v_a_id, country, year, impact) %>%
+      summarise(diff = mean(diff)) %>%
       ungroup() %>%
-      # Interpret bound represents 3 standard deviations...
+      # Interpret average bound as three standard deviations from mean...
       mutate(sd = diff / 3) %>%
       select(d_v_a_id, country, year, mean = impact, sd) %>%
       # Sample from Gaussian uncertainty_samples times...
@@ -105,23 +105,15 @@ extern_uncertainty = function() {
 # ---------------------------------------------------------
 # Summarise over posterior samples for lower and upper bounds
 # ---------------------------------------------------------
-summarise_uncertainty = function(data, cumulative) {
-  
-  # Grouping - may or may not include country
-  grouping = intersect(
-    x = names(data), 
-    y = qc(d_v_a_id, disease, region, country, year))
+summarise_uncertainty = function(data, cumulative = FALSE) {
   
   # Cumulative summing must be done before sample summary
   if (cumulative == TRUE) {
     
-    # Grouping for cumsumming over time
-    group_cum = c(setdiff(grouping, "year"), "sample")
-    
     # Cumulatively sum over time first
     data %<>%
       lazy_dt() %>%
-      group_by(across(all_of(group_cum))) %>%
+      group_by(d_v_a_id, country, sample) %>%
       mutate(impact = cumsum(impact)) %>%
       ungroup() %>%
       as.data.table()
@@ -131,7 +123,8 @@ summarise_uncertainty = function(data, cumulative) {
   bounds_dt = data %>%
     lazy_dt() %>%
     filter(sample != "best") %>%
-    group_by(across(all_of(grouping))) %>%
+    group_by() %>%
+    group_by(d_v_a_id, country, year) %>%
     summarise(lower = quantile(impact, o$quantiles[1]),
               upper = quantile(impact, o$quantiles[2])) %>%
     ungroup() %>%
@@ -140,9 +133,21 @@ summarise_uncertainty = function(data, cumulative) {
   # Append bounds to best estimate results
   summary_dt = data %>%
     filter(sample == "best") %>%
-    select(-sample) %>%
-    left_join(y  = bounds_dt,
-              by = grouping)
+    left_join(y  = bounds_dt, 
+              by = c("d_v_a_id", "country", "year")) %>%
+    # Bound uncertainty...
+    mutate(upper = pmax(upper, impact), 
+           lower = pmin(lower, impact), 
+           lower = pmax(lower, 0)) %>%
+    # Append evaluation error...
+    left_join(y  = read_rds("history", "evaluation_error"), 
+              by = c("d_v_a_id", "country", "year")) %>%
+    replace_na(list(err = 1)) %>%
+    # Consider evalutaion error in bounds...
+    mutate(upper = impact + (upper - impact) * (err ^ 2), 
+           lower = impact - (impact - lower) * (err ^ 2), 
+           lower = pmax(lower, 0)) %>%
+    select(d_v_a_id, country, year, impact, lower, upper)
   
   return(summary_dt)
 }
