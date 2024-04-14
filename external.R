@@ -19,17 +19,17 @@ run_external = function() {
   # Create templates for measles and polio models
   template_measles()
   template_polio()
-
+  
   # Simulate DynaMICE measles model
   simulate_dynamice()
-
+  
   # Format external modelling results for EPI50 use
   format_measles()
   format_polio()
-
+  
   # Extract results from all extern models
   extract_extern_results()
-
+  
   # Generate samples from extern model results
   extern_uncertainty()  # See uncertainty.R
   
@@ -469,6 +469,7 @@ extract_extern_results = function() {
   
   # All extern models and associated disease name
   all_models = table("extern_models") %>%
+    select(model, disease) %>%
     pivot_wider(
       names_from  = model, 
       values_from = disease) %>%
@@ -502,11 +503,21 @@ extract_extern_results = function() {
   
   message("  - Summarising historical estimates")
   
-  # Summarise by d-v-a (mean across all models)...
+  # Weighting of each model grouped by disease
+  weight_dt = table("extern_models") %>%
+    group_by(disease) %>%
+    mutate(model_weight = weight / sum(weight)) %>%
+    ungroup() %>%
+    select(model, weight = model_weight) %>%
+    as.data.table()
+  
+  # Summarise by d-v-a (across all models)...
   historical_dt = all_models_dt %>%
     lazy_dt() %>%
+    left_join(y  =  weight_dt, 
+              by = "model") %>%
     group_by(d_v_a_id, scenario, country, year, age, metric) %>%
-    summarise(value = mean(value, na.rm = TRUE)) %>%
+    summarise(value = sum(value * weight)) %>%
     ungroup() %>%
     as.data.table()
   

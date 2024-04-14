@@ -5,9 +5,12 @@ table:
 
 - model: dynamice
   disease: "measles"
+  weight: 1
   
 - model: measles
   disease: "measles"
+  weight: 1
 
 - model: polio
   disease: "polio"
+  weight: 1
