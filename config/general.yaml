@@ -1,0 +1,96 @@
+---
+
+# All values appended to options list (denoted o)
+
+# ---- Analysis settings ----
+  
+# Disease burden metrics to report
+metrics: 
+- "deaths"
+- "dalys"
+
+# ---- Time settings ----
+
+# Years to analyse
+years: "1974 : 2024"
+
+# Ages modelled
+ages: "0 : 100"
+
+# Annual of 5-year bins for population data
+pop_bin: 1  # OPTIONS: 1 or 5
+
+# Model final year only partially
+partial_final_year: 0.4167  # NOTE: 5 months of year (May 2024)
+
+# ---- Data and coverage ----
+
+# Upper bound for vaccine coverage values
+max_coverage: 0.996
+
+# Year that high-income countries switch to acellular pertussis vaccine
+wholecell_acellular_switch: 1995
+  
+# Smooth static model coverage to better align with GBD burden estimates
+gbd_coverage_smoother: "kernel"  # OPTIONS: "kernel" or "spline"
+  
+# Define smoothing power when using kernel smoothing
+kernal_bandwidth: 3
+  
+# Define method for extrapolating GBD burden post 2019
+gbd_extrap: "constant"  # OPTIONS: "trend" or "constant"
+
+# ---- External models ----
+  
+# GitHub repo for simulating DynaMICE model for EPI50 analysis
+github_dynamice: "ashattock/dynamice"
+
+# ---- Global Burden of Disease ----
+  
+# Use GBD estimates starting from a given year
+gbd_estimate_years: "1980 : 2022"
+  
+# ---- Regression settings ----
+  
+# Country must have at least n data points for fitting
+min_data_requirement: 5
+
+# ---- Impact function settings ----
+
+# Impact function model selection metric
+selection_metric: "aicc"  # OPTIONS: "aicc" or "ll"
+
+# Multiply impact when fitting for more consistent FVP-impact scales
+impact_scaler: 1000
+
+# Number of times to repeat optimisation
+n_optim: 10
+
+# Prior characteristics (assuming Gaussian)
+prior_weight: 1
+prior_sd: 0.1
+
+# MCMC run time settings
+mcmc_burnin: 100
+mcmc_iter: 1000
+
+# MCMC posterior samples (ensure greater than required uncertainty_samples)
+mcmc_samples: 100
+
+# Number of initial years to average over for back-projecting impact ratio
+init_impact_years: 3
+
+# ---- Uncertainty settings ----
+
+# Number of posterior samples for generating uncertainty
+uncertainty_samples: 100  # NOTE: Bounded by value of mcmc_samples
+
+# Bound uncertainty above and below a factor of best estimate
+uncertainty_max: 10
+
+# Quantiles for prediction intervals
+quantiles: 
+- 0.025
+- 0.975
+
+

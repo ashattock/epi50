@@ -27,7 +27,7 @@ run_impact = function(metric) {
   plot_impact_data(metric)
   
   # Plot all-time impact per FVPs
-  plot_impact_fvps(metric, scope = "all_time")
+  # plot_impact_fvps(metric, scope = "all_time")
   
   # ---- Model fitting ----
   
@@ -84,10 +84,10 @@ run_impact = function(metric) {
   
   # Plot function selection statistics
   plot_model_selection(metric)
-  
+
   # Plot impact function evaluation
   plot_model_fits(metric)
-  
+
   # Plot impact vs coverage by vaccine, income, and decade
   plot_impact_coverage(metric)
 }
@@ -215,7 +215,7 @@ get_best_model = function(id, run, data, pb) {
   # Update progress bar
   pb$tick()
   
-  # ---- Diagnostic plot ----
+  # ---- Diagnostic plots ----
   
   # data_dt   = data.table(x = x, value = y)
   # models_dt = data.table(x = x)
@@ -229,7 +229,7 @@ get_best_model = function(id, run, data, pb) {
   #   arrange(fn, x) %>%
   #   as.data.table()
   # 
-  # plot_dt = result %>%
+  # plot1_dt = result %>%
   #   filter(param == "ll") %>%
   #   mutate(lab = paste0(
   #     fn, "\nll = ",
@@ -238,13 +238,29 @@ get_best_model = function(id, run, data, pb) {
   #   left_join(y  = models_dt,
   #             by = "fn")
   # 
-  # g = ggplot(plot_dt) +
+  # g1 = ggplot(plot1_dt) +
   #   aes(x = x, y = value) +
   #   geom_line(
   #     mapping = aes(colour = lab)) +
   #   geom_point(
   #     data   = data_dt,
   #     colour = "black")
+  # 
+  # plot2_dt = result %>%
+  #   filter(param == "aicc",
+  #          value == min(value)) %>%
+  #   select(fn) %>%
+  #   left_join(y  = result,
+  #             by = "fn") %>%
+  #   filter(!is.na(iter))
+  # 
+  # g2 = ggplot(plot2_dt) +
+  #   aes(x = value,
+  #       y = after_stat(scaled)) +
+  #   geom_density() +
+  #   facet_wrap(
+  #     facets = vars(param),
+  #     scales = "free_x")
   
   return(result)
 }
@@ -326,7 +342,7 @@ run_mcmc = function(fns, optim, x, y) {
   likelihood_fn = function(p) {
     
     # Set poor likelihood when parameter bounds are violated
-    if (any(p < 1e-10)) 
+    if (any(p < 1e-10))
       return(-1e6)
     
     # Evaluate model emulator for given parameters

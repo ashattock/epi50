@@ -16,10 +16,10 @@ run_prepare = function() {
   if (!is.element(1, o$run_module)) return()
   
   message("* Preparing input data")
-  
+
   # Convert config yaml files to datatables
   prepare_config_tables()
-
+  
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
 
@@ -47,14 +47,13 @@ run_prepare = function() {
 # ---------------------------------------------------------
 prepare_config_tables = function() {
   
-  message(" > Config files")
-  
   # NOTE: Convert from yaml (/config) to rds (/tables) for fast loading
   
   # List of config yaml files to convert
   config_files = o$pth$config %>%
     list.files(pattern = ".+\\.yaml$") %>%
-    str_remove(".yaml$")
+    str_remove(".yaml$") %>%
+    setdiff("general")
   
   # Iterate through these files
   for (file in config_files) {

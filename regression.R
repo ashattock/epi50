@@ -36,15 +36,20 @@ run_regression = function(case, metric) {
   
   # Call country imputation function
   predict_dt = table("d_v_a") %>%
-    filter(source %in% use_sources) %>%
-    # Apply geographical imputation model...
+    filter(source %in% use_sources,
+           activity != "campaign", 
+           disease  != "mena") %>%
     pull(d_v_a_id) %>%
+    # Apply geographical imputation model...
     lapply(perform_regression, 
            target = target, 
            case   = case, 
            metric = metric) %>%
     rbindlist() %>%
     select(d_v_a_id, country, year, impact_impute)
+  
+  # Save predictions to file for diagnostic plotting
+  save_rds(predict_dt, case, case, metric, "predictions")
   
   # ---- Use regression to impute missing countries ----
   
@@ -64,29 +69,27 @@ run_regression = function(case, metric) {
     select(d_v_a_id, country, year, 
            fvps = fvps_cum, impact) %>%
     # Assume any missing values are zero impact...
-    replace_na(list(impact = 0)) %>%
-    # TEMP: Bound impact above by 1...
-    mutate(impact = pmin(impact, 1))  # HCJ: This can be removed when fitting looks good
+    replace_na(list(impact = 0))
   
   # Save imputed results to file
   save_rds(impute_dt, case, case, metric, "result")
   
   # ---- Plot results ----
   
-  # Plot model choice by region
-  plot_model_choice(metric)
-  
-  # Plot predicted vs. observed for all countries
-  plot_impute_quality(metric)
-  
-  # Plot predicted vs observed for each country
-  plot_impute_perform(metric)
-  
-  # Plot fit to data in train-predict countries
-  plot_impute_fit(metric)
-  
-  # Plot validation
-  plot_validation(metric)
+  # # Plot model choice by region
+  # plot_model_choice(metric)
+  # 
+  # # Plot predicted vs. observed for all countries
+  # plot_impute_quality(metric)
+  # 
+  # # Plot predicted vs observed for each country
+  # plot_impute_perform(metric)
+  # 
+  # # Plot fit to data in train-predict countries
+  # plot_impute_fit(metric)
+  # 
+  # # Plot validation
+  # plot_validation(metric)
 }
 
 # ---------------------------------------------------------
@@ -134,7 +137,7 @@ define_models = function(case) {
       x404 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + phs",
       x405 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water",
       x500 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water + phs"))
-
+  
   return(list(models[[case]], covars))
 }
 
@@ -238,8 +241,6 @@ perform_regression = function(d_v_a_id, target, case, metric) {
   # Append all required covariates - see separate function
   target_ts = append_covariates(d_v_a_id, models, covars, target)
   
-  browser()
-  
   # Load income status of each country
   income_dt = table("income_status") %>%
     # Income level 5 years ago...
@@ -285,8 +286,6 @@ perform_regression = function(d_v_a_id, target, case, metric) {
   
   message("  - Model selection")
   
-  browser() # Need to append region/income here?
-  
   # For each country, select the model with the best AICc
   model_choice = model_list %>%
     lapply(report) %>%
@@ -331,7 +330,6 @@ perform_regression = function(d_v_a_id, target, case, metric) {
       model_choice = model_choice, 
       model_list = model_list, 
       target     = target_ts, 
-      case       = case,
       income_dt  = income_dt)
   }
   
@@ -459,12 +457,14 @@ append_covariates = function(d_v_a_id, models, covars, target) {
               by = c("country", "year")) %>%
     arrange(country, year) %>%
     # Lag any necessary covariates...
-    group_by(country) %>%
-    covar_lag_fn() %>%
-    ungroup() %>%
+    split(.$country) %>%
+    lapply(covar_lag_fn) %>%
+    rbindlist() %>%
     # Only retain covariates defined in models...
     select(country, year, target, 
            all_of(covars_retain)) %>%
+    fill(any_of(covars_retain), 
+         .direction = "updown") %>%
     # Convert to time-series tibble...
     as_tsibble(index = year, 
                key   = country) 
@@ -496,12 +496,10 @@ evaluate_model = function(id, models, covars, data) {
 # ---------------------------------------------------------
 # Evaluate chosen model for all settings
 # ---------------------------------------------------------
-evaluate_predictions = function(model_choice, model_list, target, case, income_dt) {
-  
-  browser() # Where most changes have happened
+evaluate_predictions = function(model_choice, model_list, target, income_dt) {
   
   # Full set of models available - we'll subset for this modal ID
-  list[models, covars] = define_models(case)
+  list[models, covars] = define_models("impute")
   
   # Evaluate models on the training data
   predict_dt = augment(model_choice) %>%
@@ -519,10 +517,12 @@ evaluate_predictions = function(model_choice, model_list, target, case, income_d
     select(d_v_a_id, country, region, income, model_id, tslm) %>%
     # Find preferred model by income level
     group_by(region, income) %>%
-    summarise(mode = mode(model_id)) 
-  
+    summarise(mode = mode(model_id)) %>%
+    ungroup() %>%
+    as.data.table()
   
   # ---- Summarise predictor coefficients from training countries ---------
+  
   coefficient_dt = model_choice %>%
     tidy() %>%
     lazy_dt() %>%
@@ -567,6 +567,7 @@ evaluate_predictions = function(model_choice, model_list, target, case, income_d
     fill(contains("coefficient"), .direction = "up") 
   
   # ---- Full summary of models and predictors for every country ----
+  
   full_coefficient_dt = model_choice %>%
     tidy() %>%
     lazy_dt() %>%
@@ -590,8 +591,6 @@ evaluate_predictions = function(model_choice, model_list, target, case, income_d
   quote = function(x, q = '"') 
     paste0(q, x, q)
   
-  browser() # Why pluck 11?
-  
   # Column names of predictors
   predict_covars = models %>%
     interpret_covars(covars) %>%
@@ -605,8 +604,6 @@ evaluate_predictions = function(model_choice, model_list, target, case, income_d
     quote("`") %>%
     paste(predict_covars, sep = " * ") %>%
     paste(collapse = " + ") 
-  
-  browser() # Can be tidied up?...
   
   # Construct complete function call to be evaluated
   predict_fn   = paste0("prediction = exp(", predict_str, "+ `(Intercept)_coefficient`",")")
@@ -642,28 +639,5 @@ interpret_covars = function(model, covars) {
       replacement = covars[[covar]])
   
   return(model)
-}
-
-# ---------------------------------------------------------
-# Easily convert between year and period
-# ---------------------------------------------------------
-get_period = function() {
-  
-  # Indices of period change
-  year_idx = seq(
-    from = o$period_length, 
-    to   = length(o$years), 
-    by   = o$period_length) + 1
-  
-  # Format into full year-period datatable
-  period_dt = tibble(year = o$years[year_idx]) %>%
-    mutate(period = 1 : n()) %>%
-    full_join(y  = tibble(year = o$years), 
-              by = "year") %>%
-    arrange(year) %>%
-    fill(period, .direction = "updown") %>%
-    as.data.table()
-  
-  return(period_dt)
 }
 
