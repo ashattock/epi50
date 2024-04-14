@@ -22,14 +22,17 @@ plot_scope = function() {
   
   # Dictionary for full impact source descriptions
   impact_dict = c(
-    extern = "Dynamic modelling (external to VIMC)",
-    vimc   = "Dynamic modelling (contributing to VIMC)", 
-    static = "Static modelling", 
+    extern = "Transmission modelling (Form 1)",
+    vimc   = "Transmission modelling (Form 2)", 
+    static = "Static modelling (Form 3)", 
     impute = "Geographic imputation model", 
     extrap = "Temporal extrapolation model")
   
   # Associated colours
   impact_colours = c("#EB7D5B", "#FED23F", "#B5D33D", "#6CA2EA", "#442288")
+  
+  # Alter figure dimensions
+  save_height = 18
   
   # ---- Number of FVPs by pathogen ----
   
@@ -65,7 +68,7 @@ plot_scope = function() {
   static_dt = table("gbd_estimates") %>%
     select(disease, country, year) %>%
     unique() %>%
-    # filter(year %in% o$gbd_estimate_years) %>%
+    filter(year %in% o$gbd_estimate_years) %>%
     mutate(class = "static")
   
   # External model settings
@@ -106,7 +109,8 @@ plot_scope = function() {
     right_join(y  = fvps_dt, 
                by = c("disease", "country", "year")) %>%
     # Anything not yet specified is time-exrapolated...
-    mutate(class = ifelse(is.na(class), "extrap", class)) %>%
+    mutate(class = ifelse(is.na(class) & year <= 2000, "extrap.1", class), 
+           class = ifelse(is.na(class) & year >  2000, "extrap.2", class)) %>%
     # Summarise over all countries...
     group_by(disease, class, year) %>%
     summarise(fvps = sum(fvps)) %>%
@@ -132,6 +136,7 @@ plot_scope = function() {
     # Use full disease names...
     left_join(y  = table("disease_name"), 
               by = "disease") %>%
+    mutate(class = str_remove(class, "\\.[1-9]+$")) %>%
     select(disease = disease_name, class, time, value) %>%
     # Use impact source descriptions...
     mutate(class = recode(class, !!!impact_dict), 
@@ -194,9 +199,12 @@ plot_scope = function() {
       repeat.tick.labels = FALSE) + 
     # Set colours and legend title...
     scale_fill_manual(
-      values = FALSE, 
+      values = impact_colours, 
       name   = "Source of impact estimates") +
-    guides(fill = guide_legend(reverse = TRUE)) +
+    guides(fill = guide_legend(
+      reverse = TRUE, 
+      byrow   = TRUE, 
+      nrow    = 2)) +
     # Prettify x axis...
     scale_x_continuous(
       limits = c(year1 - 1 / smoothness, 
@@ -211,8 +219,6 @@ plot_scope = function() {
       breaks = seq(2, y_max, by = 2),
       labels = comma,
       expand = expansion(mult = c(0, 0)))
-  
-  browser()
   
   # Prettify theme
   g = g + theme_classic() + 
@@ -230,13 +236,19 @@ plot_scope = function() {
           legend.title  = element_text(size = 14),
           legend.text   = element_text(size = 11),
           legend.key    = element_blank(),
-          legend.position = "right", 
+          legend.position = "bottom", 
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
   # Save to file
-  save_fig(g, "Analysis scope", dir = "data_visualisation")
-  save_fig(g, "Figure S1", dir = "manuscript")
+  save_fig(g, "Analysis scope", 
+           dir    = "data_visualisation", 
+           height = save_height)
+  
+  # Also save as main manuscript figure
+  save_fig(g, "Figure S1", 
+           dir    = "manuscript",
+           height = save_height)
 }
 
 # ---------------------------------------------------------
@@ -616,9 +628,9 @@ plot_coverage_age_density = function() {
     scale_x_continuous(
       name   = "Age (log2 scale)",
       trans  = "log2", 
-      limits = c(1, 2^7), 
+      limits = c(1, 2 ^ 6), 
       expand = c(0, 0), 
-      breaks = 2^(0:7)) +  
+      breaks = 2 ^ (0 : 6)) +  
     # Prettify y axis...
     scale_y_continuous(
       name   = "Density", 
@@ -1470,8 +1482,17 @@ plot_impute_quality = function(metric) {
   # ---- Load results from fitting ----
   
   # Function to load imputation results
-  load_results_fn = function(id)
-    result = read_rds("impute", "impute", metric, id)$result
+  load_results_fn = function(id) {
+    
+    # Load file and extract model details
+    result = try_load(
+      pth  = o$pth$impute, 
+      file = paste1("impute", metric, id), 
+      throw_error = FALSE) %>%
+      pluck("result")
+    
+    return(result)
+  }
   
   # Load imputation results for all d-v-a
   results_dt = table("d_v_a") %>%
@@ -1484,16 +1505,14 @@ plot_impute_quality = function(metric) {
   
   # Prepare datatable for plotting
   plot_dt = results_dt %>%
-    filter(!is.na(target)) %>%
-    filter(!is.na(prediction)) %>%
-    filter(target != 0) %>%
-    select(-country) %>%
-    as.data.table()
+    filter(target > 0, prediction > 0) %>%
+    format_d_v_a_name() %>%
+    select(d_v_a_name, target, prediction)
   
   # Maximum value in each facet (target or prediction)
   blank_dt = plot_dt %>%
     mutate(max_value = pmax(target, prediction)) %>%
-    group_by(d_v_a_id) %>%
+    group_by(d_v_a_name) %>%
     summarise(max_value = max(max_value)) %>%
     ungroup() %>%
     expand_grid(type = c("target", "prediction")) %>%
@@ -1501,26 +1520,35 @@ plot_impute_quality = function(metric) {
                 values_from = max_value) %>%
     as.data.table()
   
+  # Colour scheme
+  colours = colour_scheme(
+    map = "brewer::set1", 
+    n   = n_unique(plot_dt$d_v_a_name))
+  
   # ---- Produce plot ----
   
   # Single plot with multiple facets
   g = ggplot(plot_dt) +
     aes(x = target, 
         y = prediction, 
-        color = d_v_a_id) +
+        color = d_v_a_name) +
     # Plot truth vs predicted...
-    geom_point(alpha = 0.35, 
-               shape = 16, 
-               show.legend = FALSE) +
+    geom_point(
+      alpha = 0.5, 
+      shape = 16, 
+      show.legend = FALSE) +
     # For square axes...
     geom_blank(data = blank_dt) +
     # To see quality of predict vs target...
     geom_abline(colour = "black") + 
     # Simple faceting with wrap labelling...
     facet_wrap(
-      facets   = vars(d_v_a_id), 
+      facets   = vars(d_v_a_name), 
       labeller = label_wrap_gen(width = 30), 
       scales   = "free") + 
+    # Set colour scheme...
+    scale_colour_manual(
+      values = colours) + 
     # Prettify x axis...
     scale_x_continuous(
       name   = "Imputation target", 
@@ -1552,7 +1580,7 @@ plot_impute_quality = function(metric) {
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
-  save_fig(g, "Imputation fit", metric, dir = "imputation")
+  save_fig(g, "Imputation quality", metric, dir = "imputation")
 }
 
 # --------------------------------------------------------
@@ -1562,101 +1590,107 @@ plot_impute_perform = function(metric) {
   
   message("  - Plotting predictive performance by country")
   
-  # ---- Load models from fitting ----
-  # Function to load best model for each country and show results
-  load_results_fn = function(id){
-    model = read_rds("impute", "impute", metric, id)$model 
+  # Function to load imputation results
+  load_results_fn = function(id, pull) {
+    
+    # Load file and extract model details
+    result = try_load(
+      pth  = o$pth$impute, 
+      file = paste1("impute", metric, id), 
+      throw_error = FALSE) %>%
+      pluck(pull)
+    
+    return(result)
   }
   
-  # ignore = 12
-  
-  # Load imputation results for all d-v-a
-  diseases_dt = table("d_v_a") %>%
+  train_dt = table("d_v_a") %>%
     filter(source == "vimc") %>%
-    # filter(!d_v_a_id %in% ignore) %>% 
-    pull(d_v_a_id)
+    pull(d_v_a_id) %>%
+    lapply(load_results_fn, pull = "model") %>%
+    lapply(augment) %>%
+    rbindlist() %>%
+    rename(prediction = .fitted) %>%
+    format_d_v_a_name() %>%
+    select(d_v_a_name, region, country, 
+           year, target, prediction)
   
-  for(id in diseases_dt){
-    model = load_results_fn(id)
-    
-    plot_dt = augment(model) %>%
-      rename(prediction = .fitted)
-    
-    # Maximum value in each facet (target or prediction)
-    blank_dt = plot_dt %>%
-      mutate(max_value = pmax(target, prediction)) %>%
-      group_by(country) %>%
-      summarise(max_value = max(max_value)) %>%
-      ungroup() %>%
-      expand_grid(type = c("target", "prediction")) %>%
-      pivot_wider(names_from  = type, 
-                  values_from = max_value) %>%
-      as.data.table()
-    
-    
-    # ---- Produce plot ----
-    
-    # Single plot with multiple facets
-    g = ggplot(plot_dt) +
-      aes(x = target, 
-          y = prediction) +
-      # Plot truth vs predicted...
-      geom_point(alpha = 0.35, 
-                 shape = 16) +
-      # For square axes...
-      geom_blank(data = blank_dt) +
-      # x=y
-      geom_abline(colour = "black", 
-                  intercept = 0,
-                  slope = 1) + 
-      # Simple faceting with wrap labelling...
-      facet_wrap(
-        facets   = ~country, 
-        labeller = label_wrap_gen(width = 30), 
-        ncol = 21,
-        scales = "free") + 
-      # Prettify x axis...
-      scale_x_continuous(
-        name   = "Imputation target", 
-        labels = NULL,#scientific,
-        limits = c(0, NA), 
-        expand = c(0, 0), 
-        breaks = pretty_breaks()) +  
-      # Prettify y axis...
-      scale_y_continuous(
-        name   = "Imputation prediction", 
-        labels = NULL,#scientific,
-        limits = c(0, NA),
-        expand = c(0, 0), 
-        breaks = pretty_breaks()) +
-      # Title 
-      labs(title = paste("Predictive performance for", plot_dt$d_v_a_id))
-    
-    # Prettify theme
-    g = g + theme_classic() + 
-      theme(axis.text     = element_text(size = 8),
-            axis.text.x   = element_text(hjust = 1, angle = 50),
-            axis.title.x  = element_text(
-              size = 16, margin = margin(l = 10, r = 20)),
-            axis.title.y  = element_text(
-              size = 16, margin = margin(b = 10, t = 20)),
-            axis.line     = element_blank(),
-            strip.text    = element_text(size = 12),
-            strip.background = element_blank(), 
-            panel.border  = element_rect(
-              linewidth = 0.5, fill = NA),
-            panel.spacing = unit(0.5, "lines"))
-    
-    
-    # Details for file destination
-    save_name = "Predictive performance by country"
-    save_dir  = "imputation"
-    
-    # Save figure to file
-    save_fig(g, save_name, id, metric, dir = save_dir)
-  }
+  outlier_dt = train_dt %>%
+    group_by(d_v_a_name, region) %>%
+    slice_max(prediction, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    mutate(outlier = target * 2) %>%
+    select(d_v_a_name, region, outlier) %>%
+    as.data.table()
   
-  return()
+  impute_dt = table("d_v_a") %>%
+    filter(source == "vimc") %>%
+    pull(d_v_a_id) %>%
+    lapply(load_results_fn, pull = "result") %>%
+    rbindlist() %>%
+    filter(is.na(target) & !is.na(prediction)) %>%
+    format_d_v_a_name() %>%
+    append_region_name() %>%
+    left_join(y  = outlier_dt, 
+              by = c("d_v_a_name", "region")) %>%
+    filter(prediction <= outlier, 
+           year >= 2000) %>%
+    select(d_v_a_name, region, country, 
+           year, target, prediction)
+  
+  colours = colour_scheme(
+    map = "brewer::set1", 
+    n   = n_unique(train_dt$d_v_a_name))
+    
+  g = ggplot(train_dt) + 
+    aes(x = year, 
+        y = prediction,
+        group  = country,
+        colour = d_v_a_name) + 
+    # Plot training data and fit...
+    geom_point(
+      mapping = aes(y = target), 
+      alpha   = 0.5, 
+      shape   = 16) + 
+    geom_line() + 
+    # Plot imputed on top in black...
+    geom_line(
+      data   = impute_dt, 
+      colour = "black") + 
+    # Facet by disease and region...
+    facet_grid(
+      cols   = vars(region), 
+      rows   = vars(d_v_a_name), 
+      scales = "free_y", 
+      labeller = label_wrap_gen(width = 17)) + 
+    # Set colour scheme...
+    scale_colour_manual(
+      values = colours) + 
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = paste0(
+        "Imputation prediction\n ", 
+        "(ratio of cumulative impact and cumulative FVP)"), 
+      labels = scientific,
+      limits = c(0, NA),
+      expand = c(0, 0), 
+      breaks = pretty_breaks())
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.text     = element_text(size = 8),
+          axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.title.y  = element_text(
+            size = 16, margin = margin(l = 10, r = 20)),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 10),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(0.4, "lines"), 
+          legend.position = "none")
+  
+  # Save to file
+  save_fig(g, "Imputation model fit", metric, dir = "imputation")
 }
 
 #-------------------------------------------------
@@ -1667,16 +1701,23 @@ plot_model_choice = function(metric) {
   message("  - Plotting model choice by region")
   
   # ---- Load results from imputation ----
-  # Function to load imputation results
-  load_results_fn = function(id)
-    result = read_rds("impute", "impute", metric, id)$model
   
-  #ignore = 12
+  # Function to load imputation results
+  load_results_fn = function(id) {
+    
+    # Load file and extract model details
+    result = try_load(
+      pth  = o$pth$impute, 
+      file = paste1("impute", metric, id), 
+      throw_error = FALSE) %>%
+      pluck("model")
+    
+    return(result)
+  }
   
   # Load imputation results for all d-v-a
   choice_dt = table("d_v_a") %>%
     filter(source == "vimc") %>%
-    # filter(!d_v_a_id %in% ignore) %>% 
     pull(d_v_a_id) %>%
     lapply(load_results_fn) %>%
     rbindlist() 
@@ -1695,17 +1736,12 @@ plot_model_choice = function(metric) {
     group_by(model_id) %>%         
     mutate(prop = prop.table(n)) 
   
-  # Details for file destination
-  save_name = paste("Model_choice_by_region", metric, sep = "_")
-  save_dir  = "data_visualisation"
-  
   # Plot model choice by region
-  g1 = ggplot(region_choice_dt,
-              aes(x = model_id,
-                  y = n,
-                  fill = region)) + 
+  g1 = ggplot(region_choice_dt) + 
+    aes(x = model_id,
+        y = n,
+        fill = region) + 
     geom_bar(stat = "identity") + 
-    
     # Simple faceting with wrap labelling...
     facet_wrap(
       facets   = vars(d_v_a_id), 
@@ -1734,12 +1770,11 @@ plot_model_choice = function(metric) {
   
   
   # Plot model choice by income level
-  g2 = ggplot(income_choice_dt,
-              aes(x = model_id,
-                  y = n,
-                  fill = income)) + 
+  g2 = ggplot(income_choice_dt) + 
+    aes(x = model_id,
+        y = n,
+        fill = income) + 
     geom_bar(stat = "identity") + 
-    
     # Simple faceting with wrap labelling...
     facet_wrap(
       facets   = vars(d_v_a_id), 
@@ -1766,11 +1801,13 @@ plot_model_choice = function(metric) {
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
+  # Details for file destination
+  save_name = paste("Model_choice_by_region", metric, sep = "_")
+  save_dir  = "imputation"
+  
   # Save to file
   save_fig(g1, paste(save_name, "region", sep = "_"), dir = save_dir)
   save_fig(g2, paste(save_name, "income", sep = "_"), dir = save_dir)
-  
-  
 }
 
 # --------------------------------------------------------
@@ -1974,6 +2011,7 @@ plot_validation = function(metric){
   
   return()
 }
+
 # **** Impact functions ****
 
 # ---------------------------------------------------------
@@ -2442,31 +2480,29 @@ plot_model_fits = function(metric) {
   data_dt = read_rds("impact", "impact", metric, "data") %>%
     format_d_v_a_name()
   
-  # Evaluate only as far as we have data
-  max_data = data_dt %>%
-    group_by(d_v_a_name, country) %>%
+  # Largest cumulative FVP we need to plot up to
+  max_dt = data_dt %>%
+    group_by(d_v_a_id, country) %>%
     slice_max(fvps, n = 1, with_ties = FALSE) %>%
     ungroup() %>%
-    select(d_v_a_name, country, x_max = fvps) %>%
-    # Increment up one so we plot slightly past the data...
-    mutate(x_max = x_max + o$eval_x_scale / 100) %>%
+    select(d_v_a_id, country, x_max = fvps) %>%
+    as.data.table()
+    
+  # Expand for a full series of evaluation points
+  eval_dt = max_dt %>%
+    expand_grid(scale = seq(0, 1, by = 0.01)) %>%
+    mutate(fvps = x_max * scale) %>%
+    select(d_v_a_id, country, fvps) %>%
     as.data.table()
   
-  browser() # Need to load up mean coef datatable here
-  
-  # Use fine vector of x points to evaluate for nicer plotting
+  # Evaluate all points
+  fit_dt = evaluate_impact_function(
+    data   = eval_dt, 
+    metric = metric, 
+    uncert = FALSE)
   
   # Evaluate selected impact function
-  best_fit = evaluate_impact_function(
-    data = NULL, 
-    coef = NULL) %>%
-    format_d_v_a_name()
-  
-  # Apply max_data so we only plot up to data (or just past)
-  plot_dt = best_fit %>%
-    left_join(y  = max_data,
-              by = c("d_v_a_name", "country")) %>%
-    filter(fvps < x_max) %>%
+  plot_dt = fit_dt %>%
     format_d_v_a_name() %>%
     select(d_v_a_name, country, fvps, impact)
   
@@ -2696,15 +2732,7 @@ plot_impact_coverage = function(metric) {
 # ---------------------------------------------------------
 # Main results plot - historical impact over time
 # ---------------------------------------------------------
-plot_historical_impact = function(region = NULL, income = NULL) {
-  
-  # Flags for disaggregation
-  by_region = !is.null(region)
-  by_income = !is.null(income)
-  
-  # Sanity check that we only have one disaggregation
-  if (by_region && by_income)
-    stop("Disaggregation only possible for region or income, not both")
+plot_historical_impact = function(by = NULL) {
   
   # ---- Figure properties ----
   
@@ -2731,33 +2759,33 @@ plot_historical_impact = function(region = NULL, income = NULL) {
   
   # ---- Regional or income scope ----
   
-  # Regional scope
-  if (by_region) {
-    scope = table("region_dict") %>%
-      filter(region == !!region) %>%
-      pull(region_name)
+  # Grouping datatable: income and region of each country
+  country_scope = table("income_status") %>%
+    filter(year == max(year)) %>%
+    left_join(y  = table("income_dict"), 
+              by = "income") %>%
+    select(country, income = income_name) %>%
+    mutate(income = factor(
+      x      = income, 
+      levels = table("income_dict")$income_name)) %>%
+    append_region_name()
+  
+  if (is.null(by)) {
     
-  } else {  # Otherwise all regions
-    region = all_regions()
+    scope_dt = country_scope %>%
+      select(country) %>%
+      mutate(scope = "global")
   }
   
-  # Income group scope
-  if (by_income) {
-    scope = table("income_dict") %>%
-      filter(income == !!income) %>%
-      pull(income_name)
+  if (!is.null(by)) {
     
-  } else {  # Otherwise all income groups
-    income = table("income_dict")$income
+    scope_dt = country_scope %>%
+      select(country, scope = !!by)
   }
-  
-  # Global scope: trivialise scope
-  if (!by_region && !by_income)
-    scope = NULL
-  
+    
   # Display what we're plotting to user
   msg = "  - Plotting historical impact"
-  message(paste(c(msg, scope), collapse = ": "))
+  message(paste(c(msg, by), collapse = ": "))
   
   # ---- Load results ----
   
@@ -2779,29 +2807,24 @@ plot_historical_impact = function(region = NULL, income = NULL) {
               by = "d_v_a_id") %>%
     left_join(y  = table("disease_name"), 
               by = "disease") %>%
+    # Country grouping...
+    left_join(y  = scope_dt, 
+              by = "country") %>%
     # Tidy up...
     select(metric, disease, disease_name, 
-           country, year, impact)
+           scope, year, impact)
   
   # ---- Summarize results ----
   
   # Cumulative impact by metric and disease group
   results_dt = impact_dt %>%
-    # Subset regional scope...
-    left_join(y  = table("country"), 
-              by = "country") %>%
-    filter(region %in% !!region) %>%
-    # Subset income group scope....
-    left_join(y  = table("income_status"), 
-              by = c("country", "year")) %>%
-    filter(income %in% !!income) %>%
     # Combine subset of diseases...
     mutate(group = ifelse(
       test = disease %in% grouping, 
       yes  = other, 
       no   = disease_name)) %>%
     # Cumulative results for each disease...
-    group_by(metric, group, year) %>%
+    group_by(metric, group, scope, year) %>%
     summarise(impact = sum(impact)) %>%
     mutate(impact = cumsum(impact)) %>%
     ungroup() %>%
@@ -2888,7 +2911,7 @@ plot_historical_impact = function(region = NULL, income = NULL) {
     arrange(metric_id, disease) %>%
     mutate(metric = fct_inorder(metric), 
            label  = fct_inorder(label)) %>%
-    select(label, metric_id, metric, year, value)
+    select(label, metric_id, metric, scope, year, value)
   
   # Blank plot to get custom y axes limits
   blank_dt = plot_dt %>%
@@ -2924,27 +2947,9 @@ plot_historical_impact = function(region = NULL, income = NULL) {
     # Plot bars...
     geom_col(
       mapping = aes(
-        fill = label)) + 
-    # Add total text...
-    geom_text(
-      data    = text_dt, 
-      mapping = aes(
-        label = text), 
-      hjust   = "left", 
-      size    = 4) + 
-    # Facet by temporal-cumulative metric...
-    facet_wrap(
-      facets = vars(metric), 
-      scales = "free_y", 
-      nrow   = 1) + 
+        fill = label)) +
     # Set colours...
     scale_fill_manual(values = colours) + 
-    # Prettify y axis...
-    geom_blank(data = blank_dt) + 
-    scale_y_continuous(
-      labels = comma, 
-      breaks = pretty_breaks(),
-      expand = expansion(mult = c(0, 0))) +
     # Prettiy x axis...
     scale_x_continuous(
       limits = c(min(o$years) - 1, 
@@ -2958,40 +2963,76 @@ plot_historical_impact = function(region = NULL, income = NULL) {
     guides(fill = guide_legend(
       byrow = TRUE))
   
-  # Plot region name unless plotting global results
-  if (!is.null(scope))
-    g = g + ggtitle(scope)
+  # Prettify global plot
+  if (is.null(by)) {
+    g = g + 
+      # Facet by metric only...
+      facet_wrap(
+        facets = vars(metric), 
+        scales = "free_y", 
+        nrow   = 1) + 
+      # Add total text...
+      geom_text(
+        data    = text_dt, 
+        mapping = aes(
+          label = text), 
+        hjust   = "left", 
+        size    = 4) +
+      # Prettify y axis...
+      geom_blank(data = blank_dt) + 
+      scale_y_continuous(
+        labels = comma, 
+        breaks = pretty_breaks(),
+        expand = expansion(mult = c(0, 0)))
+  }
+  
+  # Prettify disaggregated plot
+  if (!is.null(by)) {
+    g = g + 
+      # Facet by metric and country-grouping...
+      facet_grid(
+        rows   = vars(metric),
+        cols   = vars(scope), 
+        scales = "free_y", 
+        labeller = labeller(
+          scope  = label_wrap_gen(20))) + 
+      # Prettify y axis...
+      scale_y_continuous(
+        labels = comma, 
+        breaks = pretty_breaks(),
+        expand = expansion(mult = c(0, 0.05)))
+  }
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.title    = element_blank(),
-          axis.text     = element_text(size = 9),
-          axis.text.x   = element_text(hjust = 1, angle = 50), 
-          axis.line     = element_blank(),
-          plot.title    = element_text(
+    theme(axis.title  = element_blank(),
+          axis.text   = element_text(size = 9),
+          axis.text.x = element_text(hjust = 1, angle = 50), 
+          axis.line   = element_blank(),
+          plot.title  = element_text(
             margin = margin(t = 10, b = 20), 
             size   = 18,
             hjust  = 0.5), 
-          strip.text    = element_text(size = 12),
+          strip.text = element_text(size = 12),
           strip.background = element_blank(), 
-          panel.border  = element_rect(
+          panel.border = element_rect(
             linewidth = 0.5, fill = NA),
           panel.spacing = unit(0.5, "lines"),
           panel.grid.major.y = element_line(linewidth = 0.25),
-          legend.title  = element_blank(),
-          legend.text   = element_markdown(size = 11),
-          legend.key    = element_blank(),
+          legend.title = element_blank(),
+          legend.text  = element_markdown(size = 11),
+          legend.key   = element_blank(),
           legend.position = "right", 
           legend.spacing.y  = unit(2, "lines"),
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
   # Save these figures to file
-  save_fig(g, "Historical impact", scope, 
+  save_fig(g, "Historical impact", by, 
            dir = "historical_impact")
   
   # Save global results as main manuscript figure
-  if (is.null(scope))
+  if (is.null(by))
     save_fig(g, "Figure 1", dir = "manuscript")
 }
 
@@ -3004,24 +3045,25 @@ plot_temporal_impact = function(metric) {
   
   # Results by disease and region
   plot_dt = read_rds("history", "all_samples", metric) %>%
+    # Summarising uncertainty...
+    summarise_uncertainty() %>%
     # Append full region and disease names...
     append_region_name() %>%
     left_join(y  = table("d_v_a"), 
               by = "d_v_a_id") %>%
     left_join(y  = table("disease_name"), 
               by = "disease") %>%
-    select(disease = disease_name, region, year, sample, impact) %>%
     # Results for each disease and each region...
-    group_by(disease, region, year, sample) %>%
-    summarise(impact = sum(impact)) %>%
+    group_by(disease_name, region, year) %>%
+    summarise(impact = sum(impact), 
+              lower  = sum(lower), 
+              upper  = sum(upper)) %>%
     ungroup() %>%
+    rename(disease = disease_name) %>%
     # Remove only single data points...
     add_count(disease, region) %>%
-    mutate(n = n / (o$uncertainty_samples + 1)) %>%
     filter(n > 1) %>%
     select(-n) %>%
-    # Summarising uncertainty...
-    summarise_uncertainty(cumulative = FALSE) %>%
     as.data.table()
   
   # Colour scheme
@@ -3058,8 +3100,8 @@ plot_temporal_impact = function(metric) {
       facets = vars(disease), 
       scales = "free_y") + 
     # Set colours...
-    scale_colour_manual(
-      values = colours) + 
+    scale_colour_manual(values = colours) + 
+    scale_fill_manual(values = colours) + 
     # Prettify y axis...
     scale_y_continuous(
       name   = axis_label,
@@ -3193,7 +3235,6 @@ plot_infant_mortality = function() {
     pivot_wider(names_from = scenario) %>%
     mutate(relative = 100 * (no_vaccine - vaccine) / 
              (no_vaccine[1] - vaccine)) %>%
-    filter(year > o$years[1]) %>%
     mutate(n_years = 1 : n(), 
            relative_mean = cumsum(relative) / n_years) %>%
     as.data.table()
@@ -3398,8 +3439,7 @@ plot_mortality_region = function() {
     rbind(region_dt) %>%
     pivot_wider(names_from = scenario) %>%
     group_by(group) %>%
-    mutate(relative = (no_vaccine - vaccine) / 
-             (no_vaccine[1] - vaccine), 
+    mutate(relative = (no_vaccine - vaccine) / (no_vaccine[1] - vaccine), 
            n_years = 1 : n(), 
            contribution = cumsum(relative) / n_years) %>%
     ungroup() %>%
@@ -3468,7 +3508,6 @@ plot_mortality_change = function() {
     group_by(group) %>%
     mutate(att = (no_vaccine - vaccine) / 
              (no_vaccine[1] - vaccine)) %>%
-    filter(year > o$years[1]) %>%
     summarise(att = mean(att)) %>%
     ungroup() %>%
     as.data.table()
@@ -4395,7 +4434,7 @@ get_palette = function(variable) {
 # ---------------------------------------------------------
 # Save a ggplot figure to file with default settings
 # ---------------------------------------------------------
-save_fig = function(g, ..., dir = NULL) {
+save_fig = function(g, ..., dir = NULL, width = NULL, height = NULL) {
   
   # Collapse inputs into vector of strings
   fig_name_parts = unlist(list(...))
@@ -4414,6 +4453,10 @@ save_fig = function(g, ..., dir = NULL) {
   if (!dir.exists(save_path))
     dir.create(save_path)
   
+  # Set default height and width if undefined
+  if (is.null(width))  width  = o$save_width
+  if (is.null(height)) height = o$save_height
+  
   # Repeat the saving process for each image format in figure_format
   for (fig_format in o$figure_format) {
     full_path = paste0(save_path, save_name, ".", fig_format)
@@ -4421,10 +4464,10 @@ save_fig = function(g, ..., dir = NULL) {
     # Save figure (size specified in options.R)
     ggsave(full_path, 
            plot   = g, 
+           width  = width, 
+           height = height, 
            device = fig_format, 
            dpi    = o$save_resolution, 
-           width  = o$save_width, 
-           height = o$save_height, 
            units  = o$save_units)
   }
 }
