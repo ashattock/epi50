@@ -187,7 +187,7 @@ plot_scope = function() {
     geom_text(
       data    = label_dt, 
       mapping = aes(label = label), 
-      size    = 3.5,
+      size    = 4.5,
       hjust   = 0, 
       vjust   = 1) + 
     # Some intricate faceting...
@@ -228,27 +228,21 @@ plot_scope = function() {
           axis.title.x  = element_blank(),
           axis.title.y  = element_text(
             size = 18, margin = margin(l = 10, r = 20)),
-          axis.text     = element_text(size = 8),
+          axis.text.x   = element_text(size = 12),
+          axis.text.y   = element_text(size = 10),
           axis.ticks    = element_blank(), 
           axis.line     = element_line(linewidth = 0.25),
           panel.spacing = unit(-0.6, "lines"), 
           panel.grid.major.y = element_line(linewidth = 0.25),
           legend.title  = element_text(size = 14),
-          legend.text   = element_text(size = 11),
+          legend.text   = element_text(size = 12),
           legend.key    = element_blank(),
           legend.position = "bottom", 
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
   # Save to file
-  save_fig(g, "Analysis scope", 
-           dir    = "data_visualisation", 
-           height = save_height)
-  
-  # Also save as main manuscript figure
-  save_fig(g, "Figure S1", 
-           dir    = "manuscript",
-           height = save_height)
+  save_fig(g, "S06", height = save_height)
 }
 
 # ---------------------------------------------------------
@@ -410,8 +404,7 @@ plot_total_fvps = function() {
           legend.key.width  = unit(3, "lines"))
   
   # Save to file
-  save_dir = "data_visualisation"
-  save_fig(g, "FVPs by source", dir = save_dir)
+  save_fig(g, "S07")
 }
 
 # ---------------------------------------------------------
@@ -518,12 +511,9 @@ plot_smooth_fvps = function() {
   
   # ---- Save diagnostic plots ----
   
-  # Directory to save to
-  save_dir = "data_visualisation"
-  
   # Save figures to file
-  save_fig(g1, "Data smoothing outcomes",   dir = save_dir)
-  save_fig(g2, "Data smoothing difference", dir = save_dir)
+  save_fig(g1, "X03")
+  save_fig(g2, "X04")
 }
 
 # ---------------------------------------------------------
@@ -541,10 +531,6 @@ plot_coverage = function() {
     # Tidy up...
     select(disease, vaccine, age_group, coverage) %>%
     arrange(disease, vaccine, age_group)
-  
-  # Details for file destination
-  save_name = "Coverage value density"
-  save_dir  = "data_visualisation"
   
   # Produce plot for both disease and vaccine
   for (d_v in c("disease", "vaccine")) {
@@ -595,8 +581,9 @@ plot_coverage = function() {
             legend.key.height = unit(2, "lines"),
             legend.key.width  = unit(2, "lines"))
     
-    # Save to file
-    save_fig(g, save_name, d_v, dir = save_dir)
+    # Save figure to file
+    if (d_v == "disease") save_fig(g, "X01")
+    if (d_v == "vaccine") save_fig(g, "X02")
   }
 }
 
@@ -659,7 +646,7 @@ plot_coverage_age_density = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save to file
-  save_fig(g, "Coverage density by age", dir = "data_visualisation")
+  save_fig(g, "S08")
 }
 
 # **** External models ****
@@ -780,6 +767,10 @@ plot_external_models = function() {
       scales = "free_y") +
     scale_y_continuous(
       labels = comma)
+  
+  save_fig(g1, "X05")
+  save_fig(g3, "X06")
+  save_fig(g5, "X07")
 }
 
 # ---------------------------------------------------------
@@ -871,8 +862,7 @@ plot_missing_data = function() {
           legend.key.width = unit(4, "cm"))
   
   # Save figure to file
-  save_fig(g, "Missing data by country", 
-           dir = "data_visualisation")
+  save_fig(g, "X08")
 }
 
 # **** Static models ****
@@ -973,8 +963,7 @@ plot_gbd_estimates = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save to file
-  save_fig(g, "GBD disease burden by age group", 
-           dir = "static_models")
+  save_fig(g, "S12")
 }
 
 # ---------------------------------------------------------
@@ -1056,8 +1045,7 @@ plot_gbd_missing = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save to file
-  save_fig(g, "GBD deaths by vaccine coverage status", 
-           dir = "static_models")
+  save_fig(g, "X09")
 }
 
 # ---------------------------------------------------------
@@ -1178,7 +1166,7 @@ plot_vaccine_efficacy = function() {
           legend.position = "none")
   
   # Save figure to file
-  save_fig(g, "Vaccine efficacy profiles", dir = "static_models")
+  save_fig(g, "S09")
 }
 
 # ---------------------------------------------------------
@@ -1273,8 +1261,8 @@ plot_effective_coverage = function() {
             legend.key.width  = unit(6,   "lines"))
     
     # Save figure to file
-    save_name = "Effective coverage"
-    save_fig(g, save_name, by, dir = "static_models")
+    if (by == "type")    save_fig(g, "S10")
+    if (by == "disease") save_fig(g, "S11")
   }
 }
 
@@ -1312,7 +1300,7 @@ plot_static = function() {
     filter(n == max(n)) %>%
     pull(year) %>%
     intersect(o$gbd_estimate_years)
-
+  
   # Repeat for each metric
   for (metric in o$metrics) {
     
@@ -1389,84 +1377,9 @@ plot_static = function() {
             legend.key.height = unit(2, "lines"),
             legend.key.width  = unit(3, "lines"))
     
-    # Save figure to file
-    save_fig(g, "Burden averted by disease", metric,
-             dir = "static_models")
-  }
-  
-  # ---- Plot by vaccine ----
-  
-  # Repeat for each metric
-  for (metric in o$metrics) {
-    
-    # Load previously calculated total coverage file
-    averted_dt = read_rds("static", metric, "averted_vaccine")
-    
-    # Full vaccine names
-    name_dt = table("d_v_a") %>%
-      filter(source == "static") %>%
-      left_join(y  = table("vaccine_name"), 
-                by = "vaccine") %>%
-      select(d_v_a_id, name = vaccine_name)
-    
-    # Summarise results over country
-    vaccine_dt = averted_dt %>%
-      lazy_dt() %>%
-      filter(year %in% plot_years) %>%
-      # Summarise over countries...
-      group_by(d_v_a_id, year) %>%
-      summarise(averted = sum(impact)) %>%
-      ungroup() %>%
-      # Convert from d_v_a to v_a...
-      left_join(y  = name_dt, 
-                by = "d_v_a_id") %>%
-      select(vaccine = name, year, averted) %>%
-      # Suitable vaccine order...
-      mutate(vaccine = factor(vaccine, name_dt$name)) %>%
-      arrange(vaccine, year) %>%
-      as.data.table()
-    
-    # Plot deaths and deaths averted by vaccine
-    g = ggplot(vaccine_dt) + 
-      aes(x = year, 
-          y = averted, 
-          colour = vaccine) + 
-      geom_line(linewidth   = 2, 
-                show.legend = FALSE) + 
-      # Facet by vaccine...
-      facet_wrap(
-        facets = vars(vaccine),
-        scales = "free_y") + 
-      # Prettify x axis...
-      scale_x_continuous(
-        # limits = c(min(o$years), max(o$years)), 
-        expand = expansion(mult = c(0, 0)), 
-        breaks = pretty_breaks()) +  
-      # Prettify y axis...
-      scale_y_continuous(
-        name   = "Burden averted by vaccine", 
-        labels = comma,
-        limits = c(0, NA), 
-        expand = expansion(mult = c(0, 0.05)))
-    
-    # Prettify theme
-    g = g + theme_classic() + 
-      theme(axis.title.x  = element_blank(),
-            axis.title.y  = element_text(
-              size = 18, margin = margin(l = 10, r = 20)),
-            axis.text     = element_text(size = 9),
-            axis.text.x   = element_text(hjust = 1, angle = 50), 
-            axis.line     = element_blank(),
-            strip.text    = element_text(size = 12),
-            strip.background = element_blank(), 
-            panel.border  = element_rect(
-              linewidth = 0.5, fill = NA),
-            panel.spacing = unit(1, "lines"),
-            panel.grid.major.y = element_line(linewidth = 0.5))
-    
-    # Save figure to file
-    save_fig(g, "Burden averted by vaccine", metric,
-             dir = "static_models")
+    # Save figures to file
+    if (metric == "deaths") save_fig(g, "S13")
+    if (metric == "dalys")  save_fig(g, "S14")
   }
 }
 
@@ -1580,7 +1493,7 @@ plot_impute_quality = function(metric) {
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
-  save_fig(g, "Imputation quality", metric, dir = "imputation")
+  save_fig(g, "S15")
 }
 
 # --------------------------------------------------------
@@ -1640,7 +1553,7 @@ plot_impute_perform = function(metric) {
   colours = colour_scheme(
     map = "brewer::set1", 
     n   = n_unique(train_dt$d_v_a_name))
-    
+  
   g = ggplot(train_dt) + 
     aes(x = year, 
         y = prediction,
@@ -1690,7 +1603,7 @@ plot_impute_perform = function(metric) {
           legend.position = "none")
   
   # Save to file
-  save_fig(g, "Imputation model fit", metric, dir = "imputation")
+  save_fig(g, "S16")
 }
 
 #-------------------------------------------------
@@ -1801,215 +1714,9 @@ plot_model_choice = function(metric) {
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
-  # Details for file destination
-  save_name = paste("Model_choice_by_region", metric, sep = "_")
-  save_dir  = "imputation"
-  
   # Save to file
-  save_fig(g1, paste(save_name, "region", sep = "_"), dir = save_dir)
-  save_fig(g2, paste(save_name, "income", sep = "_"), dir = save_dir)
-}
-
-# --------------------------------------------------------
-# Plot fitted model for each country
-# --------------------------------------------------------
-plot_impute_fit = function(metric){
-  message("  - Plotting model fit by country")
-  
-  # ---- Load models from fitting ----
-  # Function to load best model for each country and show results
-  load_results_fn = function(id){
-    model = read_rds("impute", "impute", metric, id)$model 
-  }
-  
-  # Load imputation results for all d-v-a
-  diseases_dt = table("d_v_a") %>%
-    filter(source == "vimc") %>%
-    pull(d_v_a_id)
-  
-  for(id in diseases_dt){
-    model = load_results_fn(id)
-    
-    plot_dt = augment(model) %>%
-      rename(prediction = .fitted)
-    
-    # Maximum value in each facet (target or prediction)
-    blank_dt = plot_dt %>%
-      mutate(max_value = pmax(target, prediction)) %>%
-      group_by(country) %>%
-      summarise(max_value = max(max_value)) %>%
-      ungroup() %>%
-      expand_grid(type = c("target", "prediction")) %>%
-      pivot_wider(names_from  = type, 
-                  values_from = max_value) %>%
-      as.data.table()
-    
-    
-    # ---- Produce plot ----
-    
-    # Single plot with multiple facets
-    g = ggplot(plot_dt) +
-      aes(x = year) +
-      # Plot fitting data
-      geom_point(aes(y = target,
-                     fill = "#6CA2EA")) +
-      
-      # Plot model output
-      geom_line(aes(y = prediction,
-                    colour = "black")) +
-      
-      # For square axes...
-      geom_blank(data = blank_dt) +
-      
-      # Simple faceting with wrap labelling...
-      facet_wrap(
-        facets   = ~country, 
-        labeller = label_wrap_gen(width = 30), 
-        ncol = 21,
-        scales = "free") + 
-      # Prettify x axis...
-      scale_x_continuous(
-        name   = "Year", 
-        labels = waiver(),
-        #limits = c(1990, 2024), 
-        expand = c(0, 0), 
-        breaks = pretty_breaks()) +  
-      # Prettify y axis...
-      scale_y_continuous(
-        name   = "Impact", 
-        labels = NULL,#scientific,
-        limits = c(0, NA),
-        expand = c(0, 0), 
-        breaks = pretty_breaks()) +
-      # Title 
-      labs(title = paste("Fitted model for", plot_dt$d_v_a_id))
-    
-    # Prettify theme
-    g = g + theme_classic() + 
-      theme(axis.text     = element_text(size = 8),
-            axis.text.x   = element_text(hjust = 1, angle = 50),
-            axis.title.x  = element_text(
-              size = 16, margin = margin(l = 10, r = 20)),
-            axis.title.y  = element_text(
-              size = 16, margin = margin(b = 10, t = 20)),
-            axis.line     = element_blank(),
-            strip.text    = element_text(size = 12),
-            strip.background = element_blank(), 
-            panel.border  = element_rect(
-              linewidth = 0.5, fill = NA),
-            panel.spacing = unit(0.5, "lines"))
-    
-    
-    # Details for file destination
-    save_name = "Model fit by country"
-    save_dir  = "imputation"
-    
-    # Save figure to file
-    save_fig(g, save_name, id, metric, dir = save_dir)
-  }
-  
-  return()
-}
-
-# --------------------------------------------------------
-# Plot fitted model for validation countries
-# --------------------------------------------------------
-plot_validation = function(metric){
-  message("  - Plotting validation")
-  
-  # ---- Load models from fitting ----
-  # Function to load best model for each country and show results
-  load_results_fn = function(id){
-    model = read_rds("impute", "impute", metric, id)$model 
-  }
-  
-  # Load imputation results for all d-v-a
-  diseases_dt = table("d_v_a") %>%
-    filter(source == "vimc") %>%
-    pull(d_v_a_id)
-  
-  for(id in diseases_dt){
-    model = load_results_fn(id)
-    
-    plot_dt = augment(model) %>%
-      rename(prediction = .fitted)
-    
-    # Maximum value in each facet (target or prediction)
-    blank_dt = plot_dt %>%
-      mutate(max_value = pmax(target, prediction)) %>%
-      group_by(country) %>%
-      summarise(max_value = max(max_value)) %>%
-      ungroup() %>%
-      expand_grid(type = c("target", "prediction")) %>%
-      pivot_wider(names_from  = type, 
-                  values_from = max_value) %>%
-      as.data.table()
-    
-    
-    # ---- Produce plot ----
-    
-    # Single plot with multiple facets
-    g = ggplot(plot_dt) +
-      aes(x = year) +
-      # Plot fitting data
-      geom_point(aes(y = target,
-                     fill = "#6CA2EA")) +
-      
-      # Plot model output
-      geom_line(aes(y = prediction,
-                    colour = "black")) +
-      
-      # For square axes...
-      geom_blank(data = blank_dt) +
-      
-      # Simple faceting with wrap labelling...
-      facet_wrap(
-        facets   = ~country, 
-        labeller = label_wrap_gen(width = 30), 
-        ncol = 21,
-        scales = "free") + 
-      # Prettify x axis...
-      scale_x_continuous(
-        name   = "Year", 
-        labels = waiver(),
-        # limits = c(1990, 2024), 
-        expand = c(0, 0), 
-        breaks = pretty_breaks()) +  
-      # Prettify y axis...
-      scale_y_continuous(
-        name   = "Impact", 
-        labels = NULL,#scientific,
-        limits = c(0, NA),
-        expand = c(0, 0), 
-        breaks = pretty_breaks()) +
-      # Title 
-      labs(title = paste("Fitted model for", plot_dt$d_v_a_id))
-    
-    # Prettify theme
-    g = g + theme_classic() + 
-      theme(axis.text     = element_text(size = 8),
-            axis.text.x   = element_text(hjust = 1, angle = 50),
-            axis.title.x  = element_text(
-              size = 16, margin = margin(l = 10, r = 20)),
-            axis.title.y  = element_text(
-              size = 16, margin = margin(b = 10, t = 20)),
-            axis.line     = element_blank(),
-            strip.text    = element_text(size = 12),
-            strip.background = element_blank(), 
-            panel.border  = element_rect(
-              linewidth = 0.5, fill = NA),
-            panel.spacing = unit(0.5, "lines"))
-    
-    
-    # Details for file destination
-    save_name = "Model fit for validation countries"
-    save_dir  = "imputation"
-    
-    # Save figure to file
-    save_fig(g, save_name, id, dir = save_dir)
-  }
-  
-  return()
+  save_fig(g1, "X10")
+  save_fig(g2, "X11")
 }
 
 # **** Impact functions ****
@@ -2071,8 +1778,7 @@ plot_impact_data = function(metric) {
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
-  save_fig(g1, "Data", "impact ratio", metric, 
-           dir = "impact_functions")
+  save_fig(g1, "X12")
   
   # ---- Plot 2: cumulative impact vs cumulative FVP ----
   
@@ -2121,8 +1827,7 @@ plot_impact_data = function(metric) {
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
-  save_fig(g2, "Data", "cumulative FVP vs impact", metric, 
-           dir = "impact_functions")
+  save_fig(g2, "X13")
 }
 
 # ---------------------------------------------------------
@@ -2130,6 +1835,7 @@ plot_impact_data = function(metric) {
 # ---------------------------------------------------------
 plot_impact_fvps = function(metric, scope) {
   
+  # Set distance between vaccines
   width = 0.3
   
   # Function for averaging (mean or median)
@@ -2176,7 +1882,7 @@ plot_impact_fvps = function(metric, scope) {
   
   # Classify by income group
   data_dt = impact_dt %>%
-    filter(impact_fvp > 0) %>%
+    filter(impact_fvp > 1e-12) %>%
     # Append d_v_a description...
     format_d_v_a_name() %>%
     # Append income status description...
@@ -2303,17 +2009,8 @@ plot_impact_fvps = function(metric, scope) {
             linewidth = 0.5, fill = NA),
           panel.spacing = unit(1, "lines"))
   
-  # Filename to save to depending on scope
-  save_stem  = "Density of impact per FVP"
-  save_scope = str_replace(scope, "_", " ")
-  
-  # Save these figures to file
-  save_fig(g, save_stem, save_scope, metric, 
-           dir = "impact_functions")
-  
-  # Save all time plot as key manuscript figure
-  # if (scope == "all_time" && metric == "deaths")
-  #   save_fig(g, "Figure 3", dir = "manuscript")
+  # Save figure to file
+  save_fig(g, "X14")
 }
 
 # ---------------------------------------------------------
@@ -2447,26 +2144,18 @@ plot_model_selection = function(metric) {
   
   # ---- A variety of plots ----
   
-  # Figure sub-directory to save to 
-  save_dir = "impact_functions"
+  # Create a variety of plots
+  g = list(
+    
+    # Plot by disease-vaccine-activity
+    a = plot_selection("d_v_a_name", stat = "proportion"), 
+    b = plot_selection("d_v_a_name", stat = "number"),
+    
+    # Plot by country
+    c = plot_selection("country", type = "density"))
   
-  # Plot by disease-vaccine-activity
-  g1 = plot_selection("d_v_a_name", stat = "number")
-  g2 = plot_selection("d_v_a_name", stat = "proportion")
-  
-  # Filename stem
-  save_name = "Selection by pathogen"
-  
-  # Save both figures
-  save_fig(g1, save_name, metric, "number",     dir = save_dir)
-  save_fig(g2, save_name, metric, "proportion", dir = save_dir)
-  
-  # Plot by country
-  g3 = plot_selection("country", type = "density")
-  
-  # Save the last figure
-  save_name = "Selection density by country"
-  save_fig(g3, save_name, metric, dir = save_dir)
+  # Save figures of interest
+  save_fig(g$a, "S18")
 }
 
 # ---------------------------------------------------------
@@ -2487,7 +2176,7 @@ plot_model_fits = function(metric) {
     ungroup() %>%
     select(d_v_a_id, country, x_max = fvps) %>%
     as.data.table()
-    
+  
   # Expand for a full series of evaluation points
   eval_dt = max_dt %>%
     expand_grid(scale = seq(0, 1, by = 0.01)) %>%
@@ -2557,174 +2246,8 @@ plot_model_fits = function(metric) {
             linewidth = 0.5, fill = NA),
           panel.spacing = unit(0.5, "lines"))
   
-  save_fig(g, "Impact function evaluation", metric, 
-           dir = "impact_functions")
-}
-
-# ---------------------------------------------------------
-# Plot impact vs coverage by vaccine, income, and decade 
-# ---------------------------------------------------------
-plot_impact_coverage = function(metric) {
-  
-  message("  - Plotting impact against coverage")
-  
-  browser()
-  
-  # Function for averaging (mean or median)
-  avg_fn = get("mean")
-  
-  # ---- Classify by income status ----
-  
-  # Load initial ratio data
-  impact_dt = read_rds("impact", "data")
-  
-  # Load income status dictionary
-  income_dict = table("income_dict")
-  
-  # Load income status of each country
-  income_dt = table("income_status") %>%
-    filter(year == max(year)) %>%
-    left_join(y  = income_dict, 
-              by = "income") %>%
-    select(country, income = income_name)
-  
-  browser()
-  
-  # Classify by income group
-  data_dt = impact_dt %>%
-    filter(impact_fvp > 0) %>%
-    # Append income status description...
-    left_join(y  = income_dt, 
-              by = "country") %>%
-    mutate(income = factor(
-      x      = income, 
-      levels = rev(income_dict$income_name))) %>%
-    select(d_v_a = d_v_a_name, income, impact_fvp) %>%
-    unique()
-  
-  # ---- Plotting coordinates ----
-  
-  # Set x values for each d_v_a
-  x_major = data_dt %>%
-    group_by(d_v_a) %>%
-    summarise(order = avg_fn(impact_fvp)) %>%
-    ungroup() %>%
-    arrange(desc(order)) %>%
-    mutate(x_major = 1 : n()) %>%
-    select(-order) %>%
-    as.data.table()
-  
-  # Offset each income group
-  x_minor = data_dt %>%
-    select(income) %>%
-    unique() %>%
-    arrange(income) %>%
-    mutate(x_minor = seq(
-      from = -width / 2, 
-      to   = width / 2, 
-      length.out = n()))
-  
-  # Width of offset of points within income group
-  x_spray = width / (nrow(income_dict) * 2)
-  
-  # Bring all x and y values together
-  plot_dt = data_dt %>%
-    left_join(y  = x_major, 
-              by = "d_v_a") %>%
-    left_join(y  = x_minor, 
-              by = "income") %>%
-    mutate(x = x_major + x_minor) %>%
-    select(d_v_a, income, x, y = impact_fvp) %>%
-    arrange(x)
-  
-  # Extract bounds (after transformation)
-  lb = floor(min(log10(data_dt$impact_fvp)))
-  ub = ceiling(max(log10(data_dt$impact_fvp)))
-  
-  # ---- Vaccine and income status averages ----
-  
-  income_average_dt = plot_dt %>%
-    group_by(income, x) %>%
-    summarise(y = avg_fn(y)) %>%
-    ungroup() %>%
-    arrange(x) %>%
-    as.data.table()
-  
-  vaccine_average_dt = data_dt %>%
-    group_by(d_v_a) %>%
-    summarise(y = avg_fn(impact_fvp)) %>%
-    ungroup() %>%
-    left_join(y  = x_major,
-              by = "d_v_a") %>%
-    select(d_v_a, x = x_major, y) %>%
-    arrange(x) %>%
-    as.data.table()
-  
-  # ---- Produce primary plot ----
-  
-  # Plot impact per FVP
-  g = ggplot(plot_dt) +
-    aes(x = x, y = y) +
-    # Plot all points by vaccine and income...
-    geom_point(
-      mapping  = aes(colour = income),
-      alpha    = 0.1,
-      shape    = 16,
-      stroke   = 0,
-      position = position_jitter(
-        width = x_spray,
-        seed  = 1)) + 
-    # Average of each vaccine...
-    geom_point(
-      data   = vaccine_average_dt,
-      colour = "black",
-      shape = 95, # Horizontal lines
-      size  = 20) +
-    # Average of each income group...
-    geom_point(
-      data    = income_average_dt, 
-      mapping = aes(fill = income), 
-      color   = "black", 
-      shape   = 23, 
-      size    = 3) + 
-    # Prettify x axis...
-    scale_x_continuous(
-      breaks = x_major$x_major, 
-      labels = x_major$d_v_a) +
-    # Prettify y axis...
-    scale_y_continuous(
-      name   = "Impact per fully vaccinated person (log10 scale)",
-      trans  = "log10",
-      labels = scientific, 
-      limits = c(10 ^ lb, 10 ^ ub),
-      expand = c(0, 0),
-      breaks = 10 ^ rev(ub : lb))
-  
-  # ---- Prettify and save ----
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(axis.text     = element_text(size = 10),
-          axis.text.x   = element_text(hjust = 1, angle = 50),
-          axis.title.x  = element_blank(),
-          axis.title.y  = element_text(
-            size = 16, margin = margin(l = 10, r = 20)),
-          axis.line     = element_blank(),
-          panel.grid.major.y = element_line(linewidth = 0.25),
-          panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
-          panel.spacing = unit(1, "lines"))
-  
-  # Filename to save to depending on scope
-  save_stem  = "Impact - coverage by income and decade"
-  save_scope = str_replace(scope, "_", " ")
-  
-  # Save these figures to file
-  save_fig(g, save_stem, save_scope, dir = "impact_functions")
-  
-  # Save all time plot as key manuscript figure
-  # if (scope == "all_time")
-  #   save_fig(g, "Figure 3", dir = "manuscript")
+  # Save figure to file
+  save_fig(g, "S17")
 }
 
 # **** Historical impact ****
@@ -2782,7 +2305,7 @@ plot_historical_impact = function(by = NULL) {
     scope_dt = country_scope %>%
       select(country, scope = !!by)
   }
-    
+  
   # Display what we're plotting to user
   msg = "  - Plotting historical impact"
   message(paste(c(msg, by), collapse = ": "))
@@ -3027,13 +2550,12 @@ plot_historical_impact = function(by = NULL) {
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
-  # Save these figures to file
-  save_fig(g, "Historical impact", by, 
-           dir = "historical_impact")
-  
   # Save global results as main manuscript figure
-  if (is.null(by))
-    save_fig(g, "Figure 1", dir = "manuscript")
+  if (is.null(by)) save_fig(g, "1")
+  
+  # ... and disaggregated results as supplementary figures
+  else if (by == "region") save_fig(g, "S01")
+  else if (by == "income") save_fig(g, "S02")
 }
 
 # ---------------------------------------------------------
@@ -3138,9 +2660,8 @@ plot_temporal_impact = function(metric) {
           legend.key.height = unit(2, "lines"),
           legend.key.width  = unit(2, "lines"))
   
-  # Save these figures to file
-  save_fig(g, "Temporal impact by region", metric, 
-           dir = "historical_impact")
+  if (metric == "deaths") save_fig(g, "S03")
+  if (metric == "dalys")  save_fig(g, "S04")
 }
 
 # ---------------------------------------------------------
@@ -3417,10 +2938,7 @@ plot_infant_mortality = function() {
   g = g1 / g2 / g3
   
   # Save figure to file
-  save_fig(g, "Infant mortality rates", dir = "historical_impact")
-  
-  # Also save as main manuscript figure
-  save_fig(g, "Figure 2", dir = "manuscript")
+  save_fig(g, "2")
 }
 
 # ---------------------------------------------------------
@@ -3610,11 +3128,7 @@ plot_mortality_change = function() {
           legend.position = "none")
   
   # Save figure to file
-  save_fig(g, "Infant mortality change by region", 
-           dir = "historical_impact")
-  
-  # Also save as main manuscript figure
-  # save_fig(g, "Figure 3", dir = "manuscript")
+  save_fig(g, "S05")
 }
 
 # ---------------------------------------------------------
@@ -3740,7 +3254,7 @@ plot_prob_death_age = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save figure to file
-  save_fig(g, "Probability of death by age", dir = "historical_impact")
+  save_fig(g, "X15")
 }
 
 # ---------------------------------------------------------
@@ -3924,10 +3438,7 @@ plot_survival_increase = function(log_age = FALSE) {
           legend.key.width  = unit(2, "lines"))
   
   # Save figure to file
-  save_fig(g, "Increase in survival", dir = "historical_impact")
-  
-  # Also save as main manuscript figure
-  save_fig(g, "Figure 3", dir = "manuscript")
+  save_fig(g, "3")
 }
 
 # ---------------------------------------------------------
@@ -4164,8 +3675,7 @@ plot_measles_in_context = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save figure to file
-  save_fig(g, "Measles in context", dir = "historical_impact")
-  save_fig(g, "Figure S2", dir = "manuscript")
+  save_fig(g, "X16")
 }
 
 # ---------------------------------------------------------
@@ -4293,8 +3803,7 @@ plot_vimc_comparison = function() {
           legend.key.width  = unit(2, "lines"))
   
   # Save theis figure to file
-  save_fig(g, "Results comparison with VIMC", 
-           dir = "historical_impact")
+  save_fig(g, "X17")
 }
 
 # **** Helper functions ****
@@ -4434,32 +3943,26 @@ get_palette = function(variable) {
 # ---------------------------------------------------------
 # Save a ggplot figure to file with default settings
 # ---------------------------------------------------------
-save_fig = function(g, ..., dir = NULL, width = NULL, height = NULL) {
-  
-  # Collapse inputs into vector of strings
-  fig_name_parts = unlist(list(...))
-  
-  # Construct file name to concatenate with file path
-  save_name = paste(fig_name_parts, collapse = " - ")
-  
-  # Construct path to save file to
-  save_path = o$pth$figures
-  if (!is.null(dir)) {
-    ext_path  = paste(dir, collapse = file_sep())
-    save_path = paste0(save_path, ext_path, file_sep())
-  }
-  
-  # Create directory if it exists
-  if (!dir.exists(save_path))
-    dir.create(save_path)
+save_fig = function(g, fig_num, width = NULL, height = NULL) {
   
   # Set default height and width if undefined
   if (is.null(width))  width  = o$save_width
   if (is.null(height)) height = o$save_height
   
+  # Figure formats to save with
+  formats = o$figure_format
+  if (grepl("^[0-9]+", fig_num)) 
+    formats = c(formats, o$manuscript_format)
+  
   # Repeat the saving process for each image format in figure_format
-  for (fig_format in o$figure_format) {
-    full_path = paste0(save_path, save_name, ".", fig_format)
+  for (fig_format in formats) {
+    
+    # File name and extension
+    file_name = paste("Figure", fig_num)
+    file_ext  = paste0(".", fig_format)
+    
+    # Concatenate with path
+    full_path = paste0(o$pth$figures, file_name, file_ext)
     
     # Save figure (size specified in options.R)
     ggsave(full_path, 

@@ -26,9 +26,6 @@ run_impact = function(metric) {
   # Exploratory plots of data used to fit impact functions
   plot_impact_data(metric)
   
-  # Plot all-time impact per FVPs
-  # plot_impact_fvps(metric, scope = "all_time")
-  
   # ---- Model fitting ----
   
   message(" > Evaluating impact functions")
@@ -87,9 +84,6 @@ run_impact = function(metric) {
 
   # Plot impact function evaluation
   plot_model_fits(metric)
-
-  # Plot impact vs coverage by vaccine, income, and decade
-  plot_impact_coverage(metric)
 }
 
 # ---------------------------------------------------------
@@ -144,20 +138,20 @@ fn_set = function(params = FALSE, dict = FALSE) {
   # Set of statistical models / functions we want to test
   out = list(
     lin = function(x, p) y = x * p[1],
-    log = function(x, p) y = logarithmic_growth(x, p[1], p[2]),
     exp = function(x, p) y = exponential_growth(x, p[1], p[2]),
+    log = function(x, p) y = logarithmic_growth(x, p[1], p[2]),
     sig = function(x, p) y = sigmoidal_growth(x, p[1], p[2], p[3]))
   
   # Alternative functionality - return number of params
   if (params == TRUE)
-    out = c(lin = 1, log = 2, exp = 2, sig = 3)
+    out = c(lin = 1, exp = 2, log = 2, sig = 3)
   
   # Alternative functionality - return dictionary
   if (dict == TRUE)
     out = c(
       lin = "Linear gradient (1 parameter)", 
-      log = "Logarithmic growth (2 parameters)",
       exp = "Exponential growth (2 parameters)", 
+      log = "Logarithmic growth (2 parameters)",
       sig = "Sigmoidal growth (3 parameters)")
   
   return(out)

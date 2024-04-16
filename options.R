@@ -56,12 +56,15 @@ set_options = function(run_module = NA) {
   # ---- Plotting flags ----
 
   # Turn figures on or off
-  o$plot_inputs     = TRUE
-  o$plot_external   = TRUE
-  o$plot_static     = TRUE
-  o$plot_imputation = TRUE
-  o$plot_impact     = TRUE
-  o$plot_history    = TRUE
+  o$plot_inputs     = F
+  o$plot_external   = F
+  o$plot_static     = F
+  o$plot_imputation = F
+  o$plot_impact     = F
+  o$plot_history    = F
+  
+  # Main results table
+  o$results_table = TRUE
 
   # ---- Plotting settings ----
 
@@ -78,7 +81,8 @@ set_options = function(run_module = NA) {
   # Image format for saving figure
   #
   # NOTE: Use a character vector to save with multiple formats at once
-  o$figure_format = c("png", "svg")  # Lancet requires: "eps" or "svg"
+  o$figure_format     = "png"
+  o$manuscript_format = "svg"  # Lancet requires: "eps" or "svg"
 
   return(o)
 }

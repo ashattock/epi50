@@ -5,9 +5,7 @@
 # ---- Analysis settings ----
   
 # Disease burden metrics to report
-metrics: 
-- "deaths"
-- "dalys"
+metrics: c("deaths", "dalys")
 
 # ---- Time settings ----
 
@@ -89,8 +87,6 @@ uncertainty_samples: 100  # NOTE: Bounded by value of mcmc_samples
 uncertainty_max: 10
 
 # Quantiles for prediction intervals
-quantiles: 
-- 0.025
-- 0.975
+quantiles: c(0.025, 0.975)
 
 
