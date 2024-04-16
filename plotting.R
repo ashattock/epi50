@@ -594,9 +594,13 @@ plot_coverage_age_density = function() {
   
   message("  - Plotting coverage data density by age")
   
+  # Plot upto 2^x age
+  log2_max = 6
+  
   # Construct plotting datatable
   plot_dt = table("coverage_source") %>%
     mutate(trans_age = pmax(age, 1), .after = age) %>%
+    filter(trans_age <= 2 ^ log2_max) %>%
     format_d_v_a_name() %>%
     filter(!is.na(d_v_a_name))
   
@@ -615,9 +619,9 @@ plot_coverage_age_density = function() {
     scale_x_continuous(
       name   = "Age (log2 scale)",
       trans  = "log2", 
-      limits = c(1, 2 ^ 6), 
+      limits = c(1, 2 ^ log2_max), 
       expand = c(0, 0), 
-      breaks = 2 ^ (0 : 6)) +  
+      breaks = 2 ^ (0 : log2_max)) +  
     # Prettify y axis...
     scale_y_continuous(
       name   = "Density", 
@@ -1055,6 +1059,7 @@ plot_vaccine_efficacy = function() {
   
   message("  - Plotting vaccine efficacy profiles")
   
+  # Dictionary for each vaccine schedule
   schedule_dict = c(
     x  = "Primary schedule",
     bx = "Booster schedule", 
@@ -1517,6 +1522,7 @@ plot_impute_perform = function(metric) {
     return(result)
   }
   
+  # Data used to train regression models with associated fit
   train_dt = table("d_v_a") %>%
     filter(source == "vimc") %>%
     pull(d_v_a_id) %>%
@@ -1528,6 +1534,7 @@ plot_impute_perform = function(metric) {
     select(d_v_a_name, region, country, 
            year, target, prediction)
   
+  # Idnetify outliers for more meaningful plot
   outlier_dt = train_dt %>%
     group_by(d_v_a_name, region) %>%
     slice_max(prediction, n = 1, with_ties = FALSE) %>%
@@ -1536,6 +1543,7 @@ plot_impute_perform = function(metric) {
     select(d_v_a_name, region, outlier) %>%
     as.data.table()
   
+  # Imputed predictions for countries without data
   impute_dt = table("d_v_a") %>%
     filter(source == "vimc") %>%
     pull(d_v_a_id) %>%
@@ -1551,10 +1559,12 @@ plot_impute_perform = function(metric) {
     select(d_v_a_name, region, country, 
            year, target, prediction)
   
+  # Construct colour scheme
   colours = colour_scheme(
     map = "brewer::set1", 
     n   = n_unique(train_dt$d_v_a_name))
   
+  # Plot de-identified countries for all diseases
   g = ggplot(train_dt) + 
     aes(x = year, 
         y = prediction,
