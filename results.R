@@ -71,20 +71,28 @@ run_results = function() {
   
   # ---- Imputation plots ----
   
+  # TODO: Save as (a) for deaths, and (b) for DALYs
+  
   # Check plotting flag
   if (o$plot_imputation) {
     
-    # Plot predicted vs observed for all countries
-    plot_impute_quality("deaths")
-    
-    # Plot predicted vs observed for each country
-    plot_impute_perform("deaths")
-    
-    # Plot model selection by disease
-    plot_model_choice("deaths")
+    # Repeat for deaths and DALYs
+    for (metric in o$metrics) {
+      
+      # Plot predicted vs observed for all countries
+      plot_impute_quality(metric)
+      
+      # Plot predicted vs observed for each country
+      plot_impute_perform(metric)
+      
+      # Plot model selection by disease
+      plot_model_choice(metric)
+    }
   }
   
   # ---- Impact function plots ----
+  
+  # TODO: Save as (a) for deaths, and (b) for DALYs
   
   # Check plotting flag
   if (o$plot_impact) {

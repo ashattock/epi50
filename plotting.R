@@ -1837,6 +1837,8 @@ plot_model_fits = function(metric) {
   
   message("  - Plotting impact function fits")
   
+  # TODO: Do not plot outliers
+  
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "impact", metric, "data") %>%
     format_d_v_a_name()

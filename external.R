@@ -124,9 +124,6 @@ template_polio = function() {
 # ---------------------------------------------------------
 simulate_dynamice = function() {
   
-  # TODO: How important are 'mid_day' and 'coverage_subnat' 
-  #       and how should they be derived?
-  
   # Return out now if direct simulation not required
   if (!o$simulate_dynamice)
     return()
@@ -323,8 +320,6 @@ format_measles = function() {
 format_polio = function() {
   
   message(" > Interpolating polio outcomes")
-  
-  # TODO: Convert doses into FVPs by dividing through...
   
   # Load raw polio results
   raw_dt = read_rds("extern", "epi50_polio_results") %>%

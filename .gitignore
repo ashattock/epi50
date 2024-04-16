@@ -4,7 +4,6 @@ core*
 *.nfs*
 *.html
 extern/template/*
-input/sia_coverage.csv
 input/wiise_coverage.csv
 input/gbd/gbd21_raw.csv
 output*

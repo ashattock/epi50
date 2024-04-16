@@ -644,14 +644,12 @@ save_table = function(x, table) {
 # ---------------------------------------------------------
 table = function(table) {
   
-  # TODO: If 'table' contains 'extern' report step 2 back to user 
-  
   # Construct file path
   file = paste0(o$pth$tables, table, "_table.rds")
   
   # Throw an error if this file doesn't exist
   if (!file.exists(file))
-    stop("Table ", table, " has not been cached - have you run step 1?")
+    stop("Table ", table, " has not been cached")
   
   # Load rds file
   y = read_rds(file)

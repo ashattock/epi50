@@ -1,9 +1,8 @@
 ###########################################################
-# SIA DATA EXPLORATION
+# SUPPLEMENTARY IMMUNIZATION ACTIVITIES
 #
-# Sources of SIA data:
-#   1) https://extranet.who.int/xmart4/WIISE/data/SIA_MAIN
-#   2) https://www.who-immunization-repository.org/
+# SIA data needs some careful handling. All SIA data extraction
+# functionality in one place.
 #
 ###########################################################
 
@@ -13,13 +12,6 @@
 coverage_sia = function(vimc_countries_dt) {
   
   message(" > Coverage data: SIA")
-  
-  # Throw an error if the necessary data is not available
-  sia_file = paste0(o$pth$input, "sia_coverage.csv")
-  if (!file.exists(sia_file))
-    stop("This pipeline uses one non-publicly available file.\n",
-         "Please request this file (sia_coverage.csv) from the developers.\n",
-         "Contact: shattocka@who.int")
   
   # ---- Set up ----
   
@@ -122,9 +114,6 @@ coverage_sia = function(vimc_countries_dt) {
 # SIA database has numerous date columns - combine into useable format
 # ---------------------------------------------------------
 format_sia_dates = function(sia_dt) {
-  
-  # TODO... do any of the entries with missing start dates have end dates??
-  # If so, we could impute the start date as we do for missing end dates.
   
   # Define date columns in raw data set
   date_cols = c("plan", "postponed", "done")

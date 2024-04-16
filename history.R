@@ -291,19 +291,6 @@ run_history = function(metric) {
       replace_na(list(scaler = 0)) %>%
       as.data.table()
     
-    # g = age_effect_dt %>%
-    #   group_by(d_v_a_id) %>%
-    #   mutate(scaler = cumsum(scaler)) %>%
-    #   ungroup() %>%
-    #   format_d_v_a_name() %>%
-    #   ggplot() +
-    #   aes(x = age,
-    #       y = scaler,
-    #       colour = d_v_a_name) +
-    #   geom_line() +
-    #   facet_wrap(~d_v_a_name) +
-    #   xlim(0, 50)
-    
     # Save to tables cache
     save_table(age_effect_dt, "impact_age_multiplier")
     
@@ -343,10 +330,15 @@ run_history = function(metric) {
     save_rds(yll_time_dt, "history", "burden_averted_yll") 
   }
   
-  # ---- Plot outcomes ----
+  # ---- Plot diagnostic figures ----
+  
+  # NOTE: Most results figures created in final module
   
   # Plot inital impact ratios used to back project
   plot_impact_fvps(metric, scope = "initial")
+  
+  # Plot comparison of EPI50 outcomes vs VIMC outcomes
+  plot_vimc_comparison()
 }
 
 # ---------------------------------------------------------
@@ -577,7 +569,12 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
     select(-pop, -averted) %>%
     as.data.table()
   
-  # --- Double-counting check ---
+  
+  
+  
+  # TODO: Move this elsewhere...
+  
+  # ---- Double-counting check ----
   
   # Estimated child deaths averted by vaccination
   averted_dva_dt = read_rds("history", "burden_averted_deaths") %>%
@@ -628,6 +625,9 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
     summarise(pop = mean(pop)) %>%
     mutate(value = pop * lower_bound_error) %>%
     select(-pop)
+  
+  
+  
   
   # ---- Format output ----
   

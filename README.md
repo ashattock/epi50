@@ -41,7 +41,7 @@ As standard, the configuration files in this repository will fully reproduce the
 The analysis pipeline consists of eight *modules*, indentified by numbers 1 to 8, each described below. In general, these modules should be run consecutively from 1 to 8. The module/s to be run are defined by the `run_module` variable in line 20 of `launch.R`. Use a single value to run/re-run a specific module, or use a vector to run/re-run a subset of modules or all modules. 
 
 ```{r}
-# All of the following are are valid syntax for defining modules to be run (line 20, launch.R)
+# All of the following are valid syntax for defining modules to be run (line 20, launch.R)
 run_modules = 1
 run_modules = c(1, 2, 4)
 run_modules = 2 : 5
