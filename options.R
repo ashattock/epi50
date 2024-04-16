@@ -57,7 +57,6 @@ set_options = function(run_module = NA) {
 
   # Turn figures on or off
   o$plot_inputs     = TRUE
-  o$plot_external   = TRUE
   o$plot_static     = TRUE
   o$plot_imputation = TRUE
   o$plot_impact     = TRUE

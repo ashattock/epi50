@@ -70,14 +70,8 @@ prepare_coverage = function() {
   # Plot total number of FVP over time
   plot_total_fvps()
   
-  # Plot coverage density by disease
-  plot_coverage()
-  
   # Coverage data density by age
   plot_coverage_age_density()
-  
-  # Missing coverage data by country
-  plot_missing_data()
 }
 
 # ---------------------------------------------------------
@@ -550,13 +544,8 @@ smooth_static_fvps = function(coverage_dt) {
     fill(source, .direction = "updown") %>%
     arrange(d_v_a_id, country, year, age)
   
-  # ---- Diagnostic plots ----
-  
   # Save table for diagnostic plots
   save_table(smooth_dt, "smoothed_fvps")
-  
-  # Diagnostic plots for FVPs smoothing
-  plot_smooth_fvps()
   
   return(smoothed_coverage_dt)
 }

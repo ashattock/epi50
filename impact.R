@@ -23,9 +23,6 @@ run_impact = function(metric) {
   # Prepare impact-FVP data to fit to
   data_dt = get_impact_data(metric)
   
-  # Exploratory plots of data used to fit impact functions
-  plot_impact_data(metric)
-  
   # ---- Model fitting ----
   
   message(" > Evaluating impact functions")

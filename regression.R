@@ -80,9 +80,6 @@ run_regression = function(case, metric) {
   
   # Plot predicted vs observed for each country
   plot_impute_perform(metric)
-  
-  # Plot model selection by disease
-  plot_model_choice(metric)
 }
 
 # ---------------------------------------------------------

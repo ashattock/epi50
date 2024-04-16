@@ -329,16 +329,6 @@ run_history = function(metric) {
     # Save results to file
     save_rds(yll_time_dt, "history", "burden_averted_yll") 
   }
-  
-  # ---- Plot diagnostic figures ----
-  
-  # NOTE: Most results figures created in final module
-  
-  # Plot inital impact ratios used to back project
-  plot_impact_fvps(metric, scope = "initial")
-  
-  # Plot comparison of EPI50 outcomes vs VIMC outcomes
-  plot_vimc_comparison()
 }
 
 # ---------------------------------------------------------

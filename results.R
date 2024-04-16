@@ -27,25 +27,9 @@ run_results = function() {
 
     # Total number of FVP over time by source
     plot_total_fvps()
-    plot_smooth_fvps()
-
-    # Plot coverage density by disease
-    plot_coverage()
     
     # Coverage data density by age
     plot_coverage_age_density()
-  }
-  
-  # ---- External model plots ----
-  
-  # Check plotting flag
-  if (o$plot_external) {
-    
-    # Plot outcomes from each external model
-    plot_external_models()
-    
-    # Missing coverage data by country
-    plot_missing_data()
   }
   
   # ---- Static model plots ----
@@ -55,10 +39,7 @@ run_results = function() {
     
     # Global Burden of Disease death estimates by age
     plot_gbd_estimates()
-
-    # Proportion of GBD burden we have coverage data for
-    plot_gbd_missing()
-
+    
     # Plot vaccine efficacy profiles for static model pathogens
     plot_vaccine_efficacy()
 
@@ -82,9 +63,6 @@ run_results = function() {
       
       # Plot predicted vs observed for each country
       plot_impute_perform(metric)
-      
-      # Plot model selection by disease
-      plot_model_choice(metric)
     }
   }
   
@@ -95,9 +73,6 @@ run_results = function() {
     
     # Repeat for deaths and DALYs
     for (metric in o$metrics) {
-      
-      # Exploratory plots of data used to fit impact functions
-      plot_impact_data(metric)
       
       # Plot impact function evaluation
       plot_model_fits(metric)
@@ -131,19 +106,6 @@ run_results = function() {
     
     # Plot absolute and relative probability of death in 2024
     plot_survival_increase()
-    
-    # Plot absolute and relative probability of death in 2024
-    plot_prob_death_age()
-    
-    # Measles deaths in context of all cause deaths
-    plot_measles_in_context()
-    
-    # Inital impact ratios used to back project
-    for (metric in o$metrics)
-      plot_impact_fvps(metric, scope = "initial")
-    
-    # Plot comparison of EPI50 outcomes vs VIMC outcomes
-    plot_vimc_comparison()
   }
   
   # ---- Main results table ----
