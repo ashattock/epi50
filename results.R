@@ -80,7 +80,7 @@ run_results = function() {
     # Plot predicted vs observed for each country
     plot_impute_perform("deaths")
     
-    # xxx
+    # Plot model selection by disease
     plot_model_choice("deaths")
   }
   
@@ -94,12 +94,12 @@ run_results = function() {
       
       # Exploratory plots of data used to fit impact functions
       plot_impact_data(metric)
-
-      # Plot function selection statistics
-      plot_model_selection(metric)
       
       # Plot impact function evaluation
       plot_model_fits(metric)
+
+      # Plot function selection statistics
+      plot_model_selection(metric)
     }
   }
   
@@ -122,20 +122,17 @@ run_results = function() {
     # Infant mortality rates over time with and without vaccination
     plot_infant_mortality()
     
-    # xxx
-    plot_mortality_region()
-    
     # Regional differences in child mortality changes
     plot_mortality_change()
     
-    # Measles deaths in context of all cause deaths
-    plot_measles_in_context()
+    # Plot absolute and relative probability of death in 2024
+    plot_survival_increase()
     
     # Plot absolute and relative probability of death in 2024
     plot_prob_death_age()
     
-    # Plot absolute and relative probability of death in 2024
-    plot_survival_increase()
+    # Measles deaths in context of all cause deaths
+    plot_measles_in_context()
     
     # Inital impact ratios used to back project
     for (metric in o$metrics)

@@ -1831,6 +1831,243 @@ plot_impact_data = function(metric) {
 }
 
 # ---------------------------------------------------------
+# Plot impact function evaluation
+# ---------------------------------------------------------
+plot_model_fits = function(metric) {
+  
+  message("  - Plotting impact function fits")
+  
+  # Load data used for impact function fitting
+  data_dt = read_rds("impact", "impact", metric, "data") %>%
+    format_d_v_a_name()
+  
+  # Largest cumulative FVP we need to plot up to
+  max_dt = data_dt %>%
+    group_by(d_v_a_id, country) %>%
+    slice_max(fvps, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    select(d_v_a_id, country, x_max = fvps) %>%
+    as.data.table()
+  
+  # Expand for a full series of evaluation points
+  eval_dt = max_dt %>%
+    expand_grid(scale = seq(0, 1, by = 0.01)) %>%
+    mutate(fvps = x_max * scale) %>%
+    select(d_v_a_id, country, fvps) %>%
+    as.data.table()
+  
+  # Evaluate all points
+  fit_dt = evaluate_impact_function(
+    data   = eval_dt, 
+    metric = metric, 
+    uncert = FALSE)
+  
+  # Evaluate selected impact function
+  plot_dt = fit_dt %>%
+    format_d_v_a_name() %>%
+    select(d_v_a_name, country, fvps, impact)
+  
+  # Plot function evaluation against the data
+  g = ggplot(plot_dt) +
+    aes(x = fvps, 
+        y = impact, 
+        colour = country) +
+    # Plot data, then fit on top...
+    geom_point(
+      data = data_dt,
+      size = 0.75,
+      alpha = 0.5,
+      show.legend = FALSE) +
+    geom_line(show.legend = FALSE) +
+    # Faceting with wrap labelling...
+    facet_wrap(
+      facets   = vars(d_v_a_name), 
+      labeller = label_wrap_gen(width = 30), 
+      scales   = "free") + 
+    # Set colour scheme...
+    scale_colour_manual(
+      values = colour_scheme(
+        map = "viridis::viridis", 
+        n   = n_unique(all_countries()))) +
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Cumulative FVPs per capita (including new birth cohorts)", 
+      limits = c(0, NA),
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks()) +  
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = "Cumulative impact per capita", 
+      labels = scientific,
+      limits = c(0, NA),
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks())
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.text     = element_text(size = 8),
+          axis.text.x   = element_text(hjust = 1, angle = 50),
+          axis.title.x  = element_text(
+            size = 16, margin = margin(b = 10, t = 20)),
+          axis.title.y  = element_text(
+            size = 16, margin = margin(l = 10, r = 20)),
+          axis.line     = element_blank(),
+          strip.text    = element_text(size = 10),
+          strip.background = element_blank(), 
+          panel.border  = element_rect(
+            linewidth = 0.5, fill = NA),
+          panel.spacing = unit(0.5, "lines"))
+  
+  # Save figure to file
+  save_fig(g, "S17")
+}
+
+# ---------------------------------------------------------
+# Plot function selection statistics
+# ---------------------------------------------------------
+plot_model_selection = function(metric) {
+  
+  message("  - Plotting impact model selection")
+  
+  # Define colour scheme
+  colour_map = "brewer::set1"
+  
+  # Load stuff: best fit functions and associtaed coefficients
+  choice_dt = read_rds("impact", "model_choice", metric) %>%
+    format_d_v_a_name()
+  
+  # ---- Plot function count ----
+  
+  # Simple plotting function with a few features
+  plot_selection = function(var, type = "count", stat = "number") {
+    
+    # Determine order - with 'focus' function first
+    fn_dict = fn_set(dict = TRUE)
+    
+    # Number of times each model is optimal
+    selection_dt = choice_dt %>% 
+      rename(var = !!var) %>% 
+      # Number and proportion of each fn...
+      count(var, fn, name = "number") %>%
+      group_by(var) %>%
+      mutate(total = sum(number)) %>%
+      ungroup() %>%
+      mutate(proportion = number / total) %>%
+      # Set appropriate plotting order...
+      rename(val = !!stat) %>%
+      select(var, fn, val) %>%
+      pivot_wider(names_from  = fn, 
+                  values_from = val, 
+                  values_fill = 0) %>%
+      arrange_at(intersect(
+        x = names(fn_dict), 
+        y = names(.))) %>%
+      # Final formatting...
+      pivot_longer(cols = -var, 
+                   names_to  = "fn", 
+                   values_to = "val") %>%
+      mutate(fn  = recode(fn, !!!fn_dict), 
+             fn  = factor(fn, fn_dict),
+             var = fct_rev(fct_inorder(var))) %>%
+      as.data.table()
+    
+    # Check figure type flag
+    if (type == "count") {
+      
+      # Number of occurances
+      g = ggplot(selection_dt) + 
+        aes(x    = var, 
+            y    = val, 
+            fill = fct_rev(fn)) + 
+        geom_col() + 
+        coord_flip() + 
+        # Set colour scheme...
+        scale_fill_manual(
+          values = colour_scheme(
+            map = colour_map, 
+            n   = n_unique(selection_dt$fn))) +
+        # Prettify x axis (noting coord_flip)...
+        scale_y_continuous(
+          name   = paste(first_cap(stat), "of countries"), 
+          expand = expansion(mult = c(0, 0.05)), 
+          breaks = pretty_breaks()) + 
+        # Prettify legend...
+        guides(fill = guide_legend(
+          reverse = TRUE))
+      
+      # Prettify theme
+      g = g + theme_classic() + 
+        theme(axis.text     = element_text(size = 12),
+              axis.title.x  = element_text(
+                size = 20, margin = margin(b = 10, t = 20)),
+              axis.title.y  = element_blank(),
+              axis.line     = element_blank(),
+              panel.border  = element_rect(
+                linewidth = 0.5, fill = NA),
+              legend.title  = element_blank(),
+              legend.text   = element_text(size = 12),
+              legend.key    = element_blank(),
+              legend.position = "right", 
+              legend.key.height = unit(2, "lines"),
+              legend.key.width  = unit(2, "lines"))
+    }
+    
+    # Check figure type flag
+    if (type == "density") {
+      
+      # Density of occurances
+      g = ggplot(selection_dt) + 
+        aes(x    = val, 
+            fill = fn) +
+        geom_bar() + 
+        # Prettify x axis...
+        scale_x_continuous(
+          name   = "Number of model selections for a country", 
+          breaks = pretty_breaks()) +  
+        # Prettify y axis...
+        scale_y_continuous(
+          name   = paste(first_cap(stat), "of countries"), 
+          expand = expansion(mult = c(0, 0.05)), 
+          breaks = pretty_breaks())
+      
+      # Prettify theme
+      g = g + theme_classic() + 
+        theme(axis.text     = element_text(size = 12),
+              axis.title.x  = element_text(
+                size = 20, margin = margin(b = 10, t = 20)),
+              axis.title.y  = element_text(
+                size = 20, margin = margin(l = 10, r = 20)),
+              axis.line     = element_blank(),
+              panel.border  = element_rect(
+                linewidth = 0.5, fill = NA),
+              legend.title  = element_blank(),
+              legend.text   = element_text(size = 12),
+              legend.key    = element_blank(),
+              legend.position = "right", 
+              legend.key.height = unit(2, "lines"),
+              legend.key.width  = unit(2, "lines"))
+    }
+    
+    return(g)
+  }
+  
+  # ---- A variety of plots ----
+  
+  # Create a variety of plots
+  g = list(
+    
+    # Plot by disease-vaccine-activity
+    a = plot_selection("d_v_a_name", stat = "proportion"), 
+    b = plot_selection("d_v_a_name", stat = "number"),
+    
+    # Plot by country
+    c = plot_selection("country", type = "density"))
+  
+  # Save figures of interest
+  save_fig(g$a, "S18")
+}
+
+# ---------------------------------------------------------
 # Plot impact ratios - either all or initial only
 # ---------------------------------------------------------
 plot_impact_fvps = function(metric, scope) {
@@ -2013,243 +2250,6 @@ plot_impact_fvps = function(metric, scope) {
   save_fig(g, "X14")
 }
 
-# ---------------------------------------------------------
-# Plot function selection statistics
-# ---------------------------------------------------------
-plot_model_selection = function(metric) {
-  
-  message("  - Plotting impact model selection")
-  
-  # Define colour scheme
-  colour_map = "brewer::set1"
-  
-  # Load stuff: best fit functions and associtaed coefficients
-  choice_dt = read_rds("impact", "model_choice", metric) %>%
-    format_d_v_a_name()
-  
-  # ---- Plot function count ----
-  
-  # Simple plotting function with a few features
-  plot_selection = function(var, type = "count", stat = "number") {
-    
-    # Determine order - with 'focus' function first
-    fn_dict = fn_set(dict = TRUE)
-    
-    # Number of times each model is optimal
-    selection_dt = choice_dt %>% 
-      rename(var = !!var) %>% 
-      # Number and proportion of each fn...
-      count(var, fn, name = "number") %>%
-      group_by(var) %>%
-      mutate(total = sum(number)) %>%
-      ungroup() %>%
-      mutate(proportion = number / total) %>%
-      # Set appropriate plotting order...
-      rename(val = !!stat) %>%
-      select(var, fn, val) %>%
-      pivot_wider(names_from  = fn, 
-                  values_from = val, 
-                  values_fill = 0) %>%
-      arrange_at(intersect(
-        x = names(fn_dict), 
-        y = names(.))) %>%
-      # Final formatting...
-      pivot_longer(cols = -var, 
-                   names_to  = "fn", 
-                   values_to = "val") %>%
-      mutate(fn  = recode(fn, !!!fn_dict), 
-             fn  = factor(fn, fn_dict),
-             var = fct_rev(fct_inorder(var))) %>%
-      as.data.table()
-    
-    # Check figure type flag
-    if (type == "count") {
-      
-      # Number of occurances
-      g = ggplot(selection_dt) + 
-        aes(x    = var, 
-            y    = val, 
-            fill = fct_rev(fn)) + 
-        geom_col() + 
-        coord_flip() + 
-        # Set colour scheme...
-        scale_fill_manual(
-          values = colour_scheme(
-            map = colour_map, 
-            n   = n_unique(selection_dt$fn))) +
-        # Prettify x axis (noting coord_flip)...
-        scale_y_continuous(
-          name   = paste(first_cap(stat), "of countries"), 
-          expand = expansion(mult = c(0, 0.05)), 
-          breaks = pretty_breaks()) + 
-        # Prettify legend...
-        guides(fill = guide_legend(
-          reverse = TRUE))
-      
-      # Prettify theme
-      g = g + theme_classic() + 
-        theme(axis.text     = element_text(size = 12),
-              axis.title.x  = element_text(
-                size = 20, margin = margin(b = 10, t = 20)),
-              axis.title.y  = element_blank(),
-              axis.line     = element_blank(),
-              panel.border  = element_rect(
-                linewidth = 0.5, fill = NA),
-              legend.title  = element_blank(),
-              legend.text   = element_text(size = 12),
-              legend.key    = element_blank(),
-              legend.position = "right", 
-              legend.key.height = unit(2, "lines"),
-              legend.key.width  = unit(2, "lines"))
-    }
-    
-    # Check figure type flag
-    if (type == "density") {
-      
-      # Density of occurances
-      g = ggplot(selection_dt) + 
-        aes(x    = val, 
-            fill = fn) +
-        geom_bar() + 
-        # Prettify x axis...
-        scale_x_continuous(
-          name   = "Number of model selections for a country", 
-          breaks = pretty_breaks()) +  
-        # Prettify y axis...
-        scale_y_continuous(
-          name   = paste(first_cap(stat), "of countries"), 
-          expand = expansion(mult = c(0, 0.05)), 
-          breaks = pretty_breaks())
-      
-      # Prettify theme
-      g = g + theme_classic() + 
-        theme(axis.text     = element_text(size = 12),
-              axis.title.x  = element_text(
-                size = 20, margin = margin(b = 10, t = 20)),
-              axis.title.y  = element_text(
-                size = 20, margin = margin(l = 10, r = 20)),
-              axis.line     = element_blank(),
-              panel.border  = element_rect(
-                linewidth = 0.5, fill = NA),
-              legend.title  = element_blank(),
-              legend.text   = element_text(size = 12),
-              legend.key    = element_blank(),
-              legend.position = "right", 
-              legend.key.height = unit(2, "lines"),
-              legend.key.width  = unit(2, "lines"))
-    }
-    
-    return(g)
-  }
-  
-  # ---- A variety of plots ----
-  
-  # Create a variety of plots
-  g = list(
-    
-    # Plot by disease-vaccine-activity
-    a = plot_selection("d_v_a_name", stat = "proportion"), 
-    b = plot_selection("d_v_a_name", stat = "number"),
-    
-    # Plot by country
-    c = plot_selection("country", type = "density"))
-  
-  # Save figures of interest
-  save_fig(g$a, "S18")
-}
-
-# ---------------------------------------------------------
-# Plot impact function evaluation
-# ---------------------------------------------------------
-plot_model_fits = function(metric) {
-  
-  message("  - Plotting impact function fits")
-  
-  # Load data used for impact function fitting
-  data_dt = read_rds("impact", "impact", metric, "data") %>%
-    format_d_v_a_name()
-  
-  # Largest cumulative FVP we need to plot up to
-  max_dt = data_dt %>%
-    group_by(d_v_a_id, country) %>%
-    slice_max(fvps, n = 1, with_ties = FALSE) %>%
-    ungroup() %>%
-    select(d_v_a_id, country, x_max = fvps) %>%
-    as.data.table()
-  
-  # Expand for a full series of evaluation points
-  eval_dt = max_dt %>%
-    expand_grid(scale = seq(0, 1, by = 0.01)) %>%
-    mutate(fvps = x_max * scale) %>%
-    select(d_v_a_id, country, fvps) %>%
-    as.data.table()
-  
-  # Evaluate all points
-  fit_dt = evaluate_impact_function(
-    data   = eval_dt, 
-    metric = metric, 
-    uncert = FALSE)
-  
-  # Evaluate selected impact function
-  plot_dt = fit_dt %>%
-    format_d_v_a_name() %>%
-    select(d_v_a_name, country, fvps, impact)
-  
-  # Plot function evaluation against the data
-  g = ggplot(plot_dt) +
-    aes(x = fvps, 
-        y = impact, 
-        colour = country) +
-    # Plot data, then fit on top...
-    geom_point(
-      data = data_dt,
-      size = 0.75,
-      alpha = 0.5,
-      show.legend = FALSE) +
-    geom_line(show.legend = FALSE) +
-    # Faceting with wrap labelling...
-    facet_wrap(
-      facets   = vars(d_v_a_name), 
-      labeller = label_wrap_gen(width = 30), 
-      scales   = "free") + 
-    # Set colour scheme...
-    scale_colour_manual(
-      values = colour_scheme(
-        map = "viridis::viridis", 
-        n   = n_unique(all_countries()))) +
-    # Prettify x axis...
-    scale_x_continuous(
-      name   = "Cumulative FVPs per capita (including new birth cohorts)", 
-      limits = c(0, NA),
-      expand = expansion(mult = c(0, 0.05)), 
-      breaks = pretty_breaks()) +  
-    # Prettify y axis...
-    scale_y_continuous(
-      name   = "Cumulative impact per capita", 
-      labels = scientific,
-      limits = c(0, NA),
-      expand = expansion(mult = c(0, 0.05)), 
-      breaks = pretty_breaks())
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(axis.text     = element_text(size = 8),
-          axis.text.x   = element_text(hjust = 1, angle = 50),
-          axis.title.x  = element_text(
-            size = 16, margin = margin(b = 10, t = 20)),
-          axis.title.y  = element_text(
-            size = 16, margin = margin(l = 10, r = 20)),
-          axis.line     = element_blank(),
-          strip.text    = element_text(size = 10),
-          strip.background = element_blank(), 
-          panel.border  = element_rect(
-            linewidth = 0.5, fill = NA),
-          panel.spacing = unit(0.5, "lines"))
-  
-  # Save figure to file
-  save_fig(g, "S17")
-}
-
 # **** Historical impact ****
 
 # ---------------------------------------------------------
@@ -2293,15 +2293,15 @@ plot_historical_impact = function(by = NULL) {
       levels = table("income_dict")$income_name)) %>%
     append_region_name()
   
+  # Global scope
   if (is.null(by)) {
-    
     scope_dt = country_scope %>%
       select(country) %>%
       mutate(scope = "global")
   }
   
+  # Group by region or income
   if (!is.null(by)) {
-    
     scope_dt = country_scope %>%
       select(country, scope = !!by)
   }
@@ -2392,6 +2392,13 @@ plot_historical_impact = function(by = NULL) {
           sep = "<br>", remove = FALSE) %>%
     select(disease, label) %>%
     as.data.table()
+  
+  # Simplify labels for non-global plot
+  if (!is.null(by)) {
+    label_dt %<>% 
+      select(disease) %>%
+      mutate(label = disease)
+  }
   
   # ---- Disease colours ----
   
@@ -2673,18 +2680,19 @@ plot_infant_mortality = function() {
   
   # ---- Figure properties ----
   
+  # Ages of interest
   age_bound = 0
   
-  # Set colour scheme for vaccine coverage
-  colour_map = "viridis::viridis" # pals::kovesi.rainbow "viridis::viridis"
-  
+  # Shorthand for whole analysis period
   year_range = paste(range(o$years), collapse = "-")
   
+  # Construct subplot dictionary
   metric_dict = list(
     rate   = paste("Infant mortality rate", year_range), 
     deaths = paste("Cumulative infant deaths", year_range), 
     cov    = "Global vaccine coverage")
   
+  # Metric formatting
   metric_lab = list(
     rate   = "percent", 
     deaths = "comma") 
@@ -2700,7 +2708,11 @@ plot_infant_mortality = function() {
     vaccine = "Reduction in infant mortality<br>attributable to vaccination", 
     other   = "Reduction in infant mortality<br>attributable to other causes")
   
+  # Colours of vaccine-other contributions
   fill_colours = c(colours_who("logo", 1), "grey30")
+  
+  # Set colour scheme for vaccine coverage
+  coverage_colours = "viridis::viridis"
   
   # ---- Compile results ----
   
@@ -2760,6 +2772,7 @@ plot_infant_mortality = function() {
            relative_mean = cumsum(relative) / n_years) %>%
     as.data.table()
   
+  # Round vaccine attributable result
   attributable = round(mean(attributable_dt$relative))
   
   # Append this very important outcome to legend labels
@@ -2839,6 +2852,7 @@ plot_infant_mortality = function() {
   # Function to create subplot
   plot_fn = function(plot_metric) {
     
+    # Subplot metric
     sub = metric_dict[[plot_metric]]
     
     # Plot infant mortality
@@ -2894,6 +2908,7 @@ plot_infant_mortality = function() {
           keyheight = 1.8, 
           reverse   = TRUE))
     
+    # Apply theme to subplot
     g = theme_fn(g)
     
     return(g)
@@ -2912,7 +2927,7 @@ plot_infant_mortality = function() {
     # Set colour scheme...
     scale_color_manual(
       values = rev(colour_scheme(
-        map = colour_map, 
+        map = coverage_colours, 
         n   = n_unique(coverage_dt$vaccine)))) +
     # Set linewidth values
     scale_linewidth(
@@ -2942,39 +2957,6 @@ plot_infant_mortality = function() {
 }
 
 # ---------------------------------------------------------
-# Plot vaccine contribution to infant mortality decrease by region
-# ---------------------------------------------------------
-plot_mortality_region = function() {
-  
-  message("  - Plotting infant mortality decrease by region")
-  
-  # Load mortality rates in vaccine and no vaccine scenarios
-  region_dt = mortality_rates(grouping = "region")$rate
-  global_dt = mortality_rates(grouping = "none")$rate
-  
-  plot_dt = global_dt %>%
-    mutate(group = "World") %>%
-    rbind(region_dt) %>%
-    pivot_wider(names_from = scenario) %>%
-    group_by(group) %>%
-    mutate(relative = (no_vaccine - vaccine) / (no_vaccine[1] - vaccine), 
-           n_years = 1 : n(), 
-           contribution = cumsum(relative) / n_years) %>%
-    ungroup() %>%
-    mutate(contribution = pmin(contribution, 1)) %>%
-    filter(year >= 1980) %>%
-    select(group, year, contribution) %>%
-    as.data.table()
-  
-  # Plot all metrics over time
-  g = ggplot(plot_dt) +
-    aes(x = year, 
-        y = contribution, 
-        colour = group) +
-    geom_line() 
-}
-
-# ---------------------------------------------------------
 # Plot regional differences in infant mortality changes
 # ---------------------------------------------------------
 plot_mortality_change = function() {
@@ -3000,6 +2982,7 @@ plot_mortality_change = function() {
   world_dt  = mortality_rates(grouping = "none")$rate %>%
     mutate(group = "World")
   
+  # Absolute decrease in infant mortality rate
   abs_dt = rbind(region_dt, world_dt) %>%
     filter(scenario == "vaccine", 
            year %in% range(o$years)) %>%
@@ -3011,6 +2994,7 @@ plot_mortality_change = function() {
     arrange(-abs) %>%
     as.data.table()
   
+  # Relative decrease in infant mortality rate
   rel_dt = rbind(region_dt, world_dt) %>%
     filter(scenario == "vaccine", 
            year %in% range(o$years)) %>%
@@ -3129,132 +3113,6 @@ plot_mortality_change = function() {
   
   # Save figure to file
   save_fig(g, "S05")
-}
-
-# ---------------------------------------------------------
-# Plot absolute and relative probability of death in 2024
-# ---------------------------------------------------------
-plot_prob_death_age = function() {
-  
-  message("  - Plotting probability of death by age")
-  
-  age_bins = 4
-  
-  # Dictionary for each vaccine case
-  #
-  # NOTE: Using reverse order here for prettier plot
-  case_dict = list( 
-    no_vaccine = "No historical vaccination",
-    vaccine    = "Vaccination as obserevd")
-  
-  # Construct a somewhat elaborate y axis label
-  y_label = bquote(
-    ~.("Marginal probability of death in n")
-    ^.("th") 
-    ~.("year of life")
-    ~.(paste0("(", max(o$years), ")")))
-  
-  # Deaths averted by vaccination
-  averted_dt = read_rds("history", "burden_averted_deaths") %>%
-    filter(year == max(o$years)) %>%
-    # Apply age structure...
-    left_join(y  = table("impact_age_multiplier"), 
-              by = "d_v_a_id", 
-              relationship = "many-to-many") %>%
-    mutate(impact = impact * scaler) %>%
-    # Summarise over region...
-    append_region_name() %>%
-    group_by(region, age) %>%
-    summarise(averted = sum(impact)) %>%
-    ungroup() %>%
-    # Avoid zero for log scaling ...
-    mutate(age = age + 1) %>%
-    filter(age %in% 2 ^ (0 : age_bins)) %>%
-    select(region, age, averted) %>%
-    as.data.table()
-  
-  # Probability of death by age
-  plot_dt = table("wpp_pop") %>%
-    filter(year == max(o$years)) %>%
-    left_join(y  = table("wpp_deaths"), 
-              by = c("country", "year", "age")) %>%
-    # Avoid zero for log scaling ...
-    mutate(age = age + 1) %>%
-    filter(age %in% 2 ^ (0 : age_bins)) %>%
-    # Average prob of death by region and year...
-    append_region_name() %>%
-    group_by(region, age) %>%
-    summarise(pop    = sum(pop), 
-              deaths = sum(deaths)) %>%
-    ungroup() %>%
-    # Append deaths averted...
-    left_join(y  = averted_dt, 
-              by = c("region", "age")) %>%
-    replace_na(list(averted = 0)) %>%
-    mutate(vaccine    = deaths / pop, 
-           no_vaccine = (deaths + averted) / pop) %>%
-    # Melt to long format ready for plotting...
-    select(region, age, vaccine, no_vaccine) %>%
-    pivot_longer(cols = c(vaccine, no_vaccine), 
-                 names_to = "case") %>%
-    # Set regional order...
-    arrange(desc(value)) %>%
-    mutate(region = fct_inorder(region)) %>%
-    # Set vaccine case order...
-    mutate(case = recode(case, !!!case_dict), 
-           case = factor(case, case_dict)) %>%
-    arrange(region, case, age) %>%
-    as.data.table()
-  
-  # Plot both scenarios as side-by-side bars
-  g = ggplot(plot_dt) +
-    aes(x = age, 
-        y = value, 
-        fill = case) +
-    geom_col(position = "dodge") +
-    # Facet by region...
-    facet_wrap(
-      facets = vars(region), 
-      scales = "free_y") +
-    # Set colour scheme...
-    scale_fill_manual(
-      values = colours_who("logo", n = 2)) + 
-    # Prettify x axis...
-    scale_x_continuous(
-      name   = "Age (log2 scale)",
-      trans  = "log2", 
-      breaks = 2 ^ (0 : age_bins)) +
-    # Prettify y axis...
-    scale_y_continuous(
-      name   = y_label,
-      labels = percent, 
-      limits = c(0, NA), 
-      expand = expansion(mult = c(0, 0.05)), 
-      breaks = pretty_breaks())
-  
-  # Prettify theme
-  g = g + theme_classic() + 
-    theme(axis.title   = element_text(size = 20),
-          axis.title.x = element_text(
-            margin = margin(t = 20, b = 10)),
-          axis.title.y = element_text(
-            margin = margin(l = 10, r = 20)),
-          axis.text    = element_text(size = 12),
-          axis.ticks   = element_blank(), 
-          axis.line    = element_line(linewidth = 0.25),
-          strip.text   = element_text(size = 18),
-          strip.background = element_blank(), 
-          panel.spacing = unit(1, "lines"), 
-          panel.grid.major.y = element_line(linewidth = 0.25),
-          legend.title = element_blank(),
-          legend.text  = element_text(size = 16),
-          legend.key   = element_blank(),
-          legend.position = "bottom", 
-          legend.key.height = unit(2, "lines"),
-          legend.key.width  = unit(2, "lines"))
-  
-  # Save figure to file
-  save_fig(g, "X15")
 }
 
 # ---------------------------------------------------------
@@ -3439,6 +3297,133 @@ plot_survival_increase = function(log_age = FALSE) {
   
   # Save figure to file
   save_fig(g, "3")
+}
+
+# ---------------------------------------------------------
+# Plot absolute and relative probability of death in 2024
+# ---------------------------------------------------------
+plot_prob_death_age = function() {
+  
+  message("  - Plotting probability of death by age")
+  
+  # Number of log2 age bins to plot
+  age_bins = 4
+  
+  # Dictionary for each vaccine case
+  #
+  # NOTE: Using reverse order here for prettier plot
+  case_dict = list( 
+    no_vaccine = "No historical vaccination",
+    vaccine    = "Vaccination as obserevd")
+  
+  # Construct a somewhat elaborate y axis label
+  y_label = bquote(
+    ~.("Marginal probability of death in n")
+    ^.("th") 
+    ~.("year of life")
+    ~.(paste0("(", max(o$years), ")")))
+  
+  # Deaths averted by vaccination
+  averted_dt = read_rds("history", "burden_averted_deaths") %>%
+    filter(year == max(o$years)) %>%
+    # Apply age structure...
+    left_join(y  = table("impact_age_multiplier"), 
+              by = "d_v_a_id", 
+              relationship = "many-to-many") %>%
+    mutate(impact = impact * scaler) %>%
+    # Summarise over region...
+    append_region_name() %>%
+    group_by(region, age) %>%
+    summarise(averted = sum(impact)) %>%
+    ungroup() %>%
+    # Avoid zero for log scaling ...
+    mutate(age = age + 1) %>%
+    filter(age %in% 2 ^ (0 : age_bins)) %>%
+    select(region, age, averted) %>%
+    as.data.table()
+  
+  # Probability of death by age
+  plot_dt = table("wpp_pop") %>%
+    filter(year == max(o$years)) %>%
+    left_join(y  = table("wpp_deaths"), 
+              by = c("country", "year", "age")) %>%
+    # Avoid zero for log scaling ...
+    mutate(age = age + 1) %>%
+    filter(age %in% 2 ^ (0 : age_bins)) %>%
+    # Average prob of death by region and year...
+    append_region_name() %>%
+    group_by(region, age) %>%
+    summarise(pop    = sum(pop), 
+              deaths = sum(deaths)) %>%
+    ungroup() %>%
+    # Append deaths averted...
+    left_join(y  = averted_dt, 
+              by = c("region", "age")) %>%
+    replace_na(list(averted = 0)) %>%
+    mutate(vaccine    = deaths / pop, 
+           no_vaccine = (deaths + averted) / pop) %>%
+    # Melt to long format ready for plotting...
+    select(region, age, vaccine, no_vaccine) %>%
+    pivot_longer(cols = c(vaccine, no_vaccine), 
+                 names_to = "case") %>%
+    # Set regional order...
+    arrange(desc(value)) %>%
+    mutate(region = fct_inorder(region)) %>%
+    # Set vaccine case order...
+    mutate(case = recode(case, !!!case_dict), 
+           case = factor(case, case_dict)) %>%
+    arrange(region, case, age) %>%
+    as.data.table()
+  
+  # Plot both scenarios as side-by-side bars
+  g = ggplot(plot_dt) +
+    aes(x = age, 
+        y = value, 
+        fill = case) +
+    geom_col(position = "dodge") +
+    # Facet by region...
+    facet_wrap(
+      facets = vars(region), 
+      scales = "free_y") +
+    # Set colour scheme...
+    scale_fill_manual(
+      values = colours_who("logo", n = 2)) + 
+    # Prettify x axis...
+    scale_x_continuous(
+      name   = "Age (log2 scale)",
+      trans  = "log2", 
+      breaks = 2 ^ (0 : age_bins)) +
+    # Prettify y axis...
+    scale_y_continuous(
+      name   = y_label,
+      labels = percent, 
+      limits = c(0, NA), 
+      expand = expansion(mult = c(0, 0.05)), 
+      breaks = pretty_breaks())
+  
+  # Prettify theme
+  g = g + theme_classic() + 
+    theme(axis.title   = element_text(size = 20),
+          axis.title.x = element_text(
+            margin = margin(t = 20, b = 10)),
+          axis.title.y = element_text(
+            margin = margin(l = 10, r = 20)),
+          axis.text    = element_text(size = 12),
+          axis.ticks   = element_blank(), 
+          axis.line    = element_line(linewidth = 0.25),
+          strip.text   = element_text(size = 18),
+          strip.background = element_blank(), 
+          panel.spacing = unit(1, "lines"), 
+          panel.grid.major.y = element_line(linewidth = 0.25),
+          legend.title = element_blank(),
+          legend.text  = element_text(size = 16),
+          legend.key   = element_blank(),
+          legend.position = "bottom", 
+          legend.key.height = unit(2, "lines"),
+          legend.key.width  = unit(2, "lines"))
+  
+  # Save figure to file
+  save_fig(g, "X15")
 }
 
 # ---------------------------------------------------------

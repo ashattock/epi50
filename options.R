@@ -56,12 +56,12 @@ set_options = function(run_module = NA) {
   # ---- Plotting flags ----
 
   # Turn figures on or off
-  o$plot_inputs     = F
-  o$plot_external   = F
-  o$plot_static     = F
-  o$plot_imputation = F
-  o$plot_impact     = F
-  o$plot_history    = F
+  o$plot_inputs     = TRUE
+  o$plot_external   = TRUE
+  o$plot_static     = TRUE
+  o$plot_imputation = TRUE
+  o$plot_impact     = TRUE
+  o$plot_history    = TRUE
   
   # Main results table
   o$results_table = TRUE
