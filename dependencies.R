@@ -54,6 +54,7 @@ packages = c(
   "stats",          # Statistical calculations and random number generation
   "stats4",         # MLE algorithm
   "MCMCpack",       # MCMC functionality
+  "forecast",       # Time series forecasting
   "fpp3",           # Time series forecasting
   "tsibble",        # Time series data format
   "imputeTS",       # Linear interpolation in dplyr pipes

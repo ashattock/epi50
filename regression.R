@@ -37,8 +37,7 @@ run_regression = function(case, metric) {
   # Call country imputation function
   predict_dt = table("d_v_a") %>%
     filter(source %in% use_sources,
-           activity != "campaign", 
-           disease  != "mena") %>%
+           activity != "campaign") %>%
     pull(d_v_a_id) %>%
     # Apply geographical imputation model...
     lapply(perform_regression, 
@@ -111,26 +110,26 @@ define_models = function(case) {
     
     # Models for imputing missing countries
     impute = list(
-      m1   = "cov0", 
-      m2   = "cov0 + cov1", 
-      m3   = "cov0 + cov1 + cov2", 
-      m4   = "cov0 + cov1 + cov2 + cov3", 
-      m5   = "cov0 + cov1 + cov2 + cov3 + cov4", 
-      m401 = "cov0 + cov1 + cov2 + cov3 + mat",
-      m402 = "cov0 + cov1 + cov2 + cov3 + mat + gini",
-      m403 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt",
-      m404 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + phs",
-      m405 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water",
-      m500 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water + phs"), 
+      m001 = "cov0", 
+      m002 = "cov0 + cov1", 
+      m003 = "cov0 + cov1 + cov2", 
+      m004 = "cov0 + cov1 + cov2 + cov3", 
+      m005 = "cov0 + cov1 + cov2 + cov3 + cov4", 
+      m101 = "cov0 + cov1 + cov2 + cov3 + mat",
+      m102 = "cov0 + cov1 + cov2 + cov3 + mat + gini",
+      m103 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt",
+      m104 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + phs",
+      m105 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water",
+      m201 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water + phs"), 
     
     # Models for inferring key drivers of impact 
     infer = list(
-      x401 = "cov0 + cov1 + cov2 + cov3 + mat",
-      x402 = "cov0 + cov1 + cov2 + cov3 + mat + gini",
-      x403 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt",
-      x404 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + phs",
-      x405 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water",
-      x500 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water + phs"))
+      x101 = "cov0 + cov1 + cov2 + cov3 + mat",
+      x102 = "cov0 + cov1 + cov2 + cov3 + mat + gini",
+      x103 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt",
+      x104 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + phs",
+      x105 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water",
+      x201 = "cov0 + cov1 + cov2 + cov3 + mat + gini + stunt + water + phs"))
   
   return(list(models[[case]], covars))
 }
@@ -221,6 +220,19 @@ get_regression_data = function(case, metric) {
 # ---------------------------------------------------------
 perform_regression = function(d_v_a_id, target, case, metric) {
   
+  # Vector of all countries to impute for this d-v-a
+  impute_countries = target %>%
+    filter(d_v_a_id == !!d_v_a_id, 
+           is.na(target)) %>%
+    pull(country) %>%
+    unique()
+  
+  # Return out if no countries to impute
+  if (length(impute_countries) == 0)
+    return()
+  
+  # ---- Set up ----
+  
   # Extract name of this d-v-a
   d_v_a_name = table("d_v_a") %>%
     filter(d_v_a_id == !!d_v_a_id) %>%
@@ -234,14 +246,6 @@ perform_regression = function(d_v_a_id, target, case, metric) {
   
   # Append all required covariates - see separate function
   target_ts = append_covariates(d_v_a_id, models, covars, target)
-  
-  # Load income status of each country
-  income_dt = table("income_status") %>%
-    # Income level 5 years ago...
-    filter(year == max(year) - 5) %>%
-    left_join(y  = table("income_dict"), 
-              by = "income") %>%
-    select(country, income = income_name)
   
   # ---- Evaluate all user-defined models ----
   
@@ -280,6 +284,15 @@ perform_regression = function(d_v_a_id, target, case, metric) {
   
   message("  - Model selection")
   
+  # Group countries by region and income status
+  grouping = table("income_status") %>%
+    # Income level 5 years ago...
+    filter(year == max(year) - 5) %>%
+    # Append region...
+    left_join(y  = table("country"), 
+              by = "country") %>%
+    select(country, income, region)
+  
   # For each country, select the model with the best AICc
   model_choice = model_list %>%
     lapply(report) %>%
@@ -298,13 +311,13 @@ perform_regression = function(d_v_a_id, target, case, metric) {
     # mutate(model_id = as.factor(model_id)) %>%
     mutate(d_v_a_id = d_v_a_id, 
            .before = 1) %>%
+    # Append grouping...
+    left_join(y  = grouping,
+              by = "country") %>%
     # Convert to mable class...
-    as_mable(key   = country, 
-             model = tslm) %>%
-    suppressWarnings() %>%
-    append_region_name() %>%
-    left_join(y = income_dt,
-              by = "country")
+    as_mable(key   = "country", 
+             model = "tslm") %>%
+    suppressWarnings()
   
   # Extract parameters of best fitting model for each country
   model_fit = tidy(model_choice) %>%
@@ -324,7 +337,7 @@ perform_regression = function(d_v_a_id, target, case, metric) {
       model_choice = model_choice, 
       model_list = model_list, 
       target     = target_ts, 
-      income_dt  = income_dt)
+      grouping   = grouping)
   }
   
   # Infer case: just a case of evaluating on the training data
@@ -490,7 +503,7 @@ evaluate_model = function(id, models, covars, data) {
 # ---------------------------------------------------------
 # Evaluate chosen model for all settings
 # ---------------------------------------------------------
-evaluate_predictions = function(model_choice, model_list, target, income_dt) {
+evaluate_predictions = function(model_choice, model_list, target, grouping) {
   
   # Full set of models available - we'll subset for this modal ID
   list[models, covars] = define_models("impute")
@@ -500,23 +513,28 @@ evaluate_predictions = function(model_choice, model_list, target, income_dt) {
     select(country, year, prediction = .fitted) %>%
     as.data.table()
   
-  # Function to find mode
-  mode <- function(x) {
-    ux = unique(x[!is.na(x)])
-    ux[which.max(tabulate(match(x, ux)))]
-  }
-  
   # Find most commonly chosen model by region and/or income group
-  group_choice_dt = model_choice %>%
-    select(d_v_a_id, country, region, income, model_id, tslm) %>%
-    # Find preferred model by income level
+  group_mode_dt = model_choice %>%
+    filter(!is.na(model_id)) %>%
+    count(region, income, model_id) %>%
+    arrange(region, income, desc(n), model_id) %>%
     group_by(region, income) %>%
-    summarise(mode = mode(model_id)) %>%
-    ungroup() %>%
+    slice_max(n, n = 1, with_ties = FALSE) %>%
+    select(region, income, mode = model_id) %>%
     as.data.table()
   
-  # ---- Summarise predictor coefficients from training countries ---------
+  # Use model selected for upper-middle income countries for high income countries
+  group_choice_dt = expand_grid(
+    region = table("region_dict")$region, 
+    income = table("income_dict")$income) %>%
+    left_join(y  = group_mode_dt, 
+              by = c("region", "income")) %>%
+    fill(mode, .direction = "updown") %>%
+    as.data.table()
   
+  # ---- Summarise predictor coefficients from training countries ----
+  
+  # Best model coefficients
   coefficient_dt = model_choice %>%
     tidy() %>%
     lazy_dt() %>%
@@ -532,52 +550,45 @@ evaluate_predictions = function(model_choice, model_list, target, income_dt) {
     as.data.table()
   
   # Allocate chosen model and summarised coefficients to imputed countries
-  # Choose model for imputed countries
   impute_choice_dt = model_choice %>%
-    full_join(y = table("country"), 
-              by =  "country") %>%
     as_tibble() %>%
-    select(-c(income,tslm)) %>%
-    append_region_name() %>%
-    left_join(y = income_dt,
-              by = "country") %>%
-    fill(d_v_a_id, .direction = "down") %>%
-    select(d_v_a_id, country, country_name, region, income, model_id) %>%
+    select(-tslm, -AICc, -region, -income) %>%
+    # Full set of countries...
+    full_join(y  = grouping, 
+              by ="country") %>%
+    fill(d_v_a_id, .direction = "downup") %>%
     filter(is.na(model_id)) %>%
+    # Append mode model choice by region and income...
     left_join(group_choice_dt,
               by = c("region", "income")) %>%
     arrange(region, income) %>%
-    group_by(region) %>%
     mutate(model_id = mode) %>%
-    # Use model selected for upper-middle income countries for high income countries
-    fill(model_id, .direction = "up") %>%
     select(-mode) %>%
-    #Choose predictor coefficients for imputed countries
+    # Append predictor coefficients for imputed countries...
     left_join(coefficient_dt,
               by = c("region", "income", "model_id")) %>%
     arrange(region, income, model_id) %>%
+    # Use coefficients for upper-middle income countries for high income countries...
     group_by(region, model_id) %>%
-    # Use coefficients for upper-middle income countries for high income countries
-    fill(contains("coefficient"), .direction = "up") 
+    fill(contains("coefficient"), .direction = "up") %>%
+    ungroup() %>%
+    as.data.table()
   
   # ---- Full summary of models and predictors for every country ----
   
-  full_coefficient_dt = model_choice %>%
-    tidy() %>%
-    lazy_dt() %>%
-    left_join(y = table("country"), 
-              by =  "country") %>%
-    mutate(region = region.x) %>%
-    select(d_v_a_id, country, country_name, model_id, region, income, term, estimate) %>%
+  # All coefficients including imputed
+  full_coefficient_dt = tidy(model_choice) %>%
+    select(d_v_a_id, country, model_id, 
+           income, region, term, estimate) %>%
     # Spread to wide format...
     pivot_wider(
       names_from  = term,
       names_glue  = "{term}_coefficient",
       values_from = estimate) %>%
-    as.data.table() %>%
-    suppressWarnings() %>%
+    # Bind with imputed values
     rbind(impute_choice_dt) %>%
-    replace(is.na(.), 0)
+    replace(is.na(.), 0) %>%
+    as.data.table()
   
   # ---- Construct predictor function call ----
   
@@ -590,7 +601,7 @@ evaluate_predictions = function(model_choice, model_list, target, income_dt) {
     interpret_covars(covars) %>%
     str_remove_all(" ") %>%
     str_split("\\+") %>%
-    pluck(11) 
+    pluck(length(.)) 
   
   # Construct linear product of predictors and coefficients
   predict_str = predict_covars %>%
@@ -599,13 +610,16 @@ evaluate_predictions = function(model_choice, model_list, target, income_dt) {
     paste(predict_covars, sep = " * ") %>%
     paste(collapse = " + ") 
   
+  # Alway add intercept to linear model
+  intercept_str = " + `(Intercept)_coefficient`"
+  
   # Construct complete function call to be evaluated
-  predict_fn   = paste0("prediction = exp(", predict_str, "+ `(Intercept)_coefficient`",")")
+  predict_fn   = paste0("prediction = exp(", predict_str, intercept_str, ")")
   predict_eval = paste0("predictors %>% mutate(", predict_fn, ")")
   
   # Append coefficients to predictors
   predictors = target %>%
-    left_join(y = income_dt,
+    left_join(y = grouping,
               by = "country") %>%
     left_join(y  = full_coefficient_dt, 
               by = "country") %>% 
@@ -615,7 +629,7 @@ evaluate_predictions = function(model_choice, model_list, target, income_dt) {
   # Evaluate function call to predict all target values
   predict_dt = eval_str(predict_eval) %>%
     select(country, year, prediction) %>%
-    filter(prediction <= 1e-3)
+    filter(prediction < 1e-3)
   
   return(predict_dt)
 }
