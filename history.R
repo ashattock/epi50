@@ -569,66 +569,6 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
     select(-pop, -averted) %>%
     as.data.table()
   
-  
-  
-  
-  # TODO: Move this elsewhere...
-  
-  # ---- Double-counting check ----
-  
-  # Estimated child deaths averted by vaccination
-  averted_dva_dt = read_rds("history", "burden_averted_deaths") %>%
-    left_join(y  = age_effect, 
-              by = "d_v_a_id") %>%
-    mutate(impact_age = impact * scaler) %>%
-    group_by(d_v_a_id, country, year) %>%
-    summarise(averted = sum(impact_age)) %>%
-    ungroup() %>%
-    as.data.table()
-  
-  # Calculate mortality rates in each scenario
-  mortality_dva_dt = grouping_dt %>%
-    left_join(y  = pop_dt, 
-              by = c("country", "year")) %>%
-    # Join child death estimates...
-    left_join(y  = deaths_dt, 
-              by = c("country", "year")) %>%
-    left_join(y  = averted_dva_dt, 
-              by = c("country", "year")) %>%
-    # Summarise over group...
-    group_by(d_v_a_id, group) %>%
-    summarise(pop     = sum(pop), 
-              deaths  = sum(deaths), 
-              averted = sum(averted)) %>%
-    # Calculate child mortality rates...
-    mutate(deaths_alt1 = deaths + averted, 
-           rate        = deaths      / pop, 
-           rate_alt1   = deaths_alt1 / pop) %>%
-    select(-averted) %>%
-    as.data.table()
-  
-  uncorrected = mortality_dva_dt %>%
-    mutate(diff = rate_alt1 - rate) %>%
-    select(diff) %>%
-    sum()
-  
-  bernoulli = mortality_dva_dt %>%
-    mutate(diff = rate_alt1 - rate) %>%
-    mutate(inverse = 1- diff) %>%
-    select(inverse) %>%
-    cumprod()
-  
-  bernoulli = 1-min(bernoulli)
-  
-  lower_bound_error = uncorrected-bernoulli
-  lower_bound_deaths = mortality_dva_dt %>%
-    summarise(pop = mean(pop)) %>%
-    mutate(value = pop * lower_bound_error) %>%
-    select(-pop)
-  
-  
-  
-  
   # ---- Format output ----
   
   # Use more descriptive scenario names
@@ -655,6 +595,66 @@ mortality_rates = function(age_bound = 0, grouping = "none") {
   mortality = list(
     rate  = mortality_format_fn(mortality_dt, "rate"),
     value = mortality_format_fn(mortality_dt, "deaths"))
+  
+  # ---- Double-counting check ----
+  
+  # Perform only in default case
+  if (grouping == "none" && age_bound == 0) {
+    
+    # Estimated infant deaths averted by vaccination
+    averted_dva_dt = read_rds("history", "burden_averted_deaths") %>%
+      lazy_dt() %>%
+      left_join(y  = age_effect, 
+                by = "d_v_a_id") %>%
+      mutate(impact_age = impact * scaler) %>%
+      group_by(d_v_a_id, country, year) %>%
+      summarise(averted = sum(impact_age)) %>%
+      ungroup() %>%
+      as.data.table()
+    
+    # Calculate mortality rates in each scenario
+    mortality_dva_dt = grouping_dt %>%
+      lazy_dt() %>%
+      left_join(y  = pop_dt, 
+                by = c("country", "year")) %>%
+      # Join child death estimates...
+      left_join(y  = deaths_dt, 
+                by = c("country", "year")) %>%
+      left_join(y  = averted_dva_dt, 
+                by = c("country", "year")) %>%
+      # Summarise over group...
+      group_by(d_v_a_id, group) %>%
+      summarise(pop     = sum(pop), 
+                deaths  = sum(deaths), 
+                averted = sum(averted)) %>%
+      # Calculate child mortality rates...
+      mutate(deaths_alt1 = deaths + averted, 
+             rate        = deaths      / pop, 
+             rate_alt1   = deaths_alt1 / pop) %>%
+      select(-averted) %>%
+      as.data.table()
+    
+    # Uncorrected mortality rate change
+    uncorrected = mortality_dva_dt %>%
+      mutate(diff = rate_alt1 - rate) %>%
+      pull(diff) %>%
+      sum()
+    
+    # Combined mortality
+    bernoulli = mortality_dva_dt %>%
+      mutate(diff = rate_alt1 - rate) %>%
+      mutate(inverse = 1 - diff) %>%
+      select(inverse) %>%
+      cumprod()
+    
+    # Approximation of infant deaths double counted
+    double_counted = mortality_dva_dt %>%
+      summarise(pop = mean(pop)) %>%
+      mutate(value = pop * (uncorrected - (1 - min(bernoulli)))) %>%
+      pull(value) %>%
+      round(-3) %>%
+      thou_sep()
+  }
   
   return(mortality)
 }

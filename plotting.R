@@ -1493,7 +1493,8 @@ plot_impute_quality = function(metric) {
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
-  save_fig(g, "S15")
+  save_sub = letters[which(metric %in% o$metrics)]
+  save_fig(g, paste0("S15", save_sub))
 }
 
 # --------------------------------------------------------
@@ -1602,8 +1603,9 @@ plot_impute_perform = function(metric) {
           panel.spacing = unit(0.4, "lines"), 
           legend.position = "none")
   
-  # Save to file
-  save_fig(g, "S16")
+  # Save figure to file
+  save_sub = letters[which(metric %in% o$metrics)]
+  save_fig(g, paste0("S16", save_sub))
 }
 
 #-------------------------------------------------
@@ -1837,8 +1839,6 @@ plot_model_fits = function(metric) {
   
   message("  - Plotting impact function fits")
   
-  # TODO: Do not plot outliers
-  
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "impact", metric, "data") %>%
     format_d_v_a_name()
@@ -1864,19 +1864,51 @@ plot_model_fits = function(metric) {
     metric = metric, 
     uncert = FALSE)
   
+  # Remove outliers for more meaningful plot
+  outlier_dt = fit_dt %>%
+    # Cumulative impact by country...
+    group_by(d_v_a_id, country) %>%
+    slice_max(impact, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    # Determine outlier threshold...
+    group_by(d_v_a_id) %>%
+    summarise(mean = mean(impact), 
+              sd   = sd(impact)) %>%
+    ungroup() %>%
+    mutate(outlier = mean + sd * 3) %>%
+    select(d_v_a_id, outlier) %>%
+    # Determine outlier cases...
+    left_join(y  = fit_dt, 
+              by = "d_v_a_id") %>%
+    filter(impact > outlier) %>%
+    select(d_v_a_id, country) %>%
+    unique() %>%
+    mutate(outlier = TRUE) %>%
+    as.data.table()
+  
+  # Remove outliers from data
+  points_dt = data_dt %>%
+    left_join(y  = outlier_dt, 
+              by = c("d_v_a_id", "country")) %>%
+    filter(is.na(outlier)) %>%
+    select(d_v_a_name, country, fvps, impact)
+  
   # Evaluate selected impact function
-  plot_dt = fit_dt %>%
+  lines_dt = fit_dt %>%
+    left_join(y  = outlier_dt, 
+              by = c("d_v_a_id", "country")) %>%
+    filter(is.na(outlier)) %>%
     format_d_v_a_name() %>%
     select(d_v_a_name, country, fvps, impact)
   
   # Plot function evaluation against the data
-  g = ggplot(plot_dt) +
+  g = ggplot(lines_dt) +
     aes(x = fvps, 
         y = impact, 
         colour = country) +
     # Plot data, then fit on top...
     geom_point(
-      data = data_dt,
+      data = points_dt,
       size = 0.75,
       alpha = 0.5,
       show.legend = FALSE) +
@@ -1921,7 +1953,8 @@ plot_model_fits = function(metric) {
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
-  save_fig(g, "S17")
+  save_sub = letters[which(metric %in% o$metrics)]
+  save_fig(g, paste0("S17", save_sub))
 }
 
 # ---------------------------------------------------------
@@ -2066,7 +2099,8 @@ plot_model_selection = function(metric) {
     c = plot_selection("country", type = "density"))
   
   # Save figures of interest
-  save_fig(g$a, "S18")
+  save_sub = letters[which(metric %in% o$metrics)]
+  save_fig(g$a, paste0("S18", save_sub))
 }
 
 # ---------------------------------------------------------

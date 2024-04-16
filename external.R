@@ -536,7 +536,7 @@ extract_extern_results = function() {
     group_by(d_v_a_id, country, year, age, metric) %>%
     mutate(value = value[scenario == "no_vaccine"] - value) %>%
     ungroup() %>%
-    mutate(value = pmax(value, 0)) %>%  # TEMP: Experimenting
+    mutate(value = pmax(value, 0)) %>%
     # Remove reference to baseline...
     filter(scenario != "no_vaccine") %>%
     select(-scenario) %>%

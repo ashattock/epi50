@@ -71,8 +71,6 @@ run_results = function() {
   
   # ---- Imputation plots ----
   
-  # TODO: Save as (a) for deaths, and (b) for DALYs
-  
   # Check plotting flag
   if (o$plot_imputation) {
     
@@ -91,8 +89,6 @@ run_results = function() {
   }
   
   # ---- Impact function plots ----
-  
-  # TODO: Save as (a) for deaths, and (b) for DALYs
   
   # Check plotting flag
   if (o$plot_impact) {
