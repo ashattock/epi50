@@ -74,8 +74,7 @@ template_measles = function() {
     as.data.table()
   
   # Write to file
-  path = paste0(o$pth$extern, "template")
-  file = file.path(path, "template_measles.csv")
+  file = paste0(o$pth$template, "template_measles.csv")
   fwrite(template_dt, file = file)
 }
 
@@ -85,9 +84,6 @@ template_measles = function() {
 template_polio = function() {
   
   message(" > Creating results template: polio")
-  
-  # Template directory
-  path = paste0(o$pth$extern, "template", file_sep())
   
   # All metrics of intrerest (epi outcomes and number of doses)
   metrics = qc(paralytic_cases, deaths, dalys, opv_doses, ipv_doses)
@@ -114,7 +110,7 @@ template_polio = function() {
       as.data.table()
     
     # Write to file
-    file = paste0(path, "template_polio_", setting, ".csv")
+    file = paste0(o$pth$template, "template_polio_", setting, ".csv")
     fwrite(template_dt, file = file)
   }
 }

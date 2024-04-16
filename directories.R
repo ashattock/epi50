@@ -31,7 +31,8 @@ prepare_dirs = function(o) {
   pth$gapminder = file.path(pth$input, "gapminder")
   
   # Parent path of all external model output files
-  pth$extern = file.path(pth$code, "extern")
+  pth$extern   = file.path(pth$code,   "extern")
+  pth$template = file.path(pth$extern, "template")
   
   # ---- Output directories ----
   
