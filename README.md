@@ -1,5 +1,7 @@
 # EPI50 analysis
 
+DOI: [![DOI](https://zenodo.org/badge/707482422.svg)](https://zenodo.org/doi/10.5281/zenodo.10974443)
+
 An analytical framework to estimate the global public health impact of 50 years of the Expanded Programme on Immunization (EPI). This framework estimates deaths averted, years of live saved, and years of full health gained for 14 pathogens within the EPI portfolio. Exclusions include SARS-CoV-2/COVID-19 and HPV. The analysis is performed at country level for 194 UN member states for the timeframe mid-1974 to mid-2024, with results summarised at the global and WHO-region level. This analysis builds upon infectious disease modelling estimates produced by the Vaccine Impact Modelling Consortium (VIMC) and the Global Burden of Disease study (GBD).
 
 ## The repository
@@ -8,7 +10,7 @@ This open-source repository contains all code needed to fully reproduce the anal
 
 [Contribution of vaccination to improved child survival: quantifying 50 years of the Expanded Programme on Immunization](https://www.sciencedirect.com/science/article/pii/S1755436521000785)
 
-This repository is primarily written in R, and is stable for R versions 4.3.0 and 4.3.2. It may be possible to run alternative versions of R, but these have not been tested and verified. Configuration files are primarily written in YAML markup. The use of YAML files requires no additional software beyond the R packages on which this repositiory depends.
+This repository is primarily written in R, and is stable for R versions 4.3.0 and 4.3.2. It may be possible to run alternative versions of R, but these have not been tested and verified. Configuration files are primarily written in YAML markup. The use of YAML files requires no additional software beyond the R packages upon which this repositiory depends.
 
 We invite any potential collaborators interested in expanding upon this analysis to fork this repository. Please submit a pull request if you feel the parent repository would benefit from any changes to code or configuration files.
 
@@ -18,7 +20,7 @@ All R package dependencies will be automatically installed (if necessary) and lo
 
 #### Computing resource requirements
 
-No special cluster computing resources are required to run this analysis. Local parallelisation is used throughout the pipeline to improve runtime, however this parallelisation is only available on UNIX operating systems. Running this analysis on Windows operating systems is still possible, yet will be slower. Expect the full analysis (exluding any package installations) to take between 45 to 60 minutes on a UNIX machine and between 60 and 120 minutes on a Windows machine, dependant on machine specifications. R console output will keep the user updated with runtime progress.
+No special cluster computing resources are required to run this analysis. Local parallelisation is used throughout the pipeline to improve runtime, however this parallelisation is only available on UNIX operating systems. Running this analysis on Windows operating systems is still possible, yet will be considerably slower. Expect the full analysis (exluding any package installations) to take around one hour on a UNIX machine and two to four hours on a Windows machine, dependant on machine specifications. R console output will keep the user updated with runtime progress.
 
 ## Directory structure
 
@@ -28,13 +30,13 @@ All code required to run the pipeline sits within the main repository directory 
  2. An `/input/` directory containing the input data required to run the pipeline.
  3. An `/extern/` directory containing processed results from the measles and polio models used in this analysis.
 
-A fourth directory, `/output/`, is automatically created when the pipeline is first launched. All intermediary and final results are stored in this output folder. The figures presented in the peer-reviewed publication are stored within the `/output/figures/manuscript/` sub-directory. 
+A fourth directory, `/output/`, is automatically created when the pipeline is first launched. Intermediary and final results are stored in this output folder. The figures presented in the peer-reviewed publication are stored within the `/output/figures/` sub-directory. 
 
 ## Analysis configuration
 
-The files contained in the `/config/` directory, all written in YAML mark up, configure the analysis to be run. These configuration files set key options such as diseases and vaccines to be modelled, countries to be run, and covariates data to be used for regression modelling. These configuration files also define data dictionaries for converting between various data sources and EPI variable naming conventions. Configured data sets include the WHO Immunization Information System (WIISE), World Population Prospects (WPP), Global Burden of Disease (GBD), and GapMinder. Several general algorithm options and model assumptions are also defined in `options.R`.
+The files contained in the `/config/` directory, all written in YAML mark up, configure the analysis to be run. These configuration files set key options such as diseases and vaccines to be modelled, countries to be run, and covariates data to be used for regression modelling. These configuration files also set general model assumptions, general algorithm options, and define data dictionaries for converting between various data sources and EPI variable naming conventions. Configured data sets include the WHO Immunization Information System (WIISE), World Population Prospects (WPP), Global Burden of Disease (GBD), and GapMinder.
 
-As standard, the configuration files in this repository will fully reproduce the analysis presented in the corresponding publication.
+As standard, the configuration files in this repository will fully reproduce the analysis presented in the aforementioned publication.
 
 ## Running the pipeline
 
@@ -56,7 +58,7 @@ The `run_prepare` module loads and formats modelling estimates from VIMC and GBD
 #### Module 2: External models
 The `run_external` module loads and formats outcomes from transmission models simulated outside of VIMC scope. Both measles and polio are considered 'externally modelled' for the purpose of this analysis. Only minor formatting jobs are applied to externally modelled diseases, as this analysis attempts to use the outcomes in their purest form.
 
-Note that it is possible to simulate the [DynaMICE measles model](https://pubmed.ncbi.nlm.nih.gov/37474227/) directly from within this module. However this requires the user to clone another [github repository](https://github.com/ashattock/dynamice) and also have access to a computing cluster that uses the SLURM queueing system. 
+Note that it is possible (although not necessary) to (re)simulate the [DynaMICE measles model](https://pubmed.ncbi.nlm.nih.gov/37474227/) directly from within this module. However this requires the user to clone another [github repository](https://github.com/ashattock/dynamice) and also have access to a computing cluster that uses the SLURM queueing system. If the user does not explictly run the model, previously simulated output (stored in `/extern/`) is used.
 
 #### Module 3: Static models
 The `run_static` module produces vaccine impact estimates for diseases outside of VIMC scope and which haven't been 'externally modelled'. In this analysis, static modelling is used for diphtheria, tetanus, pertussis, and tuberculosis. Broadly, vaccine impact is calculated using a combination of GBD burden estimates, vaccine efficacy profiles, and vaccine coverage. A full description of the static modelling approach used in this analysis is provided in the Supplementary Material of the publication. 
