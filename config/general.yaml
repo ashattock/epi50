@@ -26,6 +26,9 @@ partial_final_year: 0.4167  # NOTE: 5 months of year (May 2024)
 # Upper bound for vaccine coverage values
 max_coverage: 0.996
 
+# Assumption for pre 1980 coverage in low and middle income countries
+pre_1980_assumption: "linear"  # OPTIONS: "linear" (conservative) or "constant" (ambitious)
+
 # Year that high-income countries switch to acellular pertussis vaccine
 wholecell_acellular_switch: 1995
   
