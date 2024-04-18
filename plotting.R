@@ -917,7 +917,7 @@ plot_static = function() {
 # ---------------------------------------------------------
 plot_impute_quality = function(metric) {
   
-  message("  - Plotting imputation quality of fit")
+  message("  - Plotting imputation quality of fit: ", metric)
   
   # ---- Load results from fitting ----
   
@@ -1020,7 +1020,7 @@ plot_impute_quality = function(metric) {
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
-  save_sub = letters[which(metric %in% o$metrics)]
+  save_sub = letters[which(o$metrics %in% metric)]
   save_fig(g, paste0("S15", save_sub))
 }
 
@@ -1029,7 +1029,7 @@ plot_impute_quality = function(metric) {
 # --------------------------------------------------------
 plot_impute_perform = function(metric) {
   
-  message("  - Plotting predictive performance by country")
+  message("  - Plotting predictive performance by country: ", metric)
   
   # Function to load imputation results
   load_results_fn = function(id, pull) {
@@ -1136,7 +1136,7 @@ plot_impute_perform = function(metric) {
           legend.position = "none")
   
   # Save figure to file
-  save_sub = letters[which(metric %in% o$metrics)]
+  save_sub = letters[which(o$metrics %in% metric)]
   save_fig(g, paste0("S16", save_sub))
 }
 
@@ -1147,7 +1147,7 @@ plot_impute_perform = function(metric) {
 # ---------------------------------------------------------
 plot_model_fits = function(metric) {
   
-  message("  - Plotting impact function fits")
+  message("  - Plotting impact function fits: ", metric)
   
   # Load data used for impact function fitting
   data_dt = read_rds("impact", "impact", metric, "data") %>%
@@ -1263,7 +1263,7 @@ plot_model_fits = function(metric) {
           panel.spacing = unit(0.5, "lines"))
   
   # Save figure to file
-  save_sub = letters[which(metric %in% o$metrics)]
+  save_sub = letters[which(o$metrics %in% metric)]
   save_fig(g, paste0("S17", save_sub))
 }
 
@@ -1272,7 +1272,7 @@ plot_model_fits = function(metric) {
 # ---------------------------------------------------------
 plot_model_selection = function(metric) {
   
-  message("  - Plotting impact model selection")
+  message("  - Plotting impact model selection: ", metric)
   
   # Define colour scheme
   colour_map = "brewer::set1"
@@ -1409,7 +1409,7 @@ plot_model_selection = function(metric) {
     c = plot_selection("country", type = "density"))
   
   # Save figures of interest
-  save_sub = letters[which(metric %in% o$metrics)]
+  save_sub = letters[which(o$metrics %in% metric)]
   save_fig(g$a, paste0("S18", save_sub))
 }
 
