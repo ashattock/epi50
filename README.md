@@ -2,6 +2,13 @@
 
 An analytical framework to estimate the global public health impact of 50 years of the Expanded Programme on Immunization (EPI). This framework estimates deaths averted, years of live saved, and years of full health gained for 14 pathogens within the EPI portfolio. Exclusions include SARS-CoV-2/COVID-19 and HPV. The analysis is performed at country level for 194 UN member states for the timeframe mid-1974 to mid-2024, with results summarised at the global and WHO-region level. This analysis builds upon infectious disease modelling estimates produced by the Vaccine Impact Modelling Consortium (VIMC) and the Global Burden of Disease study (GBD).
 
+## The manuscript 
+
+Please see below the manuscript accepted for publication in The Lancet on 22 April 2024:
+
+[THELANCET-D-24-01491_R3__1_.pdf](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/files/15062441/THELANCET-D-24-01491_R3__1_.pdf)
+
+
 ## The repository
 
 This open-source repository contains all code needed to fully reproduce the analysis presented in the peer-reviewed publication:
