@@ -6,7 +6,7 @@ An analytical framework to estimate the global public health impact of 50 years 
 
 The manuscript has been accepted for publication in _The Lancet_ on 22 April 2024:
 
-[THELANCET-D-24-01491_R3__1_.pdf](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/files/15062441/THELANCET-D-24-01491_R3__1_.pdf)
+(The manuscript will be made available on 15:00 CEST, 24 April 2024) 
 
 
 ## The repository
