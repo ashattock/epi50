@@ -386,28 +386,50 @@ linear_coverage_scaleup = function(coverage_dt) {
   rep_fn = function(rep_year)
     income_dt %>% mutate(year = rep_year, coverage = NA)
   
-  # For non-high-income countries, assume scale up from zero
-  scaleup_dt = scaleup_years %>%
+  # For non-high-income countries, create blank scale up datatable
+  template_dt = scaleup_years %>%
     # Repeat trivialised coverage datatable for each year
     lapply(rep_fn) %>%
     rbindlist() %>%
     rbind(income_dt) %>%
     arrange(d_v_a_id, country, age, year) %>%
     # Only interested in non-HIC...
-    filter(income != "hic") %>%
-    # KEY ASSUMPTION: Set 1974 coverage to zero...
-    mutate(coverage = ifelse(
-      test = year == min(scaleup_years), 
-      yes  = 0, 
-      no   = coverage)) %>%
-    # Linearly interpolate from zero to 1980 coverage...
-    group_by(d_v_a_id, country, age) %>%
-    mutate(coverage = na_interpolation(coverage)) %>%
-    ungroup() %>%
+    filter(income != "hic")
+  
+  # Set 1974 coverage to zero and linearly scale up to 1980
+  if (o$pre_1980_assumption == "linear") {
+    
+    # NOTE: A conservative assumption
+    scaleup_dt = template_dt %>%
+      # Start at zero coverage...
+      mutate(coverage = ifelse(
+        test = year == min(scaleup_years), 
+        yes  = 0, 
+        no   = coverage)) %>%
+      # Linearly interpolate from zero to 1980 coverage...
+      group_by(d_v_a_id, country, age) %>%
+      mutate(coverage = na_interpolation(coverage)) %>%
+      ungroup() %>%
+      as.data.table()
+  }
+  
+  # Alternatively assume constant over this period
+  if (o$pre_1980_assumption == "constant") {
+    
+    # NOTE: An ambitious assumption
+    scaleup_dt = template_dt %>%
+      group_by(d_v_a_id, country, age) %>%
+      fill(coverage, .direction = "up") %>%
+      ungroup() %>%
+      as.data.table()
+  }
+  
+  # Append cohort size and calculate FVPs
+  scaleup_dt %<>%
     # Remove 1980 value to avoid repetition...
     filter(year %in% scaleup_years, 
            coverage > 0) %>%
-    # Append cohort size and calculate FVPs...
+    # Calculate FVPs...
     left_join(y  = table("wpp_pop"), 
               by = c("country", "year", "age")) %>%
     rename(cohort = pop) %>%

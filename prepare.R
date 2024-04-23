@@ -16,25 +16,25 @@ run_prepare = function() {
   if (!is.element(1, o$run_module)) return()
   
   message("* Preparing input data")
-
+  
   # Convert config yaml files to datatables
   prepare_config_tables()
   
   # Streamline VIMC impact estimates for quick loading
   prepare_vimc_estimates()
-
+  
   # Prepare GBD estimates of deaths for non-VIMC pathogens
   prepare_gbd_estimates()
-
+  
   # Parse vaccine efficacy profile for non-VIMC pathogens
   prepare_vaccine_efficacy()
-
+  
   # Prepare country income status classification over time
   prepare_income_status()
-
+  
   # Prepare demography-related estimates from WPP
   prepare_demography()
-
+  
   # Prepare all covariates for regression modelling
   prepare_covariates()  # See covariates.R
   

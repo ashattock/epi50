@@ -55,8 +55,8 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_imputation) {
     
-    # Repeat for deaths and DALYs
-    for (metric in o$metrics) {
+    # Plot for deaths only
+    for (metric in o$metrics[1]) {
       
       # Plot predicted vs observed for all countries
       plot_impute_quality(metric)
@@ -71,8 +71,8 @@ run_results = function() {
   # Check plotting flag
   if (o$plot_impact) {
     
-    # Repeat for deaths and DALYs
-    for (metric in o$metrics) {
+    # Plot for deaths only
+    for (metric in o$metrics[1]) {
       
       # Plot impact function evaluation
       plot_model_fits(metric)
