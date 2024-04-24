@@ -8,7 +8,7 @@ An analytical framework to estimate the global public health impact of 50 years 
 
 The code in this repository fully reproduces all analyses and results presented in the following peer-reviewed manuscript. This manuscript has been accepted for publication in _The Lancet_ and is currently in press.
 
-Shattock AJ, Johnson HC, Sim SY, Carter A, Lambach P, Hutubessy RC, ... & Bar-Zeev N. [Vaccine contributions to reductions in childhood mortality: quantifying 50 years of the Expanded Programme on Immunization](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/blob/master/manuscript/Accepted%20manuscript%20-%20Contribution%20of%20vaccination%20to%20improved%20child%20survival.pdf). _The Lancet_. 2024.
+Shattock AJ, Johnson HC, Sim SY, Carter A, Lambach P, Hutubessy RC, ... & Bar-Zeev N. [Vaccine contributions to reductions in childhood mortality: quantifying 50 years of the Expanded Programme on Immunization](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/blob/master/manuscript/). _The Lancet_. 2024.
 
 See our [frequently asked questions](https://github.com/ashattock/epi50/blob/master/manuscript/Frequently%20Asked%20Questions.pdf) guide to help aid interpretation of this study and its findings.
 
