@@ -8,13 +8,13 @@ An analytical framework to estimate the global public health impact of 50 years 
 
 The code in this repository fully reproduces all analyses and results presented in the following peer-reviewed publication. This manuscript has been accepted for publication in _The Lancet_ and is currently in press.
 
-[Shattock AJ, Johnson HC, Sim SY, Carter A, Lambach P, Hutubessy RC, ... and Bar-Zeev N. __Vaccine contributions to reductions in childhood mortality: quantifying 50 years of the Expanded Programme on Immunization__. _The Lancet_. 2024.](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/blob/master/manuscript/Accepted%20manuscript%20-%20Contribution%20of%20vaccination%20to%20improved%20child%20survival.pdf)
+Shattock AJ, Johnson HC, Sim SY, Carter A, Lambach P, Hutubessy RC, ... & Bar-Zeev N. [Vaccine contributions to reductions in childhood mortality: quantifying 50 years of the Expanded Programme on Immunization](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/blob/master/manuscript/Accepted%20manuscript%20-%20Contribution%20of%20vaccination%20to%20improved%20child%20survival.pdf). _The Lancet_. 2024.
 
-See our [Frequently Asked Questions](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/blob/master/manuscript/Accepted%20manuscript%20-%20Contribution%20of%20vaccination%20to%20improved%20child%20survival.pdf) guide to help aide interpretation of this study and its findings.
+See our [Frequently Asked Questions](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/blob/master/manuscript/Accepted%20manuscript%20-%20Contribution%20of%20vaccination%20to%20improved%20child%20survival.pdf) guide to help aid interpretation of this study and its findings.
 
 ## The repository
 
-This open-source repository is primarily written in R, and is stable for R versions 4.3.0 and 4.3.2. It may be possible to run alternative versions of R, but these have not been tested and verified. Configuration files are primarily written in YAML markup. The use of YAML files requires no additional software beyond the R packages upon which this repositiory depends.
+This open-source repository is primarily written in R, and is stable for R versions 4.3.0 and 4.3.2. It may be possible to run alternative versions of R, but these have not been tested and verified. Configuration files are primarily written in YAML markup. The use of YAML files requires no additional software beyond the R packages upon which this repository depends.
 
 We invite any potential collaborators interested in expanding upon this analysis to fork this repository. Please submit a pull request if you feel the parent repository would benefit from any changes to code or configuration files.
 
@@ -24,7 +24,7 @@ All R package dependencies will be automatically installed (if necessary) and lo
 
 #### Computing resource requirements
 
-No special cluster computing resources are required to run this analysis. Local parallelisation is used throughout the pipeline to improve runtime, however this parallelisation is only available on UNIX operating systems. Running this analysis on Windows operating systems is still possible, yet will be considerably slower. Expect the full analysis (exluding any package installations) to take around one hour on a UNIX machine and two to four hours on a Windows machine, dependant on machine specifications. R console output will keep the user updated with runtime progress.
+No special cluster computing resources are required to run this analysis. Local parallelisation is used throughout the pipeline to improve runtime, however this parallelisation is only available on UNIX operating systems. Running this analysis on Windows operating systems is still possible, yet will be considerably slower. Expect the full analysis (excluding any package installations) to take around one hour on a UNIX machine and two to four hours on a Windows machine, dependant on machine specifications. R console output will keep the user updated with runtime progress.
 
 ## Directory structure
 
@@ -44,7 +44,7 @@ As standard, the configuration files in this repository will fully reproduce the
 
 ## Running the pipeline
 
-The analysis pipeline consists of eight *modules*, indentified by numbers 1 to 8, each described below. In general, these modules should be run consecutively from 1 to 8. The module/s to be run are defined by the `run_module` variable in line 20 of `launch.R`. Use a single value to run/re-run a specific module, or use a vector to run/re-run a subset of modules or all modules. 
+The analysis pipeline consists of eight *modules*, identified by numbers 1 to 8, each described below. In general, these modules should be run consecutively from 1 to 8. The module/s to be run are defined by the `run_module` variable in line 20 of `launch.R`. Use a single value to run/re-run a specific module, or use a vector to run/re-run a subset of modules or all modules. 
 
 ```{r}
 # All of the following are valid syntax for defining modules to be run (line 20, launch.R)
@@ -62,7 +62,7 @@ The `run_prepare` module loads and formats modelling estimates from VIMC and GBD
 #### Module 2: External models
 The `run_external` module loads and formats outcomes from transmission models simulated outside of VIMC scope. Both measles and polio are considered 'externally modelled' for the purpose of this analysis. Only minor formatting jobs are applied to externally modelled diseases, as this analysis attempts to use the outcomes in their purest form.
 
-Note that it is possible (although not necessary) to (re)simulate the [DynaMICE measles model](https://pubmed.ncbi.nlm.nih.gov/37474227/) directly from within this module. However this requires the user to clone another [github repository](https://github.com/ashattock/dynamice) and also have access to a computing cluster that uses the SLURM queueing system. If the user does not explictly run the model, previously simulated output (stored in `/extern/`) is used.
+Note that it is possible (although not necessary) to (re)simulate the [DynaMICE measles model](https://pubmed.ncbi.nlm.nih.gov/37474227/) directly from within this module. However this requires the user to clone another [github repository](https://github.com/ashattock/dynamice) and also have access to a computing cluster that uses the SLURM queueing system. If the user does not explicitly run the model, previously simulated output (stored in `/extern/`) is used.
 
 #### Module 3: Static models
 The `run_static` module produces vaccine impact estimates for diseases outside of VIMC scope and which haven't been 'externally modelled'. In this analysis, static modelling is used for diphtheria, tetanus, pertussis, and tuberculosis. Broadly, vaccine impact is calculated using a combination of GBD burden estimates, vaccine efficacy profiles, and vaccine coverage. A full description of the static modelling approach used in this analysis is provided in the Supplementary Material of the publication. 
@@ -71,7 +71,7 @@ The `run_static` module produces vaccine impact estimates for diseases outside o
 The `run_regression("impute")` module uses time-series regression models to produce vaccine impact estimates for countries outside of VIMC scope, for diseases within VIMC scope. A series of models that vary in terms of predictor covariates are evaluated for each vaccine in each country, with the most parsimonious model selected. For countries without impact estimates, such estimates are imputed using the most commonly selected model in each WHO region.
 
 #### Module 5: Impact functions (temporal-extrapolation)
-The `run_impact` module seeks to determine the relationship between vaccine coverage and vaccine impact for each vaccine in each country. This is acheived by fitting four pre-defined statistical functions (straight line, exponential growth, logarithmic growth, sigmoidal growth) in cumulative space, and selecting the most parsimonious function.
+The `run_impact` module seeks to determine the relationship between vaccine coverage and vaccine impact for each vaccine in each country. This is achieved by fitting four pre-defined statistical functions (straight line, exponential growth, logarithmic growth, sigmoidal growth) in cumulative space, and selecting the most parsimonious function.
 
 #### Module 6: Historical evaluation
 The `run_history` module compiles the final vaccine impact results by evaluating impact functions for each vaccine in each country using all coverage values. Temporal extrapolation takes effect at this stage, where vaccine coverage values that do not have corresponding impact estimates are evaluated.
