@@ -6,18 +6,13 @@ An analytical framework to estimate the global public health impact of 50 years 
 
 ## The manuscript 
 
-The manuscript has been accepted for publication in _The Lancet_ on 22 April 2024:
+The code in this repository fully reproduces all analyses and results presented in the following peer-reviewed publication. This manuscript has been accepted for publication in _The Lancet_ and is currently in press. A working link to the accepted version of the manuscript will be made available here after 15:00 CEST, 24 April 2024.
 
-(The manuscript will be available after 15:00 CEST, 24 April 2024) 
-
+[Shattock AJ, Johnson HC, Sim SY, Carter A, Lambach P, Hutubessy RC, ... and Bar-Zeev N. Vaccine Contributions to Reductions in Childhood Mortality: Quantifying 50 Years of the Expanded Programme on Immunization. The Lancet. 2024.](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/blob/master/manuscript/Accepted%20manuscript%20-%20Contribution%20of%20vaccination%20to%20improved%20child%20survival.pdf)
 
 ## The repository
 
-This open-source repository contains all code needed to fully reproduce the analysis presented in the peer-reviewed publication:
-
-[Contribution of vaccination to improved child survival: quantifying 50 years of the Expanded Programme on Immunization](https://www.sciencedirect.com/science/article/pii/S1755436521000785)
-
-This repository is primarily written in R, and is stable for R versions 4.3.0 and 4.3.2. It may be possible to run alternative versions of R, but these have not been tested and verified. Configuration files are primarily written in YAML markup. The use of YAML files requires no additional software beyond the R packages upon which this repositiory depends.
+This open-source repository is primarily written in R, and is stable for R versions 4.3.0 and 4.3.2. It may be possible to run alternative versions of R, but these have not been tested and verified. Configuration files are primarily written in YAML markup. The use of YAML files requires no additional software beyond the R packages upon which this repositiory depends.
 
 We invite any potential collaborators interested in expanding upon this analysis to fork this repository. Please submit a pull request if you feel the parent repository would benefit from any changes to code or configuration files.
 
@@ -88,7 +83,7 @@ The `run_results` module produces all result and diagnostic figures presented in
 ## Authors
 
 #### Development and maintenance:
-* Andrew J. Shattock (shattocka@who.int)
+* Andrew J. Shattock (shattocka@who.int, andrewjames.shattock@unibas.ch)
 
 #### Contributors:
 * Helen C. Johnson
