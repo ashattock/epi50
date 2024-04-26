@@ -1,4 +1,4 @@
-These results are taken from an orderly report createed by VIMC (vaccineimpact.org).
+These results are taken from an orderly report created by VIMC (vaccineimpact.org).
 
 Report: adhoc-epi50-impact
 
