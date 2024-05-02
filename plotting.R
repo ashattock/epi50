@@ -485,6 +485,11 @@ plot_gbd_estimates = function() {
   # Flag for plotting recent extrapolation
   plot_extrap = FALSE
   
+  # Define meaningful metric names
+  metric_dict = c(
+    deaths = "Deaths", 
+    dalys  = "Disability-adjusted life years")
+  
   # Define age groups and associated upper bounds
   age_groups = c(
     "Neonates"      = -1,
@@ -513,7 +518,6 @@ plot_gbd_estimates = function() {
     left_join(y  = age_group_dt,
               by = "age") %>%
     # Summarise for these broad age groups...
-    lazy_dt() %>%
     group_by(disease, year, age_group) %>%
     summarise(deaths = sum(deaths_disease), 
               dalys  = sum(dalys_disease)) %>%
@@ -522,7 +526,9 @@ plot_gbd_estimates = function() {
     pivot_longer(cols = c(deaths, dalys), 
                  names_to = "metric") %>%
     replace_na(list(value = 0)) %>%
-    append_metric_name() %>%
+    # Append metric names...
+    mutate(metric = recode(metric, !!!metric_dict), 
+           metric = factor(metric, metric_dict)) %>%
     # Set age group factors for meaningful plotting order...
     mutate(age_group = factor(age_group, names(age_groups))) %>%
     select(disease, metric, year, age_group, value) %>%
@@ -1006,18 +1012,18 @@ plot_impute_quality = function(metric) {
   
   # Prettify theme
   g = g + theme_classic() + 
-    theme(axis.text     = element_text(size = 8),
+    theme(axis.text     = element_text(size = 10),
           axis.text.x   = element_text(hjust = 1, angle = 50),
           axis.title.x  = element_text(
-            size = 18, margin = margin(l = 10, r = 20)),
+            size = 24, margin = margin(b = 10, t = 20)),
           axis.title.y  = element_text(
-            size = 18, margin = margin(b = 10, t = 20)),
+            size = 24, margin = margin(l = 10, r = 20)),
           axis.line     = element_blank(),
-          strip.text    = element_text(size = 12),
+          strip.text    = element_text(size = 14),
           strip.background = element_blank(), 
           panel.border  = element_rect(
             linewidth = 0.5, fill = NA),
-          panel.spacing = unit(0.5, "lines"))
+          panel.spacing = unit(1, "lines"))
   
   # Save figure to file
   save_sub = letters[which(o$metrics %in% metric)]
@@ -1226,7 +1232,7 @@ plot_model_fits = function(metric) {
     # Faceting with wrap labelling...
     facet_wrap(
       facets   = vars(d_v_a_name), 
-      labeller = label_wrap_gen(width = 30), 
+      labeller = label_wrap_gen(width = 24), 
       scales   = "free") + 
     # Set colour scheme...
     scale_colour_manual(
