@@ -6,11 +6,11 @@ An analytical framework to estimate the global public health impact of 50 years 
 
 ## The manuscript 
 
-The code in this repository fully reproduces all analyses and results presented in the following peer-reviewed manuscript. This manuscript has been accepted for publication in _The Lancet_ and is currently in press.
+The code in this repository fully reproduces all analyses and results presented in the following peer-reviewed manuscript.
 
-Shattock AJ, Johnson HC, Sim SY, Carter A, Lambach P, Hutubessy RC, ... & Bar-Zeev N. [Vaccine contributions to reductions in childhood mortality: quantifying 50 years of the Expanded Programme on Immunization](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/blob/master/manuscript/). _The Lancet_. 2024.
+Shattock et al. [Vaccine contributions to reductions in childhood mortality: quantifying 50 years of the Expanded Programme on Immunization](https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(24)00850-X/abstract). _The Lancet_. 2024.
 
-See our [frequently asked questions](https://github.com/ashattock/epi50/blob/master/manuscript/Frequently%20Asked%20Questions.pdf) guide to help aid interpretation of this study and its findings.
+See our [frequently asked questions](https://github.com/WorldHealthOrganization/epi50-vaccine-impact/tree/master/Frequently%20Asked%20Questions.pdf) guide to help aid interpretation of this study and its findings.
 
 ## The repository
 
@@ -81,6 +81,30 @@ The `run_regression("infer")` module reapplies the regression models used for ge
 
 #### Module 8: Produce results
 The `run_results` module produces all result and diagnostic figures presented in the publication.
+
+## Trouble shooting
+
+#### R versioning
+
+Error message:
+```{r}
+This software is stable with R version(s): X (currently running Y)
+```
+
+Issue: You are attempting to run the pipeline using an untested version of R.
+
+Solution: You have two possible solutions. One, download and install a compatible version of R (stable versions are detailed in the error message). Two, comment out lines 23-25 in `dependencies.R`. This will bypass the R version check. However, there is no guarantee the analysis will run through; some packages may not be available for untested versions of R. Moreover, not all packages are always back-compatible, meaning function uses can change, which may effect results. 
+
+#### Memory issues
+
+Error message:
+```{r}
+Cannot allocate vector of size X
+```
+
+Issue: Your machine does not have sufficient memory to run the pipeline.
+
+Solution: Consider one of these two possible solutions. One, reconfigure your machine to allow R (and possibly Rstudio) a higher memory allocation. Two, reduce down the number of impact function posterior samples used to generate uncertainty bounds. To do this, change the value of the `uncertainty_samples` variable in the YAML configuration file `/config/general.yaml`, line 87. By default this value is 100. Consider decreasing to 20, 10, or possibly even 5. This will not effect the primary results, but will likley have an impact on the width of the uncertainty bounds.
 
 ## Authors
 
