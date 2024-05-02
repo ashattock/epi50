@@ -123,7 +123,6 @@ summarise_uncertainty = function(data, cumulative = FALSE) {
   bounds_dt = data %>%
     lazy_dt() %>%
     filter(sample != "best") %>%
-    group_by() %>%
     group_by(d_v_a_id, country, year) %>%
     summarise(lower = quantile(impact, o$quantiles[1]),
               upper = quantile(impact, o$quantiles[2])) %>%
