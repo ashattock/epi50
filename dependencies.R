@@ -68,16 +68,13 @@ packages = c(
   "lubridate",      # Data formatting functionality
   "naniar",         # Data formatting functionality
   "progress",       # Progress bar
-  "GGally",         # Plotting correlation
   "ggpubr",         # Plotting functionality
   "ggnewscale",     # Plotting functionality
   "ggtext",         # Plotting functionality
   "ggh4x",          # Plotting functionality
-  "ggridges",       # Plotting functionality
   "patchwork",      # Plotting functionality
   "scales",         # Plotting functionality
   "lemon",          # Plotting functionality
-  "dotwhisker",     # Plotting functionality
   "pals",           # Colour palettes
   "colorspace",     # Colour palettes
   "svglite")        # Figure saving
