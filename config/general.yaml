@@ -84,7 +84,12 @@ init_impact_years: 3
 # ---- Uncertainty settings ----
 
 # Number of posterior samples for generating uncertainty
-uncertainty_samples: 100  # NOTE: Bounded by value of mcmc_samples
+#
+# NOTES:
+#  1) This value is limited by value of mcmc_samples; increase this if necessary
+#  2) 100 samples were used for the published paper, however we've reduced to 10 
+#     here to ease memory requirements and, in turn, to facilitate reproducibility 
+uncertainty_samples: 10
 
 # Bound uncertainty above and below a factor of best estimate
 uncertainty_max: 10
